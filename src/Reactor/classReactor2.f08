@@ -3,14 +3,14 @@ module classReactor2                                                ! class defi
     implicit none                                                   ! force declaration of all variables
     type, public, extends(Reactor) :: objReactor2                   ! type declaration for class - extends interface
         contains
-            procedure :: new => newObjReactor2
+            procedure :: create => newObjReactor2
             procedure :: destroy => destroyObjReactor2
     end type
 
     contains
-        subroutine newObjReactor2(Me, lname)                        ! constructor method
+        subroutine newObjReactor2(Me)                               ! constructor method
             class(objReactor2) :: Me                                ! correct?
-            type(character) :: lname                                ! object name
+            Me%name = "Reactor 2"
         end subroutine
 
         subroutine destroyObjReactor2(Me)                           ! finaliser method

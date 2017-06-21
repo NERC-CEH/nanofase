@@ -9,37 +9,39 @@ program main
 
     ! Initialise the first bed sediment layer with two Biota objects,
     ! one of each type (1 and 2).
-    call bs1%create( &
+    call bs1%create("Bed Sediment Layer A", &
         ldepth=1.0, &
         lpdens=1.0, &
         lporosity=1.0, &
-        lnbiota=2, &                ! Just a thought: lnbiota is redundant really, we can just use size(ltbiota)
         ltbiota=[1,2], &
-        lnreactor=3, &
         ltreactor=[1,2,1] &
     )
-    write(*, '(a)') "Bed sediment with two Biota objects:"
+    write(*, '(a)') "Bed sediment with two Biota objects and three Reactor objects:"
     ! Print out the names of the Biota objects ('Biota 1' and 'Biota 2' - hard coded
     ! in classBiotaX for testing purposes.)
+    write (*,'(a)') trim(bs1%name)
     do i=1, size(bs1%colBiota)
         write(*,'(a)') trim(bs1%colBiota(i)%item%name)
     end do
-
+    do i=1, size(bs1%colReactor)
+        write(*,'(a)') trim(bs1%colReactor(i)%item%name)
+    end do
     ! Do the same with the second bed sediment layer, but add a few more Biota objects
     ! of types 1, 2, 2, 1, 2.
-    call bs2%create( &
+    call bs2%create("Bed Sediment Layer B", &
         ldepth=1.0, &
         lpdens=1.0, &
         lporosity=1.0, &
-        lnbiota=5, &
         ltbiota=[1,2,2,1,2], &
-        lnreactor=3, &
-        ltreactor=[1,2,1] &
+        ltreactor=[1,2] &
     )
-    write(*, '(a)') "Bed sediment with five Biota objects:"
-    ! Print out the names of the Biota objects
+    write(*, '(a)') "Bed sediment with five Biota objects and two Reactor objects:"
+    ! Print out the names of the Biota and Reactor objects
+    write (*,'(a)') trim(bs2%name)
     do i=1, size(bs2%colBiota)
         write(*,'(a)') trim(bs2%colBiota(i)%item%name)
     end do
-    
+    do i=1, size(bs2%colReactor)
+        write(*,'(a)') trim(bs2%colReactor(i)%item%name)
+    end do
 end program
