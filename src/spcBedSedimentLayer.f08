@@ -35,8 +35,8 @@ module spcBedSedimentLayer                                          ! abstract s
       contains
                                                                     ! deferred methods: must be defined in all subclasses
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure(createBSL), public :: create                      ! constructor method
-        procedure(destroyBSL), public :: destroy                    ! finaliser method
+        procedure, public :: create => createBSL                    ! constructor method
+        procedure, public :: destroy => destroyBSL                  ! finaliser method
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         procedure, public :: SetDepth                               ! procedure to set the depth at initialisation
         procedure, public :: SetPdens                               ! procedure to set the particle density at initialisation
@@ -53,7 +53,7 @@ module spcBedSedimentLayer                                          ! abstract s
                          ltreactor)                                 ! constructor method
                                                                     ! dummy variables
         class(BedSedimentLayer) :: Me                               ! reference to this object, using the type of the abstract superclass
-        character(len=256) :: lname                                 ! the name of this object
+        character(len=*) :: lname                                   ! the name of this object
         type(real) :: ldepth                                        ! layer depth
         type(real) :: lpdens                                        ! layer particle density
         type(real) :: lporosity                                     ! layer porosity

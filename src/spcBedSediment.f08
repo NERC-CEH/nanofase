@@ -32,7 +32,9 @@ module spcBedSediment                                               ! abstract s
                       ltBSL)                                        ! constructor method
                                                                     ! dummy variables
         class(BedSediment) :: Me                                    ! reference to this object, using the type of the abstract superclass
-        character(len=256) :: lname                                 ! the name of this object
+        character(len=*) :: lname                                   ! the name of this object
+                                                                    ! SH: Changed to assumed-length character string create() procedure
+                                                                    ! will accept character strings less than 256.
         type(integer) :: ltBSL(:)                                   ! array of integers representing BedSedimentLayer types to create
                                                                     ! internal variables
         type(integer) :: x                                          ! loop counter
@@ -50,13 +52,14 @@ module spcBedSediment                                               ! abstract s
         ! implemented here and seems to be working okay.
         ! Reference:
         ! https://stackoverflow.com/questions/31106539/polymorphism-in-an-array-of-elements.
-        if (lnBSL > 0) then
-            allocate(Me%colBedSedimentLayer(lnBSL), stat=Me%allst)  ! Set colBedSedimentLayer to be of size lnBSL
+        if (Me%nLayers > 0) then
+            allocate(Me%colBedSedimentLayer(Me%nLayers), stat=Me%allst)  ! Set colBedSedimentLayer to be of size lnBSL
             do x = 1, nLayers
                 select case (ltBSL(x))
                     case (1)
                         allocate (BSL1, stat=Me%allst)              ! objBedSedimentLayer1 type - create the object
-                        call BSL1%create()                          ! call the object constructor
+                        ! SH: create() filled with arbitrary values for the moment
+                        call BSL1%create('name',1.0,1.0,1.0,[1],[1])    ! call the object constructor
                         call move_alloc(BSL1, &
                         Me%colBedSedimentLayer(x)%item)             ! move the object to the yth element of the BedSedimentLayer collection
                                                                     ! SH: Technically, Fortran's specification allows assignment to polymorphic
@@ -65,14 +68,14 @@ module spcBedSediment                                               ! abstract s
                                                                     ! a runtime error because it's already been deallocated
                     case (2)
                         allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
-                        call BSL2%create()                          ! call the object constructor
+                        call BSL2%create('name',1.0,1.0,1.0,[1],[1])    ! call the object constructor
                         call move_alloc(BSL2, &
                         Me%colBedSedimentLayer(x)%item)             ! move the object to the yth element of colBiota
                     case default
                                                                     ! error - ltBSL(y) points to an invalid number. Need to abort and report.
                 end select
             end do
-        else if (lnBSL == 0) then
+        else if (Me%nLayers == 0) then
                                                                     ! code here for actions if no BedSedimentLayer objects required
         else
                                                                     ! code here for invalid (negative) value of lnBSL
@@ -93,7 +96,7 @@ module spcBedSediment                                               ! abstract s
         class(BedSediment) :: Me
         type(integer) :: x                                          ! loop counter
         Depth = 0                                                   ! initialise the function return value
-        do x = 1, Me%nLayers()                                      ! loop through all the layers
+        do x = 1, Me%nLayers                                        ! loop through all the layers
             Depth = Depth + Me%colBedSedimentLayer(x)%item%Depth    ! adding up the depth of each layer
         end do                                                      ! to return the total sediment depth
     end function
