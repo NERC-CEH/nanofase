@@ -23,6 +23,7 @@ module spcBedSediment                                               ! abstract s
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: create                                 ! constructor method
         procedure, public :: destroy                                ! finaliser method
+        procedure, public :: nLayers                                ! property function, returns number of bed sediment layers
         procedure, public :: Depth                                  ! property function to return total depth of BedSediment
                                                                     ! any other subroutines or functions go here
     end type
@@ -53,13 +54,14 @@ module spcBedSediment                                               ! abstract s
         ! Reference:
         ! https://stackoverflow.com/questions/31106539/polymorphism-in-an-array-of-elements.
         if (Me%nLayers > 0) then
-            allocate(Me%colBedSedimentLayer(Me%nLayers), stat=Me%allst)  ! Set colBedSedimentLayer to be of size lnBSL
+            allocate(Me%colBedSedimentLayer(Me%nLayers), &
+            stat=Me%allst)                                          ! Set colBedSedimentLayer to be of size lnBSL
             do x = 1, nLayers
                 select case (ltBSL(x))
                     case (1)
                         allocate (BSL1, stat=Me%allst)              ! objBedSedimentLayer1 type - create the object
-                        ! SH: create() filled with arbitrary values for the moment
-                        call BSL1%create('name',1.0,1.0,1.0,[1],[1])    ! call the object constructor
+                                                                    ! SH: create() filled with arbitrary values for the moment
+                        call BSL1%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
                         call move_alloc(BSL1, &
                         Me%colBedSedimentLayer(x)%item)             ! move the object to the yth element of the BedSedimentLayer collection
                                                                     ! SH: Technically, Fortran's specification allows assignment to polymorphic
@@ -68,7 +70,7 @@ module spcBedSediment                                               ! abstract s
                                                                     ! a runtime error because it's already been deallocated
                     case (2)
                         allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
-                        call BSL2%create('name',1.0,1.0,1.0,[1],[1])    ! call the object constructor
+                        call BSL2%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
                         call move_alloc(BSL2, &
                         Me%colBedSedimentLayer(x)%item)             ! move the object to the yth element of colBiota
                     case default

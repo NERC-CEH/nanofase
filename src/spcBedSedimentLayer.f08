@@ -35,22 +35,21 @@ module spcBedSedimentLayer                                          ! abstract s
       contains
                                                                     ! deferred methods: must be defined in all subclasses
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure, public :: create => createBSL                    ! constructor method
-        procedure, public :: destroy => destroyBSL                  ! finaliser method
-        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        procedure, public :: create                                 ! constructor method
+        procedure, public :: destroy                                ! finaliser method
         procedure, public :: SetDepth                               ! procedure to set the depth at initialisation
         procedure, public :: SetPdens                               ! procedure to set the particle density at initialisation
         procedure, public :: SetPorosity                            ! procedure to set the porosity at initialisation
                                                                     ! any other subroutines or functions go here
     end type
   contains
-    subroutine createBSL(Me, &
-                         lname, &
-                         ldepth, &
-                         lpdens, &
-                         lporosity, &
-                         ltbiota, &
-                         ltreactor)                                 ! constructor method
+    subroutine create(Me, &
+                      lname, &
+                      ldepth, &
+                      lpdens, &
+                      lporosity, &
+                      ltbiota, &
+                      ltreactor)                                    ! constructor method
                                                                     ! dummy variables
         class(BedSedimentLayer) :: Me                               ! reference to this object, using the type of the abstract superclass
         character(len=*) :: lname                                   ! the name of this object
@@ -128,7 +127,7 @@ module spcBedSedimentLayer                                          ! abstract s
                                                                     ! code here for invalid (negative) value of nReactor
       end if
     end subroutine
-    subroutine destroyBSL(Me)                                       ! finaliser method
+    subroutine destroy(Me)                                          ! finaliser method
         class(BedSedimentLayer) :: Me                               ! reference to this object, using the type of the abstract superclass
         integer :: x                                                ! loop iterator
         do x = 1, Me%nBiota
