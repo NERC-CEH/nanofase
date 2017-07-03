@@ -4,31 +4,39 @@ module spcBedSediment                                               ! abstract s
     use spcBedSedimentLayer                                         ! USEs the spcBedSedimentLayer superclass and subclasses
     use classBedSedimentLayer1
     use classBedSedimentLayer2
+    use Globals
+    use ResultModule                                                ! Error handling
+    use ErrorInstanceModule
+    use ErrorCriteriaModule
     implicit none                                                   ! force declaration of all variables
+    private
+
     type BedSedimentLayerElement
         class(BedSedimentLayer), allocatable :: item                ! Storing polymorphic class(BedSedimentLayer) in derived type so that a collection of
     end type                                                        ! different extended types of BedSedimentLayer can be stored in an array.
+
     type, abstract, public :: BedSediment                           ! type declaration for superclass
+        private
         character(len=256) :: name                                  ! a name for the object
                                                                     ! define variables for 'has a' objects: BedSedimentLayer
         class(BedSedimentLayerElement), allocatable :: &
                     colBedSedimentLayer(:)                          ! collection of BedSedimentLayer objects
                                                                     ! properties
         integer :: nLayers                                          ! number of BedSedimentLayer objects
-        integer, private :: allst                                   ! array allocation status
-        integer, private :: err                                     ! success/failure code
+        integer :: allst                                            ! array allocation status
+        integer :: err                                              ! success/failure code
                                                                     ! any private variable declarations go here
       contains
                                                                     ! deferred methods: must be defined in all subclasses
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure, public :: create                                 ! constructor method
-        procedure, public :: destroy                                ! finaliser method
-        procedure, public :: nLayers                                ! property function, returns number of bed sediment layers
+        procedure, public :: create => createBedSediment            ! constructor method
+        procedure, public :: destroy => destroyBedSediment          ! finaliser method
+        procedure, public :: getNLayers                             ! property function, returns number of bed sediment layers
         procedure, public :: Depth                                  ! property function to return total depth of BedSediment
                                                                     ! any other subroutines or functions go here
     end type
   contains
-    subroutine create(Me, &
+    subroutine createBedSediment(Me, &
                       lname, &
                       ltBSL)                                        ! constructor method
                                                                     ! dummy variables
@@ -41,6 +49,7 @@ module spcBedSediment                                               ! abstract s
         type(integer) :: x                                          ! loop counter
         type(objBedSedimentLayer1), allocatable :: BSL1             ! object of type BedSedimentLayer1
         type(objBedSedimentLayer2), allocatable :: BSL2             ! object of type BedSedimentLayer2
+
         Me%name = lname                                             ! the name of this object
         Me%nLayers = size(ltBSL)                                    ! number of BedSedimentLayer objects to create
         ! The next block of code creates the required number of BedSedimentLayer objects
@@ -55,45 +64,42 @@ module spcBedSediment                                               ! abstract s
         ! https://stackoverflow.com/questions/31106539/polymorphism-in-an-array-of-elements.
         if (Me%nLayers > 0) then
             allocate(Me%colBedSedimentLayer(Me%nLayers), &
-            stat=Me%allst)                                          ! Set colBedSedimentLayer to be of size lnBSL
-            do x = 1, nLayers
+                stat=Me%allst)                                      ! Set colBedSedimentLayer size to number of layers
+            do x = 1, Me%nLayers
                 select case (ltBSL(x))
                     case (1)
                         allocate (BSL1, stat=Me%allst)              ! objBedSedimentLayer1 type - create the object
                                                                     ! SH: create() filled with arbitrary values for the moment
                         call BSL1%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
                         call move_alloc(BSL1, &
-                        Me%colBedSedimentLayer(x)%item)             ! move the object to the yth element of the BedSedimentLayer collection
-                                                                    ! SH: Technically, Fortran's specification allows assignment to polymorphic
-                                                                    ! variable: Me%colBiota(x)%item = Me%b1. However, GFortran doesn't support this yet.
-                                                                    ! deallocating bsl1 isn't necessary and actually throws up
-                                                                    ! a runtime error because it's already been deallocated
+                            Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of the BedSedimentLayer collection
                     case (2)
                         allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
                         call BSL2%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
                         call move_alloc(BSL2, &
-                        Me%colBedSedimentLayer(x)%item)             ! move the object to the yth element of colBiota
+                            Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of colBiota
                     case default
-                                                                    ! error - ltBSL(y) points to an invalid number. Need to abort and report.
+                        call ERROR_HANDLER%trigger(997)             ! error - ltBSL(y) points to an invalid number. Need to abort and report.
                 end select
             end do
-        else if (Me%nLayers == 0) then
-                                                                    ! code here for actions if no BedSedimentLayer objects required
         else
-                                                                    ! code here for invalid (negative) value of lnBSL
+            call ERROR_HANDLER%trigger(996)                         ! If no BSLs have been provided (can't be negative as nLayer deduced from array size)
         end if
     end subroutine
-    subroutine destroy(Me)                                          ! finaliser method
+
+    subroutine destroyBedSediment(Me)                               ! finaliser method
         class(BedSediment)  :: Me                                   ! reference to this object, using the type of the abstract superclass
         integer :: x                                                ! loop counter
         do x = 1, Me%nLayers
             call Me%colBedSedimentLayer(x)%item%destroy()           ! do any cleanup required in BedSedimentLayer objects
         end do
     end subroutine
-    integer function nLayers(Me)                                    ! property function, returns number of BedSedimentLayer objects
+
+    integer function getNLayers(Me) result(nLayers)                 ! property function, returns number of BedSedimentLayer objects
         class(BedSediment) :: Me
         nLayers = size(Me%colBedSedimentLayer)
     end function
+
     real function Depth(Me)                                         ! property function, returns total depth of sediment
         class(BedSediment) :: Me
         type(integer) :: x                                          ! loop counter

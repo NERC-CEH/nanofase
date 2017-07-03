@@ -1,16 +1,16 @@
 module spcBedSedimentLayer                                          ! abstract superclass definition for BedSedimentLayer
                                                                     ! defines the properties and methods shared by all BedSedimentLayer objects
                                                                     ! objects of this class cannot be instantiated, only objects of its subclasses
+    use Globals
+    use ResultModule
     use spcBiota                                                    ! USEs the spcBiota superclass and subclasses
     use classBiota1
     use classBiota2
     use spcReactor                                                  ! USEs the spcReactor superclass and subclasses
     use classReactor1
-    use classReactor2
-                                                                    ! *** does it also have to USE all the subclasses of each superclass?
-                                                                    ! ^ if it uses them in this module, then yes. E.g., type(objBiota1) wouldn't
-                                                                    ! work without use classBiota1
+    use classReactor2                            
     implicit none                                                   ! force declaration of all variables
+
     type BiotaElement                                               ! Storing polymorphic class(Biota) in derived type so that a collection of
         class(Biota), allocatable :: item                           ! different extended types of Biota can be stored in an array. Simply storing
     end type                                                        ! class(Biota) in an array means you can't allocate each separate element to
@@ -19,6 +19,7 @@ module spcBedSedimentLayer                                          ! abstract s
     type ReactorElement                                             ! Same as for class(Biota).
         class(Reactor), allocatable :: item
     end type
+
     type, abstract, public :: BedSedimentLayer                      ! type declaration for superclass
         character(len=256) :: name                                  ! a name for the object
                                                                     ! define variables for 'has a' objects: Biota and Reactor
@@ -31,19 +32,23 @@ module spcBedSedimentLayer                                          ! abstract s
         integer :: nBiota                                           ! number of Biota objects
         integer :: nReactor                                         ! number of Reactor objects
         integer, private :: allst                                   ! array allocation status
-        integer, private :: err                                     ! success/failure code
+        integer, private :: err
+        type(Result), private :: r                                  ! Result object from function, for error checking
+
       contains
                                                                     ! deferred methods: must be defined in all subclasses
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure, public :: create                                 ! constructor method
-        procedure, public :: destroy                                ! finaliser method
+        procedure, public :: create => createBedSedimentLayer       ! constructor method
+        procedure, public :: destroy => destroyBedSedimentLayer     ! finaliser method
         procedure, public :: SetDepth                               ! procedure to set the depth at initialisation
         procedure, public :: SetPdens                               ! procedure to set the particle density at initialisation
         procedure, public :: SetPorosity                            ! procedure to set the porosity at initialisation
                                                                     ! any other subroutines or functions go here
     end type
+
   contains
-    subroutine create(Me, &
+
+    subroutine createBedSedimentLayer(Me, &
                       lname, &
                       ldepth, &
                       lpdens, &
@@ -64,12 +69,28 @@ module spcBedSedimentLayer                                          ! abstract s
         type(objBiota2), allocatable :: b2                          ! object of type Biota2
         type(objReactor1), allocatable :: r1                        ! object of type Reactor1
         type(objReactor2), allocatable :: r2                        ! object of type Reactor2
+
         Me%name = lname                                             ! the name of this object
         Me%nBiota = size(ltbiota)                                   ! number of Biota objects to create
         Me%nReactor = size(ltreactor)                               ! number of Reactor objects to create
-        Me%err = Me%SetDepth(ldepth)                                ! set depth, return success/failure code
-        Me%err = Me%SetPdens(lpdens)                                ! set particle density, return success/failure code
-        Me%err = Me%SetPorosity(lporosity)                          ! set porosity, return success/failure code
+        ! Plenty of different ways the below could be done, this is just an example.
+        ! More succinctly, could do something like:
+        ! call ERROR_HANDLER%trigger( &
+        !   errors=[ &
+        !       .error. Me%SetDepth(ldepth), &
+        !       .error. Me%SetPdens(lpdens), &
+        !       .error. Me%SetPorosity(lporosity) &
+        !   ] &
+        ! )
+        ! This would print out all of the errors encountered in those three procedures as well,
+        ! not just the first one encountered.
+        Me%r = Me%SetDepth(ldepth)                                  ! set depth
+        call ERROR_HANDLER%trigger(error=Me%r%getError())           ! trigger an error, if there was one
+        Me%r = Me%SetPdens(lpdens)                                  ! set particle density, return success/failure code
+        call Me%r%addToTrace("BedSedimentLayer%create")             ! Example of adding to error trace
+        call ERROR_HANDLER%trigger(error=Me%r%getError())           ! trigger an error, if there was one
+        Me%r = Me%SetPorosity(lporosity)                            ! set porosity, return success/failure code
+        call ERROR_HANDLER%trigger(error=Me%r%getError())           ! trigger an error, if there was one
         ! The next block of code creates the required number of Biota and Reactor objects
         ! and stores them in the colBiota and colReactor collections
         ! the collections are allocatable arrays of user-defined types BiotaElement and ReactorElement respectively
@@ -97,7 +118,7 @@ module spcBedSedimentLayer                                          ! abstract s
                         call b2%create()                            ! call the object constructor
                         call move_alloc(b2, Me%colBiota(x)%item)    ! move the object to the yth element of colBiota
                     case default
-                        ! error - ltbiota(y) points to an invalid number. Need to abort and report.
+                        call ERROR_HANDLER%trigger(999)             ! error - ltbiota(y) points to an invalid number. Need to abort and report.
                 end select
             end do
         else if (Me%nBiota == 0) then
@@ -108,17 +129,17 @@ module spcBedSedimentLayer                                          ! abstract s
         if (Me%nReactor > 0) then
             allocate(Me%colReactor(Me%nReactor), stat=Me%allst)     ! allocate colReactor array
             do x = 1, Me%nReactor
-              select case (ltreactor(x))
-                  case (1)
-                      allocate (r1, stat=Me%allst)                  ! objReactor1 type - create the object
-                      call r1%create()                              ! call the object constructor
-                      call move_alloc(r1, Me%colReactor(x)%item)    ! move the object to the yth element of the Reactor collection
-                  case (2)
-                      allocate (r2, stat=Me%allst)                  ! objReactor2 type - create the object
-                      call r2%create()                              ! call the object constructor
-                      call move_alloc(r2, Me%colReactor(x)%item)    ! move the object to the yth element of the Reactor collection
-                  case default
-                      ! error - ltbiota(y) points to an invalid number. Need to abort and report.
+                select case (ltreactor(x))
+                case (1)
+                    allocate (r1, stat=Me%allst)                    ! objReactor1 type - create the object
+                    call r1%create()                                ! call the object constructor
+                    call move_alloc(r1, Me%colReactor(x)%item)      ! move the object to the yth element of the Reactor collection
+                case (2)
+                    allocate (r2, stat=Me%allst)                    ! objReactor2 type - create the object
+                    call r2%create()                                ! call the object constructor
+                    call move_alloc(r2, Me%colReactor(x)%item)      ! move the object to the yth element of the Reactor collection
+                case default
+                    call ERROR_HANDLER%trigger(998)                 ! error - ltreactor(y) points to an invalid number. Need to abort and report.
               end select
           end do
       elseif (Me%nReactor == 0) then
@@ -127,7 +148,8 @@ module spcBedSedimentLayer                                          ! abstract s
                                                                     ! code here for invalid (negative) value of nReactor
       end if
     end subroutine
-    subroutine destroy(Me)                                          ! finaliser method
+
+    subroutine destroyBedSedimentLayer(Me)                          ! finaliser method
         class(BedSedimentLayer) :: Me                               ! reference to this object, using the type of the abstract superclass
         integer :: x                                                ! loop iterator
         do x = 1, Me%nBiota
@@ -139,37 +161,45 @@ module spcBedSedimentLayer                                          ! abstract s
         end do
         deallocate(Me%colReactor)                                   ! destroy objects in colReactor
     end subroutine
-    integer function SetDepth(Me, ld)                               ! Set depth property of layer
+
+    function SetDepth(Me, ld) result(r)                             ! Set depth property of layer
         implicit none
         class(BedSedimentLayer) :: Me                               ! BedSedimentLayer type
         real :: ld                                                  ! depth to which layer to be set
-        if (ld < 0) then
-                                                                    ! invalid value of depth - set return error code
-        else
-            Me%Depth = ld                                           ! Assign depth property
-            SetDepth = 0                                            ! return success code
-        end if
+        type(Result) :: r                                           ! Result object to return, including any error
+        type(ErrorInstance) :: error                                ! Add to return after criterion check
+        ! The next two lines could equally be written r = Result(error=ERROR_HANDLER%positive(ld))
+        error = ERROR_HANDLER%positive( &                           ! Enforce that ld must be positive
+            ld, &
+            message="Bed Sediment layer depth must be positive." &
+        )                          
+        r = Result(error=error)                                     ! Construct the result to return
+        if (error%notError()) Me%Depth = ld                         ! If no error was returned
     end function
-    integer function SetPdens(Me, lpd)                              ! set particle density property of layer
+
+    function SetPdens(Me, lpd) result(r)                            ! set particle density property of layer
         implicit none
         class(BedSedimentLayer) :: Me                               ! BedSedimentLayer type
         real :: lpd                                                 ! particle density for layer
-        if (lpd < 0) then
-                                                                    ! invalid value of particle density - set return error code
-        else
-            Me%Pdens = lpd                                          ! Assign particle density property
-            SetPdens = 0                                            ! return success code
-        end if
+        type(Result) :: r                                           ! Result object to return
+        Me%Pdens = lpd                                              ! Assign particle density property, doesn't matter if < 0 and error should be triggered anywhere
+        r = Result(error=ERROR_HANDLER%positive( &                  ! Return the result
+            lpd, &
+            message="Bed sediment particle density must be positive.", &
+            traceMessage="BedSedimentLayer%setPdens" &
+        ))
     end function
-    integer function SetPorosity(Me, lp)                            ! set porosity property of layer
+
+    function SetPorosity(Me, lp) result(r)                           ! set porosity property of layer
         implicit none
         class(BedSedimentLayer) :: Me                               ! BedSedimentLayer type
         real :: lp                                                  ! porosity for layer
-        if (lp <= 0 .or. lp > 1) then
-                                                                    ! invalid value of porosity - set return error code
-        else
-            Me%Porosity = lp                                        ! Assign porosity property
-            SetPorosity = 0                                         ! return success code
-        end if
+        type(Result) :: r                                           ! Result object to return
+        Me%Porosity = lp                                            ! Assign porosity property
+        r = Result(error=ERROR_HANDLER%limit(lp,0.0,1.0, &          ! Limit to between 0 and 1
+            message="Bed sediment porosity must be between 0 and 1." &
+        ))
+        ! TODO: Properly enforce >= 0 or < 1
     end function
+
 end module

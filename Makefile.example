@@ -1,5 +1,10 @@
 # Modules in compilation order.
-modules = src/Biota/spcBiota.f08 \
+modules = vendor/feh/src/ErrorInstance.f08 \
+	vendor/feh/src/Result.f08 \
+	vendor/feh/src/ErrorHandler.f08 \
+	vendor/feh/src/ErrorCriteria.f08 \
+	src/Globals.f08 \
+	src/Biota/spcBiota.f08 \
 	src/Biota/classBiota1.f08 \
 	src/Biota/classBiota2.f08 \
 	src/Reactor/spcReactor.f08 \
@@ -13,6 +18,7 @@ modules = src/Biota/spcBiota.f08 \
 
 # Where should the output .exe be placed and run?
 outputFile = S:/ECP/CPG/model_FORTRAN/exec/fprog_source_sl
+flags = -g -O1 -fcheck=all -fcheck-no-bounds -fbackslash -Wall -Wno-unused-dummy-argument
 
 # The commands:
 # 	make main: Compile and create exe with default errors.
@@ -30,11 +36,11 @@ outputFile = S:/ECP/CPG/model_FORTRAN/exec/fprog_source_sl
 # 	https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran.
 # 	Solution is to use -O1 or higher.
 main: $(modules)
-	gfortran $(vendor) $(modules) -g -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -o "$(outputFile)"
+	gfortran $(vendor) $(modules) $(flags) -o "$(outputFile)"
 compile: $(modules)
 	gfortran -c $(vendor) $(modules)
 run: $(modules)
-	gfortran $(vendor) $(modules) -g -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -o "$(outputFile)" && "$(outputFile)"
+	gfortran $(vendor) $(modules) $(flags) -o "$(outputFile)" && "$(outputFile)"
 debug-run: $(modules)
 	gfortran $(vendor) $(modules) -g3 -O1 -fbackslash -Wall -Wextra -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=zero,overflow,underflow -finit-real=nan -o "$(outputFile)" && "$(outputFile)"
 debug: $(modules)
