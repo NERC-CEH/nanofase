@@ -1,0 +1,3 @@
+[submodule "feh"]
+    path = vendor/feh
+    url = https://github.com/samharrison7/fortran-error-handler
