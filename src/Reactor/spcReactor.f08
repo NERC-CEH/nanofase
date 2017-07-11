@@ -4,20 +4,20 @@ module spcReactor                                               ! class definiti
                                                                 ! class properties
         character(len=256) :: name                              ! a name for the object
       contains                                                  ! METHODS - all declared deferred
-        procedure(createReactor), public, deferred :: create    ! constructor method
-        procedure(destroyReactor), public, deferred :: destroy  ! finaliser method
+        procedure, public :: create => createReactor            ! constructor method
+        procedure, public :: destroy => destroyReactor          ! finaliser method
                                                                 ! any other subroutines or functions go here
     end type
-    abstract interface                                          ! interface defintion for the constructor method
-        subroutine createReactor(Me)                            ! constructor method
-            import Reactor
-            class(Reactor) :: Me                                ! implemented as a function returning a Reactor type                                                             ! Reactor type
-        end subroutine
-    end interface
-    abstract interface                                          ! interface definition for the finaliser method
-        subroutine destroyReactor(Me)                           ! finaliser method
-            import Reactor
-            class(Reactor) :: Me
-        end subroutine
-    end interface
+    
+  contains
+
+    subroutine createReactor(me)
+        class(Reactor) :: me
+        ! Do stuff to create reactor
+    end subroutine
+
+    subroutine destroyReactor(me)
+        class(Reactor) :: me
+        ! Do stuff to destroy reactor
+    end subroutine
 end module

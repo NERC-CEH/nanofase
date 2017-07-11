@@ -2,11 +2,14 @@
 program main
     use Globals                                 ! For error handling. ErrorCriteria object is ERROR_HANDLER
     use classBedSedimentLayer1
+    use classRiverReach
     implicit none
 
     type(objBedSedimentLayer1) :: bs1           ! Bed sediment layer
     type(objBedSedimentLayer1) :: bs2           ! Another bed sediment layer
     type(objBedSedimentLayer1) :: bs3
+    type(RiverReach) :: rr
+    type(Result) :: r
     integer :: i                                ! Loop iterator
 
     ! Initialise the error handler with custom error in Globals module
@@ -16,7 +19,7 @@ program main
     ! one of each type (1 and 2).
     call bs1%create("Bed Sediment Layer A", &
         ldepth=1.0, &
-        lpdens=-1.0, &
+        lpdens=1.0, &
         lporosity=1.0, &
         ltbiota=[1,2], &
         ltreactor=[1,2,1] &
@@ -60,5 +63,12 @@ program main
         ltbiota=[1,2], &
         ltreactor=[1,2] &
     )
+
+    ! Try to create a RiverReach
+    r = rr%create()
+    call ERROR_HANDLER%trigger(errors = .errors. r)
+    print *, "River depth: ", rr%D
+    print *, "Settling velocities: ", rr%W_s
+    print *, "Settling rates: ", rr%k_settle
 
 end program

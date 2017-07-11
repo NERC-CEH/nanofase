@@ -1,0 +1,26 @@
+{
+    "RiverReach" : {
+        "length" : 1,
+        "width" : 1,
+        "BedSediment" : {
+            "BedSedimentLayer1" : {
+                "Biota1" : {},
+                "Biota2" : {},
+                "Biota3" : {}
+            },
+            "BedSedimentLayer2" : {
+                "Biota1" : {},
+                "Biota2" : {},
+                "Biota3" : {}
+            },
+            "BedSedimentLayer3" : {
+                "Biota1" : {},
+                "Biota2" : {},
+                "Biota3" : {}
+            },
+        },
+        "Biota1" : {},
+        "Biota2" : {},
+        "Biota3" : {}
+    }
+}
