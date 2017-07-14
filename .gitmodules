@@ -5,3 +5,7 @@
 [submodule "mo_netcdf"]
     path = vendor/mo_netcdf
     url = https://github.com/schaefed/mo_netcdf
+
+[submodule "json2netcdf"]
+    path = vendor/json2netcdf
+    url = https://github.com/samharrison7/json4netcdf
