@@ -1,3 +1,7 @@
 [submodule "feh"]
     path = vendor/feh
     url = https://github.com/samharrison7/fortran-error-handler
+
+[submodule "mo_netcdf"]
+    path = vendor/mo_netcdf
+    url = https://github.com/schaefed/mo_netcdf
