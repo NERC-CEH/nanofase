@@ -1,4 +1,6 @@
 module classRiverReach
+    use netcdf
+    use mo_netcdf
     use Globals
     use ResultModule
     use ErrorInstanceModule
@@ -14,7 +16,7 @@ module classRiverReach
         real(dp) :: W               !> Width [m]
         real(dp) :: S               !> Slope [m/m]
         real(dp) :: Q               !> Flow rate [m3/s]
-        real(dp) :: d_s(5)          !> Sediment particle diameter array, for different size classes [m].
+        real(dp), allocatable :: d_s(:)          !> Sediment particle diameter array, for different size classes [m].
         real(dp) :: rho_s(5)        !> Sediment particle density, for different size classes [kg/m3].
         real(dp) :: k_settle(5)     !> Settling rates, for different size classes [s-1]
         real(dp) :: D               !> Depth [m]
@@ -35,18 +37,32 @@ module classRiverReach
     !> Create a river reach by reading data in from file and calculating
     !! properties such as depth and velocity.
     function createRiverReach(me) result(r)
-        class(RiverReach) :: me     !> The RiverReach instance.
-        type(Result0D) :: D         !> Depth [m].
-        type(Result0D) :: v         !> River velocity [m/s].
-        integer :: i                !> Loop iterator
-        type(Result) :: r           !> The Result object
+        class(RiverReach) :: me                 !> The RiverReach instance.
+        type(Result0D) :: D                     !> Depth [m].
+        type(Result0D) :: v                     !> River velocity [m/s].
+        integer :: i                            !> Loop iterator.
+        type(Result) :: r                       !> The Result object.
+        type(NcDataset) :: NC                   !> NetCDF dataset
+        type(NcVariable) :: var                 !> NetCDF variable
+        type(NcGroup) :: grp                    !> NetCDF group
+        real(dp), allocatable :: sedimentSizeClasses(:)         !> Array of sediment particle sizes
+        real(dp), allocatable :: nanoparticleSizeClasses(:)     !> Array of nanoparticle particle sizes
+
+        ! Get the sediment and nanoparticle size classes from data file
+        nc = NcDataset("data.nc", "r")                          ! Open dataset as read-only
+        grp = nc%getGroup("root")                             ! Get the global variables group
+        grp = grp%getGroup("global")
+        var = grp%getVariable("sediment_size_classes")          ! Get the sediment size classes variable
+        call var%getData(sedimentSizeClasses)                   ! Get the variable's data
+        var = grp%getVariable("nanoparticle_size_classes")      ! Get the sediment size classes variable
+        call var%getData(nanoparticleSizeClasses)               ! Get the variable's data
 
         ! Here we should read data in from a file and set W, S, Q, d_s and rho_s accordingly.
         ! But, for the moment...
         me%W = 50.0_dp                                                          ! Width
-        me%S = 0.0005_dp                                                       ! Slope
+        me%S = 0.0005_dp                                                        ! Slope
         me%Q = 300.0_dp                                                         ! Flow
-        me%d_s = [1.0e-6_dp, 3.0e-6_dp, 10.0e-6_dp, 30.0e-6_dp, 100.0e-6_dp]    ! Sediment particle diameter [m]
+        allocate(me%d_s, source=sedimentSizeClasses)                            ! Sediment particle diameter [m]
         me%rho_s = [2120, 2120, 2120, 2120, 2120]                               ! Sediment particle density [kg/m^3]
 
         ! Calculate the depth and velocities and set the instance's variables
