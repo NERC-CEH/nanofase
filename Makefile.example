@@ -3,6 +3,8 @@ modules = vendor/feh/src/ErrorInstance.f08 \
 	vendor/feh/src/Result.f08 \
 	vendor/feh/src/ErrorHandler.f08 \
 	vendor/feh/src/ErrorCriteria.f08 \
+	vendor/mo_netcdf/src/mo_types.f90 \
+	vendor/mo_netcdf/src/mo_netcdf.f90 \
 	src/Globals.f08 \
 	src/Biota/spcBiota.f08 \
 	src/Biota/classBiota1.f08 \
@@ -10,14 +12,17 @@ modules = vendor/feh/src/ErrorInstance.f08 \
 	src/Reactor/spcReactor.f08 \
 	src/Reactor/classReactor1.f08 \
 	src/Reactor/classReactor2.f08 \
-	src/spcBedSedimentLayer.f08 \
-	src/classBedSedimentLayer1.f08 \
-	src/classBedSedimentLayer2.f08 \
-	src/spcBedSediment.f08 \
+	src/BedSedimentLayer/spcBedSedimentLayer.f08 \
+	src/BedSedimentLayer/classBedSedimentLayer1.f08 \
+	src/BedSedimentLayer/classBedSedimentLayer2.f08 \
+	src/BedSediment/spcBedSediment.f08 \
+	src/BedSediment/classBedSediment1.f08 \
+	src/BedSediment/classBedSediment2.f08 \
+	src/River/classRiverReach.f08 \
 	src/main.f08
 
 # Where should the output .exe be placed and run?
-outputFile = S:/ECP/CPG/model_FORTRAN/exec/fprog_source_sl
+outputFile = ./nanofase
 flags = -g -O1 -fcheck=all -fcheck-no-bounds -fbackslash -Wall -Wno-unused-dummy-argument
 netcdf = `nf-config --fflags --flibs`
 
@@ -38,15 +43,7 @@ netcdf = `nf-config --fflags --flibs`
 # 	Solution is to use -O1 or higher.
 main: $(modules)
 	gfortran $(vendor) $(modules) $(flags)  -o "$(outputFile)" $(netcdf)
-compile: $(modules)
-	gfortran -c $(vendor) $(modules)
 run: $(modules)
-	gfortran $(vendor) $(modules) -g -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -o "$(outputFile)" $(netcdf) && "$(outputFile)"
-debug-run: $(modules)
-	gfortran $(vendor) $(modules) -g3 -O1 -fbackslash -Wall -Wextra -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=zero,overflow,underflow -finit-real=nan -o "$(outputFile)" $(netcdf) && "$(outputFile)"
-debug: $(modules)
-	gfortran $(vendor) $(modules) -g3 -O1 -fbackslash -Wall -Wextra -Warray-temporaries -Wconversion -fimplicit-none -fbacktrace -ffree-line-length-0 -fcheck=all -ffpe-trap=zero,overflow,underflow -finit-real=nan -o "$(outputFile)" $(netcdf)
-gdb: $(modules)
-	make debug && gdb $(outputFile)
+	gfortran $(vendor) $(modules) $(flags) -o "$(outputFile)" $(netcdf) && "$(outputFile)"
 clean:
 	rm -f *.mod *.o *.stackdump
