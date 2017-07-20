@@ -1,55 +1,24 @@
 {
-    "name" : "root",
-    "attributes" : [
-        {
-            "name" : "description",
-            "value" : "This is an attribute."
-        },
-        {
-            "name" : "att2",
-            "value" : "Another attribute."
-        }
-    ],
-    "dimensions" : [
-        {
-            "name" : "size",
-            "size" : 5
-        },
-        {
-            "name" : "density",
-            "size" : "unlimited"
-        }
-    ],
-    "type" : "group",
     "data" : [
         {
             "name" : "global",
             "type" : "group",
+            "dimensions" : [
+                { "name" : "size", "size" : 5 },
+                { "name" : "density", "size" : 5 }
+            ],
             "data" : [
                 {
-                    "name" : "sediments",
-                    "dimensions" : [ "size", "density" ],
-                    "attributes" : [
-                        {
-                            "name" : "variable_attribute",
-                            "value" : "Variable attribute"
-                        }
-                    ],
-                    "type" : "variable",
-                    "datatype" : "i4",
-                    "data" : [ [1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5],[1,2,3,4,5] ]
-                },
-                {
                     "name" : "sediment_size_classes",
-                    "dimensions" : [ "size" ],
                     "type" : "variable",
+                    "dimensions" : [ "size" ],
                     "datatype" : "f8",
                     "data" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ]
                 },
                 {
                     "name" : "nanoparticle_size_classes",
-                    "dimensions" : [ "size" ],
                     "type" : "variable",
+                    "dimensions" : [ "size" ],
                     "datatype" : "f8",
                     "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
                 }
@@ -61,6 +30,9 @@
             "data" : [
                 {
                     "name" : "RiverReach",
+                    "attributes" : [
+                        { "name" : "id", "value" : 1 }
+                    ],
                     "type" : "group",
                     "data" : [
                         {

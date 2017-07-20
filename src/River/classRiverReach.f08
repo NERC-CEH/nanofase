@@ -17,7 +17,7 @@ module classRiverReach
         real(dp) :: S               !> Slope [m/m]
         real(dp) :: Q               !> Flow rate [m3/s]
         real(dp), allocatable :: d_s(:)          !> Sediment particle diameter array, for different size classes [m].
-        real(dp) :: rho_s(5)        !> Sediment particle density, for different size classes [kg/m3].
+        real(dp), allocatable :: rho_s(:)        !> Sediment particle density, for different size classes [kg/m3].
         real(dp) :: k_settle(5)     !> Settling rates, for different size classes [s-1]
         real(dp) :: D               !> Depth [m]
         real(dp) :: v               !> River velocity [m/s]
@@ -47,23 +47,30 @@ module classRiverReach
         type(NcGroup) :: grp                    !> NetCDF group
         real(dp), allocatable :: sedimentSizeClasses(:)         !> Array of sediment particle sizes
         real(dp), allocatable :: nanoparticleSizeClasses(:)     !> Array of nanoparticle particle sizes
+        real(dp), allocatable :: sedimentParticleDensities(:)     !> Array of sediment particle densities for each size class
 
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset("data.nc", "r")                          ! Open dataset as read-only
-        grp = nc%getGroup("root")                             ! Get the global variables group
-        grp = grp%getGroup("global")
+        grp = nc%getGroup("global")                             ! Get the global variables group
         var = grp%getVariable("sediment_size_classes")          ! Get the sediment size classes variable
         call var%getData(sedimentSizeClasses)                   ! Get the variable's data
         var = grp%getVariable("nanoparticle_size_classes")      ! Get the sediment size classes variable
         call var%getData(nanoparticleSizeClasses)               ! Get the variable's data
 
-        ! Here we should read data in from a file and set W, S, Q, d_s and rho_s accordingly.
-        ! But, for the moment...
-        me%W = 50.0_dp                                                          ! Width
-        me%S = 0.0005_dp                                                        ! Slope
-        me%Q = 300.0_dp                                                         ! Flow
+        ! And the specific RiverReach parameters
+        grp = nc%getGroup("River")
+        grp = grp%getGroup("RiverReach")
+        var = grp%getVariable("width")                          ! Get the width
+        call var%getData(me%W)
+        var = grp%getVariable("slope")                          ! Get the slope
+        call var%getData(me%S)
+        var = grp%getVariable("flow")                           ! Get the flow
+        call var%getData(me%Q)
+        var = grp%getVariable("sediment_particle_density")      ! Sediment particle densities
+        call var%getData(sedimentParticleDensities)
+
         allocate(me%d_s, source=sedimentSizeClasses)                            ! Sediment particle diameter [m]
-        me%rho_s = [2120, 2120, 2120, 2120, 2120]                               ! Sediment particle density [kg/m^3]
+        allocate(me%rho_s, source=sedimentParticleDensities)                    ! Sediment particle density [kg/m^3]
 
         ! Calculate the depth and velocities and set the instance's variables
         ! TODO: Should we check for errors (e.g., negative river width) here,
