@@ -1,6 +1,10 @@
 {
     "data" : [
         {
+            "name" : "group",
+            "type" : "group"
+        },
+        {
             "name" : "global",
             "type" : "group",
             "dimensions" : [
