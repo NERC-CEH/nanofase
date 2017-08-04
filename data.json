@@ -1,15 +1,10 @@
 {
     "data" : [
         {
-            "name" : "group",
-            "type" : "group"
-        },
-        {
             "name" : "global",
             "type" : "group",
             "dimensions" : [
-                { "name" : "size", "size" : 5 },
-                { "name" : "density", "size" : 5 }
+                { "name" : "size", "size" : 5 }
             ],
             "data" : [
                 {
@@ -31,6 +26,9 @@
         {
             "name" : "River",
             "type" : "group",
+            "dimensions" : [
+                { "name" : "density", "size" : 5 }
+            ],
             "data" : [
                 {
                     "name" : "RiverReach",
@@ -39,12 +37,6 @@
                     ],
                     "type" : "group",
                     "data" : [
-                        {
-                            "name" : "width",
-                            "type" : "variable", 
-                            "datatype" : "f8",
-                            "data" : 50
-                        },
                         {
                             "name" : "slope",
                             "type" : "variable",
