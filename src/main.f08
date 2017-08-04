@@ -67,6 +67,7 @@ program main
     ! Try to create a RiverReach
     r = rr%create()
     call ERROR_HANDLER%trigger(errors = .errors. r)
+    print *, "River width: ", rr%W
     print *, "River depth: ", rr%D
     print *, "Settling velocities: ", rr%W_s
     print *, "Settling rates: ", rr%k_settle

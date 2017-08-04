@@ -27,6 +27,7 @@ module classRiverReach
 
       contains
         procedure, public :: create => createRiverReach
+        procedure :: calculateWidth
         procedure :: calculateDepth
         procedure :: calculateVelocity
         procedure :: calculateSettlingVelocity
@@ -40,6 +41,7 @@ module classRiverReach
         class(RiverReach) :: me                 !> The RiverReach instance.
         type(Result0D) :: D                     !> Depth [m].
         type(Result0D) :: v                     !> River velocity [m/s].
+        type(Result0D) :: W                     !> River width [m].
         integer :: i                            !> Loop iterator.
         type(Result) :: r                       !> The Result object.
         type(NcDataset) :: NC                   !> NetCDF dataset
@@ -47,7 +49,7 @@ module classRiverReach
         type(NcGroup) :: grp                    !> NetCDF group
         real(dp), allocatable :: sedimentSizeClasses(:)         !> Array of sediment particle sizes
         real(dp), allocatable :: nanoparticleSizeClasses(:)     !> Array of nanoparticle particle sizes
-        real(dp), allocatable :: sedimentParticleDensities(:)     !> Array of sediment particle densities for each size class
+        real(dp), allocatable :: sedimentParticleDensities(:)   !> Array of sediment particle densities for each size class
 
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset("data.nc", "r")                          ! Open dataset as read-only
@@ -56,25 +58,24 @@ module classRiverReach
         call var%getData(sedimentSizeClasses)                   ! Get the variable's data
         var = grp%getVariable("nanoparticle_size_classes")      ! Get the sediment size classes variable
         call var%getData(nanoparticleSizeClasses)               ! Get the variable's data
+        allocate(me%d_s, source=sedimentSizeClasses)            ! Allocate to class variable
 
         ! And the specific RiverReach parameters
         grp = nc%getGroup("River")
         grp = grp%getGroup("RiverReach")
-        var = grp%getVariable("width")                          ! Get the width
-        call var%getData(me%W)
         var = grp%getVariable("slope")                          ! Get the slope
         call var%getData(me%S)
         var = grp%getVariable("flow")                           ! Get the flow
         call var%getData(me%Q)
         var = grp%getVariable("sediment_particle_density")      ! Sediment particle densities
         call var%getData(sedimentParticleDensities)
-
-        allocate(me%d_s, source=sedimentSizeClasses)                            ! Sediment particle diameter [m]
-        allocate(me%rho_s, source=sedimentParticleDensities)                    ! Sediment particle density [kg/m^3]
+        allocate(me%rho_s, source=sedimentParticleDensities)    ! Allocate to class variable
 
         ! Calculate the depth and velocities and set the instance's variables
         ! TODO: Should we check for errors (e.g., negative river width) here,
         ! or in calculateDepth and calculateVelocity?
+        W = me%calculateWidth(me%Q)
+        me%W = .dp. W
         D = me%calculateDepth(me%W, me%S, me%Q)
         v = me%calculateVelocity(me%D, me%Q, me%W)
         me%D = .dp. D
@@ -92,8 +93,30 @@ module classRiverReach
         end do
 
         ! Return any errors there might have been, add this procedure to trace
-        r = Result(errors=[.errors.D,.errors.v])
+        r = Result(errors=[.errors.W,.errors.D,.errors.v])
         call r%addToTrace("Creating River Reach")
+    end function
+
+    !> Calculate the width of the river based on the discharge:
+    !! $$
+    !!      W = 1.22Q^0.557
+    !! $$
+    !! References: 
+    !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
+    !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
+    pure function calculateWidth(me, Q) result(r)
+        class(RiverReach), intent(in) :: me
+        real(dp), intent(in) :: Q
+        type(ErrorInstance) :: error
+        type(Result0D) :: r
+        ! Make sure the flow is positive
+        error = ERROR_HANDLER%positive(Q, "Flow rate Q must be positive.")
+        ! Calculate the width and return as Result object
+        r = Result( &
+            data = 1.22*Q**0.557, &
+            error = error &
+        )
+        call r%addToTrace("Calculating river width")
     end function
 
     !> Calculate water depth from Manning's roughness coefficient,
@@ -134,7 +157,7 @@ module classRiverReach
 
         ! Loop through and solve until f(D) is within e-9 of zero.
         do while (abs(f) > 1.0e-9_dp .and. i <= iMax)
-            f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                ! f(D) based on D_{m-1}
+            f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q            ! f(D) based on D_{m-1}
             df = alpha * ((D_i)**(5.0_dp/3.0_dp) * (6*D_i + 5*W))/(3*D_i * (2*D_i + W)**(5.0_dp/3.0_dp))
             D_i = D_i - f/df                                                    ! Calculate D_i based on D_{m-1}
             i = i+1
@@ -145,7 +168,7 @@ module classRiverReach
             error = ErrorInstance( &
                 code = 300, &
                 message = "Newton's method diverged to NaN after " // trim(adjustl(iChar)) // " iterations.", &
-                trace = ["Calculating water depth"] &
+                trace = ["Calculating river depth"] &
             )
         else if (i > iMax) then                                                 ! If max number of iterations reached
             write(iChar,*) iMax
@@ -155,7 +178,7 @@ module classRiverReach
                 message = "Newton's method failed to converge - maximum number of iterations (" &
                     // trim(adjustl(iChar)) // ") exceeded." &
                     // "Precision (proximity to zero) required: 1e-9. Final value: " // trim(fChar) // ".", &
-                trace = ["Calculating water depth"] &
+                trace = ["Calculating river depth"] &
             )
         else
             error = ERROR_HANDLER%getNoError()                                  ! Otherwise, no error occurred
