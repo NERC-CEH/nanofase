@@ -16,12 +16,12 @@ module classRiverReach
         real(dp) :: W               !> Width [m]
         real(dp) :: S               !> Slope [m/m]
         real(dp) :: Q               !> Flow rate [m3/s]
-        real(dp), allocatable :: d_s(:)          !> Sediment particle diameter array, for different size classes [m].
         real(dp), allocatable :: rho_s(:)        !> Sediment particle density, for different size classes [kg/m3].
         real(dp) :: k_settle(5)     !> Settling rates, for different size classes [s-1]
         real(dp) :: D               !> Depth [m]
         real(dp) :: v               !> River velocity [m/s]
         real(dp) :: W_s(5)          !> Sediment particle settling velocity array, for different size classes [m/s]
+        real(dp) :: T               !> Temperature [C]
         real(dp) :: n = 0.035       !> Manning's roughness coefficient, for natural streams and major rivers.
                                     !! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
 
@@ -47,20 +47,12 @@ module classRiverReach
         type(NcDataset) :: NC                   !> NetCDF dataset
         type(NcVariable) :: var                 !> NetCDF variable
         type(NcGroup) :: grp                    !> NetCDF group
-        real(dp), allocatable :: sedimentSizeClasses(:)         !> Array of sediment particle sizes
-        real(dp), allocatable :: nanoparticleSizeClasses(:)     !> Array of nanoparticle particle sizes
+        type(ErrorInstance) :: error            !> To return errors
         real(dp), allocatable :: sedimentParticleDensities(:)   !> Array of sediment particle densities for each size class
 
-        ! Get the sediment and nanoparticle size classes from data file
-        nc = NcDataset("data.nc", "r")                          ! Open dataset as read-only
-        grp = nc%getGroup("global")                             ! Get the global variables group
-        var = grp%getVariable("sediment_size_classes")          ! Get the sediment size classes variable
-        call var%getData(sedimentSizeClasses)                   ! Get the variable's data
-        var = grp%getVariable("nanoparticle_size_classes")      ! Get the sediment size classes variable
-        call var%getData(nanoparticleSizeClasses)               ! Get the variable's data
-        allocate(me%d_s, source=sedimentSizeClasses)            ! Allocate to class variable
-
-        ! And the specific RiverReach parameters
+        ! Get the specific RiverReach parameters from data. Sediment particle size classes
+        ! already obtain in Globals
+        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("River")
         grp = grp%getGroup("RiverReach")
         var = grp%getVariable("slope")                          ! Get the slope
@@ -69,7 +61,16 @@ module classRiverReach
         call var%getData(me%Q)
         var = grp%getVariable("sediment_particle_density")      ! Sediment particle densities
         call var%getData(sedimentParticleDensities)
+        ! Check the sediment particle density array is the same size of nSizeClassesSediment
+        error = ERROR_HANDLER%equal( &
+            value = size(sedimentParticleDensities), &
+            criterion = C%nSizeClassesSediment, &
+            message = "Sediment particle density array size must equal number of size classes." &
+        )
         allocate(me%rho_s, source=sedimentParticleDensities)    ! Allocate to class variable
+
+        ! TODO: Get the temperature from somewhere
+        me%T = 15.0_dp
 
         ! Calculate the depth and velocities and set the instance's variables
         ! TODO: Should we check for errors (e.g., negative river width) here,
@@ -81,23 +82,25 @@ module classRiverReach
         me%D = .dp. D
         me%v = .dp. v
 
-        ! Calculate sediment particle settling velocity for each size class,
-        ! then set the settling rate (W_s/D) accordingly
-        ! TODO: This is arbitrary at the moment, change so size classes
-        ! aren't hard coded. Perhaps they're got from data file?
-        do i=1, 5
-            ! Currently no errors checking in this procedure, but if that changes
-            ! we'll need to check for them here
-            me%W_s(i) = .dp. me%calculateSettlingVelocity(me%d_s(i), me%rho_s(i))
-            me%k_settle(i) = me%W_s(i)/me%D
-        end do
+        ! Only loop through size classes if there wasn't a array size mismatch error,
+        ! otherwise a runtime error will be triggered before our custom error.
+        if (error%notError()) then
+            ! Calculate sediment particle settling velocity for each size class,
+            ! then set the settling rate (W_s/D) accordingly
+            do i=1, C%nSizeClassesSediment
+                ! Currently no errors checking in this procedure, but if that changes
+                ! we'll need to check for them here
+                me%W_s(i) = .dp. me%calculateSettlingVelocity(C%d_s(i), me%rho_s(i), me%T)
+                me%k_settle(i) = me%W_s(i)/me%D
+            end do
+        end if
 
         ! Return any errors there might have been, add this procedure to trace
-        r = Result(errors=[.errors.W,.errors.D,.errors.v])
+        r = Result(errors=[error,.errors.W,.errors.D,.errors.v])
         call r%addToTrace("Creating River Reach")
     end function
 
-    !> Calculate the width of the river based on the discharge:
+    !> Calculate the width \( W \) of the river based on the discharge:
     !! $$
     !!      W = 1.22Q^0.557
     !! $$
@@ -105,10 +108,10 @@ module classRiverReach
     !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
     !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
     pure function calculateWidth(me, Q) result(r)
-        class(RiverReach), intent(in) :: me
-        real(dp), intent(in) :: Q
-        type(ErrorInstance) :: error
-        type(Result0D) :: r
+        class(RiverReach), intent(in) :: me     !> The RiverReach instance.
+        real(dp), intent(in) :: Q               !> Grid cell discharge \( Q \) [m**3/s].
+        type(ErrorInstance) :: error            !> Variable to store error in.
+        type(Result0D) :: r                     !> Result object to return.
         ! Make sure the flow is positive
         error = ERROR_HANDLER%positive(Q, "Flow rate Q must be positive.")
         ! Calculate the width and return as Result object
@@ -219,15 +222,16 @@ module classRiverReach
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
     !! TODO: Make rho and nu dependent on temp
-    pure function calculateSettlingVelocity(me, d, rho_s) result(r)
+    pure function calculateSettlingVelocity(me, d, rho_s, T) result(r)
         class(RiverReach), intent(in) :: me         !> The RiverReach instance.
-        real(dp), intent(in) :: d                   !> Sediment particle diameter.
-        real(dp), intent(in) :: rho_s               !> Sediment particle density.
+        real(dp), intent(in) :: d                   !> Sediment particle diameter [m].
+        real(dp), intent(in) :: rho_s               !> Sediment particle density [kg/m**3].
+        real(dp), intent(in) :: T                   !> Temperature [C].
         real(dp) :: dStar                           !> Dimensionless particle diameter.
-        real(dp) :: W_s                             !> Calculated settling velocity.
+        real(dp) :: W_s                             !> Calculated settling velocity [m/s].
         type(Result0D) :: r                         !> The Result object.
-        dStar = ((rho_s/C%rho - 1)*C%g/C%nu**2)**(1.0_dp/3.0_dp) * d        ! Calculate the dimensional particle diameter
-        W_s = (C%nu/d) * dStar**3 * (38.1_dp + 0.93_dp &                    ! Calculate the settling velocity
+        dStar = ((rho_s/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d        ! Calculate the dimensional particle diameter
+        W_s = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                    ! Calculate the settling velocity
             * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
         r = Result(data = W_s)
     end function
