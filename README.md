@@ -15,8 +15,24 @@ The `--recursive` is important as it pulls in code from "sudmodules" located in 
 To pull changes from Github:
 
 ```bash
-git pull origin master
+git pull
 ```
+
+After you've made changes, add the changes to the "staging" area and commit them:
+
+```bash
+git add --a
+git commit -m "Commit message."
+```
+The `--a` option signifies that *all* changes should be staged. The commit needs a commit message, which is specified after the `-m` option.
+
+These changes are now commited locally. To push to the Github repository:
+
+```bash
+git push origin master
+```
+
+This pushes the "master" branch of your local repo to the remote repo with name "origin", which if you've cloned the repo as above, will be https://github.com/nerc-ceh/nanofase.
 
 Project links:
  - [Project website](http://nanofase.eu/).
