@@ -44,9 +44,8 @@ module spcRiverReach
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-      procedure, public, deferred :: createReach                     ! create the RiverReach object
-      procedure, public, deferred :: destroyReach                    ! remove the RiverReach object and all contained objects
-      procedure, public, deferred :: initialiseReach                 ! compute state variables on each timestep
+      procedure, public, deferred :: create => createReach                     ! create the RiverReach object
+      procedure, public, deferred :: destroy => destroyReach                    ! remove the RiverReach object and all contained objects
                                                                      ! PRIVATE ROUTINES
                                                                      ! Description
                                                                      ! -----------
@@ -66,14 +65,9 @@ module spcRiverReach
       type(NcDataset) :: NC                                          ! NetCDF dataset
       type(NcVariable) :: var                                        ! NetCDF variable
       type(NcGroup) :: grp                                           ! NetCDF group
-      real(dp), allocatable :: sedimentSizeClasses(:)                ! Array of sediment particle sizes
-    end subroutine
+      real(dp), allocatable :: sedimentParticleDensities(:)          ! Array of sediment particle densities for each size class
     function destroyReach(Me) result(r)
       class(RiverReach) :: Me                                        ! The RiverReach instance.
-    end function
-    function initialiseReach(Me) result(r)
-      class(RiverReach) :: Me                                        ! The RiverReach instance.
-
     end function
     pure function calculateDepth(Me, W, S, Q) result(r)
         class(RiverReach), intent(in) :: Me                          ! The RiverReach instance.
@@ -92,8 +86,10 @@ module spcRiverReach
         type(Result0D) :: r                                          ! The result object.
     end function
     function calculateWidth(Me) result(r)
-      class(RiverReach) :: Me                                        ! The RiverReach instance.
-
+      class(RiverReach), intent(in) :: Me                            ! The RiverReach instance.
+      real(dp), intent(in) :: Q                                      ! Flow rate \( Q \) [m**3/s].
+      type(ErrorInstance) :: error                                   !! Variable to store error in.
+      type(Result0D) :: r                                            !! Result object to return.
     end function
     pure function calculateVelocity(me, D, Q, W) result(r)
       class(RiverReach), intent(in) :: me                            ! The RiverReach instance.
@@ -102,10 +98,11 @@ module spcRiverReach
       real(dp), intent(in) :: W                                      ! River width \( W \) [m].
       type(Result0D) :: r                                            ! The result object.
     end function
-    function CalculateSettlingVelocity result(r)
+    function CalculateSettlingVelocity(Me, d, rho_s, T) result(r)
       class(RiverReach), intent(in) :: me                            ! The RiverReach instance.
       real(dp), intent(in) :: d                                      ! Sediment particle diameter.
       real(dp), intent(in) :: rho_s                                  ! Sediment particle density.
+      real(dp), intent(in) :: T                                      ! Temperature [C]
       real(dp) :: dStar                                              ! Dimensionless particle diameter.
       real(dp) :: W_s                                                ! Calculated settling velocity.
       type(Result0D) :: r                                            ! The Result object.
