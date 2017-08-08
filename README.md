@@ -15,7 +15,7 @@ To clone the repository into a new folder "nanofase":
 git clone --recursive https://github.com/nerc-ceh/nanofase
 ```
 
-The `--recursive` is important as it pulls in code from "sudmodules" located in the vendor folder.
+The `--recursive` is important as it pulls in code from "sudmodules" located in the vendor folder. You can specify a different folder name after the url, e.g., `git clone --recursive https://github.com/nerc-ceh/nanofase custom_folder`.
 
 To pull changes from Github:
 
