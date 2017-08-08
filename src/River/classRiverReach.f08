@@ -8,7 +8,7 @@ module classRiverReach
     private
 
     !> RiverReach object is responsible for sediment transport along river and
-    !! sediment deposition to bed sediment. 
+    !! sediment deposition to bed sediment.
     !!
     !! TODO: Sediment size classes hard coded for the moment. Change this so
     !! it can be altered (e.g. through data file, or this%App that everything extends).
@@ -107,7 +107,7 @@ module classRiverReach
     !! $$
     !!      W = 1.22Q^0.557
     !! $$
-    !! References: 
+    !! References:
     !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
     !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
     pure function calculateWidth(me, Q) result(r)
