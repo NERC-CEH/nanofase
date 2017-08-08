@@ -60,6 +60,7 @@ module spcRiverReach
       class(RiverReach) :: Me                                        ! The RiverReach instance.
       type(Result0D) :: D                                            ! Depth [m].
       type(Result0D) :: v                                            ! Water velocity [m/s].
+      type(Result0D) :: W                                            ! River width [m].
       integer :: i                                                   ! Loop iterator.
       type(Result) :: r                                              ! The Result object.
       type(NcDataset) :: NC                                          ! NetCDF dataset
