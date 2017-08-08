@@ -1,6 +1,11 @@
 # NanoFASE
 
-Multimedia environmental fate model for engineered nanomaterials
+Multimedia environmental fate model for engineered nanomaterials.
+
+Project links:
+ - [Project website](http://nanofase.eu/).
+ - [Facebook](https://www.facebook.com/nanofase/).
+ - [Twitter](https://twitter.com/NanoFASE_EU).
 
 ### Quick start guide
 
@@ -33,8 +38,3 @@ git push origin master
 ```
 
 This pushes the "master" branch of your local repo to the remote repo with name "origin", which if you've cloned the repo as above, will be https://github.com/nerc-ceh/nanofase.
-
-Project links:
- - [Project website](http://nanofase.eu/).
- - [Facebook](https://www.facebook.com/nanofase/).
- - [Twitter](https://twitter.com/NanoFASE_EU).
