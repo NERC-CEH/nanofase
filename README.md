@@ -9,6 +9,8 @@ Project links:
 
 ### Quick start guide
 
+[Getting started with Git guide.](http://rogerdudler.github.io/git-guide/)
+
 To clone the repository into a new folder "nanofase":
 
 ```bash
