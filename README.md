@@ -39,4 +39,4 @@ These changes are now commited locally. To push to the Github repository:
 git push origin master
 ```
 
-This pushes the "master" branch of your local repo to the remote repo with name "origin", which if you've cloned the repo as above, will be https://github.com/nerc-ceh/nanofase.
+This pushes the current branch of your local repo to the "master" branch of the remote repo with name "origin", which if you've cloned the repo as above, will be https://github.com/nerc-ceh/nanofase.
