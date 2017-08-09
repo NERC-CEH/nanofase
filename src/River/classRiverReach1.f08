@@ -1,4 +1,4 @@
-module classRiverReach11
+module classRiverReach1
     use netcdf
     use mo_netcdf
     use Globals
