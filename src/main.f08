@@ -2,13 +2,13 @@
 program main
     use Globals                                 ! For error handling. ErrorCriteria object is ERROR_HANDLER
     use classBedSedimentLayer1
-    use classRiverReach
+    use classRiverReach1
     implicit none
 
     type(objBedSedimentLayer1) :: bs1           ! Bed sediment layer
     type(objBedSedimentLayer1) :: bs2           ! Another bed sediment layer
     type(objBedSedimentLayer1) :: bs3
-    type(RiverReach) :: rr
+    type(RiverReach1) :: rr
     type(Result) :: r
     integer :: i                                ! Loop iterator
 
