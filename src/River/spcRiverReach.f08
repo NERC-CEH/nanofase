@@ -12,6 +12,7 @@ module spcRiverReach
     use mo_netcdf                                                    ! input/output handling
     use ResultModule                                                 ! error handling classes, required for
     use ErrorInstanceModule                                          ! generation of trace error messages
+    use spcBedSediment
     implicit none                                                    ! force declaration of all variables
     type BedSedimentElement                                          ! container type for class(BedSediment), the actual type of the bed sediment superclass
       class(BedSediment), allocatable :: item
@@ -26,16 +27,16 @@ module spcRiverReach
       real(dp) :: W                                                  ! Width of reach [m]. Computed on each timestep.
       real(dp) :: D                                                  ! Depth of water column [m]. Computed on each timestep.
       real(dp) :: v                                                  ! Water velocity [m s-1]. Computed on each timestep.
-      real(integer) :: n_s_classes                                   ! Number of sediment size classes. Specified globally.
+      integer :: n_s_classes                                         ! Number of sediment size classes. Specified globally.
       real(dp), allocatable :: d_s(:)                                ! Sediment particle diameters [m]. Specified globally.
-      real(dp) :: rho_s(:)                                           ! Sediment particle densities [kg m-3]. Specified globally.
-      real(dp) :: k_settle(:)                                        ! Sediment settling rates [s-1]. Computed on each timestep.
-      real(dp) :: W_s(:)                                             ! Sediment settling velocities [m s-1]. Computed on each timestep.
+      real(dp), allocatable :: rho_s(:)                              ! Sediment particle densities [kg m-3]. Specified globally.
+      real(dp), allocatable :: k_settle(:)                           ! Sediment settling rates [s-1]. Computed on each timestep.
+      real(dp), allocatable :: W_s(:)                                ! Sediment settling velocities [m s-1]. Computed on each timestep.
       real(dp) :: n                                                  ! Manning's roughness coefficient, for natural streams and major rivers.
                                                                      ! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
       integer, private :: allst                                      ! array allocation status
       integer, private :: err                                        ! ?
-      type(Result). private :: r                                     ! Result object for returning from functions, for error checking
+      type(Result), private :: r                                     ! Result object for returning from functions, for error checking
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
                                                                      ! -----------
@@ -55,7 +56,7 @@ module spcRiverReach
       procedure, deferred :: calculateSettlingVelocity               ! compute the sediment settling velocities
     end type
   abstract interface
-    function createReach result(r)
+    function createReach(Me) result(r)
       class(RiverReach) :: Me                                        ! The RiverReach instance.
       type(Result0D) :: D                                            ! Depth [m].
       type(Result0D) :: v                                            ! Water velocity [m/s].
@@ -99,7 +100,7 @@ module spcRiverReach
       real(dp), intent(in) :: W                                      ! River width \( W \) [m].
       type(Result0D) :: r                                            ! The result object.
     end function
-    function CalculateSettlingVelocity(Me, d, rho_s, T) result(r)
+    function calculateSettlingVelocity(Me, d, rho_s, T) result(r)
       class(RiverReach), intent(in) :: me                            ! The RiverReach instance.
       real(dp), intent(in) :: d                                      ! Sediment particle diameter.
       real(dp), intent(in) :: rho_s                                  ! Sediment particle density.

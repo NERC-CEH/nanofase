@@ -1,4 +1,4 @@
-module classRiverReach
+module classRiverReach1
     use netcdf
     use mo_netcdf
     use Globals
@@ -7,12 +7,9 @@ module classRiverReach
     implicit none
     private
 
-    !> RiverReach object is responsible for sediment transport along river and
+    !> RiverReach1 object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
-    !!
-    !! TODO: Sediment size classes hard coded for the moment. Change this so
-    !! it can be altered (e.g. through data file, or this%App that everything extends).
-    type, public :: RiverReach
+    type, public, extends(spcRiverReach1) :: RiverReach11
         real(dp) :: W                           !! Width [m]
         real(dp) :: S                           !! Slope [m/m]
         real(dp) :: Q                           !! Flow rate [m3/s]
@@ -24,7 +21,8 @@ module classRiverReach
         real(dp) :: T                           !! Temperature [C]
 
       contains
-        procedure, public :: create => createRiverReach
+        procedure, public :: create => createRiverReach11
+        procedure, public :: destroy => destroyRiverReach11
         procedure :: calculateWidth
         procedure :: calculateDepth
         procedure :: calculateVelocity
@@ -35,24 +33,24 @@ module classRiverReach
 
     !> Create a river reach by reading data in from file and calculating
     !! properties such as depth and velocity.
-    function createRiverReach(me) result(r)
-        class(RiverReach) :: me                 !! The RiverReach instance.
-        type(Result0D) :: D                     !! Depth [m].
-        type(Result0D) :: v                     !! River velocity [m/s].
-        type(Result0D) :: W                     !! River width [m].
-        integer :: i                            !! Loop iterator.
-        type(Result) :: r                       !! The Result object.
-        type(NcDataset) :: NC                   !! NetCDF dataset
-        type(NcVariable) :: var                 !! NetCDF variable
-        type(NcGroup) :: grp                    !! NetCDF group
-        type(ErrorInstance) :: error            !! To return errors
-        real(dp), allocatable :: sedimentParticleDensities(:)   !> Array of sediment particle densities for each size class
+    function createRiverReach1(me) result(r)
+        class(RiverReach11) :: me                                 !! The RiverReach1 instance.
+        type(Result0D) :: D                                     !! Depth [m].
+        type(Result0D) :: v                                     !! River velocity [m/s].
+        type(Result0D) :: W                                     !! River width [m].
+        integer :: i                                            !! Loop iterator.
+        type(Result) :: r                                       !! The Result object.
+        type(NcDataset) :: NC                                   !! NetCDF dataset
+        type(NcVariable) :: var                                 !! NetCDF variable
+        type(NcGroup) :: grp                                    !! NetCDF group
+        type(ErrorInstance) :: error                            !! To return errors
+        real(dp), allocatable :: sedimentParticleDensities(:)   !! Array of sediment particle densities for each size class
 
-        ! Get the specific RiverReach parameters from data. Sediment particle size classes
+        ! Get the specific RiverReach1 parameters from data. Sediment particle size classes
         ! already obtain in Globals
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("River")
-        grp = grp%getGroup("RiverReach")
+        grp = grp%getGroup("RiverReach1")
         var = grp%getVariable("slope")                          ! Get the slope
         call var%getData(me%S)
         var = grp%getVariable("flow")                           ! Get the flow
@@ -103,6 +101,12 @@ module classRiverReach
         call r%addToTrace("Creating River Reach")
     end function
 
+    !> Destroy this RiverReach1
+    function destroyRiverReach1(me) result(r)
+        class(RiverReach1) :: me
+        ! TODO: Write some destroy logical
+    end function
+
     !> Calculate the width \( W \) of the river based on the discharge:
     !! $$
     !!      W = 1.22Q^0.557
@@ -111,7 +115,7 @@ module classRiverReach
     !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
     !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
     pure function calculateWidth(me, Q) result(r)
-        class(RiverReach), intent(in) :: me     !! The RiverReach instance.
+        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
         real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s].
         type(ErrorInstance) :: error            !! Variable to store error in.
         type(Result0D) :: r                     !! Result object to return.
@@ -139,7 +143,7 @@ module classRiverReach
     !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
     !! $$
     pure function calculateDepth(me, W, S, Q) result(r)
-        class(RiverReach), intent(in) :: me     !! The RiverReach instance.
+        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s].
@@ -201,7 +205,7 @@ module classRiverReach
     !!      v = \frac{Q}{WD}
     !! $$
     pure function calculateVelocity(me, D, Q, W) result(r)
-        class(RiverReach), intent(in) :: me     !! The RiverReach instance.
+        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
         real(dp), intent(in) :: D               !! River depth \( D \) [m].
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s].
         real(dp), intent(in) :: W               !! River width \( W \) [m].
@@ -227,7 +231,7 @@ module classRiverReach
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
     !! TODO: Make rho and nu dependent on temp
     pure function calculateSettlingVelocity(me, d, rho_s, T) result(r)
-        class(RiverReach), intent(in) :: me         !! The RiverReach instance.
+        class(RiverReach1), intent(in) :: me         !! The RiverReach1 instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
         real(dp), intent(in) :: rho_s               !! Sediment particle density [kg/m**3].
         real(dp), intent(in) :: T                   !! Temperature [C].

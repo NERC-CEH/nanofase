@@ -9,13 +9,15 @@ Project links:
 
 ### Quick start guide
 
+[Getting started with Git guide.](http://rogerdudler.github.io/git-guide/)
+
 To clone the repository into a new folder "nanofase":
 
 ```bash
 git clone --recursive https://github.com/nerc-ceh/nanofase
 ```
 
-The `--recursive` is important as it pulls in code from "sudmodules" located in the vendor folder. You can specify a different folder name after the url, e.g., `git clone --recursive https://github.com/nerc-ceh/nanofase custom_folder`.
+The `--recursive` is important as it pulls in code from "submodules" located in the vendor folder. You can specify a different folder name after the url, e.g., `git clone --recursive https://github.com/nerc-ceh/nanofase custom_folder`.
 
 To pull changes from Github:
 
@@ -37,4 +39,4 @@ These changes are now commited locally. To push to the Github repository:
 git push origin master
 ```
 
-This pushes the "master" branch of your local repo to the remote repo with name "origin", which if you've cloned the repo as above, will be https://github.com/nerc-ceh/nanofase.
+This pushes the current branch of your local repo to the "master" branch of the remote repo with name "origin", which if you've cloned the repo as above, will be https://github.com/nerc-ceh/nanofase.
