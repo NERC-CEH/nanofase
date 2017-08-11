@@ -13,11 +13,11 @@ module spcRiverReach
     use ResultModule                                                 ! error handling classes, required for
     use ErrorInstanceModule                                          ! generation of trace error messages
     implicit none                                                    ! force declaration of all variables
-    type BedSedimentElement
-      class(BedSediment), allocatable :: item                        ! container type for class(BedSediment), the actual type of the bed sediment superclass
+    type BedSedimentElement                                          ! container type for class(BedSediment), the actual type of the bed sediment superclass
+      class(BedSediment), allocatable :: item
     end type
     type, abstract, public :: RiverReach                             ! type declaration for superclass
-      character(len=256): name                                       ! a name for the object
+      character(len=256) :: name                                     ! a name for the object
                                                                      ! PROPERTIES
                                                                      ! Description
                                                                      ! -----------
@@ -44,8 +44,8 @@ module spcRiverReach
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-      procedure, public, deferred :: create => createReach                     ! create the RiverReach object
-      procedure, public, deferred :: destroy => destroyReach                    ! remove the RiverReach object and all contained objects
+      procedure, public, deferred :: create => createReach           ! create the RiverReach object. Exposed name: create
+      procedure, public, deferred :: destroy => destroyReach         ! remove the RiverReach object and all contained objects. Exposed name: destroy
                                                                      ! PRIVATE ROUTINES
                                                                      ! Description
                                                                      ! -----------
@@ -66,6 +66,7 @@ module spcRiverReach
       type(NcVariable) :: var                                        ! NetCDF variable
       type(NcGroup) :: grp                                           ! NetCDF group
       real(dp), allocatable :: sedimentParticleDensities(:)          ! Array of sediment particle densities for each size class
+    end function
     function destroyReach(Me) result(r)
       class(RiverReach) :: Me                                        ! The RiverReach instance.
     end function
@@ -107,5 +108,5 @@ module spcRiverReach
       real(dp) :: W_s                                                ! Calculated settling velocity.
       type(Result0D) :: r                                            ! The Result object.
     end function
-  abstract interface
+  end abstract interface
 end module
