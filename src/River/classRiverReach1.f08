@@ -34,7 +34,7 @@ module classRiverReach1
     !> Create a river reach by reading data in from file and calculating
     !! properties such as depth and velocity.
     function createRiverReach1(me) result(r)
-        class(RiverReach11) :: me                                 !! The RiverReach1 instance.
+        class(RiverReach11) :: me                               !! The RiverReach1 instance.
         type(Result0D) :: D                                     !! Depth [m].
         type(Result0D) :: v                                     !! River velocity [m/s].
         type(Result0D) :: W                                     !! River width [m].
