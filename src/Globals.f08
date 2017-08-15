@@ -17,7 +17,7 @@ module Globals
                                             !! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
 
         ! Data input
-        character(len=7) :: inputFile = 'data.nc'   !! Name of the data input file
+        character(len=7) :: inputFile = 'data.nc'   !! Name of the data input file. TODO: Get this from config file.
         real(dp), allocatable :: d_s(:)     !! Sediment particle size class diameters [m]
         real(dp), allocatable :: d_np(:)    !! Nanoparticle size class diameters [m]
         integer :: nSizeClassesSediment     !! Number of sediment particle size classes
