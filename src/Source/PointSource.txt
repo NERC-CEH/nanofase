@@ -1,0 +1,14 @@
+PointSource specification
+A point source should refer to the RiverReach into which it discharges.
+PointSources are stored at GridCell level, so the reference must contain:
+i.  A SubRiver reference
+ii. A RiverReach reference
+How to store the time series inputs for a point source?
+Time series inputs may be of several natures - so this requires further discussion
+ - what timestep is used - specified annual inputs broken down by day in the model itself
+                         - specified daily inputs
+                         - annual time trend using an equation
+                         - polymorphism may help us here - can define different types of point source input
+- inputs of what? water, SPM
+- is there value in defining surface runoff and erosion as point sources, so that
+  every RiverReach has an associated PointSource?

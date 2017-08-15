@@ -1,0 +1,2 @@
+A DiffuseSource is one that links to one or more SoilProfiles within a GridCell
+In the case of atmospheric emissions, the source links to all landscape elements within the GridCell

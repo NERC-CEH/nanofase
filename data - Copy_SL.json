@@ -3,25 +3,9 @@
         {
             "name" : "global",
             "type" : "group",
-            "dimensions" : [
-                { "name" : "size", "size" : 5 }
-            ],
-            "data" : [
-                {
-                    "name" : "sediment_size_classes",
-                    "type" : "variable",
-                    "dimensions" : [ "size" ],
-                    "datatype" : "f8",
-                    "data" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ]
-                },
-                {
-                    "name" : "nanoparticle_size_classes",
-                    "type" : "variable",
-                    "dimensions" : [ "size" ],
-                    "datatype" : "f8",
-                    "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
-                }
-            ]
+            "dimensions" : [{ "name" : "size", "size" : 5 }],
+            "data" : [{"name" : "sediment_size_classes","type" : "variable","dimensions" : [ "size" ],"datatype" : "f8","data" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ]},
+                      {"name" : "nanoparticle_size_classes","type" : "variable","dimensions" : [ "size" ],"datatype" : "f8","data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]}]
         },
         {
             "name" : "River",
