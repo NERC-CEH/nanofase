@@ -30,11 +30,12 @@ module classSubRiver1
 
   end type
 contains
-    function createSubRiver1(Me, Gx, Gy, SC, SRr) result(r)          ! create the SubRiver object by reading data in from file
+    function createSubRiver1(Me, Gx, Gy, SRr) result(r)          ! create the SubRiver object by reading data in from file
       class(SubRiver) :: Me                                          ! the SubRiver instance
       type(integer), intent(in) :: Gx                                ! the row number of the enclosing GridCell
       type(integer), intent(in) :: Gy                                ! the column number of the enclosing GridCell
-      type(integer), intent(in) :: SC                                ! the number of SPM size classes
+      ! Not needed as number of SPM size classes set in Globals:
+      ! type(integer), intent(in) :: SC                                ! the number of SPM size classes
       type(integer), intent(in) :: SRr                               ! reference SubRiver number
       type(Result) :: r                                              ! the result object
       type(NcDataset) :: NC                                          ! NetCDF dataset
@@ -47,6 +48,7 @@ contains
       type(integer) :: nInflows                                      ! number of inflows for each SubRiver
       type(integer), allocatable :: ReachTypes(:)                    ! integer array of Reach type identifiers
       type(RiverReach1), allocatable :: r1                           ! private RiverReach1 type, used for dynamic assignment
+      type(ErrorInstance) :: errors(:)
       ! Function purpose
       ! -------------------------------------------------------------
       ! parameterise a SubRiver object in a specified grid cell,
@@ -68,9 +70,8 @@ contains
       ! reference, or null if SubRiver is a headwater.
       ! An outflow reference, comprising Grid x and y references
       ! and SubRiver number reference.
-      Me%nSPMSC = SC                                                 ! copy in the number of SPM size classes
                                                                      ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
-      nc = NcDataset(C%InputFile, "r")                               ! Open dataset as read-only
+      nc = NcDataset(C%inputFile, "r")                               ! Open dataset as read-only
       read(Gx,*) sr1
       read(Gy,*) sr2
       ! CORRECT SYNTAX?
@@ -81,10 +82,10 @@ contains
       sr2 = "_" // sr2
       sr1 = sr1 // sr2                                               ! dynamically create reference group name for subriver
                                                                      ! Format is SubRiver_Gx_Gy_SRr
+      me%ref = sr1                                                   ! Store this in instance variable (useful for printing errors later)
       grp = nc%getGroup(sr1)                                         ! point to the SubRiver group
       var = grp%getVariable("nInflows")                              ! point to the variable nInflow: the number of inflows
       call var%getData(Me%nInflows)                                  ! pull data into variable: number of inflows
-                                                                     ! IS THIS CORRECT SYNTAX, OR SHOULD IT BE var%getData(nInflows)
                                                                      ! AUDITING CODE HERE - RETURN ERROR IF nInflows IS NOT =1, 2 OR 3
       allocate(Me%inflow_ref(1:Me%nInflows), stat=Me%allst)          ! allocate required space to hold the inflow references for this SubRiver
       var = grp%getVariable("ReachTypes")                            ! point to the array ReachTypes: the type identifiers for the RiverReach objects in this SubRiver
@@ -93,14 +94,24 @@ contains
       ! if this is the case, how are the array elements numbered? I would like a consistent approach to element numbering,
       ! always starting with 1.
       Me%nReaches = size(Me%ReachTypes)                              ! get the number of reaches from the ReachType array size
-      do x = 1, nInflows                                             ! loop to read the Inflow references for this SubRiver
+      do x = 1, me%nInflows                                          ! loop to read the Inflow references for this SubRiver
         read(x,*) sr1                                                ! read loop counter into character variable 'sr1'
                                                                      ! CORRECT SYNTAX?
         sr1 = "Inflow" // sr1                                        ! create character variable 'Inflow1', 'Inflow2' etc.
         grp = nc%getGroup(sr1)                                       ! point to the Inflow1, Inflow2 etc. group
         var = grp%getVariable("GridX")                               ! point to the variable defining the row of the grid cell
         call var%getData(Me%inflow_ref(x)%GridX)                     ! pull GridX reference into SubRiver object
-                                                                     ! AUDIT GridX here - must be >0 and <= the highest grid cell number
+                                                                     ! AUDIT GridX here - must be >0 and <= the highest grid cell number                                                       
+        errors = [ &
+          ERROR_HANDLER%positive( &
+            value = Me%inflow_ref(x)%GridX, &
+            message = "Inflow grid cell row number x must be positive." &
+          ) &
+        ]
+        error%addToTrace("Creating " // me%ref)
+        call ERROR_HANDLER%queue( &
+          error =  &
+        )                                                             ! Check GridX is >0. Need to think about where highest grid cell number is specified.
         var = grp%getVariable("GridY")                               ! point to the variable defining the column of the grid cell
         call var%getData(Me%inflow_ref(x)%GridY)                     ! pull GridY reference into SubRiver object
                                                                      ! AUDIT GridY here - must be >0 and <= the highest grid cell number
@@ -200,7 +211,7 @@ contains
         ! ARE THERE OTHER WAYS OF DOING THIS, e.g. PASSING REFERENCES TO THE SUBRIVER OBJECTS
         ! THAT PROVIDE THE INFLOW FROM THE CALLING ROUTINE (WHICH WILL BE IN THE GRIDCELL OBJECT)
         ! INTO THIS METHOD?
-        do y = 1, Me%nSPMSC                                          ! loop through all SPM size classes
+        do y = 1, C%nSizeClassesSPM                                          ! loop through all SPM size classes
           Me%SPMin(1, y) = Me%SPMin(1, y) + &
                 Environment%GetSPM(Gx, Gy, SR, y)                    ! pull in SPM fluxes from upstream SubRiver
                 ! GetSPM method of Environment object retrieves the SPM flux in size class y from subriver SR of grid cell (Gx, Gy)
@@ -222,14 +233,14 @@ contains
           ndisp = ndisp + 1                                          ! increment the number of displacements and repeat
         end do
         Qin(x + 1) = 0                                               ! initialise discharge summation for next RiverReach
-        do y = 1, Me%nSPMSC                                          ! compute inflow SPM fluxes for this displacement
+        do y = 1, C%nSizeClassesSPM                                          ! compute inflow SPM fluxes for this displacement
           dSPM(y) = SPMin(x, y) / ndisp                              ! SPM flux (kg) of size class 'y' for this displacement
           SPMin(x + 1, y) = 0                                        ! initialise SPM flux summation for next RiverReach
         end do
         do y = 1, ndisp                                              ! route water and SPM on each displacement
           call Me%colReaches(x)Simulate(dQ, dSPM)                    ! main simulation call for the RiverReach
           Qin(x + 1) = Qin(x + 1) + dQ                               ! sum the outflow discharge on each displacement
-          do z = 1, Me%nSPMSC
+          do z = 1, C%nSizeClassesSPM
             SPMin(x + 1, z) = SPMin(x + 1, z) + dSPM(z)              ! sum the outflow SPM fluxes on each displacement
           end do
           ! FUNCTION HERE TO SEND dQ, dSPM(:) to the RiverReach and return volumes and SPM classes (in the same variables) to be put into
@@ -240,7 +251,7 @@ contains
         end do
       end do
       Me%Qout = Qin(Me%nReaches + 1)                                 ! store the final outflow volume (m3)
-      do y = 1, Me%nSPMSC                                            ! compute inflow SPM fluxes for this displacement
+      do y = 1, C%nSizeClassesSPM                                            ! compute inflow SPM fluxes for this displacement
         Me%SPMout(y) = SPMin(Me%nReaches + 1, y)                     ! output SPM flux (kg) of size class 'y' for this displacement
       end do
     end function

@@ -8,14 +8,14 @@
             ],
             "data" : [
                 {
-                    "name" : "sediment_size_classes",
+                    "name" : "spm_size_classes",
                     "type" : "variable",
                     "dimensions" : [ "size" ],
                     "datatype" : "f8",
                     "data" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ]
                 },
                 {
-                    "name" : "nanoparticle_size_classes",
+                    "name" : "np_size_classes",
                     "type" : "variable",
                     "dimensions" : [ "size" ],
                     "datatype" : "f8",
@@ -50,14 +50,14 @@
                             "data" : 300
                         },
                         {
-                            "name" : "sediment_particle_density",
+                            "name" : "spm_densities",
                             "type" : "variable",
                             "datatype" : "f8",
                             "dimensions" : [ "density" ],
                             "data" : [ 2120, 2120, 2120, 2120, 2120 ]
                         },
                         {
-                            "name" : "np_particle_density",
+                            "name" : "np_densities",
                             "type" : "variable",
                             "datatype" : "f8",
                             "dimensions" : [ "density" ],
