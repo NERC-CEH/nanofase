@@ -22,7 +22,7 @@
                             "datatype" : "i4",
                             "dimensions" : [ "nReaches" ],
                             "data" : [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
-                          }
+                          },
                           {
                             "name" : "Inflow1",
                             "type" : "group",
@@ -32,21 +32,21 @@
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 1
-                                       }
+                                       },
                                        {
                                          "name" : "GridY",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "SubRiver",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 1
-                                       },
+                                       }
                                      ]
-                          }
+                          },
                           {
                             "name" : "Outflow",
                             "type" : "group",
@@ -87,7 +87,7 @@
                             "name" : "nInflows",
                             "type" : "variable",
                             "datatype" : "i4",
-                            "data" : 1,
+                            "data" : 1
                           },
                           {
                             "name" : "ReachTypes",
@@ -95,7 +95,7 @@
                             "datatype" : "i4",
                             "dimensions" : [ "nReaches" ],
                             "data" : [1, 1, 1, 1, 1]
-                          }
+                          },
                           {
                             "name" : "Inflow1",
                             "type" : "group",
@@ -119,7 +119,7 @@
                                          "data" : 1
                                        }
                                      ]
-                          }
+                          },
                           {
                             "name" : "Outflow",
                             "type" : "group",
@@ -168,7 +168,7 @@
                             "datatype" : "i4",
                             "dimensions" : [ "nReaches" ],
                             "data" : [1, 1, 1]
-                          }
+                          },
                           {
                             "name" : "Inflow1",
                             "type" : "group",
@@ -178,13 +178,13 @@
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "GridY",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 3
-                                       }
+                                       },
                                        {
                                          "name" : "SubRiver",
                                          "type" : "variable",
@@ -202,13 +202,13 @@
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "GridY",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "SubRiver",
                                          "type" : "variable",
@@ -241,7 +241,7 @@
                             "datatype" : "i4",
                             "dimensions" : [ "nReaches" ],
                             "data" : [1]
-                          }
+                          },
                           {
                             "name" : "Inflow1",
                             "type" : "group",
@@ -251,13 +251,13 @@
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "GridY",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "SubRiver",
                                          "type" : "variable",
@@ -275,13 +275,13 @@
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "GridY",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "SubRiver",
                                          "type" : "variable",
@@ -299,13 +299,13 @@
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "GridY",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "SubRiver",
                                          "type" : "variable",
@@ -323,13 +323,13 @@
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 3
-                                       }
+                                       },
                                        {
                                          "name" : "GridY",
                                          "type" : "variable",
                                          "datatype" : "i4",
                                          "data" : 2
-                                       }
+                                       },
                                        {
                                          "name" : "SubRiver",
                                          "type" : "variable",
