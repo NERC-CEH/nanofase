@@ -229,7 +229,6 @@ module classRiverReach1
     !!      \Delta = \frac{\rho_s}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
-    !! TODO: Make rho and nu dependent on temp
     pure function calculateSettlingVelocity(me, d, rho_s, T) result(r)
         class(RiverReach1), intent(in) :: me         !! The RiverReach1 instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
