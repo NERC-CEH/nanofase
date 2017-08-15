@@ -18,9 +18,9 @@ module Globals
 
         ! Data input
         character(len=7) :: inputFile = 'data.nc'   !! Name of the data input file. TODO: Get this from config file.
-        real(dp), allocatable :: d_s(:)     !! Sediment particle size class diameters [m]
+        real(dp), allocatable :: d_spm(:)   !! Suspended particulate matter size class diameters [m]
         real(dp), allocatable :: d_np(:)    !! Nanoparticle size class diameters [m]
-        integer :: nSizeClassesSediment     !! Number of sediment particle size classes
+        integer :: nSizeClassesSPM          !! Number of sediment particle size classes
         integer :: nSizeClassesNP           !! Number of nanoparticle size classes
 
       contains
@@ -55,14 +55,14 @@ module Globals
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("global")                             ! Get the global variables group
-        var = grp%getVariable("sediment_size_classes")          ! Get the sediment size classes variable
+        var = grp%getVariable("spm_size_classes")          ! Get the sediment size classes variable
         call var%getData(sedimentSizeClasses)                   ! Get the variable's data
-        allocate(C%d_s, source=sedimentSizeClasses)             ! Allocate to class variable
-        var = grp%getVariable("nanoparticle_size_classes")      ! Get the sediment size classes variable
+        allocate(C%d_spm, source=sedimentSizeClasses)            ! Allocate to class variable
+        var = grp%getVariable("np_size_classes")      ! Get the sediment size classes variable
         call var%getData(nanoparticleSizeClasses)               ! Get the variable's data
         allocate(C%d_np, source=nanoparticleSizeClasses)        ! Allocate to class variable
         ! Set the number of size classes
-        C%nSizeClassesSediment = size(C%d_s)
+        C%nSizeClassesSPM = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
     end subroutine
 

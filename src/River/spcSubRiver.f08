@@ -26,7 +26,9 @@ module spcSubRiver
     type(integer) :: SubRiver                                        ! as this SubRiver) and the in-cell SubRiver reference number
   end type
   type, abstract, public :: SubRiver                                 ! type declaration for superclass
-    character(len=256) :: name                                       ! a name for the object
+    character(len=256) :: name                                       ! a name for the object - is this used/needed?
+    character(len=100) :: ref                                        ! SubRiver reference of the format SubRiver_x_y_n, where x is GridCell row,
+                                                                     ! y is GridCell column and n is SubRiver number in GridCell
                                                                      ! PROPERTIES
                                                                      ! Description
                                                                      ! -----------
@@ -38,7 +40,8 @@ module spcSubRiver
     ! need a function somewhere (probably in RiverReach) to convert SPM mass in a size class to particle number
     ! this is needed *** for settling rates *** and for heteroaggregation with nanoparticles
 
-    integer :: nSPMSC                                                ! number of SPM size classes
+    ! nSPMSC is available globally (C%nSizeClassesSPM) so not needed here
+    ! integer :: nSPMSC                                                ! number of SPM size classes
     integer, private :: allst                                        ! array allocation status
     integer, private :: err                                          ! ?
     type(Result), private :: r                                       ! Result object for returning from functions, for error checking
@@ -50,9 +53,9 @@ module spcSubRiver
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public, deferred :: Create => createSubRiver          ! create the SubRiver object. Exposed name: create
-    procedure, public, deferred :: Destroy => destroySubRiver        ! remove the SubRiver object and all contained objects. Exposed name: destroy
-    procedure, public, deferred :: Routing => routingSubRiver        ! route water and suspended solids through a SubRiver. Exposed name: routing
+    procedure, public, deferred :: create => createSubRiver          ! create the SubRiver object. Exposed name: create
+    procedure, public, deferred :: destroy => destroySubRiver        ! remove the SubRiver object and all contained objects. Exposed name: destroy
+    procedure, public, deferred :: routing => routingSubRiver        ! route water and suspended solids through a SubRiver. Exposed name: routing
                                                                      ! PRIVATE ROUTINES
                                                                      ! Description
     ! IS IT NECESSARY TO DECLARE ALL PRIVATE CLASS-LEVEL METHODS HERE?
@@ -60,7 +63,7 @@ module spcSubRiver
                                                                      ! -----------
   end type
   abstract interface
-    function createSubRiver1(Me, Gx, Gy, SC, SRr) result(r)          ! create the SubRiver object by reading data in from file
+    function createSubRiver(Me, Gx, Gy, SC, SRr) result(r)          ! create the SubRiver object by reading data in from file
       class(SubRiver) :: Me                                          ! the SubRiver instance
       type(integer), intent(in) :: Gx                                ! the row number of the enclosing GridCell
       type(integer), intent(in) :: Gy                                ! the column number of the enclosing GridCell

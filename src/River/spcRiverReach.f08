@@ -27,11 +27,12 @@ module spcRiverReach
       real(dp) :: W                                                  ! Width of reach [m]. Computed on each timestep.
       real(dp) :: D                                                  ! Depth of water column [m]. Computed on each timestep.
       real(dp) :: v                                                  ! Water velocity [m s-1]. Computed on each timestep.
-      integer :: n_s_classes                                         ! Number of sediment size classes. Specified globally.
-      real(dp), allocatable :: d_s(:)                                ! Sediment particle diameters [m]. Specified globally.
-      real(dp), allocatable :: rho_s(:)                              ! Sediment particle densities [kg m-3]. Specified globally.
+      ! Specified globally so don't need to be defined here. Access via C%nSizeClassesSPM and C%d_spm:
+      ! integer :: n_s_classes                                         ! Number of sediment size classes. Specified globally.
+      ! real(dp), allocatable :: d_spm(:)                              ! Sediment particle diameters [m]. Specified globally.
+      real(dp), allocatable :: rho_spm(:)                            ! Sediment particle densities [kg m-3]. Specified globally.
       real(dp), allocatable :: k_settle(:)                           ! Sediment settling rates [s-1]. Computed on each timestep.
-      real(dp), allocatable :: W_s(:)                                ! Sediment settling velocities [m s-1]. Computed on each timestep.
+      real(dp), allocatable :: W_spm(:)                              ! Sediment settling velocities [m s-1]. Computed on each timestep.
       real(dp) :: n                                                  ! Manning's roughness coefficient, for natural streams and major rivers.
                                                                      ! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
       integer, private :: allst                                      ! array allocation status
@@ -66,7 +67,7 @@ module spcRiverReach
       type(NcDataset) :: NC                                          ! NetCDF dataset
       type(NcVariable) :: var                                        ! NetCDF variable
       type(NcGroup) :: grp                                           ! NetCDF group
-      real(dp), allocatable :: sedimentParticleDensities(:)          ! Array of sediment particle densities for each size class
+      real(dp), allocatable :: spmDensities(:)                       ! Array of sediment particle densities for each size class
     end function
     function destroyReach(Me) result(r)
       class(RiverReach) :: Me                                        ! The RiverReach instance.
@@ -100,13 +101,13 @@ module spcRiverReach
       real(dp), intent(in) :: W                                      ! River width \( W \) [m].
       type(Result0D) :: r                                            ! The result object.
     end function
-    function calculateSettlingVelocity(Me, d, rho_s, T) result(r)
+    function calculateSettlingVelocity(Me, d, rho_spm, T) result(r)
       class(RiverReach), intent(in) :: me                            ! The RiverReach instance.
       real(dp), intent(in) :: d                                      ! Sediment particle diameter.
-      real(dp), intent(in) :: rho_s                                  ! Sediment particle density.
+      real(dp), intent(in) :: rho_spm                                ! Sediment particle density.
       real(dp), intent(in) :: T                                      ! Temperature [C]
       real(dp) :: dStar                                              ! Dimensionless particle diameter.
-      real(dp) :: W_s                                                ! Calculated settling velocity.
+      real(dp) :: W_spm                                              ! Calculated settling velocity.
       type(Result0D) :: r                                            ! The Result object.
     end function
   end abstract interface
