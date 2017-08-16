@@ -12,16 +12,19 @@ module classSubRiver1
   use mo_netcdf                                                      ! input/output handling
   use ResultModule                                                   ! error handling classes, required for
   use ErrorInstanceModule                                            ! generation of trace error messages
+  use classEnvironment                                               ! Environment gives ability to get flows, SPM content etc from other grid cells
+  use spcSubRiver                                                    ! Module containing SubRiver abstract interface
+  use classRiverReach1
   implicit none                                                      ! force declaration of all variables
-  type, extends(SubRiver) public :: SubRiver1                        ! type declaration for subclass
+  type, extends(SubRiver), public :: SubRiver1                        ! type declaration for subclass
 
     contains
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public :: Create => createSubRiver1                   ! create the SubRiver1 object. Exposed name: create
-    procedure, public :: Destroy => destroySubRiver1                 ! remove the SubRiver1 object and all contained objects. Exposed name: destroy
-    procedure, public :: Routing => routingSubRiver1                 ! route water and suspended solids through the SubRiver. Exposed name: routing
+    procedure, public :: create => createSubRiver1                   ! create the SubRiver1 object. Exposed name: create
+    procedure, public :: destroy => destroySubRiver1                 ! remove the SubRiver1 object and all contained objects. Exposed name: destroy
+    procedure, public :: routing => routingSubRiver1                 ! route water and suspended solids through the SubRiver. Exposed name: routing
                                                                      ! Description
                                                                      ! -----------
     procedure, private :: auditrefs                                  ! internal property function: sense check the inflow and outflow GridCell references
@@ -31,24 +34,24 @@ module classSubRiver1
   end type
 contains
     function createSubRiver1(Me, Gx, Gy, SRr) result(r)          ! create the SubRiver object by reading data in from file
-      class(SubRiver) :: Me                                          ! the SubRiver instance
+      class(SubRiver1) :: Me                                         ! the SubRiver instance
       type(integer), intent(in) :: Gx                                ! the row number of the enclosing GridCell
       type(integer), intent(in) :: Gy                                ! the column number of the enclosing GridCell
       ! Not needed as number of SPM size classes set in Globals:
-      ! type(integer), intent(in) :: SC                                ! the number of SPM size classes
+      ! type(integer), intent(in) :: SC                              ! the number of SPM size classes
       type(integer), intent(in) :: SRr                               ! reference SubRiver number
       type(Result) :: r                                              ! the result object
       type(NcDataset) :: NC                                          ! NetCDF dataset
       type(NcVariable) :: var                                        ! NetCDF variable
       type(NcGroup) :: grp                                           ! NetCDF group
       type(integer) :: x                                             ! loop counter
-      type(integer) :: y                                             ! loop counter
-      type(character(len=*)) :: sr1                                  ! string to dynamically compile and hold group names
-      type(character(len=*)) :: sr2                                  ! string to dynamically compile and hold group names
-      type(integer) :: nInflows                                      ! number of inflows for each SubRiver
-      type(integer), allocatable :: ReachTypes(:)                    ! integer array of Reach type identifiers
+      type(character(len=100)) :: sr1                                ! string to dynamically compile and hold group names (must be specific length)
+      type(character(len=100)) :: sr2                                ! string to dynamically compile and hold group names
+      ! Moved to spcSubRiver type declaration to fit in with me%reachTypes used below:
+      ! type(integer), allocatable :: ReachTypes(:)                  ! integer array of Reach type identifiers
       type(RiverReach1), allocatable :: r1                           ! private RiverReach1 type, used for dynamic assignment
-      type(ErrorInstance) :: errors(:)
+      type(ErrorInstance), allocatable :: errors(:)
+      character(len=5) :: charMaxRiverReaches                        ! character string to store max number of RiverReaches allowed in
       ! Function purpose
       ! -------------------------------------------------------------
       ! parameterise a SubRiver object in a specified grid cell,
@@ -75,12 +78,12 @@ contains
       read(Gx,*) sr1
       read(Gy,*) sr2
       ! CORRECT SYNTAX?
-      sr1 = sr1 // "_"
-      sr1 = sr1 // sr2
-      sr1 = "SubRiver_" // sr1
+      sr1 = trim(sr1) // "_"
+      sr1 = trim(sr1) // trim(sr2)
+      sr1 = "SubRiver_" // trim(sr1)
       read(SRr,*) sr2
-      sr2 = "_" // sr2
-      sr1 = sr1 // sr2                                               ! dynamically create reference group name for subriver
+      sr2 = "_" // trim(sr2)
+      sr1 = trim(sr1) // trim(sr2)                                   ! dynamically create reference group name for subriver
                                                                      ! Format is SubRiver_Gx_Gy_SRr
       me%ref = sr1                                                   ! Store this in instance variable (useful for printing errors later)
       grp = nc%getGroup(sr1)                                         ! point to the SubRiver group
@@ -89,35 +92,44 @@ contains
                                                                      ! AUDITING CODE HERE - RETURN ERROR IF nInflows IS NOT =1, 2 OR 3
       allocate(Me%inflow_ref(1:Me%nInflows), stat=Me%allst)          ! allocate required space to hold the inflow references for this SubRiver
       var = grp%getVariable("ReachTypes")                            ! point to the array ReachTypes: the type identifiers for the RiverReach objects in this SubRiver
-      call var%getData(Me%ReachTypes)                                ! pull the Reach type references into SubRiver object
+      call var%getData(Me%reachTypes)                                ! pull the Reach type references into SubRiver object
       ! CORRECT? getData will pull a multidimensional variable into an array and dynamically allocate the array size?
       ! if this is the case, how are the array elements numbered? I would like a consistent approach to element numbering,
       ! always starting with 1.
-      Me%nReaches = size(Me%ReachTypes)                              ! get the number of reaches from the ReachType array size
+      Me%nReaches = size(Me%reachTypes)                              ! get the number of reaches from the ReachType array size
       do x = 1, me%nInflows                                          ! loop to read the Inflow references for this SubRiver
         read(x,*) sr1                                                ! read loop counter into character variable 'sr1'
                                                                      ! CORRECT SYNTAX?
-        sr1 = "Inflow" // sr1                                        ! create character variable 'Inflow1', 'Inflow2' etc.
+        sr1 = "Inflow" // trim(sr1)                                  ! create character variable 'Inflow1', 'Inflow2' etc.
         grp = nc%getGroup(sr1)                                       ! point to the Inflow1, Inflow2 etc. group
         var = grp%getVariable("GridX")                               ! point to the variable defining the row of the grid cell
         call var%getData(Me%inflow_ref(x)%GridX)                     ! pull GridX reference into SubRiver object
-                                                                     ! AUDIT GridX here - must be >0 and <= the highest grid cell number                                                       
-        errors = [ &
+                                                                     ! AUDIT GridX here - must be >0 and <= the highest grid cell number
+        call r%addError( &                                           ! Check GridX is >0. Need to think about where highest grid cell number is specified.
           ERROR_HANDLER%positive( &
             value = Me%inflow_ref(x)%GridX, &
             message = "Inflow grid cell row number x must be positive." &
           ) &
-        ]
-        error%addToTrace("Creating " // me%ref)
-        call ERROR_HANDLER%queue( &
-          error =  &
-        )                                                             ! Check GridX is >0. Need to think about where highest grid cell number is specified.
+        )
         var = grp%getVariable("GridY")                               ! point to the variable defining the column of the grid cell
         call var%getData(Me%inflow_ref(x)%GridY)                     ! pull GridY reference into SubRiver object
                                                                      ! AUDIT GridY here - must be >0 and <= the highest grid cell number
+        call r%addError( &                                           ! Check GridY is >0. Need to think about where highest grid cell number is specified.
+          ERROR_HANDLER%positive( &
+            value = Me%inflow_ref(x)%GridY, &
+            message = "Inflow grid cell column number y must be positive." &
+          ) &
+        )
         var = grp%getVariable("SubRiver")                            ! point to the variable defining the SubRiver acting as an input
         call var%getData(Me%inflow_ref(x)%SubRiver)                  ! pull SubRiver reference into SubRiver object
                                                                      ! AUDIT SubRiver here - must be either null (-999, indicating SubRiver is a headwater), or >0 and <= nSubRivers
+        call r%addError( &                                           ! Check SubRiver number is >0. If it's a headwater, then won't nInflows = 0 (and thus we'll never enter this loop)?
+          ERROR_HANDLER%positive( &                                  ! TODO: Get number of SubRivers from inflow GridCell to check SubRiver number isn't greater
+            value = Me%inflow_ref(x)%SubRiver, &
+            message = "Inflow SubRiver number must be positive." &
+          ) &
+        )
+        call r%addToTrace("Processing " // sr1)                       ! Add this inflow to the error trace
       ! I've assumed here that this is the only way to read in single elements of a user-defined type, i.e. by listing each as a separate variable.
       ! But can a single user-defined type (i.e. GridX, GridY and SubRiver) be listed as a single object in the .json file and
       ! read in as a single variable? Then "nInflows" could be listed in the .json file as a dimension, in the way that "ReachTypes" is, and the number of inflows
@@ -127,55 +139,84 @@ contains
       var = grp%getVariable("GridX")                                 ! point to the variable defining the row of the grid cell
       call var%getData(Me%outflow_ref%GridX)                         ! pull GridX reference into SubRiver object
                                                                      ! AUDIT GridX here - must be >0 and <= the highest grid cell number
+      call r%addError( &                                             ! Check GridX is >0. Need to think about where highest grid cell number is specified.
+        ERROR_HANDLER%positive( &
+          value = Me%outflow_ref%GridX, &
+          message = "Outflow grid cell row number x must be positive." &
+        ) &
+      )
       var = grp%getVariable("GridY")                                 ! point to the variable defining the column of the grid cell
       call var%getData(Me%outflow_ref%GridY)                         ! pull GridY reference into SubRiver object
                                                                      ! AUDIT GridY here - must be <= the highest grid cell number
+      call r%addError( &                                             ! Check GridX is >0. Need to think about where highest grid cell number is specified.
+        ERROR_HANDLER%positive( &
+          value = Me%outflow_ref%GridY, &
+          message = "Outflow grid cell column number y must be positive." &
+        ) &
+      )
       var = grp%getVariable("SubRiver")                              ! point to the variable defining the SubRiver acting as an input
       call var%getData(Me%outflow_ref%SubRiver)                      ! pull SubRiver reference into SubRiver object
                                                                      ! AUDIT SubRiver here - must be either null (-999, indicating SubRiver is a headwater), or >0 and <= nSubRivers
+      call r%addError( &                                             ! Check SubRiver number is >0.
+        ERROR_HANDLER%positive( &                                    ! TODO: Get number of SubRivers from outflow GridCell to check SubRiver number isn't greater
+          value = Me%outflow_ref%SubRiver, &
+          message = "Outflow SubRiver number must be positive." &
+        ) &
+      )
+      call r%addToTrace("Processing outflow")                        ! Add this inflow to the error trace
       var = grp%getVariable("nReaches")                              ! point to the variable nReaches: the number of reaches in this SubRiver
       call var%getData(Me%nReaches)                                  ! pull nReaches reference into SubRiver object
                                                                      ! AUDIT nReaches here: must be > 0, possibly warn if greater than a stipulated maximum
+      read(C%maxRiverReaches,*) charMaxRiverReaches
+      call r%addError( &                                             ! Check SubRiver number is >0.
+        ERROR_HANDLER%limit( &                                       ! TODO: Get number of SubRivers from outflow GridCell to check SubRiver number isn't greater
+          value = Me%nReaches, &
+          message = "Number of RiverReaches must be positive but less than " &
+            // adjustl(trim(charMaxRiverReaches)) &
+        ) &
+      )
                                                                      ! AUDIT size(ReachTypes)=nReaches here
       allocate(Me%colReaches(1:Me%nReaches), stat=Me%allst)          ! Set colReaches to be of size nReaches
-      do x = 1, Me(x)%nReaches                                       ! loop through each RiverReach in each SubRiver to create the reaches
-        select case Me%ReachTypes(x)                                 ! look at the type identifier for the yth RiverReach
+      do x = 1, Me%nReaches                                          ! loop through each RiverReach in each SubRiver to create the reaches
+        select case (Me%reachTypes(x))                               ! look at the type identifier for the yth RiverReach
           case (1)
             allocate(r1, stat=Me%allst)                              ! RiverReach1 type - create the object
-            call r1%create()                                         ! call the RiverReach1 constructor
+            r = r1%create()                                          ! call the RiverReach1 constructor
             call move_alloc(r1, Me%colReaches(x)%item)               ! move the RiverReach1 object to the yth element of the colReaches collection
           case default
               ! not a valid RiverReach type - must cause an error
         end select
       end do
-    end do
+
+      call r%addToTrace("Creating " // me%ref)
     end function
     function destroySubRiver1(Me) result(r)
-      class(SubRiver) :: Me                                          ! the SubRiver instance
+      class(SubRiver1) :: Me                                         ! the SubRiver instance
       type(Result) :: r                                              ! the result object
       type(integer) :: x                                             ! loop counter
       do x = 1, Me%nReaches                                          ! loop through each RiverReach
-        r = Me%colReaches(x)%item%destroy                            ! call destroy routine in the SubRiver object
+        r = Me%colReaches(x)%item%destroy()                          ! call destroy routine in the SubRiver object
       end do
 
     ! Something here to compile all returned Result objects into one?
 
     end function
     function routingSubRiver1(Me) result(r)                          ! routes inflow(s) through the specified SubRiver
-      class(River) :: Me                                             ! the SubRiver instance
+      class(SubRiver1) :: Me                                         ! the SubRiver instance
       type(Result) :: r                                              ! the result object
       type(real(dp)), allocatable :: Qin(:)                          ! the inflow (m3)
-      type(real(dp)), allocatable :: SPMin(:)                        ! array of SPM masses, one per size class, in inflow (kg)
-      type(integer) :: nInflows                                      ! the number of inflows
+      ! Placed SPMin and nInflows in spcSubRiver type declaration to fit in with me%SPMin, me%nInflow calls below
+      ! type(real(dp)), allocatable :: SPMin(:)                        ! array of SPM masses, one per size class, in inflow (kg)
+      ! type(integer) :: nInflows                                      ! the number of inflows
       type(integer) :: Gx                                            ! the row number of a GridCell
       type(integer) :: Gy                                            ! the column number of a GridCell
       type(integer) :: SR                                            ! SubRiver number reference
       type(integer) :: ndisp                                         ! displacement counter
       type(real(dp)) :: dQ                                           ! inflow volume (m3) per displacement
       type(real(dp)) :: rQ                                           ! reach capacity (m3) per timestep
-      type(real(dp), allocatable) :: dSPM(:)                         ! inflow SPM per size class (kg) per displacement
-      type(integer) :: x                                             ! loop counter
-      type(integer) :: y                                             ! loop counter
+      type(real(dp)), allocatable :: dSPM(:)                         ! inflow SPM per size class (kg) per displacement
+      type(integer) :: x, y, z                                       ! loop counters
+      type(Environment) :: enviro                                    ! temporary dummy to get compiling whilst we think about where to get Q and SPM from other cells from
       ! Function purpose
       ! -------------------------------------------------------------
       ! route water and suspended material from the upstream
@@ -198,22 +239,22 @@ contains
       ! Sout(:) : outflow SPM fluxes (kg)
       ! These variables are stored at object level for interrogation
       ! by the downstream SubRiver
-      nInflows = size(inflow_ref)                                    ! get the number of inflows to be processed
-      allocate(Qin(1:nReaches + 1), stat=Me%allst)                   ! initialise Qin - extra element holds final discharge
-      allocate(SPMin(1:nReaches + 1, 1:nSPMSC), stat=Me%allst)       ! initialise SPMin - extra element holds final discharge
+      me%nInflows = size(me%inflow_ref)                              ! get the number of inflows to be processed
+      allocate(Qin(1:me%nReaches + 1), stat=Me%allst)                ! initialise Qin - extra element holds final discharge
+      allocate(Me%SPMin(1:me%nReaches + 1, 1:C%nSizeClassesSPM), stat=Me%allst)    ! initialise SPMin - extra element holds final discharge
       do x = 1, Me%nInflows                                          ! loop through the inflows to retrieve and sum discharges
         Gx = Me%inflow_ref(x)%GridX                                  ! x reference of GridCell supplying inflow
         Gy = Me%inflow_ref(x)%GridY                                  ! y reference of GridCell supplying inflow
         SR = Me%inflow_ref(x)%SubRiver                               ! SubRiver of GridCell supplying inflow
-        Qin(1) = Qin(1) + Environment%GetQ(Gx, Gy, SR)               ! pull in discharge from upstream SubRiver
+        Qin(1) = Qin(1) + .dp. enviro%getQ(Gx, Gy, SR)               ! pull in discharge from upstream SubRiver
         ! GetQ method of Environment object retrieves the outflow Q from subriver SR of grid cell (Gx, Gy)
         ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONMENT OBJECT FROM HERE???
         ! ARE THERE OTHER WAYS OF DOING THIS, e.g. PASSING REFERENCES TO THE SUBRIVER OBJECTS
         ! THAT PROVIDE THE INFLOW FROM THE CALLING ROUTINE (WHICH WILL BE IN THE GRIDCELL OBJECT)
         ! INTO THIS METHOD?
-        do y = 1, C%nSizeClassesSPM                                          ! loop through all SPM size classes
-          Me%SPMin(1, y) = Me%SPMin(1, y) + &
-                Environment%GetSPM(Gx, Gy, SR, y)                    ! pull in SPM fluxes from upstream SubRiver
+        do y = 1, C%nSizeClassesSPM                                   ! loop through all SPM size classes
+          Me%spmIn(1, y) = Me%spmIn(1, y) + &                         ! only for the first RiverReach,
+                .dp. enviro%getSpm(Gx, Gy, SR, y)                     ! pull in SPM fluxes from upstream SubRiver
                 ! GetSPM method of Environment object retrieves the SPM flux in size class y from subriver SR of grid cell (Gx, Gy)
                 ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONMENT OBJECT FROM HERE???
                 ! ARE THERE OTHER WAYS OF DOING THIS, e.g. PASSING REFERENCES TO THE SUBRIVER OBJECTS
@@ -222,26 +263,30 @@ contains
         end do
       end do                                                         ! loop to sum all discharges and SPM fluxes
       do x = 1, Me%nReaches                                          ! main routing loop
-        call Me%colReaches(x)%GetDimensions(Qin(x))                  ! call function in RiverReach to set up dimensions of
+        ! Renamed to "initDimension" so we can keep "get" functions only as
+        ! ones that return state/class variables. E.g., once initDimensions() has
+        ! been called, you can `getVolume()` to get the width that initDimensions()
+        ! has calculated.
+        r = Me%colReaches(x)%item%initDimensions(Qin(x))            ! call function in RiverReach to set up dimensions of
                                                                      ! the reach for this timestep
-        rQ = Me%colReaches(x)%Vol                                    ! get volumetric capacity of the reach (m3) for this timestep
+        rQ = Me%colReaches(x)%item%getVolume()                       ! get volumetric capacity of the reach (m3) for this timestep
         ! spcRiverReach NEEDS TO EXPOSE A VOLUME PROPERTY. THIS PROPERTY WILL ALSO NEED TO BE DEFINED FOR THE RiverReach OBJECT'S
         ! INTERNAL ROUTING COMPUTATIONS. IT NEEDS TO BE CALCULATED FOR EACH TIMESTEP.
         ndisp = 0                                                    ! count number of displacements required
-        do while dQ > Qin(x)                                         ! loop until the inflow volume is less than the number of displacements
+        do while (dQ > Qin(x))                                       ! loop until the inflow volume is less than the number of displacements
           dQ = rQ / (ndisp + 1)                                      ! compute input volume as a function of the no. of displacements
           ndisp = ndisp + 1                                          ! increment the number of displacements and repeat
         end do
         Qin(x + 1) = 0                                               ! initialise discharge summation for next RiverReach
-        do y = 1, C%nSizeClassesSPM                                          ! compute inflow SPM fluxes for this displacement
-          dSPM(y) = SPMin(x, y) / ndisp                              ! SPM flux (kg) of size class 'y' for this displacement
-          SPMin(x + 1, y) = 0                                        ! initialise SPM flux summation for next RiverReach
+        do y = 1, C%nSizeClassesSPM                                  ! compute inflow SPM fluxes for this displacement
+          dSPM(y) = me%spmIn(x, y) / ndisp                           ! SPM flux (kg) of size class 'y' for this displacement
+          me%spmIn(x + 1, y) = 0                                     ! initialise SPM flux summation for next RiverReach
         end do
         do y = 1, ndisp                                              ! route water and SPM on each displacement
-          call Me%colReaches(x)Simulate(dQ, dSPM)                    ! main simulation call for the RiverReach
+          r = Me%colReaches(x)%item%simulate(dQ, dSPM)               ! main simulation call for the RiverReach
           Qin(x + 1) = Qin(x + 1) + dQ                               ! sum the outflow discharge on each displacement
           do z = 1, C%nSizeClassesSPM
-            SPMin(x + 1, z) = SPMin(x + 1, z) + dSPM(z)              ! sum the outflow SPM fluxes on each displacement
+            me%SPMin(x + 1, z) = me%SPMin(x + 1, z) + dSPM(z)         ! sum the outflow SPM fluxes on each displacement
           end do
           ! FUNCTION HERE TO SEND dQ, dSPM(:) to the RiverReach and return volumes and SPM classes (in the same variables) to be put into
           ! Qin(x+1) and SPMin(x+1, ) by summing across each loop iteration
@@ -251,13 +296,13 @@ contains
         end do
       end do
       Me%Qout = Qin(Me%nReaches + 1)                                 ! store the final outflow volume (m3)
-      do y = 1, C%nSizeClassesSPM                                            ! compute inflow SPM fluxes for this displacement
-        Me%SPMout(y) = SPMin(Me%nReaches + 1, y)                     ! output SPM flux (kg) of size class 'y' for this displacement
+      do y = 1, C%nSizeClassesSPM                                    ! compute inflow SPM fluxes for this displacement
+        Me%SPMout(y) = me%spmIn(Me%nReaches + 1, y)                  ! output SPM flux (kg) of size class 'y' for this displacement
       end do
     end function
     ! ******************************************************
     function auditrefs(Me) result(r)
-      class(River) :: Me                                             ! the River instance
+      class(SubRiver1) :: Me                                           ! the SubRiver instance
       type(Result) :: r                                              ! the result object
       ! the purpose of this function is to sense check the inflow and outflow references, i.e. do they form
       ! robust, consistent links to adjacent grid cells?
