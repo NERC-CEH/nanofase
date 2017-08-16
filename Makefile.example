@@ -6,6 +6,7 @@ modules = vendor/feh/src/ErrorInstance.f08 \
 	vendor/mo_netcdf/src/mo_types.f90 \
 	vendor/mo_netcdf/src/mo_netcdf.f90 \
 	src/Globals.f08 \
+	src/Environment/classEnvironment.f08 \
 	src/Biota/spcBiota.f08 \
 	src/Biota/classBiota1.f08 \
 	src/Biota/classBiota2.f08 \
@@ -18,7 +19,10 @@ modules = vendor/feh/src/ErrorInstance.f08 \
 	src/BedSediment/spcBedSediment.f08 \
 	src/BedSediment/classBedSediment1.f08 \
 	src/BedSediment/classBedSediment2.f08 \
-	src/River/classRiverReach.f08 \
+	src/River/RiverReach/spcRiverReach.f08 \
+	src/River/RiverReach/classRiverReach1.f08 \
+	src/River/SubRiver/spcSubRiver.f08 \
+	src/River/SubRiver/classSubRiver1.f08 \
 	src/main.f08
 
 # Where should the output .exe be placed and run?
@@ -30,9 +34,7 @@ netcdf = `nf-config --fflags --flibs`
 # 	make main: Compile and create exe with default errors.
 # 	make compile: Only compile, don't create exe.
 # 	make run: Same as `make main`, but run the exe as well.
-# 	make debug: Compile and create exe with extra debugging.
-# 	make debug: Same as `make debug`, but run the exe as well.
-# 	make gdb: Run gdb for the exe.
+# 	make j2n: Convert the data.json file to data.nc in root directory.
 # 	make clean: Remove compiled files.
 # 	
 # 	-O0 flag would be preferable but a GFortran bug causes character
@@ -43,7 +45,11 @@ netcdf = `nf-config --fflags --flibs`
 # 	Solution is to use -O1 or higher.
 main: $(modules)
 	gfortran $(vendor) $(modules) $(flags)  -o "$(outputFile)" $(netcdf)
+compile: $(modules)
+	gfortran -c $(vendor) $(modules)
 run: $(modules)
 	gfortran $(vendor) $(modules) $(flags) -o "$(outputFile)" $(netcdf) && "$(outputFile)"
+j2n:
+	python vendor/json2netcdf/json2netcdf.py data.json data.nc
 clean:
 	rm -f *.mod *.o *.stackdump

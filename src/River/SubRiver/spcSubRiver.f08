@@ -34,17 +34,18 @@ module spcSubRiver
                                                                      ! -----------
     type(RoutingRef), allocatable :: inflow_ref(:)                   ! array of references to source subrivers for this subriver (sources can be in a different grid cell)
     type(RoutingRef) :: outflow_ref                                  ! reference to outflow subriver (outflow can be to a different grid cell)
+    integer :: nInflows                                              ! the number of inflows to the SubRiver
     type(integer) :: nReaches                                        ! the number of reaches in the SubRiver
+    type(integer), allocatable :: reachTypes(:)                      ! integer array of Reach type identifiers
     type(real(dp)) :: Qout                                           ! discharge from the Subriver // m3
-    type(real(dp)), allocatable :: SPMout(:)                         ! array of SPM masses //kg, one per size class, in discharge
+    type(real(dp)), allocatable :: spmIn(:,:)                        ! inflow SPM masses //kg, 1st rank for each RiverReach, 2nd for each size class (?)
+    type(real(dp)), allocatable :: spmOut(:)                         ! array of SPM masses //kg, one per size class, in discharge
     ! need a function somewhere (probably in RiverReach) to convert SPM mass in a size class to particle number
     ! this is needed *** for settling rates *** and for heteroaggregation with nanoparticles
 
     ! nSPMSC is available globally (C%nSizeClassesSPM) so not needed here
-    ! integer :: nSPMSC                                                ! number of SPM size classes
-    integer, private :: allst                                        ! array allocation status
-    integer, private :: err                                          ! ?
-    type(Result), private :: r                                       ! Result object for returning from functions, for error checking
+    ! integer :: nSPMSC                                              ! number of SPM size classes
+    integer :: allst                                                 ! array allocation status, must be public to be accessible by subclasses
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
                                                                      ! -----------
@@ -53,42 +54,31 @@ module spcSubRiver
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public, deferred :: create => createSubRiver          ! create the SubRiver object. Exposed name: create
-    procedure, public, deferred :: destroy => destroySubRiver        ! remove the SubRiver object and all contained objects. Exposed name: destroy
-    procedure, public, deferred :: routing => routingSubRiver        ! route water and suspended solids through a SubRiver. Exposed name: routing
-                                                                     ! PRIVATE ROUTINES
-                                                                     ! Description
-    ! IS IT NECESSARY TO DECLARE ALL PRIVATE CLASS-LEVEL METHODS HERE?
-    ! IT WOULD BE MORE FLEXIBLE NOT TO HAVE TO DO THIS
-                                                                     ! -----------
+    procedure(createSubRiver), deferred :: create                    ! create the SubRiver object. Exposed name: create
+    procedure(destroySubRiver), deferred :: destroy                  ! remove the SubRiver object and all contained objects. Exposed name: destroy
+    procedure(routingSubRiver), deferred :: routing                  ! route water and suspended solids through a SubRiver. Exposed name: routing
+    ! We don't have to define any private class-level procedures here.
   end type
   abstract interface
-    function createSubRiver(Me, Gx, Gy, SC, SRr) result(r)          ! create the SubRiver object by reading data in from file
+    function createSubRiver(Me, Gx, Gy, SRr) result(r)               ! create the SubRiver object by reading data in from file
+      import SubRiver, Result
       class(SubRiver) :: Me                                          ! the SubRiver instance
       type(integer), intent(in) :: Gx                                ! the row number of the enclosing GridCell
       type(integer), intent(in) :: Gy                                ! the column number of the enclosing GridCell
-      type(integer), intent(in) :: SC                                ! the number of SPM size classes
       type(integer), intent(in) :: SRr                               ! reference SubRiver number
       type(Result) :: r                                              ! the result object
-      type(NcDataset) :: NC                                          ! NetCDF dataset
-      type(NcVariable) :: var                                        ! NetCDF variable
-      type(NcGroup) :: grp                                           ! NetCDF group
-      type(integer) :: x                                             ! loop counter
-      type(integer) :: y                                             ! loop counter
-      type(character(len=*)) :: srs                                  ! string to dynamically hold group names for SubRiver data in input file
-      type(integer) :: nInflows                                      ! number of inflows for each SubRiver
-
-      ! IS IT NECESSARY TO DECLARE ALL PRIVATE FUNCTION-LEVEL VARIABLES HERE?
-      ! IT WOULD BE MORE FLEXIBLE NOT TO HAVE TO DO THIS
-
+      ! We don't have to define private function-level variables here, only those that affect the
+      ! function's interface (arguments and result variables).
     end function
     function destroySubRiver(Me) result(r)
+      import SubRiver, Result
       class(SubRiver) :: Me                                          ! the SubRiver instance
       type(Result) :: r                                              ! the result object
     end function
     function routingSubRiver(Me) result(r)                           ! routes inflow(s) through the SubRiver
-      class(River) :: Me                                             ! the River instance
+      import SubRiver, Result
+      class(SubRiver) :: Me                                             ! the River instance
       type(Result) :: r                                              ! the result object
     end function
-  end abstract interface
+  end interface
 end module

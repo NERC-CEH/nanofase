@@ -4,30 +4,33 @@ module classRiverReach1
     use Globals
     use ResultModule
     use ErrorInstanceModule
+    use spcRiverReach
     implicit none
     private
 
     !> RiverReach1 object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
-    type, public, extends(spcRiverReach) :: RiverReach1
-        real(dp) :: W                           !! Width [m]
-        real(dp) :: S                           !! Slope [m/m]
-        real(dp) :: Q                           !! Flow rate [m3/s]
-        real(dp), allocatable :: rho_spm(:)     !! Sediment particle density, for different size classes [kg/m3].
-        real(dp), allocatable :: k_settle(:)    !! Settling rates, for different size classes [s-1]
-        real(dp) :: D                           !! Depth [m]
-        real(dp) :: v                           !! River velocity [m/s]
-        real(dp), allocatable :: W_spm(:)       !! Sediment particle settling velocity array, for different size classes [m/s]
-        real(dp) :: n                           !! Manning's roughness coefficient, for natural streams and major rivers.
+    type, public, extends(RiverReach) :: RiverReach1
+        ! real(dp) :: W                           !! Width [m]
+        ! real(dp) :: S                           !! Slope [m/m]
+        ! real(dp) :: Q                           !! Flow rate [m3/s]
+        ! real(dp), allocatable :: rho_spm(:)     !! Sediment particle density, for different size classes [kg/m3].
+        ! real(dp), allocatable :: k_settle(:)    !! Settling rates, for different size classes [s-1]
+        ! real(dp) :: D                           !! Depth [m]
+        ! real(dp) :: v                           !! River velocity [m/s]
+        ! real(dp), allocatable :: W_spm(:)       !! Sediment particle settling velocity array, for different size classes [m/s]
+        ! real(dp) :: n                           !! Manning's roughness coefficient, for natural streams and major rivers.
         real(dp) :: T                           !! Temperature [C]
 
       contains
         procedure, public :: create => createRiverReach1
         procedure, public :: destroy => destroyRiverReach1
-        procedure :: calculateWidth
-        procedure :: calculateDepth
-        procedure :: calculateVelocity
-        procedure :: calculateSettlingVelocity
+        procedure, public :: initDimensions => initDimensions1
+        procedure, public :: simulate => simulate1
+        procedure :: calculateWidth => calculateWidth1
+        procedure :: calculateDepth => calculateDepth1
+        procedure :: calculateVelocity => calculateVelocity1
+        procedure :: calculateSettlingVelocity => calculateSettlingVelocity1
     end type
 
   contains
@@ -35,7 +38,7 @@ module classRiverReach1
     !> Create a river reach by reading data in from file and calculating
     !! properties such as depth and velocity.
     function createRiverReach1(me) result(r)
-        class(RiverReach11) :: me                               !! The RiverReach1 instance.
+        class(RiverReach1) :: me                               !! The RiverReach1 instance.
         type(Result0D) :: D                                     !! Depth [m].
         type(Result0D) :: v                                     !! River velocity [m/s].
         type(Result0D) :: W                                     !! River width [m].
@@ -51,7 +54,7 @@ module classRiverReach1
         ! already obtain in Globals
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("River")
-        grp = grp%getGroup("RiverReach1")
+        grp = grp%getGroup("RiverReach")
         var = grp%getVariable("slope")                          ! Get the slope
         call var%getData(me%S)
         var = grp%getVariable("flow")                           ! Get the flow
@@ -62,14 +65,14 @@ module classRiverReach1
         ! Check the sediment particle density array is the same size of nSizeClassesSPM
         error = ERROR_HANDLER%equal( &
             value = size(spmDensities), &
-            criterion = C%nSizeClassesSPM, &
+            criterion = C%nSizeClassesSpm, &
             message = "Sediment particle density array size must equal number of size classes." &
         )
         allocate(me%rho_spm, source=spmDensities)    ! Allocate to class variable
 
         ! Allocate size of settling velocity arrays
-        allocate(me%W_spm(C%nSizeClassesSPM))
-        allocate(me%k_settle(C%nSizeClassesSPM))
+        allocate(me%W_spm(C%nSizeClassesSpm))
+        allocate(me%k_settle(C%nSizeClassesSpm))
 
         ! TODO: Get the temperature from somewhere
         me%T = 15.0_dp
@@ -108,7 +111,25 @@ module classRiverReach1
     !> Destroy this RiverReach1
     function destroyRiverReach1(me) result(r)
         class(RiverReach1) :: me
+        type(Result) :: r
         ! TODO: Write some destroy logic
+    end function
+
+    !> DUMMY FUNCTION Initialise the dimensions for each time step
+    function initDimensions1(me, Q) result(r)
+        class(RiverReach1) :: me
+        real(dp) :: Q
+        type(Result) :: r
+        ! Do some initialising
+    end function
+
+    !> DUMMY FUNCTION
+    function simulate1(me, dQ, dSPM) result(r)
+        class(RiverReach1) :: me
+        real(dp) :: dQ
+        real(dp) :: dSPM(:)
+        type(Result) :: r
+        ! Do some simulating
     end function
 
     !> Calculate the width \( W \) of the river based on the discharge:
@@ -118,7 +139,7 @@ module classRiverReach1
     !! References:
     !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
     !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
-    pure function calculateWidth(me, Q) result(r)
+    pure function calculateWidth1(me, Q) result(r)
         class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
         real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s].
         type(ErrorInstance) :: error            !! Variable to store error in.
@@ -146,7 +167,7 @@ module classRiverReach1
     !! $$
     !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
     !! $$
-    pure function calculateDepth(me, W, S, Q) result(r)
+    pure function calculateDepth1(me, W, S, Q) result(r)
         class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
@@ -208,7 +229,7 @@ module classRiverReach1
     !! $$
     !!      v = \frac{Q}{WD}
     !! $$
-    pure function calculateVelocity(me, D, Q, W) result(r)
+    pure function calculateVelocity1(me, D, Q, W) result(r)
         class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance.
         real(dp), intent(in) :: D               !! River depth \( D \) [m].
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s].
@@ -233,7 +254,7 @@ module classRiverReach1
     !!      \Delta = \frac{\rho_spm}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
-    pure function calculateSettlingVelocity(me, d, rho_spm, T) result(r)
+    pure function calculateSettlingVelocity1(me, d, rho_spm, T) result(r)
         class(RiverReach1), intent(in) :: me         !! The RiverReach1 instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
         real(dp), intent(in) :: rho_spm               !! Sediment particle density [kg/m**3].

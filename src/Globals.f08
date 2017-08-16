@@ -11,8 +11,6 @@ module Globals
     type, public :: Constants
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
-        real(dp) :: nu = 1.0034e-6_dp       !! Kinematic viscosity of water at 10C [m^2/s]
-        real(dp) :: rho = 1000.0_dp         !! Density of water at 10C [kg/m^3]
         real(dp) :: n_river = 0.035_dp      !! Manning's roughness coefficient, for natural streams and major rivers.
                                             !! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
 
@@ -20,8 +18,12 @@ module Globals
         character(len=7) :: inputFile = 'data.nc'   !! Name of the data input file. TODO: Get this from config file.
         real(dp), allocatable :: d_spm(:)   !! Suspended particulate matter size class diameters [m]
         real(dp), allocatable :: d_np(:)    !! Nanoparticle size class diameters [m]
-        integer :: nSizeClassesSPM          !! Number of sediment particle size classes
+        integer :: nSizeClassesSpm          !! Number of sediment particle size classes
         integer :: nSizeClassesNP           !! Number of nanoparticle size classes
+
+        ! Limits
+        integer :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
+                                            !! TODO: Would be good if this was from config file
 
       contains
         procedure :: rho_w, nu_w
@@ -38,8 +40,8 @@ module Globals
         type(NcDataset) :: NC                               !! NetCDF dataset
         type(NcVariable) :: var                             !! NetCDF variable
         type(NcGroup) :: grp                                !! NetCDF group
-        real(dp), allocatable :: sedimentSizeClasses(:)     !! Array of sediment particle sizes
-        real(dp), allocatable :: nanoparticleSizeClasses(:) !! Array of nanoparticle particle sizes
+        real(dp), allocatable :: spmSizeClasses(:)          !! Array of sediment particle sizes
+        real(dp), allocatable :: npSizeClasses(:)           !! Array of nanoparticle particle sizes
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=[ &
@@ -53,14 +55,14 @@ module Globals
         ])
 
         ! Get the sediment and nanoparticle size classes from data file
-        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
-        grp = nc%getGroup("global")                             ! Get the global variables group
-        var = grp%getVariable("spm_size_classes")          ! Get the sediment size classes variable
-        call var%getData(sedimentSizeClasses)                   ! Get the variable's data
-        allocate(C%d_spm, source=sedimentSizeClasses)            ! Allocate to class variable
-        var = grp%getVariable("np_size_classes")      ! Get the sediment size classes variable
-        call var%getData(nanoparticleSizeClasses)               ! Get the variable's data
-        allocate(C%d_np, source=nanoparticleSizeClasses)        ! Allocate to class variable
+        nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
+        grp = nc%getGroup("global")                         ! Get the global variables group
+        var = grp%getVariable("spm_size_classes")           ! Get the sediment size classes variable
+        call var%getData(spmSizeClasses)                    ! Get the variable's data
+        allocate(C%d_spm, source=spmSizeClasses)            ! Allocate to class variable
+        var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
+        call var%getData(npSizeClasses)                     ! Get the variable's data
+        allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
         ! Set the number of size classes
         C%nSizeClassesSPM = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
