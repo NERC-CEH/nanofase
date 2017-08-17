@@ -12,7 +12,7 @@ module classSubRiver1
   use mo_netcdf                                                      ! input/output handling
   use ResultModule                                                   ! error handling classes, required for
   use ErrorInstanceModule                                            ! generation of trace error messages
-  use classEnvironment                                               ! Environment gives ability to get flows, SPM content etc from other grid cells
+  use classEnvironment1                                              ! Environment gives ability to get flows, SPM content etc from other grid cells
   use spcSubRiver                                                    ! Module containing SubRiver abstract interface
   use classRiverReach1
   implicit none                                                      ! force declaration of all variables
@@ -216,7 +216,7 @@ contains
       type(real(dp)) :: rQ                                           ! reach capacity (m3) per timestep
       type(real(dp)), allocatable :: dSPM(:)                         ! inflow SPM per size class (kg) per displacement
       type(integer) :: x, y, z                                       ! loop counters
-      type(Environment) :: enviro                                    ! temporary dummy to get compiling whilst we think about where to get Q and SPM from other cells from
+      type(Environment1) :: enviro                                    ! temporary dummy to get compiling whilst we think about where to get Q and SPM from other cells from
       ! Function purpose
       ! -------------------------------------------------------------
       ! route water and suspended material from the upstream
