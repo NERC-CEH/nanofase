@@ -39,22 +39,25 @@ module spcSoilProfile
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public, deferred :: create => createSoilProfile       ! create the SoilProfile object. Exposed name: create
-    procedure, public, deferred :: destroy => destroySoilProfile     ! remove the SoilProfile object and all contained objects. Exposed name: destroy
-    procedure, public, deferred :: routing => routingSoilProfile     ! route water and suspended solids through all SoilLayer objects. Exposed name: routing
+    procedure(createSoilProfile), deferred :: create                 ! create the SoilProfile object. Exposed name: create
+    procedure(destroySoilProfile), deferred :: destroy               ! remove the SoilProfile object and all contained objects. Exposed name: destroy
+    procedure(routingSoilProfile), deferred :: routing               ! route water and suspended solids through all SoilLayer objects. Exposed name: routing
   end type
   abstract interface
     function createSoilProfile(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilProfile instance.
+      import SoilProfile, Result
+      class(SoilProfile) :: Me                                          ! The SoilProfile instance.
       type(Result) :: r
     end function
     function destroySoilProfile(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilProfile instance.
+      import SoilProfile, Result
+      class(SoilProfile) :: Me                                          ! The SoilProfile instance.
       type(Result) :: r
     end function
     function routingSoilProfile(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilProfile instance.
+      import SoilProfile, Result
+      class(SoilProfile) :: Me                                          ! The SoilProfile instance.
       type(Result) :: r
     end function
-  end abstract interface
+  end interface
 end module

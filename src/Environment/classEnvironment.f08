@@ -5,14 +5,22 @@ module classEnvironment
     private
 
     type, public :: Environment
-      private
+        private
 
       contains
+        procedure :: create
         procedure, public :: getQ
         procedure, public :: getSpm
     end type
 
   contains
+    !> Create the environment, which sets up the grid and river structure:
+    !!  - Get grid structure from data file and set up GridCell collection
+    function create(me) result(r)
+        class(Environment) :: me
+        type(Result) :: r
+    end function
+
     !> DUMMY FUNCTION for the time being.
     function getQ(me, gridX, gridY, subRiverN) result(r)
         class(Environment) :: me
