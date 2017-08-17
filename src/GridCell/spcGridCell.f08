@@ -32,6 +32,7 @@ module spcGridCell
   type DiffuseSourceElement                                          ! container type for class(DiffuseSource), the actual type of the DiffuseSource class
     class(DiffuseSource), allocatable :: item                        ! a variable of type DiffuseSource can be of any object type inheriting from the
   end type                                                           ! DiffuseSource superclass
+
   type, abstract, public :: GridCell                                 ! type declaration for superclass
     character(len=256) :: name                                       ! a name for the object
                                                                      ! PROPERTIES
@@ -59,10 +60,15 @@ module spcGridCell
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure(createGridCell), deferred :: create           ! create the GridCell object. Exposed name: create
-    procedure(destroyGridCell), deferred :: destroy         ! remove the GridCell object and all contained objects. Exposed name: destroy
-    procedure(routingGridCell), deferred :: routing         ! route water and suspended solids through all SubRiver objects. Exposed name: routing
+    procedure(createGridCell), deferred :: create                    ! create the GridCell object. Exposed name: create
+    procedure(destroyGridCell), deferred :: destroy                  ! remove the GridCell object and all contained objects. Exposed name: destroy
+    procedure(routingGridCell), deferred :: routing                  ! route water and suspended solids through all SubRiver objects. Exposed name: routing
   end type
+
+  type GridCellElement                                               ! Container type for polymorphic GridCells
+    class(GridCell), allocatable :: item
+  end type
+
   abstract interface
     function createGridCell(Me) result(r)
       import GridCell, Result
