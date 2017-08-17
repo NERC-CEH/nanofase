@@ -15,6 +15,9 @@ module spcGridCell
   use ResultModule                                                   ! error handling classes, required for
   use ErrorInstanceModule                                            ! generation of trace error messages
   use spcSubRiver                                                    ! use containing object type
+  use spcSoilProfile
+  use classDiffuseSource
+  use classPointSource
   ! DO WE NEED TO USE ALL CONTAINING OBJECT TYPES?
   implicit none                                                      ! force declaration of all variables
   type SubRiverElement                                               ! container type for class(SubRiver), the actual type of the SubRiver class
@@ -56,22 +59,25 @@ module spcGridCell
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public, deferred :: create => createGridCell          ! create the GridCell object. Exposed name: create
-    procedure, public, deferred :: destroy => destroyGridCell        ! remove the GridCell object and all contained objects. Exposed name: destroy
-    procedure, public, deferred :: routing => routingGridCell        ! route water and suspended solids through all SubRiver objects. Exposed name: routing
+    procedure(createGridCell), deferred :: create           ! create the GridCell object. Exposed name: create
+    procedure(destroyGridCell), deferred :: destroy         ! remove the GridCell object and all contained objects. Exposed name: destroy
+    procedure(routingGridCell), deferred :: routing         ! route water and suspended solids through all SubRiver objects. Exposed name: routing
   end type
   abstract interface
     function createGridCell(Me) result(r)
+      import GridCell, Result
       class(GridCell) :: Me                                          ! The GridCell instance.
       type(Result) :: r
     end function
     function destroyGridCell(Me) result(r)
+      import GridCell, Result
       class(GridCell) :: Me                                          ! The GridCell instance.
       type(Result) :: r
     end function
     function routingGridCell(Me) result(r)
+      import GridCell, Result
       class(GridCell) :: Me                                          ! The GridCell instance.
       type(Result) :: r
     end function
-  end abstract interface
+  end interface
 end module

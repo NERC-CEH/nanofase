@@ -14,6 +14,7 @@ module classGridCell1
   use mo_netcdf                                                      ! input/output handling
   use ResultModule                                                   ! error handling classes, required for
   use ErrorInstanceModule                                            ! generation of trace error messages
+  use spcGridCell
   implicit none                                                      ! force declaration of all variables
   type, public, extends(GridCell) :: GridCell1                       ! type declaration for subclass
                                                                      ! -----------
@@ -21,13 +22,14 @@ module classGridCell1
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public, deferred :: create => createGridCell1         ! create the GridCell object. Exposed name: create
-    procedure, public, deferred :: destroy => destroyGridCell1       ! remove the GridCell object and all contained objects. Exposed name: destroy
-    procedure, public, deferred :: routing => routingGridCell1       ! route water and suspended solids through all SubRiver objects. Exposed name: routing
+    procedure :: create => createGridCell1         ! create the GridCell object. Exposed name: create
+    procedure :: destroy => destroyGridCell1       ! remove the GridCell object and all contained objects. Exposed name: destroy
+    procedure :: routing => routingGridCell1       ! route water and suspended solids through all SubRiver objects. Exposed name: routing
   end type
-  abstract interface
-    function createGridCell(Me) result(r)
-      class(GridCell) :: Me                                          ! The GridCell instance.
+
+  contains
+    function createGridCell1(Me) result(r)
+      class(GridCell1) :: Me                                          ! The GridCell instance.
       type(Result) :: r
       ! DATA REQUIREMENTS
       ! number of grid cells
@@ -40,31 +42,30 @@ module classGridCell1
       ! colPointSources
       ! objDiffuseSource, if required (Me%DiffS=.True.)
     end function
-    function destroyGridCell(Me) result(r)
-      class(GridCell) :: Me                                          ! The GridCell instance.
+    function destroyGridCell1(Me) result(r)
+      class(GridCell1) :: Me                                          ! The GridCell instance.
       type(Result) :: r
       type(integer) :: x                                             ! loop counter
       do x = 1, Me%nSubRivers
-        Me%colSubRivers(x)%destroy                                   ! remove all SubRiver objects and any contained objects
+        r = Me%colSubRivers(x)%item%destroy()                       ! remove all SubRiver objects and any contained objects
       end do
       do x = 1, Me%nSoilProfiles
-        Me%colSoilProfiles(x)%destroy                                ! remove all SoilProfile objects and any contained objects
+        r = Me%colSoilProfiles(x)%item%destroy()                    ! remove all SoilProfile objects and any contained objects
       end do
       do x = 1, Me%nPointSources
-        Me%colPointSources(x)%destroy                                ! remove all PointSource objects and any contained objects
+        r = Me%colPointSources(x)%item%destroy()                    ! remove all PointSource objects and any contained objects
       end do
-      Me%objDiffuseSource%destroy                                    ! remove the DiffuseSource object and any contained objects
+      r = Me%objDiffuseSource%item%destroy()                        ! remove the DiffuseSource object and any contained objects
     end function
-    function routingGridCell(Me) result(r)
-      class(GridCell) :: Me                                          ! The GridCell instance.
+    function routingGridCell1(Me) result(r)
+      class(GridCell1) :: Me                                          ! The GridCell instance.
       type(Result) :: r                                              ! Result object
       type(integer) :: x                                             ! Loop counter
       do x = 1, Me%nSubRivers
-        call Me%colSubRivers(x)%Routing                              ! call the routing method for each SubRiver in turn
+        r = Me%colSubRivers(x)%item%routing()                        ! call the routing method for each SubRiver in turn
                                                                      ! outflow discharge and SPM fluxes for each SubRiver are
                                                                      ! stored within that SubRiver, ready to be picked up by
                                                                      ! the downstream SubRiver
       end do
     end function
-  end abstract interface
 end module

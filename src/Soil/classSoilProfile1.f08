@@ -1,4 +1,4 @@
-module spcSoilProfile
+module classSoilProfile1
                                                                      ! superclass for SoilProfile subclasses
                                                                      ! defines properties and methods required in any implmentation
                                                                      ! of a SoilProfile class
@@ -13,7 +13,7 @@ module spcSoilProfile
   use mo_netcdf                                                      ! input/output handling
   use ResultModule                                                   ! error handling classes, required for
   use ErrorInstanceModule                                            ! generation of trace error messages
-  use spcSoilLayer                                                   ! use containing object type
+  use spcSoilProfile                                                 ! use containing object type
   ! DO WE NEED TO USE ALL CONTAINING OBJECT TYPES?
   implicit none                                                      ! force declaration of all variables
   type, public, extends(SoilProfile) :: SoilProfile1                 ! type declaration for class
@@ -22,22 +22,22 @@ module spcSoilProfile
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public, deferred :: create => createSoilProfile1      ! create the SoilProfile object. Exposed name: create
-    procedure, public, deferred :: destroy => destroySoilProfile1    ! remove the SoilProfile object and all contained objects. Exposed name: destroy
-    procedure, public, deferred :: routing => routingSoilProfile1    ! route water and suspended solids through all SoilLayer objects. Exposed name: routing
+    procedure :: create => createSoilProfile1      ! create the SoilProfile object. Exposed name: create
+    procedure :: destroy => destroySoilProfile1    ! remove the SoilProfile object and all contained objects. Exposed name: destroy
+    procedure :: routing => routingSoilProfile1    ! route water and suspended solids through all SoilLayer objects. Exposed name: routing
   end type
-  abstract interface
+
+  contains
     function createSoilProfile1(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilProfile instance.
+      class(SoilProfile1) :: Me                                          ! The SoilProfile instance.
       type(Result) :: r
     end function
     function destroySoilProfile1(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilProfile instance.
+      class(SoilProfile1) :: Me                                          ! The SoilProfile instance.
       type(Result) :: r
     end function
     function routingSoilProfile1(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilProfile instance.
+      class(SoilProfile1) :: Me                                          ! The SoilProfile instance.
       type(Result) :: r
     end function
-  end abstract interface
 end module

@@ -35,22 +35,25 @@ module spcSoilLayer
                                                                      ! METHODS
                                                                      ! Description
                                                                      ! -----------
-    procedure, public, deferred :: create => createSoilLayer         ! create the SoilLayer object. Exposed name: create
-    procedure, public, deferred :: destroy => destroySoilLayer       ! remove the SoilLayer object and all contained objects. Exposed name: destroy
-    procedure, public, deferred :: routing => routingSoilLayer       ! route water and suspended solids. Exposed name: routing
+    procedure(createSoilLayer), deferred :: create                   ! create the SoilLayer object. Exposed name: create
+    procedure(destroySoilLayer), deferred :: destroy                 ! remove the SoilLayer object and all contained objects. Exposed name: destroy
+    procedure(routingSoilLayer), deferred :: routing                 ! route water and suspended solids. Exposed name: routing
   end type
   abstract interface
     function createSoilLayer(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilLayer instance.
+      import SoilLayer, Result
+      class(SoilLayer) :: Me                                          ! The SoilLayer instance.
       type(Result) :: r
     end function
     function destroySoilLayer(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilLayer instance.
+      import SoilLayer, Result
+      class(SoilLayer) :: Me                                          ! The SoilLayer instance.
       type(Result) :: r
     end function
     function routingSoilLayer(Me) result(r)
-      class(GridCell) :: Me                                          ! The SoilLayer instance.
+      import SoilLayer, Result
+      class(SoilLayer) :: Me                                          ! The SoilLayer instance.
       type(Result) :: r
     end function
-  end abstract interface
+  end interface
 end module
