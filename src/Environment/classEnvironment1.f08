@@ -23,8 +23,8 @@ module classEnvironment1
     !> Create the environment, which sets up the grid and river structure:
     !!  - Get grid structure from data file and set up GridCell collection
     function createEnvironment1(me) result(r)
-        class(Environment1), target :: me
-        type(Result) :: r
+        class(Environment1), target :: me                       !! This Environment instace. Must be target so SubRivers can be pointed at
+        type(Result) :: r                                       !! Result object to return
         type(NcDataset) :: nc                                   !! NetCDF dataset
         type(NcVariable) :: var                                 !! NetCDF variable
         type(NcGroup) :: grp                                    !! NetCDF group
