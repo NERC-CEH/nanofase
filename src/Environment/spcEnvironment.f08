@@ -6,8 +6,8 @@ module spcEnvironment
     private
 
     type, public, abstract :: Environment
-        private
-        type(GridCellElement), allocatable :: colGridCells(:)       ! Array of GridCellElements objects to hold polymorphic GridCells
+        integer, allocatable                :: gridSize(:)          ! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
+        type(GridCellElement), allocatable  :: colGridCells(:,:)    ! Array of GridCellElements objects to hold polymorphic GridCells
       contains
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy
@@ -17,7 +17,7 @@ module spcEnvironment
         !> Interface to create an Environment object
         function createEnvironment(me) result(r)
             import Environment, Result
-            class(Environment) :: me
+            class(Environment), target :: me
             type(Result) :: r
         end function
         !> Interface to destroy an Environment object

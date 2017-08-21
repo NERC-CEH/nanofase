@@ -26,40 +26,34 @@
         {
             "name" : "Environment",
             "type" : "group",
-            "dimensions" : [ { "name" : "nReaches", "size" : 10 } ],
+            "dimensions" : [
+                { "name" : "nReaches", "size" : 10 },
+                { "name" : "gridSize", "size" : 2 }
+            ],
             "data" : [
+                {
+                    "name" : "gridSize",
+                    "type" : "variable",
+                    "datatype" : "i4",
+                    "dimensions" : [ "gridSize" ],
+                    "data" : [3,3]
+                },
                 {
                     "name" : "GridCell_1_1",
                     "type" : "group",
                     "data" : [
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         {
                             "name" :  "SubRiver_1_1_1",
                             "type" : "group",
                             "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 0 },
                                 {
                                     "name" : "reachTypes",
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
                                     "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
-                                },
-                                {
-                                    "name" : "inflow1",
-                                    "type" : "group",
-                                    "data" : [
-                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                    ]
-                                },
-                                {
-                                    "name" : "outflow",
-                                    "type" : "group",
-                                    "data" : [
-                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                    ]
                                 }
                             ]
                         }
@@ -69,10 +63,12 @@
                     "name" : "GridCell_1_2",
                     "type" : "group",
                     "data" : [
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         {
                             "name" :  "SubRiver_1_2_1",
                             "type" : "group",
                             "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
                                 {
                                     "name" : "reachTypes",
                                     "type" : "variable",
@@ -81,58 +77,12 @@
                                     "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
                                 },
                                 {
-                                    "name" : "inflow1",
+                                    "name" : "inflow_1",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                    ]
-                                },
-                                {
-                                    "name" : "outflow",
-                                    "type" : "group",
-                                    "data" : [
-                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                },
-                {
-                    "name" : "GridCell_2_1",
-                    "type" : "group",
-                    "data" : [
-                        {
-                            "name" :  "SubRiver_2_1_1",
-                            "type" : "group",
-                            "data" : [
-                                {
-                                    "name" : "reachTypes",
-                                    "type" : "variable",
-                                    "datatype" : "i4",
-                                    "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
-                                },
-                                {
-                                    "name" : "inflow1",
-                                    "type" : "group",
-                                    "data" : [
-                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                    ]
-                                },
-                                {
-                                    "name" : "outflow",
-                                    "type" : "group",
-                                    "data" : [
-                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
                                     ]
                                 }
                             ]
@@ -143,10 +93,12 @@
                     "name" : "GridCell_2_2",
                     "type" : "group",
                     "data" : [
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 3 },
                         {
                             "name" :  "SubRiver_2_2_1",
                             "type" : "group",
                             "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
                                 {
                                     "name" : "reachTypes",
                                     "type" : "variable",
@@ -155,28 +107,124 @@
                                     "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
                                 },
                                 {
-                                    "name" : "inflow1",
+                                    "name" : "inflow_1",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 1 }
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
                                     ]
+                                }
+                            ]
+                        },
+                        {
+                            "name" :  "SubRiver_2_2_2",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
                                 },
                                 {
-                                    "name" : "outflow",
+                                    "name" : "inflow_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 3 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name" :  "SubRiver_2_2_3",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                },
+                                {
+                                    "name" : "inflow_1",
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
                                         { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
-                                        { "name" : "SubRiver", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "inflow_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 2 }
                                     ]
                                 }
                             ]
                         }
                     ]
                 },
-
+                {
+                    "name" : "GridCell_2_3",
+                    "type" : "group",
+                    "data" : [
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        {
+                            "name" :  "SubRiver_2_3_1",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 0 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name" : "GridCell_3_2",
+                    "type" : "group",
+                    "data" : [
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        {
+                            "name" :  "SubRiver_3_2_1",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                },
+                                {
+                                    "name" : "inflow_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 3 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
             ]
         },
         {

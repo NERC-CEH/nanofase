@@ -20,9 +20,11 @@ module spcGridCell
   use classPointSource
   ! DO WE NEED TO USE ALL CONTAINING OBJECT TYPES?
   implicit none                                                      ! force declaration of all variables
-  type SubRiverElement                                               ! container type for class(SubRiver), the actual type of the SubRiver class
-    class(SubRiver), allocatable :: item                             ! a variable of type SubRiver can be of any object type inheriting from the
-  end type                                                           ! RiverReach superclass
+  ! MOVING UDTs TO THEIR RESPECTIVE MODULES AS, E.G., SubRiverElement NOT JUST USED HERE
+  ! BUT ALSO IN spcGridCell.
+  ! type SubRiverElement                                               ! container type for class(SubRiver), the actual type of the SubRiver class
+  !   class(SubRiver), allocatable :: item                             ! a variable of type SubRiver can be of any object type inheriting from the
+  ! end type                                                           ! RiverReach superclass
   type SoilProfileElement                                            ! container type for class(SoilProfile), the actual type of the SoilProfile class
     class(SoilProfile), allocatable :: item                          ! a variable of type SoilProfile can be of any object type inheriting from the
   end type                                                           ! SoilProfile superclass
@@ -38,8 +40,8 @@ module spcGridCell
                                                                      ! PROPERTIES
                                                                      ! Description
                                                                      ! -----------
-    type(integer) :: GridX                                           ! grid cell x reference
-    type(integer) :: GridY                                           ! grid cell y reference
+    type(integer) :: gridX                                           ! grid cell x reference
+    type(integer) :: gridY                                           ! grid cell y reference
     type(SubRiverElement), allocatable :: colSubRivers(:)            ! array of SubRiverElement objects to hold the subrivers
     type(SoilProfileElement), allocatable :: colSoilProfiles(:)      ! array of SoilProfileElement objects to hold the soil profiles
     ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
@@ -49,10 +51,7 @@ module spcGridCell
     type(integer) :: nSoilProfiles                                   ! Number of contained soil profiles
     type(integer) :: nPointSources                                   ! Number of contained point sources
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
-    integer :: nSPMSC                                                ! number of SPM size classes
-    integer, private :: allst                                        ! array allocation status
-    integer, private :: err                                          ! ?
-    type(Result), private :: r                                       ! Result object for returning from functions, for error checking
+    logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
                                                                      ! -----------
@@ -70,9 +69,11 @@ module spcGridCell
   end type
 
   abstract interface
-    function createGridCell(Me) result(r)
+    function createGridCell(Me, x, y, isEmpty) result(r)
       import GridCell, Result
-      class(GridCell) :: Me                                          ! The GridCell instance.
+      class(GridCell) :: Me                                          !! The GridCell instance.
+      integer :: x, y                                                !! The (x,y) position of the GridCell.
+      logical, optional :: isEmpty                                   !! Is anything to be simulated for this GridCell?
       type(Result) :: r
     end function
     function destroyGridCell(Me) result(r)

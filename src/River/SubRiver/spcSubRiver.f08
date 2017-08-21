@@ -21,9 +21,13 @@ module spcSubRiver
     class(RiverReach), allocatable :: item                           ! a variable of type RiverReachElement can be of any object type inheriting from the
   end type                                                           ! RiverReach superclass
   type RoutingRef                                                    ! an internal user-defined type, defining a reference to a SubRiver sending water to this
-    type(integer) :: GridX                                           ! SubRiver, or receiving water from it. Comprises row (X) and column (Y) references to the GridCell
-    type(integer) :: GridY                                           ! containing the sending/receiving subriver
-    type(integer) :: SubRiver                                        ! as this SubRiver) and the in-cell SubRiver reference number
+    type(integer) :: gridX                                           ! SubRiver, or receiving water from it. Comprises row (X) and column (Y) references to the GridCell
+    type(integer) :: gridY                                           ! containing the sending/receiving subriver
+    type(integer) :: subRiver                                        ! as this SubRiver) and the in-cell SubRiver reference number
+  end type
+  ! SubRiverPointer used for SubRiver inflows array, so the elements within can point to other GridCell's colSubRiver elements
+  type SubRiverPointer
+    class(SubRiver), pointer :: item => null()                       ! as item is a pointer, this definition can come before type(SubRiver)
   end type
   type, abstract, public :: SubRiver                                 ! type declaration for superclass
     character(len=256) :: name                                       ! a name for the object - is this used/needed?
@@ -32,8 +36,10 @@ module spcSubRiver
                                                                      ! PROPERTIES
                                                                      ! Description
                                                                      ! -----------
-    type(RoutingRef), allocatable :: inflow_ref(:)                   ! array of references to source subrivers for this subriver (sources can be in a different grid cell)
-    type(RoutingRef) :: outflow_ref                                  ! reference to outflow subriver (outflow can be to a different grid cell)
+    type(SubRiverPointer), allocatable :: inflows(:)                 ! array of pointers to inflows
+    type(RoutingRef), allocatable :: inflowRefs(:)                   ! array of references to source subrivers for this subriver (sources can be in a different grid cell)
+                                                                     ! this is used temporarilly to enable me%inflows array to be filled with pointers, to save us getting
+                                                                     ! them from the data file again
     integer :: nInflows                                              ! the number of inflows to the SubRiver
     type(integer) :: nReaches                                        ! the number of reaches in the SubRiver
     type(integer), allocatable :: reachTypes(:)                      ! integer array of Reach type identifiers
@@ -43,8 +49,6 @@ module spcSubRiver
     ! need a function somewhere (probably in RiverReach) to convert SPM mass in a size class to particle number
     ! this is needed *** for settling rates *** and for heteroaggregation with nanoparticles
 
-    ! nSPMSC is available globally (C%nSizeClassesSPM) so not needed here
-    ! integer :: nSPMSC                                              ! number of SPM size classes
     integer :: allst                                                 ! array allocation status, must be public to be accessible by subclasses
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
@@ -59,6 +63,11 @@ module spcSubRiver
     procedure(routingSubRiver), deferred :: routing                  ! route water and suspended solids through a SubRiver. Exposed name: routing
     ! We don't have to define any private class-level procedures here.
   end type
+
+  type SubRiverElement                                               ! container type for class(SubRiver), the actual type of the SubRiver class
+    class(SubRiver), allocatable :: item                             ! a variable of type SubRiver can be of any object type inheriting from the
+  end type
+
   abstract interface
     function createSubRiver(Me, Gx, Gy, SRr) result(r)               ! create the SubRiver object by reading data in from file
       import SubRiver, Result
@@ -77,7 +86,7 @@ module spcSubRiver
     end function
     function routingSubRiver(Me) result(r)                           ! routes inflow(s) through the SubRiver
       import SubRiver, Result
-      class(SubRiver) :: Me                                             ! the River instance
+      class(SubRiver) :: Me                                          ! the River instance
       type(Result) :: r                                              ! the result object
     end function
   end interface

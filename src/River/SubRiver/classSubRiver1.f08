@@ -8,11 +8,13 @@ module classSubRiver1
                                                                      ! Description
                                                                      ! -----------
   use Globals                                                        ! global declarations
+  use UtilModule
   use netcdf                                                         ! input/output handling
   use mo_netcdf                                                      ! input/output handling
   use ResultModule                                                   ! error handling classes, required for
   use ErrorInstanceModule                                            ! generation of trace error messages
-  use classEnvironment1                                              ! Environment gives ability to get flows, SPM content etc from other grid cells
+  ! ENVIRONMENT
+  ! use classEnvironment1                                              ! Environment gives ability to get flows, SPM content etc from other grid cells
   use spcSubRiver                                                    ! Module containing SubRiver abstract interface
   use classRiverReach1
   implicit none                                                      ! force declaration of all variables
@@ -32,8 +34,24 @@ module classSubRiver1
     ! THIS PROCEDURE IS NOT DEFINED IN THE ABSTRACT CLASS AS IT IS PRIVATE. CAN IT STILL BE INHERITED?
 
   end type
+
+    !> Interface so that we can create new SubRivers by `sr = SubRiver1()`
+  interface SubRiver1
+      module procedure newSubRiver1
+  end interface
 contains
-    function createSubRiver1(Me, Gx, Gy, SRr) result(r)          ! create the SubRiver object by reading data in from file
+    !> Return a newly-created SubRiver1 object. This is bound to SubRiver1 interface
+    !! and is not type-bound.
+    !! TODO: Do something with result object
+    function newSubRiver1(x, y, s) result(me)
+      type(SubRiver1) :: me                         !! The new GridCell to return
+      integer :: x, y, s                            !! Location of the GridCell
+      type(Result) :: r                             !! Result object
+      ! Create the new SubRiver
+      r = me%create(x, y, s)
+    end function
+
+    function createSubRiver1(Me, Gx, Gy, SRr) result(r)              ! create the SubRiver object by reading data in from file
       class(SubRiver1) :: Me                                         ! the SubRiver instance
       type(integer), intent(in) :: Gx                                ! the row number of the enclosing GridCell
       type(integer), intent(in) :: Gy                                ! the column number of the enclosing GridCell
@@ -44,6 +62,7 @@ contains
       type(NcDataset) :: NC                                          ! NetCDF dataset
       type(NcVariable) :: var                                        ! NetCDF variable
       type(NcGroup) :: grp                                           ! NetCDF group
+      type(NcGroup) :: subRiverGrp                                   ! NetCDF group specifically for this SubRiver
       type(integer) :: x                                             ! loop counter
       type(character(len=100)) :: sr1                                ! string to dynamically compile and hold group names (must be specific length)
       type(character(len=100)) :: sr2                                ! string to dynamically compile and hold group names
@@ -68,114 +87,87 @@ contains
       ! -------------------------------------------------------------
       ! Fully specified SubRiver object, comprising:
       ! Collection of RiverReach objects: Me%colReaches.
-      ! Set of up to three inflow references inflow_ref(:),
+      ! Set of up to three inflow references inflowRefs(:),
       ! comprising Grid x and y references and  SubRiver number
       ! reference, or null if SubRiver is a headwater.
       ! An outflow reference, comprising Grid x and y references
       ! and SubRiver number reference.
                                                                      ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
       nc = NcDataset(C%inputFile, "r")                               ! Open dataset as read-only
-      read(Gx,*) sr1
-      read(Gy,*) sr2
-      ! CORRECT SYNTAX?
-      sr1 = trim(sr1) // "_"
-      sr1 = trim(sr1) // trim(sr2)
+      sr1 = trim(str(Gx)) // "_"
+      sr1 = trim(sr1) // trim(str(Gy))
       sr1 = "SubRiver_" // trim(sr1)
-      read(SRr,*) sr2
-      sr2 = "_" // trim(sr2)
+      sr2 = "_" // trim(str(SRr))
       sr1 = trim(sr1) // trim(sr2)                                   ! dynamically create reference group name for subriver
                                                                      ! Format is SubRiver_Gx_Gy_SRr
       me%ref = sr1                                                   ! Store this in instance variable (useful for printing errors later)
-      grp = nc%getGroup(sr1)                                         ! point to the SubRiver group
-      var = grp%getVariable("nInflows")                              ! point to the variable nInflow: the number of inflows
+      grp = nc%getGroup("Environment")
+      grp = grp%getGroup("GridCell_" // trim(str(Gx)) // "_" // trim(str(Gy)))
+      subRiverGrp = grp%getGroup(me%ref)                             ! point to the SubRiver group
+      var = subRiverGrp%getVariable("nInflows")                      ! point to the variable nInflow: the number of inflows
       call var%getData(Me%nInflows)                                  ! pull data into variable: number of inflows
                                                                      ! AUDITING CODE HERE - RETURN ERROR IF nInflows IS NOT =1, 2 OR 3
-      allocate(Me%inflow_ref(1:Me%nInflows), stat=Me%allst)          ! allocate required space to hold the inflow references for this SubRiver
-      var = grp%getVariable("ReachTypes")                            ! point to the array ReachTypes: the type identifiers for the RiverReach objects in this SubRiver
+                                                                     ! TODO: Also check nInflows equals number of inflow_x groups (or just get rid of nInflows)
+      allocate(Me%inflowRefs(Me%nInflows), stat=Me%allst)            ! allocate required space to hold the inflow references for this SubRiver
+      allocate(me%inflows(me%nInflows), stat=me%allst)               ! likewise for the array of inflow pointers
+      var = subRiverGrp%getVariable("reachTypes")                    ! point to the array ReachTypes: the type identifiers for the RiverReach objects in this SubRiver
       call var%getData(Me%reachTypes)                                ! pull the Reach type references into SubRiver object
       ! CORRECT? getData will pull a multidimensional variable into an array and dynamically allocate the array size?
       ! if this is the case, how are the array elements numbered? I would like a consistent approach to element numbering,
       ! always starting with 1.
       Me%nReaches = size(Me%reachTypes)                              ! get the number of reaches from the ReachType array size
-      do x = 1, me%nInflows                                          ! loop to read the Inflow references for this SubRiver
-        read(x,*) sr1                                                ! read loop counter into character variable 'sr1'
-                                                                     ! CORRECT SYNTAX?
-        sr1 = "Inflow" // trim(sr1)                                  ! create character variable 'Inflow1', 'Inflow2' etc.
-        grp = nc%getGroup(sr1)                                       ! point to the Inflow1, Inflow2 etc. group
-        var = grp%getVariable("GridX")                               ! point to the variable defining the row of the grid cell
-        call var%getData(Me%inflow_ref(x)%GridX)                     ! pull GridX reference into SubRiver object
-                                                                     ! AUDIT GridX here - must be >0 and <= the highest grid cell number
-        call r%addError( &                                           ! Check GridX is >0. Need to think about where highest grid cell number is specified.
-          ERROR_HANDLER%positive( &
-            value = Me%inflow_ref(x)%GridX, &
-            message = "Inflow grid cell row number x must be positive." &
-          ) &
-        )
-        var = grp%getVariable("GridY")                               ! point to the variable defining the column of the grid cell
-        call var%getData(Me%inflow_ref(x)%GridY)                     ! pull GridY reference into SubRiver object
-                                                                     ! AUDIT GridY here - must be >0 and <= the highest grid cell number
-        call r%addError( &                                           ! Check GridY is >0. Need to think about where highest grid cell number is specified.
-          ERROR_HANDLER%positive( &
-            value = Me%inflow_ref(x)%GridY, &
-            message = "Inflow grid cell column number y must be positive." &
-          ) &
-        )
-        var = grp%getVariable("SubRiver")                            ! point to the variable defining the SubRiver acting as an input
-        call var%getData(Me%inflow_ref(x)%SubRiver)                  ! pull SubRiver reference into SubRiver object
-                                                                     ! AUDIT SubRiver here - must be either null (-999, indicating SubRiver is a headwater), or >0 and <= nSubRivers
-        call r%addError( &                                           ! Check SubRiver number is >0. If it's a headwater, then won't nInflows = 0 (and thus we'll never enter this loop)?
-          ERROR_HANDLER%positive( &                                  ! TODO: Get number of SubRivers from inflow GridCell to check SubRiver number isn't greater
-            value = Me%inflow_ref(x)%SubRiver, &
-            message = "Inflow SubRiver number must be positive." &
-          ) &
-        )
-        call r%addToTrace("Processing " // sr1)                       ! Add this inflow to the error trace
-      ! I've assumed here that this is the only way to read in single elements of a user-defined type, i.e. by listing each as a separate variable.
-      ! But can a single user-defined type (i.e. GridX, GridY and SubRiver) be listed as a single object in the .json file and
-      ! read in as a single variable? Then "nInflows" could be listed in the .json file as a dimension, in the way that "ReachTypes" is, and the number of inflows
-      ! inferred from the size of the inflow_ref(:) array after the inflow references have been read in.
-      end do
-      grp = nc%getGroup("Outflow")                                   ! point to the Outflow group
-      var = grp%getVariable("GridX")                                 ! point to the variable defining the row of the grid cell
-      call var%getData(Me%outflow_ref%GridX)                         ! pull GridX reference into SubRiver object
-                                                                     ! AUDIT GridX here - must be >0 and <= the highest grid cell number
-      call r%addError( &                                             ! Check GridX is >0. Need to think about where highest grid cell number is specified.
-        ERROR_HANDLER%positive( &
-          value = Me%outflow_ref%GridX, &
-          message = "Outflow grid cell row number x must be positive." &
-        ) &
-      )
-      var = grp%getVariable("GridY")                                 ! point to the variable defining the column of the grid cell
-      call var%getData(Me%outflow_ref%GridY)                         ! pull GridY reference into SubRiver object
-                                                                     ! AUDIT GridY here - must be <= the highest grid cell number
-      call r%addError( &                                             ! Check GridX is >0. Need to think about where highest grid cell number is specified.
-        ERROR_HANDLER%positive( &
-          value = Me%outflow_ref%GridY, &
-          message = "Outflow grid cell column number y must be positive." &
-        ) &
-      )
-      var = grp%getVariable("SubRiver")                              ! point to the variable defining the SubRiver acting as an input
-      call var%getData(Me%outflow_ref%SubRiver)                      ! pull SubRiver reference into SubRiver object
-                                                                     ! AUDIT SubRiver here - must be either null (-999, indicating SubRiver is a headwater), or >0 and <= nSubRivers
-      call r%addError( &                                             ! Check SubRiver number is >0.
-        ERROR_HANDLER%positive( &                                    ! TODO: Get number of SubRivers from outflow GridCell to check SubRiver number isn't greater
-          value = Me%outflow_ref%SubRiver, &
-          message = "Outflow SubRiver number must be positive." &
-        ) &
-      )
-      call r%addToTrace("Processing outflow")                        ! Add this inflow to the error trace
-      var = grp%getVariable("nReaches")                              ! point to the variable nReaches: the number of reaches in this SubRiver
-      call var%getData(Me%nReaches)                                  ! pull nReaches reference into SubRiver object
-                                                                     ! AUDIT nReaches here: must be > 0, possibly warn if greater than a stipulated maximum
-      read(C%maxRiverReaches,*) charMaxRiverReaches
-      call r%addError( &                                             ! Check SubRiver number is >0.
+      call r%addError( &                                             ! Check nReaches is >0 but <maxRiverReaches (specified in config file(?))
         ERROR_HANDLER%limit( &                                       ! TODO: Get number of SubRivers from outflow GridCell to check SubRiver number isn't greater
           value = Me%nReaches, &
+          lbound = 0, &
+          ubound = C%maxRiverReaches, &
           message = "Number of RiverReaches must be positive but less than " &
-            // adjustl(trim(charMaxRiverReaches)) &
+            // adjustl(trim(str(C%maxRiverReaches))) &
         ) &
       )
+
+      if (me%nInflows > 0) then
+        do x = 1, me%nInflows                                          ! loop to read the Inflow references for this SubRiver
+          ! read(x,*) sr1                                                ! read loop counter into character variable 'sr1'
+                                                                       ! CORRECT SYNTAX?
+          sr1 = "inflow_" // trim(str(x))                              ! create character variable 'Inflow1', 'Inflow2' etc.
+          grp = subRiverGrp%getGroup(sr1)                              ! point to the Inflow1, Inflow2 etc. group
+          var = grp%getVariable("gridX")                               ! point to the variable defining the row of the grid cell
+          call var%getData(Me%inflowRefs(x)%GridX)                     ! pull GridX reference into SubRiver object
+                                                                       ! AUDIT GridX here - must be >0 and <= the highest grid cell number
+          call r%addError( &                                           ! Check GridX is >0. Need to think about where highest grid cell number is specified.
+            ERROR_HANDLER%positive( &
+              value = Me%inflowRefs(x)%GridX, &
+              message = "Inflow grid cell row number x must be positive." &
+            ) &
+          )
+          var = grp%getVariable("gridY")                               ! point to the variable defining the column of the grid cell
+          call var%getData(Me%inflowRefs(x)%GridY)                     ! pull GridY reference into SubRiver object
+                                                                       ! AUDIT GridY here - must be >0 and <= the highest grid cell number
+          call r%addError( &                                           ! Check GridY is >0. Need to think about where highest grid cell number is specified.
+            ERROR_HANDLER%positive( &
+              value = Me%inflowRefs(x)%GridY, &
+              message = "Inflow grid cell column number y must be positive." &
+            ) &
+          )
+          var = grp%getVariable("subRiver")                            ! point to the variable defining the SubRiver acting as an input
+          call var%getData(Me%inflowRefs(x)%SubRiver)                  ! pull SubRiver reference into SubRiver object
+                                                                       ! AUDIT SubRiver here - must be either null (-999, indicating SubRiver is a headwater), or >0 and <= nSubRivers
+          call r%addError( &                                           ! Check SubRiver number is >0. If it's a headwater, then won't nInflows = 0 (and thus we'll never enter this loop)?
+            ERROR_HANDLER%positive( &                                  ! TODO: Get number of SubRivers from inflow GridCell to check SubRiver number isn't greater
+              value = Me%inflowRefs(x)%SubRiver, &
+              message = "Inflow SubRiver number must be positive." &
+            ) &
+          )
+          call r%addToTrace("Processing " // sr1)                       ! Add this inflow to the error trace
+        ! I've assumed here that this is the only way to read in single elements of a user-defined type, i.e. by listing each as a separate variable.
+        ! But can a single user-defined type (i.e. GridX, GridY and SubRiver) be listed as a single object in the .json file and
+        ! read in as a single variable? Then "nInflows" could be listed in the .json file as a dimension, in the way that "ReachTypes" is, and the number of inflows
+        ! inferred from the size of the inflowRefs(:) array after the inflow references have been read in.
+        end do
+      end if
                                                                      ! AUDIT size(ReachTypes)=nReaches here
+                                                                     ! ^ nReaches is set as size(ReachTypes) now - is there any reason not to do this?
       allocate(Me%colReaches(1:Me%nReaches), stat=Me%allst)          ! Set colReaches to be of size nReaches
       do x = 1, Me%nReaches                                          ! loop through each RiverReach in each SubRiver to create the reaches
         select case (Me%reachTypes(x))                               ! look at the type identifier for the yth RiverReach
@@ -216,7 +208,7 @@ contains
       type(real(dp)) :: rQ                                           ! reach capacity (m3) per timestep
       type(real(dp)), allocatable :: dSPM(:)                         ! inflow SPM per size class (kg) per displacement
       type(integer) :: x, y, z                                       ! loop counters
-      type(Environment1) :: enviro                                    ! temporary dummy to get compiling whilst we think about where to get Q and SPM from other cells from
+      ! type(Environment1) :: enviro                                    ! temporary dummy to get compiling whilst we think about where to get Q and SPM from other cells from
       ! Function purpose
       ! -------------------------------------------------------------
       ! route water and suspended material from the upstream
@@ -225,7 +217,7 @@ contains
       !
       ! Function inputs
       ! -------------------------------------------------------------
-      ! function uses inflow_ref(:) to interrogate other SubRivers
+      ! function uses inflowRefs(:) to interrogate other SubRivers
       ! for their discharge and suspended material fluxes.
       ! Does this by referencing Subrivers as
       ! Environment%GridCell(Gx, Gy)%SubRiver(z) for a SubRiver
@@ -239,22 +231,24 @@ contains
       ! Sout(:) : outflow SPM fluxes (kg)
       ! These variables are stored at object level for interrogation
       ! by the downstream SubRiver
-      me%nInflows = size(me%inflow_ref)                              ! get the number of inflows to be processed
+      me%nInflows = size(me%inflowRefs)                              ! get the number of inflows to be processed
       allocate(Qin(1:me%nReaches + 1), stat=Me%allst)                ! initialise Qin - extra element holds final discharge
       allocate(Me%SPMin(1:me%nReaches + 1, 1:C%nSizeClassesSPM), stat=Me%allst)    ! initialise SPMin - extra element holds final discharge
       do x = 1, Me%nInflows                                          ! loop through the inflows to retrieve and sum discharges
-        Gx = Me%inflow_ref(x)%GridX                                  ! x reference of GridCell supplying inflow
-        Gy = Me%inflow_ref(x)%GridY                                  ! y reference of GridCell supplying inflow
-        SR = Me%inflow_ref(x)%SubRiver                               ! SubRiver of GridCell supplying inflow
-        Qin(1) = Qin(1) + .dp. enviro%getQ(Gx, Gy, SR)               ! pull in discharge from upstream SubRiver
+        Gx = Me%inflowRefs(x)%GridX                                  ! x reference of GridCell supplying inflow
+        Gy = Me%inflowRefs(x)%GridY                                  ! y reference of GridCell supplying inflow
+        SR = Me%inflowRefs(x)%SubRiver                               ! SubRiver of GridCell supplying inflow
+        ! ENVIRONMENT
+        ! Qin(1) = Qin(1) + .dp. enviro%getQ(Gx, Gy, SR)               ! pull in discharge from upstream SubRiver
         ! GetQ method of Environment object retrieves the outflow Q from subriver SR of grid cell (Gx, Gy)
         ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONMENT OBJECT FROM HERE???
         ! ARE THERE OTHER WAYS OF DOING THIS, e.g. PASSING REFERENCES TO THE SUBRIVER OBJECTS
         ! THAT PROVIDE THE INFLOW FROM THE CALLING ROUTINE (WHICH WILL BE IN THE GRIDCELL OBJECT)
         ! INTO THIS METHOD?
         do y = 1, C%nSizeClassesSPM                                   ! loop through all SPM size classes
-          Me%spmIn(1, y) = Me%spmIn(1, y) + &                         ! only for the first RiverReach,
-                .dp. enviro%getSpm(Gx, Gy, SR, y)                     ! pull in SPM fluxes from upstream SubRiver
+          ! ENVIRONMENT
+          ! Me%spmIn(1, y) = Me%spmIn(1, y) + &                         ! only for the first RiverReach,
+          !       .dp. enviro%getSpm(Gx, Gy, SR, y)                     ! pull in SPM fluxes from upstream SubRiver
                 ! GetSPM method of Environment object retrieves the SPM flux in size class y from subriver SR of grid cell (Gx, Gy)
                 ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONMENT OBJECT FROM HERE???
                 ! ARE THERE OTHER WAYS OF DOING THIS, e.g. PASSING REFERENCES TO THE SUBRIVER OBJECTS
