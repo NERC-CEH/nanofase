@@ -88,6 +88,7 @@ module classSubRiver1
         ! reference, or null if SubRiver is a headwater.
         ! An outflow reference, comprising Grid x and y references
         ! and SubRiver number reference.
+        
                                                                     ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
         nc = NcDataset(C%inputFile, "r")                            ! Open dataset as read-only
         sr1 = trim(str(x)) // "_"
@@ -199,7 +200,7 @@ module classSubRiver1
         type(integer) :: ndisp                                      ! displacement counter
         type(real(dp)) :: dQ                                        ! inflow volume (m3) per displacement
         type(real(dp)) :: rQ                                        ! reach capacity (m3) per timestep
-        type(real(dp)), allocatable :: dSPM(:)                      ! inflow SPM per size class (kg) per displacement
+        type(real(dp)) :: dSPM(C%nSizeClassesSPM)                   ! inflow SPM per size class (kg) per displacement
         type(integer) :: i, j, n                                    ! loop counters
         ! Function purpose
         ! -------------------------------------------------------------
@@ -227,25 +228,10 @@ module classSubRiver1
         allocate(Qin(1:me%nReaches + 1), stat=me%allst)             ! initialise Qin - extra element holds final discharge
         allocate(me%SPMin(1:me%nReaches + 1, 1:C%nSizeClassesSPM), stat=me%allst)    ! initialise SPMin - extra element holds final discharge
         do i = 1, me%nInflows                                       ! loop through the inflows to retrieve and sum discharges
-            x = me%inflowRefs(i)%GridX                              ! x reference of GridCell supplying inflow
-            y = me%inflowRefs(i)%GridY                              ! y reference of GridCell supplying inflow
-            SR = me%inflowRefs(i)%SubRiver                          ! SubRiver of GridCell supplying inflow
-            ! ENVIRONMENT
-            ! Qin(1) = Qin(1) + .dp. enviro%getQ(x, y, SR)          ! pull in discharge from upstream SubRiver
-            ! GetQ method of Environment object retrieves the outflow Q from subriver SR of grid cell (x, y)
-            ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONmeNT OBJECT FROM HERE???
-            ! ARE THERE OTHER WAYS OF DOING THIS, e.g. PASSING REFERENCES TO THE SUBRIVER OBJECTS
-            ! THAT PROVIDE THE INFLOW FROM THE CALLING ROUTINE (WHICH WILL BE IN THE GRIDCELL OBJECT)
-            ! INTO THIS meTHOD?
+            Qin(1) = Qin(1) + me%inflows(i)%item%getQOut()          ! pull in discharge from upstream SubRiver to first RiverReach
             do n = 1, C%nSizeClassesSPM                             ! loop through all SPM size classes
-              ! ENVIRONMENT
-              ! me%spmIn(1, c) = me%spmIn(1, c) + &                     ! only for the first RiverReach,
-              !       .dp. enviro%getSpm(x, y, SR, c)                   ! pull in SPM fluxes from upstream SubRiver
-                    ! GetSPM method of Environment object retrieves the SPM flux in size class c from subriver SR of grid cell (x, y)
-                    ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONMENT OBJECT FROM HERE???
-                    ! ARE THERE OTHER WAYS OF DOING THIS, e.g. PASSING REFERENCES TO THE SUBRIVER OBJECTS
-                    ! THAT PROVIDE THE INFLOW FROM THE CALLING ROUTINE (WHICH WILL BE IN THE GRIDCELL OBJECT)
-                    ! INTO THIS meTHOD?
+                me%spmIn(1, n) = me%spmIn(1, n) + &                 ! pull in SPM fluxes from upstream SubRiver
+                    me%inflows(i)%item%getSpmOut(n)
             end do
         end do                                                      ! loop to sum all discharges and SPM fluxes
         do i = 1, me%nReaches                                       ! main routing loop
@@ -272,7 +258,7 @@ module classSubRiver1
                 r = me%colReaches(i)%item%simulate(dQ, dSPM)        ! main simulation call for the RiverReach
                 Qin(i + 1) = Qin(i + 1) + dQ                        ! sum the outflow discharge on each displacement
                 do n = 1, C%nSizeClassesSPM
-                    me%SPMin(i + 1, n) = me%SPMin(i + 1, n) + dSPM(n) ! sum the outflow SPM fluxes on each displacement
+                    me%spmIn(i + 1, n) = me%spmIn(i + 1, n) + dSPM(n) ! sum the outflow SPM fluxes on each displacement
                 end do
                 ! FUNCTION HERE TO SEND dQ, dSPM(:) to the RiverReach and return volumes and SPM classes (in the same variables) to be put into
                 ! Qin(i+1) and SPMin(i+1, ) by summing across each loop iteration
@@ -282,8 +268,9 @@ module classSubRiver1
             end do
         end do
         me%Qout = Qin(me%nReaches + 1)                              ! store the final outflow volume (m3)
+        allocate(me%spmOut(C%nSizeClassesSPM))
         do n = 1, C%nSizeClassesSPM                                 ! compute inflow SPM fluxes for this displacement
-            me%SPMout(n) = me%spmIn(me%nReaches + 1, n)             ! output SPM flux (kg) of size class 'n' for this displacement
+            me%spmOut(n) = me%spmIn(me%nReaches + 1, n)             ! output SPM flux (kg) of size class 'n' for this displacement
         end do
     end function
     ! ******************************************************

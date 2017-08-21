@@ -57,7 +57,6 @@ module classGridCell1
       type(NcVariable)      :: var                  !! NetCDF variable
       type(NcGroup)         :: grp                  !! NetCDF group
       integer               :: s                    !! Iterator for SubRivers
-      integer               :: nSubRivers           !! Number of SubRivers in the GridCell
       character(len=100)    :: subRiverPrefix       !! Prefix for SubRivers ref, e.g. SubRiver_1_1
 
       ! DATA REQUIREMENTS
@@ -88,12 +87,12 @@ module classGridCell1
         grp = nc%getGroup("Environment")
         grp = grp%getGroup(me%name)                             ! Get this GridCell's group
         var = grp%getVariable("nSubRivers")                     ! Get the number of SubRivers for looping over
-        call var%getData(nSubRivers)
-        allocate(me%colSubRivers(nSubRivers))                      ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
+        call var%getData(me%nSubRivers)
+        allocate(me%colSubRivers(me%nSubRivers))                   ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
         ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
         subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
                       "_" // trim(str(me%gridY)) // "_"
-        do s = 1, nSubRivers
+        do s = 1, me%nSubRivers
           ! Check that group actually exists
           ! TODO: Maybe perform this check somewhere else - or at least perform some error checking here
           if (grp%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
@@ -108,7 +107,7 @@ module classGridCell1
       class(GridCell1) :: Me                                          ! The GridCell instance.
       type(Result) :: r
       type(integer) :: x                                             ! loop counter
-      do x = 1, Me%nSubRivers
+      do x = 1, me%nSubRivers
         r = Me%colSubRivers(x)%item%destroy()                       ! remove all SubRiver objects and any contained objects
       end do
       do x = 1, Me%nSoilProfiles
@@ -123,7 +122,7 @@ module classGridCell1
       class(GridCell1) :: Me                                          ! The GridCell instance.
       type(Result) :: r                                              ! Result object
       type(integer) :: x                                             ! Loop counter
-      do x = 1, Me%nSubRivers
+      do x = 1, me%nSubRivers
         r = Me%colSubRivers(x)%item%routing()                        ! call the routing method for each SubRiver in turn
                                                                      ! outflow discharge and SPM fluxes for each SubRiver are
                                                                      ! stored within that SubRiver, ready to be picked up by

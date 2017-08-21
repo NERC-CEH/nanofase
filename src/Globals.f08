@@ -45,13 +45,15 @@ module Globals
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=[ &
+            ! Numerical calculations
+            ErrorInstance(code=300, message="Newton's method failed to converge."), &
+            ! Grid and geography
+            ErrorInstance(code=401, message="Invalid SubRiver inflow reference. Inflow must be from a neighbouring SubRiver."), &
+            ! Object type errors
             ErrorInstance(code=999,message="Invalid biota index provided when creating bed sediment layer."), &
             ErrorInstance(code=998,message="Invalid reactor index provided when creating bed sediment layer."), &
             ErrorInstance(code=997,message="Invalid bed sediment layer index provided when creating bed sediment."), &
-            ErrorInstance(code=996,message="Invalid number of bed sediment layers provided. Must be greater than zero."), &
-            ! Numerical calculations
-            ErrorInstance(code=300, &
-                message="Newton's method failed to converge.") &
+            ErrorInstance(code=996,message="Invalid number of bed sediment layers provided. Must be greater than zero.") &
         ])
 
         ! Get the sediment and nanoparticle size classes from data file
