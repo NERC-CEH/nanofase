@@ -40,8 +40,8 @@ module classSubRiver1
     !! and is not type-bound.
     !! TODO: Do something with result object
     function newSubRiver1(x, y, s) result(me)
-        type(SubRiver1) :: me                                       !! The new GridCell to return
-        integer :: x, y, s                                          !! Location of the GridCell
+        type(SubRiver1) :: me                                       !! The new SubRiver to return
+        integer :: x, y, s                                          !! Location of the SubRiver
         type(Result) :: r                                           !! Result object
         ! Create the new SubRiver
         r = me%create(x, y, s)
@@ -88,7 +88,7 @@ module classSubRiver1
         ! reference, or null if SubRiver is a headwater.
         ! An outflow reference, comprising Grid x and y references
         ! and SubRiver number reference.
-        
+
                                                                     ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
         nc = NcDataset(C%inputFile, "r")                            ! Open dataset as read-only
         sr1 = trim(str(x)) // "_"

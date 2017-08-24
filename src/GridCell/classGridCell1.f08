@@ -33,10 +33,18 @@ module classGridCell1
   interface GridCell1
       module procedure newGridCell1
   end interface
-
+! *** SL:
+! neat - didn't realise that this was possible. Will it work with
+! polymorphism, i.e. can we use it to create GridCell objects of any
+! type that implements spcGridCell? At the moment, to me it looks as though that
+! isn't possible...
   contains
     !> Return a newly-created GridCell1 object. This is bound to GridCell1 interface
     !! and is not type-bound.
+  ! *** SL:
+  ! I don't quite understand this - if the returned object is of type GridCell1
+  ! as opposed to GridCell, isn't it type-bound?
+  ! ***
     !! TODO: Do something with result object
     function newGridCell1(x, y, isEmpty) result(me)
       type(GridCell1) :: me                         !! The new GridCell to return
@@ -97,7 +105,7 @@ module classGridCell1
           ! TODO: Maybe perform this check somewhere else - or at least perform some error checking here
           if (grp%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
             ! Allocate a new SubRiver to the colSubRivers array
-            allocate(me%colSubRivers(s)%item, source=SubRiver1(me%gridX, me%gridY, s))  
+            allocate(me%colSubRivers(s)%item, source=SubRiver1(me%gridX, me%gridY, s))
           end if
         end do
       end if
