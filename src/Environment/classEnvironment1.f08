@@ -14,6 +14,7 @@ module classEnvironment1
       contains
         procedure :: create => createEnvironment1
         procedure :: destroy => destroyEnvironment1
+        procedure :: simulate => simulateEnvironment1
     end type
 
   contains
@@ -30,7 +31,7 @@ module classEnvironment1
         integer :: x, y, s, i                                   !! Iterators for GridCells, SubRivers and inflows
         integer :: iX, iY, iS                                   !! Indices for inflow grid and SubRiver coordinates
         character(len=100) :: gridCellRef                       !! To store GridCell name in, e.g. "GridCell_x_y"
-        logical :: isValidInflow = .true.                       !! Is inflow SubRiver is a neighbouring river
+        logical :: isValidInflow                                !! Is inflow SubRiver is a neighbouring river
         type(ErrorInstance), allocatable :: errors(:)           !! Errors to return
 
         ! No errors to begin with
@@ -81,13 +82,6 @@ module classEnvironment1
             do y = 1, size(me%colGridCells, 2)                                          ! Loop through the columns
                 do s = 1, size(me%colGridCells(x,y)%item%colSubRivers)                  ! Loop through the SubRivers
                     associate(subRiver => me%colGridCells(x,y)%item%colSubRivers(s)%item)
-! *** SL:
-! has subRiver been defined? Presumably a pointer of class(SubRiver)?
-! actually, looking at this properly, I'm not yet familiar with the
-! associate...end associate structure so I may be wrong. Does the associate
-! command above automatically create a pointer to a SubRiver type (called SubRiver)?
-
-! ***
                         do i =1, subRiver%nInflows                                      ! Loop through the inflows
                             ! Get the inflow coordinates
                             iX = subRiver%inflowRefs(i)%gridX
@@ -104,39 +98,25 @@ module classEnvironment1
 ! SubRiver can be the same).
 ! Worth having a sit-down to go through how to structure this auditing.
 ! ***
-                            ! Check that (iX, iY) is a neighbouring GridCell
+                            isValidInflow = .true.
+                            ! Check that (iX, iY) is a neighbouring or the same GridCell
                             if (abs(iX-x) > 1 .or. abs(iY-y) > 1) isValidInflow = .false.
-                            ! If from same GridCell, check it's a neighbouring SubRiver
-                            if (iX == x .and. iY == y .and. abs(iS-s) > 1) isValidInflow = .false.
                             ! If the inflow is coming from different cell, is it from the outflow to that cell?
-                            if (iX == x .and. iY == y &
+                            if ((iX /= x .or. iY /= y) &
                                 .and. (me%colGridCells(iX,iY)%item%nSubRivers /= iS)) isValidInflow = .false.
                             ! If invalid inflow, generate an error
                             if (.not. isValidInflow) then
                                 errors = [errors, ErrorInstance( &
                                     code = 401, &
-                                    message = "Invalid SubRiver inflow from " // subRiver%ref // &
-                                        " to " // subRiver%ref // ". Inflow must be from a neighbouring SubRiver." &
+                                    message = "Invalid SubRiver inflow from " &
+                                        // trim(adjustl(me%colGridCells(iX,iY)%item%colSubRivers(iS)%item%ref)) // &
+                                        " to " // trim(adjustl(subRiver%ref)) // ". Inflow must be from a neighbouring SubRiver." &
                                 )]
                             end if
 
                             ! Point this SubRiver's inflows pointer to the corresponding SubRiver
                             subRiver%inflows(i)%item => me%colGridCells(iX,iY)%item%colSubRivers(iS)%item
                         end do
-                        ! Now route the water and SPM through the SubRivers
-                        r = subRiver%routing()
-! *** SL:
-! the command above needs to go into a separate function (in GridCell not Environment???) that executes whatever
-! transport commands are needed to route water and sediment etc. through and in a specific GridCell.
-! At the moment we can focus solely on water and suspended sediment routing through a river system,
-! but ultimately we need to loop through all GridCells of all types and handle routing for all possible
-! situations, e.g. soil-> river/lake, in-lake water movements, estuarine transport, and marine transport.
-! This is going to need some careful thinking because at the moment, considering only riverine transport,
-! we are only dealing with a situation where water and sediment move in a single direction. For some groups
-! of GridCell types we need to consider two-way exchange of material - particularly for the marine GridCells.
-! We may well need, for example, to treat the marine cells as a distinct collection within Environment in
-! order to achieve this.
-! ***
                     end associate
                 end do
             end do
@@ -150,5 +130,29 @@ module classEnvironment1
         class(Environment1) :: me
         type(Result) :: r
         ! Destroy logic here
+    end function
+
+    !> Perform simulations for the Environment
+    function simulateEnvironment1(me) result(r)
+        class(Environment1) :: me
+        type(Result) :: r
+        integer :: x, y, s
+        do x = 1, size(me%colGridCells, 1)                                      ! Loop through the rows
+            do y = 1, size(me%colGridCells, 2)                                  ! Loop through the columns
+                r = me%colGridCells(x,y)%item%routing()                         ! Run routing simulation for each GridCell
+            end do
+        end do
+        ! *** SL comments re SubRiver routing and the SubRiver%routing() function:
+        ! the SubRiver%routing() command needs to go into a separate function (in GridCell not Environment???) that executes whatever
+        ! transport commands are needed to route water and sediment etc. through and in a specific GridCell.
+        ! At the moment we can focus solely on water and suspended sediment routing through a river system,
+        ! but ultimately we need to loop through all GridCells of all types and handle routing for all possible
+        ! situations, e.g. soil-> river/lake, in-lake water movements, estuarine transport, and marine transport.
+        ! This is going to need some careful thinking because at the moment, considering only riverine transport,
+        ! we are only dealing with a situation where water and sediment move in a single direction. For some groups
+        ! of GridCell types we need to consider two-way exchange of material - particularly for the marine GridCells.
+        ! We may well need, for example, to treat the marine cells as a distinct collection within Environment in
+        ! order to achieve this.
+        ! ***
     end function
 end module

@@ -11,6 +11,7 @@ module spcEnvironment
       contains
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy
+        procedure(simulateEnvironment), deferred :: simulate
     end type
 
     abstract interface
@@ -22,6 +23,12 @@ module spcEnvironment
         end function
         !> Interface to destroy an Environment object
         function destroyEnvironment(me) result(r)
+            import Environment, Result
+            class(Environment) :: me
+            type(Result) :: r
+        end function
+        !> Interface to perform simulations in Environment
+        function simulateEnvironment(me) result(r)
             import Environment, Result
             class(Environment) :: me
             type(Result) :: r
