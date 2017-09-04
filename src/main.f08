@@ -18,6 +18,7 @@ program main
     call GLOBALS_INIT()
 
     r = env%create()
+    r = env%simulate()
 
     ! ! Initialise the first bed sediment layer with two Biota objects,
     ! ! one of each type (1 and 2).

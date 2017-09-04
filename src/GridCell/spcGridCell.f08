@@ -47,9 +47,9 @@ module spcGridCell
     ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
     type(PointSourceElement), allocatable :: colPointSources(:)      ! array of PointSourceElement objects to hold the point sources
     type(DiffuseSourceElement) :: objDiffuseSource                   ! DiffuseSourceElement object to hold the diffuse source
-    type(integer) :: nSubRivers                                      ! Number of contained sub rivers
-    type(integer) :: nSoilProfiles                                   ! Number of contained soil profiles
-    type(integer) :: nPointSources                                   ! Number of contained point sources
+    type(integer) :: nSubRivers = 0                                  ! Number of contained sub rivers
+    type(integer) :: nSoilProfiles = 0                               ! Number of contained soil profiles
+    type(integer) :: nPointSources = 0                               ! Number of contained point sources
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
     logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS

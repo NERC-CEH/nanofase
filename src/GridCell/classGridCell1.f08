@@ -127,14 +127,20 @@ module classGridCell1
       r = Me%objDiffuseSource%item%destroy()                        ! remove the DiffuseSource object and any contained objects
     end function
     function routingGridCell1(Me) result(r)
-      class(GridCell1) :: Me                                          ! The GridCell instance.
+      class(GridCell1) :: Me                                         ! The GridCell instance.
       type(Result) :: r                                              ! Result object
-      type(integer) :: x                                             ! Loop counter
-      do x = 1, me%nSubRivers
-        r = Me%colSubRivers(x)%item%routing()                        ! call the routing method for each SubRiver in turn
-                                                                     ! outflow discharge and SPM fluxes for each SubRiver are
-                                                                     ! stored within that SubRiver, ready to be picked up by
-                                                                     ! the downstream SubRiver
-      end do
+      type(integer) :: s                                             ! Loop counter
+      ! Check that the GridCell is not empty before simulating anything
+      ! TODO: Think about where these isEmpty tests are done - here or in the Environment?
+      ! There's also redundency here are me%nSubRivers is initialised to 0 and is only
+      ! setting to something else is the GridCell isn't empty.
+      if (.not. me%isEmpty) then
+        do s = 1, me%nSubRivers
+          r = Me%colSubRivers(s)%item%routing()                        ! call the routing method for each SubRiver in turn
+                                                                       ! outflow discharge and SPM fluxes for each SubRiver are
+                                                                       ! stored within that SubRiver, ready to be picked up by
+                                                                       ! the downstream SubRiver
+        end do
+      end if
     end function
 end module
