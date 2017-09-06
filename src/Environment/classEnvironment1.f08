@@ -14,7 +14,7 @@ module classEnvironment1
       contains
         procedure :: create => createEnvironment1
         procedure :: destroy => destroyEnvironment1
-        procedure :: simulate => simulateEnvironment1
+        procedure :: update => updateEnvironment1
     end type
 
   contains
@@ -27,10 +27,11 @@ module classEnvironment1
         type(Result) :: r                                       !! Result object to return
         type(NcDataset) :: nc                                   !! NetCDF dataset
         type(NcVariable) :: var                                 !! NetCDF variable
-        type(NcGroup) :: grp                                    !! NetCDF group
+        type(NcGroup) :: grp, gcGrp                             !! NetCDF group
         integer :: x, y, s, i                                   !! Iterators for GridCells, SubRivers and inflows
         integer :: iX, iY, iS                                   !! Indices for inflow grid and SubRiver coordinates
         character(len=100) :: gridCellRef                       !! To store GridCell name in, e.g. "GridCell_x_y"
+        integer :: gridCellType                                 !! Integer representing the GridCell type
         logical :: isValidInflow                                !! Is inflow SubRiver is a neighbouring river
         type(ErrorInstance), allocatable :: errors(:)           !! Errors to return
 
@@ -42,6 +43,7 @@ module classEnvironment1
         grp = nc%getGroup("Environment")                        ! Get the Environment group
         var = grp%getVariable("gridSize")                       ! Get the grid size from the Environment
         call var%getData(me%gridSize)
+        
         ! Set the size of Environment variable that holds the grid cells
         allocate(me%colGridCells(me%gridSize(1),me%gridSize(2)))
         ! Loop through the x dimensions of the grid
@@ -49,12 +51,22 @@ module classEnvironment1
             ! Loop through the y dimensions of the grid
             do y = 1, me%gridSize(2)
                 gridCellRef = "GridCell_" // trim(str(x)) // &
-                    "_" // trim(str(y))   ! str() function is from UtilModule
+                    "_" // trim(str(y))
                 ! Check if the GridCell is defined in the data file before creating
                 ! it and adding to colGridCells. If it doesn't exist, specify it is
                 ! an empty GridCell.
                 if (grp%hasGroup(trim(gridCellRef))) then
-                    allocate(me%colGridCells(x,y)%item, source=GridCell1(x,y))
+                    ! Get the type of the GridCell (e.g., GridCell1, GridCell2) to
+                    ! create, from the data file.
+                    gcGrp = grp%getGroup(trim(gridCellRef))
+                    var = gcGrp%getVariable("type")
+                    call var%getData(gridCellType)
+                    select case (gridCellType)
+                        case (1)
+                            allocate(me%colGridCells(x,y)%item, source=GridCell1(x,y))    
+                        case default
+                            ! TODO: Not valid type, throw an error
+                    end select
                 else
                     allocate(me%colGridCells(x,y)%item, source=GridCell1(x,y,isEmpty=.true.))
                 end if
@@ -133,13 +145,14 @@ module classEnvironment1
     end function
 
     !> Perform simulations for the Environment
-    function simulateEnvironment1(me) result(r)
-        class(Environment1) :: me
+    function updateEnvironment1(me, t) result(r)
+        class(Environment1) :: me                               !! This Environment instance
+        integer :: t                                            !! Current time step
         type(Result) :: r
         integer :: x, y, s
-        do x = 1, size(me%colGridCells, 1)                                      ! Loop through the rows
-            do y = 1, size(me%colGridCells, 2)                                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%routing()                         ! Run routing simulation for each GridCell
+        do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
+            do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
+                r = me%colGridCells(x,y)%item%routing()         ! Run routing simulation for each GridCell
             end do
         end do
         ! *** SL comments re SubRiver routing and the SubRiver%routing() function:

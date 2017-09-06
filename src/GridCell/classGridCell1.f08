@@ -66,6 +66,7 @@ module classGridCell1
       type(NcGroup)         :: grp                  !! NetCDF group
       integer               :: s                    !! Iterator for SubRivers
       character(len=100)    :: subRiverPrefix       !! Prefix for SubRivers ref, e.g. SubRiver_1_1
+      real(dp)              :: subRiverLength       !! Length of the SubRivers
 
       ! DATA REQUIREMENTS
       ! number of grid cells
@@ -96,16 +97,25 @@ module classGridCell1
         grp = grp%getGroup(me%name)                             ! Get this GridCell's group
         var = grp%getVariable("nSubRivers")                     ! Get the number of SubRivers for looping over
         call var%getData(me%nSubRivers)
-        allocate(me%colSubRivers(me%nSubRivers))                   ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
-        ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
+        allocate(me%colSubRivers(me%nSubRivers))                ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
+        
         subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
                       "_" // trim(str(me%gridY)) // "_"
+        ! Set SubRiver size to half of the grid cell size if there's more than one SubRiver,
+        ! otherwise the full size of the grid cell. TODO: Constrain number of SubRivers somewhere
+        ! so this makes sense.
+        if (me%nSubRivers > 1) then
+          subRiverLength = C%gridCellSize / 2.0_dp
+        else
+          subRiverLength = C%gridCellSize
+        end if
+        ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
         do s = 1, me%nSubRivers
           ! Check that group actually exists
           ! TODO: Maybe perform this check somewhere else - or at least perform some error checking here
           if (grp%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
             ! Allocate a new SubRiver to the colSubRivers array
-            allocate(me%colSubRivers(s)%item, source=SubRiver1(me%gridX, me%gridY, s))
+            allocate(me%colSubRivers(s)%item, source=SubRiver1(me%gridX, me%gridY, s, subRiverLength))
           end if
         end do
       end if

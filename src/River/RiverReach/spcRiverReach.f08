@@ -18,15 +18,18 @@ module spcRiverReach
       class(BedSediment), allocatable :: item
     end type
     type, abstract, public :: RiverReach                             ! type declaration for superclass
-      character(len=256) :: name                                     ! a name for the object
+      character(len=256) :: ref                                      ! a reference for the object
                                                                      ! PROPERTIES
                                                                      ! Description
                                                                      ! -----------
       real(dp) :: S                                                  ! Slope of reach [m/m]. Specified in inputs.
-      real(dp) :: Q                                                  ! Discharge [m3/s]. Specified in inputs.
+      real(dp) :: Q_in                                               ! Inflow from upstream reach [m3].
+      real(dp) :: Q_runoff                                           ! Runoff from hydrological model [m3].
       real(dp) :: W                                                  ! Width of reach [m]. Computed on each timestep.
       real(dp) :: D                                                  ! Depth of water column [m]. Computed on each timestep.
       real(dp) :: v                                                  ! Water velocity [m s-1]. Computed on each timestep.
+      real(dp) :: l                                                  ! Length of the river, without meandering factor [m].
+      real(dp) :: f_m = 1                                            ! Meandering factor used for calculating river volume. Default to 1 (no meandering).
       real(dp) :: volume                                             ! The volume of water in the reach [m3].
       ! Specified globally so don't need to be defined here. Access via C%nSizeClassesSPM and C%d_spm:
       ! integer :: n_s_classes                                         ! Number of sediment size classes. Specified globally.
@@ -43,6 +46,8 @@ module spcRiverReach
                                                                      ! Description
                                                                      ! -----------
       type(BedSedimentElement), allocatable :: objBedSediment        ! contained BedSediment object
+      real(dp) :: T                                                  ! Temperature [C]
+      type(NcGroup) :: ncGroup                                       ! The NETCDF group for this RiverReach
     contains
                                                                      ! METHODS
                                                                      ! Description
@@ -53,7 +58,7 @@ module spcRiverReach
                                                                      ! PRIVATE ROUTINES
                                                                      ! Description
                                                                      ! -----------
-      procedure(initDimensions), deferred :: initDimensions
+      procedure(updateDimensions), deferred :: updateDimensions      ! Update the dimensions of the RiverReach on each timestep
       procedure(simulate), deferred :: simulate                      ! DUMMY FUNCTION for the time being
       procedure(calculateDepth), deferred :: calculateDepth          ! compute the depth of the water column
       procedure(calculateWidth), deferred :: calculateWidth          ! compute the width of the reach
@@ -64,39 +69,33 @@ module spcRiverReach
                                                                      ! doing is returning a type variable?
     end type
   abstract interface
-    function createRiverReach(Me) result(r)
+    function createRiverReach(me, x, y, s, r, l) result(res)
       use Globals                                                    ! Interface blocks don't have access to used modules in this module, thus we need to use/import again
       import RiverReach, Result, Result0D
-      class(RiverReach) :: Me                                        ! The RiverReach instance.
-      type(Result0D) :: D                                            ! Depth [m].
-      type(Result0D) :: v                                            ! Water velocity [m/s].
-      type(Result0D) :: W                                            ! River width [m].
-      integer :: i                                                   ! Loop iterator.
-      type(Result) :: r                                              ! The Result object.
-      type(NcDataset) :: NC                                          ! NetCDF dataset
-      type(NcVariable) :: var                                        ! NetCDF variable
-      type(NcGroup) :: grp                                           ! NetCDF group
-      real(dp), allocatable :: spmDensities(:)                       ! Array of sediment particle densities for each size class
+      class(RiverReach) :: me                                        ! The RiverReach instance.
+      integer :: x, y, s, r                                          ! GridCell, SubRiver and RiverReach identifiers.
+      real(dp) :: l                                                  ! The RiverReach length.
+      type(Result) :: res                                            ! The Result object.
     end function
     function destroyRiverReach(Me) result(r)
       import RiverReach, Result
       class(RiverReach) :: Me                                        ! The RiverReach instance
       type(Result) :: r                                              ! The Result object to return
     end function
-    function initDimensions(me, Q) result(r)
+    function updateDimensions(me, Q_in) result(r)
       use Globals
       import RiverReach, Result
       class(RiverReach) :: me
-      real(dp) :: Q
+      real(dp) :: Q_in
       type(Result) :: r
     end function
     function simulate(me, dQ, dSPM) result(r)
       use Globals
-      import RiverReach, Result
+      import RiverReach, Result1D
       class(RiverReach) :: me
       real(dp) :: dQ
       real(dp) :: dSPM(:)
-      type(Result) :: r
+      type(Result1D) :: r
     end function
     pure function calculateDepth(Me, W, S, Q) result(r)
       use Globals
@@ -104,16 +103,7 @@ module spcRiverReach
       class(RiverReach), intent(in) :: Me                          ! The RiverReach instance.
       real(dp), intent(in) :: W                                    ! River width \( W \) [m].
       real(dp), intent(in) :: S                                    ! River slope \( S \) [-].
-      real(dp), intent(in) :: Q                                    ! Flow rate \( Q \) [m**3/s].
-      real(dp) :: D_i                                              ! The iterative river depth \( D_i \) [m].
-      real(dp) :: f                                                ! The function to find roots for \( f(D) \).
-      real(dp) :: df                                               ! The derivative of \( f(D) \) with respect to \( D \).
-      real(dp) :: alpha                                            ! Constant extracted from f and df
-      integer :: i                                                 ! Loop iterator to make sure loop isn't endless.
-      integer :: iMax                                              ! Maximum number of iterations before error.
-      type(ErrorInstance) :: error                                 ! Variable to store error in.
-      character(len=100) :: iChar                                  ! Loop iterator as character (for error message).
-      character(len=100) :: fChar                                  ! f(D) value as character (for error message).
+      real(dp), intent(in) :: Q                                    ! Flow rate \( Q \) [m3/s].
       type(Result0D) :: r                                          ! The result object.
     end function
     function calculateWidth(Me, Q) result(r)
@@ -147,6 +137,7 @@ module spcRiverReach
   end interface
 
   contains
+    !> Return the volume of the RiverReach.
     function getVolume(me) result(volume)
       class(RiverReach) :: me
       real(dp) :: volume

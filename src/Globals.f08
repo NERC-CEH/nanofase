@@ -25,6 +25,9 @@ module Globals
         integer :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
                                             !! TODO: Would be good if this was from config file
 
+        ! Grid
+        real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
+
       contains
         procedure :: rho_w, nu_w
     end type
@@ -65,6 +68,8 @@ module Globals
         var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
         call var%getData(npSizeClasses)                     ! Get the variable's data
         allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
+        var = grp%getVariable("gridCellSize")
+        call var%getData(C%gridCellSize)
         ! Set the number of size classes
         C%nSizeClassesSPM = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)

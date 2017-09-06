@@ -36,6 +36,7 @@ module spcSubRiver
                                                                     ! PROPERTIES
                                                                     ! Description
                                                                     ! -----------
+        real(dp) :: length                                          ! The length of the SubRiver (without any meandering factor)
         type(RoutingRef), allocatable :: inflowRefs(:)              ! array of references to source subrivers for this subriver (sources can be in a different grid cell)
                                                                     ! this is used temporarilly to enable me%inflows array to be filled with pointers, to save us getting
                                                                     ! them from the data file again
@@ -70,12 +71,14 @@ module spcSubRiver
     end type
 
     abstract interface
-        function createSubRiver(me, x, y, s) result(r)              ! create the SubRiver object by reading data in from file
+        function createSubRiver(me, x, y, s, length) result(r)      ! create the SubRiver object by reading data in from file
+            use Globals
             import SubRiver, Result
             class(SubRiver) :: me                                   ! the SubRiver instance
             type(integer), intent(in) :: x                          ! the row number of the enclosing GridCell
             type(integer), intent(in) :: y                          ! the column number of the enclosing GridCell
             type(integer), intent(in) :: s                          ! reference SubRiver number
+            real(dp) :: length                                      ! The SubRiver length
             type(Result) :: r                                       ! the result object
         end function
         function destroySubRiver(me) result(r)

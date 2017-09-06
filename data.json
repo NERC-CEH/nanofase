@@ -1,4 +1,7 @@
 {
+    "dimensions" : [
+        { "name" : "nTimeSteps", "size" : 10 }
+    ],
     "data" : [
         {
             "name" : "global",
@@ -20,14 +23,15 @@
                     "dimensions" : [ "size" ],
                     "datatype" : "f8",
                     "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
-                }
+                },
+                { "name" : "gridCellSize", "type" : "variable", "datatype" : "f8", "data" : 1000 }
             ]
         },
         {
             "name" : "Environment",
             "type" : "group",
             "dimensions" : [
-                { "name" : "nReaches", "size" : 10 },
+                { "name" : "nReaches", "size" : 2 },
                 { "name" : "gridSize", "size" : 2 }
             ],
             "data" : [
@@ -42,6 +46,7 @@
                     "name" : "GridCell_1_1",
                     "type" : "group",
                     "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         {
                             "name" :  "SubRiver_1_1_1",
@@ -53,9 +58,30 @@
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_1_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_1_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
                                 }
                             ]
+                        },
+                        {
+                            "name" : "runoff",
+                            "type" : "variable",
+                            "datatype" : "f8",
+                            "dimensions" : [ "nTimeSteps" ],
+                            "data" : [ 300, 200, 100, 0, 0, 0, 0, 0, 0, 0]
                         }
                     ]
                 },
@@ -63,6 +89,7 @@
                     "name" : "GridCell_1_2",
                     "type" : "group",
                     "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         {
                             "name" :  "SubRiver_1_2_1",
@@ -74,7 +101,7 @@
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                    "data" : [ 1, 1 ]
                                 },
                                 {
                                     "name" : "inflow_1",
@@ -83,6 +110,20 @@
                                         { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 },
                                         { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 1 },
                                         { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_2_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_2_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
                                     ]
                                 }
                             ]
@@ -93,6 +134,7 @@
                     "name" : "GridCell_2_2",
                     "type" : "group",
                     "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 3 },
                         {
                             "name" :  "SubRiver_2_2_1",
@@ -104,7 +146,7 @@
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                    "data" : [ 1, 1 ]
                                 },
                                 {
                                     "name" : "inflow_1",
@@ -113,6 +155,20 @@
                                         { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 },
                                         { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
                                         { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
                                     ]
                                 }
                             ]
@@ -127,7 +183,7 @@
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                    "data" : [ 1, 1 ]
                                 },
                                 {
                                     "name" : "inflow_1",
@@ -136,6 +192,20 @@
                                         { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
                                         { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 3 },
                                         { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_2_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_2_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
                                     ]
                                 }
                             ]
@@ -150,7 +220,7 @@
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                    "data" : [ 1, 1 ]
                                 },
                                 {
                                     "name" : "inflow_1",
@@ -169,6 +239,20 @@
                                         { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
                                         { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 2 }
                                     ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_3_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_3_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
                                 }
                             ]
                         }
@@ -178,6 +262,7 @@
                     "name" : "GridCell_2_3",
                     "type" : "group",
                     "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         {
                             "name" :  "SubRiver_2_3_1",
@@ -189,7 +274,21 @@
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_3_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_3_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                    ]
                                 }
                             ]
                         }
@@ -199,6 +298,7 @@
                     "name" : "GridCell_3_2",
                     "type" : "group",
                     "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         {
                             "name" :  "SubRiver_3_2_1",
@@ -210,7 +310,7 @@
                                     "type" : "variable",
                                     "datatype" : "i4",
                                     "dimensions" : [ "nReaches" ],
-                                    "data" : [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+                                    "data" : [ 1, 1 ]
                                 },
                                 {
                                     "name" : "inflow_1",
@@ -219,6 +319,22 @@
                                         { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
                                         { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
                                         { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 3 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_3_2_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.5 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_3_2_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.5 }
                                     ]
                                 }
                             ]

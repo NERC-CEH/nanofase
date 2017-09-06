@@ -11,14 +11,29 @@ program main
     type(objBedSedimentLayer1) :: bs3
     type(RiverReach1) :: rr
     type(Result) :: r
-    integer :: i                                ! Loop iterator
+    integer :: x,y,s,t                                ! Loop iterator
     type(Environment1) :: env
 
     ! Initialise the error handler with custom error in Globals module
     call GLOBALS_INIT()
 
     r = env%create()
-    r = env%simulate()
+    ! Hack to set an initial Q=1 out of the first GridCell
+    env%colGridCells(1,1)%item%colSubRivers(1)%item%Qout = 1.0_dp
+    do t = 0, 10
+        r = env%update(t)
+    end do
+
+    do x = 1, size(env%colGridCells, 1)                                 ! Loop through the rows
+        do y = 1, size(env%colGridCells, 2)                             ! Loop through the columns
+            do s = 1, size(env%colGridCells(x,y)%item%colSubRivers)     ! Loop through the SubRivers
+                print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%ref
+                print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%length
+                print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut()
+            end do
+        end do
+    end do
+
 
     ! ! Initialise the first bed sediment layer with two Biota objects,
     ! ! one of each type (1 and 2).
