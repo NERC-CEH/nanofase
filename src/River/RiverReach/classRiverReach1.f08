@@ -2,6 +2,7 @@ module classRiverReach1
     use netcdf                  ! TODO: Check if netcdf library is needed - don't think so
     use mo_netcdf
     use Globals
+    use UtilModule
     use ResultModule
     use ErrorInstanceModule
     use spcRiverReach
@@ -11,64 +12,77 @@ module classRiverReach1
     !> RiverReach1 object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
     type, public, extends(RiverReach) :: RiverReach1
-        ! real(dp) :: W                           !! Width [m]
-        ! real(dp) :: S                           !! Slope [m/m]
-        ! real(dp) :: Q                           !! Flow rate [m3/s]
-        ! real(dp), allocatable :: rho_spm(:)     !! Sediment particle density, for different size classes [kg/m3].
-        ! real(dp), allocatable :: k_settle(:)    !! Settling rates, for different size classes [s-1]
-        ! real(dp) :: D                           !! Depth [m]
-        ! real(dp) :: v                           !! River velocity [m/s]
-        ! real(dp), allocatable :: W_spm(:)       !! Sediment particle settling velocity array, for different size classes [m/s]
-        ! real(dp) :: n                           !! Manning's roughness coefficient, for natural streams and major rivers.
-        real(dp) :: T                           !! Temperature [C]
 
       contains
         procedure, public :: create => createRiverReach1
         procedure, public :: destroy => destroyRiverReach1
-        procedure, public :: initDimensions => initDimensions1
+        procedure, public :: updateDimensions => updateDimensions1
         procedure, public :: simulate => simulate1
         procedure :: calculateWidth => calculateWidth1
         procedure :: calculateDepth => calculateDepth1
         procedure :: calculateVelocity => calculateVelocity1
         procedure :: calculateSettlingVelocity => calculateSettlingVelocity1
+        procedure :: calculateVolume => calculateVolume1
     end type
 
   contains
 
-    !> Create a river reach by reading data in from file and calculating
-    !! properties such as depth and velocity.
-    function createRiverReach1(me) result(r)
-        class(RiverReach1) :: me                               !! The RiverReach1 instance.
+    !> Create a RiverReach with x, y, s, r coordinates from the datafile.
+    function createRiverReach1(me, x, y, s, r, l) result(res)
+        class(RiverReach1) :: me                                !! The RiverReach1 instance.
+        integer :: x, y, s, r                                   !! Grid, SubRiver and RiverReach references.
+        real(dp) :: l                                           !! Length of the RiverReach (without meandering).
         type(Result0D) :: D                                     !! Depth [m].
         type(Result0D) :: v                                     !! River velocity [m/s].
         type(Result0D) :: W                                     !! River width [m].
         integer :: i                                            !! Loop iterator.
-        type(Result) :: r                                       !! The Result object.
+        type(Result) :: res                                     !! The Result object.
         type(NcDataset) :: NC                                   !! NetCDF dataset
         type(NcVariable) :: var                                 !! NetCDF variable
         type(NcGroup) :: grp                                    !! NetCDF group
         type(ErrorInstance) :: error                            !! To return errors
         real(dp), allocatable :: spmDensities(:)                !! Array of sediment particle densities for each size class
 
-        ! Get the specific RiverReach1 parameters from data. Sediment particle size classes
-        ! already obtain in Globals
+        ! First, let's set the RiverReach's reference and the length
+        me%ref = trim(ref(x,y,s,r))
+        me%l = l
+
+        !*************************************************!
+        !*************************************************!
+        ! NCDF GROUP REFERENCES NOT CORRECT AT THE MOMENT !
+        !*************************************************!
+        !*************************************************!
+
+        ! Get the specific RiverReach parameters from data - only the stuff
+        ! that doesn't depend on time
+        ! TODO: Check these groups exist (hasGroup())
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
-        grp = nc%getGroup("River")
-        grp = grp%getGroup("RiverReach")
-        var = grp%getVariable("slope")                          ! Get the slope
+        grp = nc%getGroup("Environment")
+        grp = grp%getGroup(trim(ref(x,y)))                      ! Get the GridCell we're in
+        grp = grp%getGroup(trim(ref(x,y,s)))                    ! Get the SubRiver we're in
+        me%ncGroup = grp%getGroup(trim(ref(x,y,s,r)))           ! Finally, get the actual RiverReach group
+        var = me%ncGroup%getVariable("slope")                   ! Get the slope
         call var%getData(me%S)
-        var = grp%getVariable("flow")                           ! Get the flow
-        call var%getData(me%Q)
-        var = grp%getVariable("spm_densities")                  ! Sediment particle densities
-        call var%getData(spmDensities)
+        if (me%ncGroup%hasVariable("f_m")) then                 ! If there is a meandering factor, get that
+            var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering).
+            call var%getData(me%f_m)
+        end if
+        ! var = grp%getVariable("runoff")                         ! Get the flow
+        ! call var%getData(me%Q_runoff)
+        ! var = grp%getVariable("spm_densities")                  ! Sediment particle densities
+        ! call var%getData(spmDensities)
+
+        !* DO SOMETHING TO GET SPMDENSITIES FROM SPMIN (SOURCES),
+        !* WHICH SHOULD BE IN THE DATAFILE. SPMDENSITIES BELOW
+        !* WILL CAUSE INVALID MEMORY REF UNTIL ITS GOT FROM SOMEWHERE.
 
         ! Check the sediment particle density array is the same size of nSizeClassesSPM
-        error = ERROR_HANDLER%equal( &
-            value = size(spmDensities), &
-            criterion = C%nSizeClassesSpm, &
-            message = "Sediment particle density array size must equal number of size classes." &
-        )
-        allocate(me%rho_spm, source=spmDensities)    ! Allocate to class variable
+        ! error = ERROR_HANDLER%equal( &
+        !     value = size(spmDensities), &
+        !     criterion = C%nSizeClassesSpm, &
+        !     message = "Sediment particle density array size must equal number of size classes." &
+        ! )
+        ! allocate(me%rho_spm, source=spmDensities)    ! Allocate to class variable
 
         ! Allocate size of settling velocity arrays
         allocate(me%W_spm(C%nSizeClassesSpm))
@@ -80,32 +94,25 @@ module classRiverReach1
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%n = C%n_river
 
-        ! Calculate the depth and velocities and set the instance's variables
-        ! TODO: Should we check for errors (e.g., negative river width) here,
-        ! or in calculateDepth and calculateVelocity?
-        W = me%calculateWidth(me%Q)
-        me%W = .dp. W
-        D = me%calculateDepth(me%W, me%S, me%Q)
-        v = me%calculateVelocity(me%D, me%Q, me%W)
-        me%D = .dp. D
-        me%v = .dp. v
+        ! Calculate the initial dimensions, based on Q_in
+        ! r = me%initDimensions()
 
         ! Only loop through size classes if there wasn't a array size mismatch error,
         ! otherwise a runtime error will be triggered before our custom error.
-        if (error%notError()) then
-            ! Calculate sediment particle settling velocity for each size class,
-            ! then set the settling rate (W_spm/D) accordingly
-            do i=1, C%nSizeClassesSPM
-                ! Currently no error checking in this procedure, but if that changes
-                ! we'll need to check for them here
-                me%W_spm(i) = .dp. me%calculateSettlingVelocity(C%d_spm(i), me%rho_spm(i), me%T)
-                me%k_settle(i) = me%W_spm(i)/me%D
-            end do
-        end if
+        ! if (error%notError()) then
+        !     ! Calculate sediment particle settling velocity for each size class,
+        !     ! then set the settling rate (W_spm/D) accordingly
+        !     do i=1, C%nSizeClassesSPM
+        !         ! Currently no error checking in this procedure, but if that changes
+        !         ! we'll need to check for them here
+        !         me%W_spm(i) = .dp. me%calculateSettlingVelocity(C%d_spm(i), me%rho_spm(i), me%T)
+        !         me%k_settle(i) = me%W_spm(i)/me%D
+        !     end do
+        ! end if
 
         ! Return any errors there might have been, add this procedure to trace
-        r = Result(errors=[error,.errors.W,.errors.D,.errors.v])
-        call r%addToTrace("Creating River Reach")
+        ! res = Result(errors=[error,.errors.W,.errors.D,.errors.v])
+        ! call res%addToTrace("Creating River Reach")
     end function
 
     !> Destroy this RiverReach1
@@ -115,12 +122,26 @@ module classRiverReach1
         ! TODO: Write some destroy logic
     end function
 
-    !> DUMMY FUNCTION Initialise the dimensions for each time step
-    function initDimensions1(me, Q) result(r)
-        class(RiverReach1) :: me
-        real(dp) :: Q
-        type(Result) :: r
-        ! Do some initialising
+    !> Updates the dimensions for each time step, based on Q_in
+    function updateDimensions1(me, Q_in) result(r)
+        class(RiverReach1) :: me            !! This RiverReach1 instance
+        real(dp) :: Q_in                    !! Inflow to this reach
+        type(Result) :: r                   !! Result object to return
+        type(Result0D) :: W, D, v, volume
+
+        me%Q_in = Q_in                      ! Set this reach's inflow
+        ! Calculate the depth and velocities and set the instance's variables
+        W = me%calculateWidth(me%Q_in)
+        me%W = .dp. W
+        D = me%calculateDepth(me%W, me%S, me%Q_in)
+        me%D = .dp. D
+        v = me%calculateVelocity(me%D, me%Q_in, me%W)
+        me%v = .dp. v
+        volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
+        me%volume = .dp. volume
+        r = Result( &
+            errors = [.error. W, .error. D, .error. v, .error. volume] &
+        )
     end function
 
     !> DUMMY FUNCTION
@@ -128,8 +149,11 @@ module classRiverReach1
         class(RiverReach1) :: me
         real(dp) :: dQ
         real(dp) :: dSPM(:)
-        type(Result) :: r
-        ! Do some simulating
+        type(Result1D) :: r
+        ! Do nothing for the moment
+        r = Result( &
+            data = [dQ, dSPM] &
+        )
     end function
 
     !> Calculate the width \( W \) of the river based on the discharge:
@@ -255,17 +279,31 @@ module classRiverReach1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
     pure function calculateSettlingVelocity1(me, d, rho_spm, T) result(r)
-        class(RiverReach1), intent(in) :: me         !! The RiverReach1 instance.
+        class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
-        real(dp), intent(in) :: rho_spm               !! Sediment particle density [kg/m**3].
+        real(dp), intent(in) :: rho_spm             !! Sediment particle density [kg/m**3].
         real(dp), intent(in) :: T                   !! Temperature [C].
         real(dp) :: dStar                           !! Dimensionless particle diameter.
-        real(dp) :: W_spm                             !! Calculated settling velocity [m/s].
+        real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
         type(Result0D) :: r                         !! The Result object.
         dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d  ! Calculate the dimensional particle diameter
         W_spm = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                   ! Calculate the settling velocity
             * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
         r = Result(data = W_spm)
+    end function
+
+    !> Calculate the volume of a RiverReach:
+    !! $$
+    !!      \text{volume} = DWlf_m
+    !! $$
+    pure function calculateVolume1(me, D, W, l, f_m) result(r)
+        class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance
+        real(dp), intent(in) :: D                   !! River depth
+        real(dp), intent(in) :: W                   !! River width
+        real(dp), intent(in) :: l                   !! River length, without meandering
+        real(dp), intent(in) :: f_m                 !! Meandering factor
+        type(Result0D) :: r                         !! The Result object
+        r = Result(data = D*W*l*f_m)
     end function
 
 end module

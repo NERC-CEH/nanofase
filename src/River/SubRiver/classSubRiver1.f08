@@ -39,21 +39,21 @@ module classSubRiver1
     !> Return a newly-created SubRiver1 object. This is bound to SubRiver1 interface
     !! and is not type-bound.
     !! TODO: Do something with result object
-    function newSubRiver1(x, y, s) result(me)
+    function newSubRiver1(x, y, s, length) result(me)
         type(SubRiver1) :: me                                       !! The new SubRiver to return
         integer :: x, y, s                                          !! Location of the SubRiver
+        real(dp) :: length                                          !! Length of the SubRiver (without meandering)
         type(Result) :: r                                           !! Result object
         ! Create the new SubRiver
-        r = me%create(x, y, s)
+        r = me%create(x, y, s, length)
     end function
 
-    function createSubRiver1(me, x, y, s) result(r)                 ! create the SubRiver object by reading data in from file
+    function createSubRiver1(me, x, y, s, length) result(r)         ! create the SubRiver object by reading data in from file
         class(SubRiver1) :: me                                      ! the SubRiver instance
         type(integer), intent(in) :: x                              ! the row number of the enclosing GridCell
         type(integer), intent(in) :: y                              ! the column number of the enclosing GridCell
-        ! Not needed as number of SPM size classes set in Globals:
-        ! type(integer), intent(in) :: SC                           ! the number of SPM size classes
         type(integer), intent(in) :: s                              ! reference SubRiver number
+        real(dp) :: length                                          ! The length of the SubRiver (without meandering)
         type(Result) :: r                                           ! the result object
         type(NcDataset) :: NC                                       ! NetCDF dataset
         type(NcVariable) :: var                                     ! NetCDF variable
@@ -62,8 +62,6 @@ module classSubRiver1
         type(integer) :: i                                          ! loop counter
         type(character(len=100)) :: sr1                             ! string to dynamically compile and hold group names (must be specific length)
         type(character(len=100)) :: sr2                             ! string to dynamically compile and hold group names
-        ! Moved to spcSubRiver type declaration to fit in with me%reachTypes used below:
-        ! type(integer), allocatable :: ReachTypes(:)               ! integer array of Reach type identifiers
         type(RiverReach1), allocatable :: r1                        ! private RiverReach1 type, used for dynamic assignment
         type(ErrorInstance), allocatable :: errors(:)
         character(len=5) :: charMaxRiverReaches                     ! character string to store max number of RiverReaches allowed in
@@ -76,8 +74,7 @@ module classSubRiver1
         ! -------------------------------------------------------------
         ! x  : x reference to the enclosing grid cell
         ! y  : y reference to the enclosing grid cell
-        ! SC  : number of suspended matter size classess
-        ! s :
+        ! s  : reference SubRiver number
         !
         ! Function outputs/outcomes
         ! -------------------------------------------------------------
@@ -86,9 +83,8 @@ module classSubRiver1
         ! Set of up to three inflow references inflowRefs(:),
         ! comprising Grid x and y references and  SubRiver number
         ! reference, or null if SubRiver is a headwater.
-        ! An outflow reference, comprising Grid x and y references
-        ! and SubRiver number reference.
-
+        allocate(errors(0))                                         ! No errors to begin with
+        me%length = length                                          ! Set the length
                                                                     ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
         nc = NcDataset(C%inputFile, "r")                            ! Open dataset as read-only
         sr1 = trim(str(x)) // "_"
@@ -109,18 +105,15 @@ module classSubRiver1
         allocate(me%inflows(me%nInflows), stat=me%allst)            ! likewise for the array of inflow pointers
         var = subRiverGrp%getVariable("reachTypes")                 ! point to the array ReachTypes: the type identifiers for the RiverReach objects in this SubRiver
         call var%getData(me%reachTypes)                             ! pull the Reach type references into SubRiver object
-        ! CORRECT? getData will pull a multidimensional variable into an array and dynamically allocate the array size?
-        ! if this is the case, how are the array elements numbered? I would like a consistent approach to element numbering,
-        ! always starting with 1.
         me%nReaches = size(me%reachTypes)                           ! get the number of reaches from the ReachType array size
         call r%addError( &                                          ! Check nReaches is >0 but <maxRiverReaches (specified in config file(?))
-        ERROR_HANDLER%limit( &                                      ! TODO: Get number of SubRivers from outflow GridCell to check SubRiver number isn't greater
-          value = me%nReaches, &
-          lbound = 0, &
-          ubound = C%maxRiverReaches, &
-          message = "Number of RiverReaches must be positive but less than " &
-            // adjustl(trim(str(C%maxRiverReaches))) &
-        ) &
+            ERROR_HANDLER%limit( &                                  ! TODO: Get number of SubRivers from outflow GridCell to check SubRiver number isn't greater
+              value = me%nReaches, &
+              lbound = 0, &
+              ubound = C%maxRiverReaches, &
+              message = "Number of RiverReaches must be positive but less than " &
+                // adjustl(trim(str(C%maxRiverReaches))) &
+            ) &
         )
 
         if (me%nInflows > 0) then
@@ -168,7 +161,7 @@ module classSubRiver1
             select case (me%reachTypes(i))                          ! look at the type identifier for the yth RiverReach
                 case (1)
                     allocate(r1, stat=me%allst)                     ! RiverReach1 type - create the object
-                    r = r1%create()                                 ! call the RiverReach1 constructor
+                    r = r1%create(x,y,s,i,me%length/me%nReaches)    ! call the RiverReach1 constructor
                     call move_alloc(r1, me%colReaches(i)%item)      ! move the RiverReach1 object to the yth element of the colReaches collection
                 case default
                     ! not a valid RiverReach type - must cause an error
@@ -178,19 +171,20 @@ module classSubRiver1
     end function
     function destroySubRiver1(me) result(r)
         class(SubRiver1) :: me                                      ! the SubRiver instance
-        type(Result) :: r                                           ! the result object
+        type(Result) :: r                                           ! the Result object
         type(integer) :: i                                          ! loop counter
         do i = 1, me%nReaches                                       ! loop through each RiverReach
             r = me%colReaches(i)%item%destroy()                     ! call destroy routine in the SubRiver object
         end do
 
-    ! TODO: Something here to compile all returned Result objects into one?
+        ! TODO: Something here to compile all returned Result objects into one?
 
     end function
+    ! TODO: Sort out object storage of spmIn and Q_in
     function routingSubRiver1(me) result(r)                         ! routes inflow(s) through the specified SubRiver
         class(SubRiver1) :: me                                      ! the SubRiver instance
-        type(Result) :: r                                           ! the result object
-        type(real(dp)), allocatable :: Qin(:)                       ! the inflow (m3)
+        type(Result) :: r                                           ! the Result object
+        type(real(dp)), allocatable :: Qin(:)                       ! the inflow, each element representing a RiverReach (m3)
         ! Placed SPMin and nInflows in spcSubRiver type declaration to fit in with me%SPMin, me%nInflow calls below
         ! type(real(dp)), allocatable :: SPMin(:)                   ! array of SPM masses, one per size class, in inflow (kg)
         ! type(integer) :: nInflows                                 ! the number of inflows
@@ -202,6 +196,7 @@ module classSubRiver1
         type(real(dp)) :: rQ                                        ! reach capacity (m3) per timestep
         type(real(dp)) :: dSPM(C%nSizeClassesSPM)                   ! inflow SPM per size class (kg) per displacement
         type(integer) :: i, j, n                                    ! loop counters
+        real(dp), allocatable :: rArray(:)                          ! Temporary variable to store type(Result) data arrays in
         ! Function purpose
         ! -------------------------------------------------------------
         ! route water and suspended material from the upstream
@@ -216,7 +211,7 @@ module classSubRiver1
         ! Environment%GridCell(x, y)%SubRiver(z) for a SubRiver
         ! outside the GridCell, and
         ! GridCell(x, y)%Subriver(z) for a Subriver in this GridCell.
-        ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONmeNT OBJECT FROM HERE???
+        ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONMENT OBJECT FROM HERE???
         !
         ! Function outputs/outcomes
         ! -------------------------------------------------------------
@@ -224,26 +219,27 @@ module classSubRiver1
         ! Sout(:) : outflow SPM fluxes (kg)
         ! These variables are stored at object level for interrogation
         ! by the downstream SubRiver
-        me%nInflows = size(me%inflowRefs)                           ! get the number of inflows to be processed
-        allocate(Qin(1:me%nReaches + 1), stat=me%allst)             ! initialise Qin - extra element holds final discharge
-        allocate(me%SPMin(1:me%nReaches + 1, 1:C%nSizeClassesSPM), stat=me%allst)    ! initialise SPMin - extra element holds final discharge
+
+        me%nInflows = size(me%inflows)                              ! get the number of inflows to be processed
+        allocate(Qin(me%nReaches + 1), stat=me%allst)               ! initialise Qin - extra element holds final discharge
+        allocate(me%SPMin(me%nReaches + 1, C%nSizeClassesSPM), me%spmOut(C%nSizeClassesSPM), stat=me%allst)    ! initialise SPMin - extra element holds final discharge
+
         do i = 1, me%nInflows                                       ! loop through the inflows to retrieve and sum discharges
             Qin(1) = Qin(1) + me%inflows(i)%item%getQOut()          ! pull in discharge from upstream SubRiver to first RiverReach
+            print *, Qin(1)
             do n = 1, C%nSizeClassesSPM                             ! loop through all SPM size classes
                 me%spmIn(1, n) = me%spmIn(1, n) + &                 ! pull in SPM fluxes from upstream SubRiver
                     me%inflows(i)%item%getSpmOut(n)
             end do
         end do                                                      ! loop to sum all discharges and SPM fluxes
         do i = 1, me%nReaches                                       ! main routing loop
-            ! Renamed to "initDimension" so we can keep "get" functions only as
-            ! ones that return state/class variables. E.g., once initDimensions() has
-            ! been called, you can `getVolume()` to get the width that initDimensions()
-            ! has calculated.
-            r = me%colReaches(i)%item%initDimensions(Qin(i))        ! call function in RiverReach to set up dimensions of
-                                                                    ! the reach for this timestep
+            r = me%colReaches(i)%item%updateDimensions(Qin(i))      ! call function in RiverReach to set up dimensions of
+                                                                    ! the reach for this timestep. Qin(1) set above, Qin(>1)
+                                                                    ! set by the previous loop iteration
             rQ = me%colReaches(i)%item%getVolume()                  ! get volumetric capacity of the reach (m3) for this timestep
-            ! spcRiverReach NEEDS TO EXPOSE A VOLUme PROPERTY. THIS PROPERTY WILL ALSO NEED TO BE DEFINED FOR THE RiverReach OBJECT'S
-            ! INTERNAL ROUTING COMPUTATIONS. IT NEEDS TO BE CALCULATED FOR EACH TImeSTEP.
+            ! If the inflow Qin is larger than the reach's capacity rQ, then we need to split the inflow
+            ! up into separate displacements and simulate the reach's routing for each of these displacements
+            ! individually
             ndisp = 0                                               ! count number of displacements required
             do while (dQ > Qin(i))                                  ! loop until the inflow volume is less than the number of displacements
                 dQ = rQ / (ndisp + 1)                               ! compute input volume as a function of the no. of displacements
@@ -255,7 +251,10 @@ module classSubRiver1
                 me%spmIn(i + 1, n) = 0                              ! initialise SPM flux summation for next RiverReach
             end do
             do j = 1, ndisp                                         ! route water and SPM on each displacement
-                r = me%colReaches(i)%item%simulate(dQ, dSPM)        ! main simulation call for the RiverReach
+                ! Main simulation call for the RiverReach (e.g., will get rid of stuff by settling, abstraction)
+                rArray = .dp. me%colReaches(i)%item%simulate(dQ, dSPM) ! simulate() returns an array
+                dQ = rArray(1)                                      ! First element is dQ
+                dSPM = rArray(2)                                    ! Second element is dSPM
                 Qin(i + 1) = Qin(i + 1) + dQ                        ! sum the outflow discharge on each displacement
                 do n = 1, C%nSizeClassesSPM
                     me%spmIn(i + 1, n) = me%spmIn(i + 1, n) + dSPM(n) ! sum the outflow SPM fluxes on each displacement
@@ -267,8 +266,16 @@ module classSubRiver1
                 ! On the final iteration, we exit the loop with the final outflow and SPM fluxes in Qin(nReaches + 1) and SPMin(nReaches + 1, [1,2,...])
             end do
         end do
-        me%Qout = Qin(me%nReaches + 1)                              ! store the final outflow volume (m3)
-        allocate(me%spmOut(C%nSizeClassesSPM))
+        me%QOut = Qin(me%nReaches + 1)                              ! store the final outflow volume (m3)
+
+        ! *********************************************** !
+        ! Hack to set an outflow from the first grid cell !
+        ! *********************************************** !
+        print *, me%ref
+        if (me%ref == "SubRiver_1_1_1") then
+            me%QOut = 300.0_dp
+        end if
+
         do n = 1, C%nSizeClassesSPM                                 ! compute inflow SPM fluxes for this displacement
             me%spmOut(n) = me%spmIn(me%nReaches + 1, n)             ! output SPM flux (kg) of size class 'n' for this displacement
         end do
