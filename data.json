@@ -326,7 +326,7 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.5 }
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 }
                                     ]
                                 },
                                 {
@@ -334,7 +334,7 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.5 }
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 }
                                     ]
                                 }
                             ]

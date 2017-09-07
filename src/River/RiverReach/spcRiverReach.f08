@@ -24,7 +24,7 @@ module spcRiverReach
                                                                      ! -----------
       real(dp) :: S                                                  ! Slope of reach [m/m]. Specified in inputs.
       real(dp) :: Q_in                                               ! Inflow from upstream reach [m3].
-      real(dp) :: Q_runoff                                           ! Runoff from hydrological model [m3].
+      ! real(dp) :: Q_runoff                                           ! Runoff from hydrological model [m3].
       real(dp) :: W                                                  ! Width of reach [m]. Computed on each timestep.
       real(dp) :: D                                                  ! Depth of water column [m]. Computed on each timestep.
       real(dp) :: v                                                  ! Water velocity [m s-1]. Computed on each timestep.

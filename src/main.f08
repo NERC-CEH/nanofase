@@ -1,6 +1,7 @@
 ! Test implementation of the bed sediment and biota classes.
 program main
     use Globals                                 ! For error handling. ErrorCriteria object is ERROR_HANDLER
+    use UtilModule
     use classBedSedimentLayer1
     use classRiverReach1
     use classEnvironment1
@@ -11,7 +12,7 @@ program main
     type(objBedSedimentLayer1) :: bs3
     type(RiverReach1) :: rr
     type(Result) :: r
-    integer :: x,y,s,t                                ! Loop iterator
+    integer :: x,y,s,t,i                                ! Loop iterator
     type(Environment1) :: env
 
     ! Initialise the error handler with custom error in Globals module
@@ -27,9 +28,21 @@ program main
     do x = 1, size(env%colGridCells, 1)                                 ! Loop through the rows
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the columns
             do s = 1, size(env%colGridCells(x,y)%item%colSubRivers)     ! Loop through the SubRivers
+                print *, "---"
                 print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%ref
-                print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%length
-                print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut()
+                do t = 1, size(env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows)
+                    write(*,*) "Inflow: " // env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows(t)%item%ref
+                    write(*,*) "Inflow Qout: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows(t)%item%getQOut())
+                end do
+                do i = 1, size(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches)
+                    write(*,*) "Reach: " // env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%ref
+                    write(*,*) "Reach Qin: " // &
+                        str(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%Q_in)
+                    write(*,*) "Reach volume: " &
+                        // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%getVolume())
+                end do
+                write(*,*) "SubRiver Qout: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut())
+                write(*,*) "SubRiver spmOut: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(1))
             end do
         end do
     end do
