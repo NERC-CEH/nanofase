@@ -224,9 +224,10 @@ module classSubRiver1
         allocate(Qin(me%nReaches + 1), stat=me%allst)               ! initialise Qin - extra element holds final discharge
         allocate(me%SPMin(me%nReaches + 1, C%nSizeClassesSPM), me%spmOut(C%nSizeClassesSPM), stat=me%allst)    ! initialise SPMin - extra element holds final discharge
 
+        Qin(1) = 0
+        me%spmIn(1,:) = 0
         do i = 1, me%nInflows                                       ! loop through the inflows to retrieve and sum discharges
             Qin(1) = Qin(1) + me%inflows(i)%item%getQOut()          ! pull in discharge from upstream SubRiver to first RiverReach
-            print *, Qin(1)
             do n = 1, C%nSizeClassesSPM                             ! loop through all SPM size classes
                 me%spmIn(1, n) = me%spmIn(1, n) + &                 ! pull in SPM fluxes from upstream SubRiver
                     me%inflows(i)%item%getSpmOut(n)
@@ -235,16 +236,30 @@ module classSubRiver1
         do i = 1, me%nReaches                                       ! main routing loop
             r = me%colReaches(i)%item%updateDimensions(Qin(i))      ! call function in RiverReach to set up dimensions of
                                                                     ! the reach for this timestep. Qin(1) set above, Qin(>1)
-                                                                    ! set by the previous loop iteration
+                                                                    ! set by the previous loop iteration. This also sets me%Q_in for the reach.
             rQ = me%colReaches(i)%item%getVolume()                  ! get volumetric capacity of the reach (m3) for this timestep
+            
             ! If the inflow Qin is larger than the reach's capacity rQ, then we need to split the inflow
             ! up into separate displacements and simulate the reach's routing for each of these displacements
             ! individually
-            ndisp = 0                                               ! count number of displacements required
-            do while (dQ > Qin(i))                                  ! loop until the inflow volume is less than the number of displacements
-                dQ = rQ / (ndisp + 1)                               ! compute input volume as a function of the no. of displacements
-                ndisp = ndisp + 1                                   ! increment the number of displacements and repeat
+            ! ***
+            ! SH: As we're calculating the volume from Qin (see calculateWidth, calculateDepth and calculateVolume
+            ! in classRiverReach.f08), I think that always contrains the volume to be larger than
+            ! Qin - i.e., Qin forces the river to be large enough to encompass the inflow.
+            ! ***
+            ! ndisp = 0                                               ! count number of displacements required
+            ! do while (dQ > Qin(i))                                  ! loop until the inflow volume is less than the number of displacements
+            !     dQ = rQ / (ndisp + 1)                               ! compute input volume as a function of the no. of displacements
+            !     ndisp = ndisp + 1                                   ! increment the number of displacements and repeat
+            ! end do
+            ! SH: Shouldn't the above be:
+            ndisp = 1
+            dQ = Qin(i) / ndisp
+            do while (dQ > rQ)
+                dQ = Qin(i) / ndisp                                 ! Split Qin into the number of displacements,
+                ndisp = ndisp + 1                                   ! or keep it the same if Qin is never > rQ
             end do
+
             Qin(i + 1) = 0                                          ! initialise discharge summation for next RiverReach
             do n = 1, C%nSizeClassesSPM                             ! compute inflow SPM fluxes for this displacement
                 dSPM(n) = me%spmIn(i, n) / ndisp                    ! SPM flux (kg) of size class 'n' for this displacement
@@ -267,18 +282,17 @@ module classSubRiver1
             end do
         end do
         me%QOut = Qin(me%nReaches + 1)                              ! store the final outflow volume (m3)
+        do n = 1, C%nSizeClassesSPM                                 ! compute inflow SPM fluxes for this displacement
+            me%spmOut(n) = me%spmIn(me%nReaches + 1, n)             ! output SPM flux (kg) of size class 'n' for this displacement
+        end do
 
         ! *********************************************** !
         ! Hack to set an outflow from the first grid cell !
         ! *********************************************** !
-        print *, me%ref
         if (me%ref == "SubRiver_1_1_1") then
-            me%QOut = 300.0_dp
+            me%QOut = 10000.0_dp
+            me%spmOut = 1.0_dp
         end if
-
-        do n = 1, C%nSizeClassesSPM                                 ! compute inflow SPM fluxes for this displacement
-            me%spmOut(n) = me%spmIn(me%nReaches + 1, n)             ! output SPM flux (kg) of size class 'n' for this displacement
-        end do
     end function
     ! ******************************************************
     function auditrefs(me) result(r)
