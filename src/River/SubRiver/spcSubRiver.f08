@@ -30,7 +30,6 @@ module spcSubRiver
         class(SubRiver), pointer :: item => null()                  ! as item is a pointer, this definition can come before type(SubRiver)
     end type
     type, abstract, public :: SubRiver                              ! type declaration for superclass
-        character(len=256) :: name                                  ! a name for the object - is this used/needed?
         character(len=100) :: ref                                   ! SubRiver reference of the format SubRiver_x_y_n, where x is GridCell row,
                                                                     ! y is GridCell column and n is SubRiver number in GridCell
                                                                     ! PROPERTIES
@@ -44,6 +43,7 @@ module spcSubRiver
         type(integer) :: nReaches                                   ! the number of reaches in the SubRiver
         type(integer), allocatable :: reachTypes(:)                 ! integer array of Reach type identifiers
         type(real(dp)) :: QOut                                      ! discharge from the Subriver // m3
+        real(dp), allocatable :: Qin(:)                             ! inflow per timestep [m3]
         type(real(dp)), allocatable :: spmIn(:,:)                   ! inflow SPM masses //kg, 1st rank for each RiverReach, 2nd for each size class (?)
         type(real(dp)), allocatable :: spmOut(:)                    ! array of SPM masses //kg, one per size class, in discharge
         ! need a function somewhere (probably in RiverReach) to convert SPM mass in a size class to particle number

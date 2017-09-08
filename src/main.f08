@@ -18,13 +18,14 @@ program main
     ! Initialise the error handler with custom error in Globals module
     call GLOBALS_INIT()
 
-    r = env%create()
-    ! Hack to set an initial Q=1 out of the first GridCell
-    env%colGridCells(1,1)%item%colSubRivers(1)%item%Qout = 1.0_dp
-    do t = 0, 10
-        r = env%update(t)
-    end do
+    r = env%create()                                                    ! Create the environment
+    r = env%update(t)                                                   ! Run the simulation for 1 time steps
+    ! t doesn't do anything at the moment, but might be useful in the future for getting time-dependent
+    ! data from input (e.g., met or runoff data).
 
+    open(unit=2,file='output.txt')                                      ! Open the output data file
+
+    ! Looping through the grid-river structure to look at the result of the simulation
     do x = 1, size(env%colGridCells, 1)                                 ! Loop through the rows
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the columns
             do s = 1, size(env%colGridCells(x,y)%item%colSubRivers)     ! Loop through the SubRivers
@@ -42,10 +43,21 @@ program main
                         // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%getVolume())
                 end do
                 write(*,*) "SubRiver Qout: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut())
-                write(*,*) "SubRiver spmOut: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(1))
+                write(*,*) "SubRiver spmOut: "
+                write(*,*) env%colGridCells(x,y)%item%colSubRivers(s)%item%spmOut
+                ! Write to the data file
+                write(2,*) x, &
+                     ", ", y, ", ", s, ", " &
+                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(1), ", " &
+                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(2), ", " &
+                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(3), ", " &
+                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(4), ", " &
+                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(5)
             end do
         end do
     end do
+
+    close(2)
 
 
     ! ! Initialise the first bed sediment layer with two Biota objects,
