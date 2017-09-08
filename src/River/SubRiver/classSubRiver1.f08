@@ -221,31 +221,29 @@ module classSubRiver1
         ! by the downstream SubRiver
 
         me%nInflows = size(me%inflows)                              ! get the number of inflows to be processed
-        allocate(Qin(me%nReaches + 1), stat=me%allst)               ! initialise Qin - extra element holds final discharge
+        allocate(me%Qin(me%nReaches + 1), stat=me%allst)            ! initialise Qin - extra element holds final discharge
         allocate(me%SPMin(me%nReaches + 1, C%nSizeClassesSPM), me%spmOut(C%nSizeClassesSPM), stat=me%allst)    ! initialise SPMin - extra element holds final discharge
-
-        Qin(1) = 0
+        me%Qin(1) = 0                                               ! Initalise Q and SPM to zero, before we add the inflows and sources
         me%spmIn(1,:) = 0
         do i = 1, me%nInflows                                       ! loop through the inflows to retrieve and sum discharges
-            Qin(1) = Qin(1) + me%inflows(i)%item%getQOut()          ! pull in discharge from upstream SubRiver to first RiverReach
+            me%Qin(1) = me%Qin(1) + me%inflows(i)%item%getQOut()    ! pull in discharge from upstream SubRiver to first RiverReach
             do n = 1, C%nSizeClassesSPM                             ! loop through all SPM size classes
                 me%spmIn(1, n) = me%spmIn(1, n) + &                 ! pull in SPM fluxes from upstream SubRiver
                     me%inflows(i)%item%getSpmOut(n)
             end do
         end do                                                      ! loop to sum all discharges and SPM fluxes
         do i = 1, me%nReaches                                       ! main routing loop
-            r = me%colReaches(i)%item%updateDimensions(Qin(i))      ! call function in RiverReach to set up dimensions of
+            r = me%colReaches(i)%item%updateDimensions(me%Qin(i))   ! call function in RiverReach to set up dimensions of
                                                                     ! the reach for this timestep. Qin(1) set above, Qin(>1)
                                                                     ! set by the previous loop iteration. This also sets me%Q_in for the reach.
             rQ = me%colReaches(i)%item%getVolume()                  ! get volumetric capacity of the reach (m3) for this timestep
-            
             ! If the inflow Qin is larger than the reach's capacity rQ, then we need to split the inflow
             ! up into separate displacements and simulate the reach's routing for each of these displacements
             ! individually
             ! ***
             ! SH: As we're calculating the volume from Qin (see calculateWidth, calculateDepth and calculateVolume
             ! in classRiverReach.f08), I think that always contrains the volume to be larger than
-            ! Qin - i.e., Qin forces the river to be large enough to encompass the inflow.
+            ! Qin - i.e., Qin forces the river to be large enough to encompass the inflow. Thus, is this approach needed?
             ! ***
             ! ndisp = 0                                               ! count number of displacements required
             ! do while (dQ > Qin(i))                                  ! loop until the inflow volume is less than the number of displacements
@@ -254,34 +252,35 @@ module classSubRiver1
             ! end do
             ! SH: Shouldn't the above be:
             ndisp = 1
-            dQ = Qin(i) / ndisp
+            dQ = me%Qin(i) / ndisp
             do while (dQ > rQ)
-                dQ = Qin(i) / ndisp                                 ! Split Qin into the number of displacements,
+                dQ = me%Qin(i) / ndisp                              ! Split Qin into the number of displacements,
                 ndisp = ndisp + 1                                   ! or keep it the same if Qin is never > rQ
             end do
-
-            Qin(i + 1) = 0                                          ! initialise discharge summation for next RiverReach
+            me%Qin(i + 1) = 0                                       ! initialise discharge summation for next RiverReach
             do n = 1, C%nSizeClassesSPM                             ! compute inflow SPM fluxes for this displacement
                 dSPM(n) = me%spmIn(i, n) / ndisp                    ! SPM flux (kg) of size class 'n' for this displacement
                 me%spmIn(i + 1, n) = 0                              ! initialise SPM flux summation for next RiverReach
             end do
             do j = 1, ndisp                                         ! route water and SPM on each displacement
-                ! Main simulation call for the RiverReach (e.g., will get rid of stuff by settling, abstraction)
-                rArray = .dp. me%colReaches(i)%item%simulate(dQ, dSPM) ! simulate() returns an array
-                dQ = rArray(1)                                      ! First element is dQ
-                dSPM = rArray(2)                                    ! Second element is dSPM
-                Qin(i + 1) = Qin(i + 1) + dQ                        ! sum the outflow discharge on each displacement
+                ! Main simulation call for the RiverReach (e.g., will get rid of stuff by settling, abstraction).
+                ! nDisp needs to be passed to simulate to calculate the SPM density.
+                ! Returned dQ and dSPM will then be put into Qin(i+1) and SPMin(i+1,:) and summed across each
+                ! loop iteration. Then, on the next iteration of the main loop (i, through the RiverReaches), Qin(i+1)
+                ! becomes Qin(i), the input volume to the next RiverReach. Similarly for each SPM size class.
+                ! On the final iteration, we exit the loop with the final outflow and SPM fluxes in Qin(nReaches + 1)
+                ! and SPMin(nReaches + 1, :)
+                rArray = .dp. me%colReaches(i)%item%simulate(dQ, dSPM, ndisp) ! simulate() returns an array:
+                dQ = rArray(1)                                      ! First element is outflow dQ
+                dSPM = rArray(2:)                                   ! Second element is outflow dSPM
+                ! SH: I changed simulate() to return variables rather than altering the dQ and dSPM passed to it
+                me%Qin(i + 1) = me%Qin(i + 1) + dQ                  ! sum the outflow discharge on each displacement
                 do n = 1, C%nSizeClassesSPM
                     me%spmIn(i + 1, n) = me%spmIn(i + 1, n) + dSPM(n) ! sum the outflow SPM fluxes on each displacement
                 end do
-                ! FUNCTION HERE TO SEND dQ, dSPM(:) to the RiverReach and return volumes and SPM classes (in the same variables) to be put into
-                ! Qin(i+1) and SPMin(i+1, ) by summing across each loop iteration
-                ! then on the next iteration of the main loop (i), Qin(i+1) becomes Qin(i), the input volume to the next RiverReach
-                ! similarly for each SPM size class.
-                ! On the final iteration, we exit the loop with the final outflow and SPM fluxes in Qin(nReaches + 1) and SPMin(nReaches + 1, [1,2,...])
             end do
         end do
-        me%QOut = Qin(me%nReaches + 1)                              ! store the final outflow volume (m3)
+        me%QOut = me%Qin(me%nReaches + 1)                           ! store the final outflow volume (m3)
         do n = 1, C%nSizeClassesSPM                                 ! compute inflow SPM fluxes for this displacement
             me%spmOut(n) = me%spmIn(me%nReaches + 1, n)             ! output SPM flux (kg) of size class 'n' for this displacement
         end do
@@ -290,8 +289,8 @@ module classSubRiver1
         ! Hack to set an outflow from the first grid cell !
         ! *********************************************** !
         if (me%ref == "SubRiver_1_1_1") then
-            me%QOut = 10000.0_dp
-            me%spmOut = 1.0_dp
+            me%QOut = 10*C%timeStep                             ! Q = 10 m3/s = 864000 m3/day
+            me%spmOut = 0.01_dp*me%Qout                         ! 0.01 kg/m3 advecting at 10 m3/s = 8640 kg/day
         end if
     end function
     ! ******************************************************

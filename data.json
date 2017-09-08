@@ -24,7 +24,8 @@
                     "datatype" : "f8",
                     "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
                 },
-                { "name" : "gridCellSize", "type" : "variable", "datatype" : "f8", "data" : 1000 }
+                { "name" : "gridCellSize", "type" : "variable", "datatype" : "f8", "data" : 1000 },
+                { "name" : "timeStep", "type" : "variable", "datatype" : "f8", "data" : 86400 }
             ]
         },
         {

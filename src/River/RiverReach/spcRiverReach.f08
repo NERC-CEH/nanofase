@@ -31,12 +31,9 @@ module spcRiverReach
       real(dp) :: l                                                  ! Length of the river, without meandering factor [m].
       real(dp) :: f_m = 1                                            ! Meandering factor used for calculating river volume. Default to 1 (no meandering).
       real(dp) :: volume                                             ! The volume of water in the reach [m3].
-      ! Specified globally so don't need to be defined here. Access via C%nSizeClassesSPM and C%d_spm:
-      ! integer :: n_s_classes                                         ! Number of sediment size classes. Specified globally.
-      ! real(dp), allocatable :: d_spm(:)                              ! Sediment particle diameters [m]. Specified globally.
       real(dp), allocatable :: rho_spm(:)                            ! Sediment particle densities [kg m-3]. Specified globally.
-      real(dp), allocatable :: k_settle(:)                           ! Sediment settling rates [s-1]. Computed on each timestep.
-      real(dp), allocatable :: W_spm(:)                              ! Sediment settling velocities [m s-1]. Computed on each timestep.
+      ! real(dp), allocatable :: k_settle(:)                           ! Sediment settling rates [s-1]. Computed on each timestep.
+      ! real(dp), allocatable :: W_spm(:)                              ! Sediment settling velocities [m s-1]. Computed on each timestep.
       real(dp) :: n                                                  ! Manning's roughness coefficient, for natural streams and major rivers.
                                                                      ! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
       integer, private :: allst                                      ! array allocation status
@@ -89,12 +86,13 @@ module spcRiverReach
       real(dp) :: Q_in
       type(Result) :: r
     end function
-    function simulate(me, dQ, dSPM) result(r)
+    function simulate(me, Q, spm, nDisp) result(r)
       use Globals
       import RiverReach, Result1D
       class(RiverReach) :: me
-      real(dp) :: dQ
-      real(dp) :: dSPM(:)
+      real(dp) :: Q                                                ! Inflow per timestep
+      real(dp) :: spm(:)                                           ! SPM inflow per timestep
+      integer, optional :: nDisp                                   ! Number of displacement inflow (Q, SPM) is split into
       type(Result1D) :: r
     end function
     pure function calculateDepth(Me, W, S, Q) result(r)

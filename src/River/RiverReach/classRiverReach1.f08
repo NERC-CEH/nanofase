@@ -47,12 +47,6 @@ module classRiverReach1
         me%ref = trim(ref(x,y,s,r))
         me%l = l
 
-        !*************************************************!
-        !*************************************************!
-        ! NCDF GROUP REFERENCES NOT CORRECT AT THE MOMENT !
-        !*************************************************!
-        !*************************************************!
-
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
         ! TODO: Check these groups exist (hasGroup())
@@ -69,24 +63,14 @@ module classRiverReach1
         end if
         ! var = grp%getVariable("runoff")                         ! Get the flow
         ! call var%getData(me%Q_runoff)
-        ! var = grp%getVariable("spm_densities")                  ! Sediment particle densities
-        ! call var%getData(spmDensities)
-
-        !* DO SOMETHING TO GET SPMDENSITIES FROM SPMIN (SOURCES),
-        !* WHICH SHOULD BE IN THE DATAFILE. SPMDENSITIES BELOW
-        !* WILL CAUSE INVALID MEMORY REF UNTIL ITS GOT FROM SOMEWHERE.
-
-        ! Check the sediment particle density array is the same size of nSizeClassesSPM
-        ! error = ERROR_HANDLER%equal( &
-        !     value = size(spmDensities), &
-        !     criterion = C%nSizeClassesSpm, &
-        !     message = "Sediment particle density array size must equal number of size classes." &
-        ! )
-        ! allocate(me%rho_spm, source=spmDensities)    ! Allocate to class variable
 
         ! Allocate size of settling velocity arrays
-        allocate(me%W_spm(C%nSizeClassesSpm))
-        allocate(me%k_settle(C%nSizeClassesSpm))
+        ! TODO: W_spm and k_settle not currently used as they're calculated 
+        ! per displacement, not for the entire reach (unless nDisp = 1, of course)
+        ! allocate(me%W_spm(C%nSizeClassesSpm))
+        ! allocate(me%k_settle(C%nSizeClassesSpm))
+        allocate(me%rho_spm(C%nSizeClassesSpm)) 
+        me%rho_spm = 0                  ! Set SPM densities to 0 to begin with
 
         ! TODO: Get the temperature from somewhere
         me%T = 15.0_dp
@@ -144,15 +128,68 @@ module classRiverReach1
         )
     end function
 
-    !> DUMMY FUNCTION
-    function simulate1(me, dQ, dSPM) result(r)
-        class(RiverReach1) :: me
-        real(dp) :: dQ
-        real(dp) :: dSPM(:)
-        type(Result1D) :: r
-        ! Do nothing for the moment
+    !> Perform simulation of the following processes, for a given Q and spm, per timestep.
+    !! Note, this doesn't really act on this RiverReach instance, as it is designed to
+    !! be able to be used if the inflow is split into separate displacements. Currently for:
+    !!  - Settling
+    !! TODO:
+    !!  - Get working
+    !!  - Errors
+    !!  - Check this works for multiple displacements, in particular the setting of instance variables
+    function simulate1(me, Q, spm, nDisp) result(r)
+        class(RiverReach1) :: me                        !! This RiverReach instance
+        real(dp) :: Q                                   !! Inflow volume for this timestep
+        real(dp) :: spm(:)                              !! SPM inflow for this timestep
+        integer, optional :: nDisp                      !! Number of displacements to split the reach into
+        real(dp) :: settlingVelocity(C%nSizeClassesSpm) !! Settling velocity for each size class
+        real(dp) :: k_settle(C%nSizeClassesSpm)         !! Settling rate constant for each size class
+        integer :: n                                    !! Iterator for SPM size classes
+        real(dp) :: dRho_spm(C%nSizeClassesSpm)         !! Density of SPM for each size class [kg/m3]
+        real(dp) :: spmOut(C%nSizeClassesSpm)           !! SPM out for this timestep
+        real(dp) :: currentSpmMass(C%nSizeClassesSpm)   !! SPM mass of the displacement currently [kg]
+        type(Result1D) :: r                             !! The Result object
+        ! If nDisp not present, default to 1
+        ! See comments re reach volume being dependent on Q and thus Q will never
+        ! exceed reach capacity for a timestep
+        if (.not. present(nDisp)) nDisp = 1
+        ! Check there is inflow
+        if (Q > 0) then
+            ! First, calculate the SPM mass for this displacement, with the inflow
+            ! and the corresponding density
+            currentSpmMass = (me%rho_spm*me%volume)/nDisp + spm
+            dRho_spm = currentSpmMass/(me%volume/nDisp)
+            ! Then, calculate the settling velocity and rate for SPM size classes
+            do n = 1, C%nSizeClassesSpm
+                ! If dRho_spm < rho_w, no settling will occur and settling velocity = 0
+                if (dRho_spm(n) > C%rho_w(me%T)) then
+                    settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), dRho_spm(n), me%T)
+                    k_settle(n) = settlingVelocity(n)/me%D
+                else
+                    settlingVelocity(n) = 0.0_dp
+                    k_settle(n) = 0.0_dp
+                end if
+            end do
+            ! Subtract the SPM lost due to settling and advect the total SPM mass through the displacement
+            ! Is it as simple as this, or am I missing something!?
+            currentSpmMass = currentSpmMass - k_settle*currentSpmMass   ! Remove setted mass
+            dRho_spm = currentSpmMass/(me%volume/nDisp)                 ! Calculate the resultant density
+            do n = 1, C%nSizeClassesSpm
+                if (currentSpmMass(n) < 0) then                         ! If we've removed all of the SPM, set to 0
+                    currentSpmMass(n) = 0
+                    dRho_spm(n) = 0
+                end if
+            end do
+            spmOut = Q*C%timeStep*dRho_spm                              ! Advect that mass at a speed of Q*timeStep,
+                                                                        ! to give SPM outflow per timestep.
+        else
+            ! If Q=0, there will be no outflow
+            spmOut = 0
+        end if
+        me%rho_spm = dRho_spm               ! Update RiverReach's SPM density
+        ! Result data structured in 1D array, such that Q is the first element,
+        ! and spmOut(:) fills the remaining elements
         r = Result( &
-            data = [dQ, dSPM] &
+            data = [Q, spmOut] &
         )
     end function
 
@@ -278,7 +315,7 @@ module classRiverReach1
     !!      \Delta = \frac{\rho_spm}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
-    pure function calculateSettlingVelocity1(me, d, rho_spm, T) result(r)
+    function calculateSettlingVelocity1(me, d, rho_spm, T) result(r)
         class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
         real(dp), intent(in) :: rho_spm             !! Sediment particle density [kg/m**3].
