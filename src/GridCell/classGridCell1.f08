@@ -27,6 +27,7 @@ module classGridCell1
     procedure :: create => createGridCell1         ! create the GridCell object. Exposed name: create
     procedure :: destroy => destroyGridCell1       ! remove the GridCell object and all contained objects. Exposed name: destroy
     procedure :: routing => routingGridCell1       ! route water and suspended solids through all SubRiver objects. Exposed name: routing
+    procedure :: finaliseRouting => finaliseRoutingGridCell1
   end type
 
   !> Interface so that we can create new GridCells by `gc = GridCell1()`
@@ -67,6 +68,7 @@ module classGridCell1
       integer               :: s                    !! Iterator for SubRivers
       character(len=100)    :: subRiverPrefix       !! Prefix for SubRivers ref, e.g. SubRiver_1_1
       real(dp)              :: subRiverLength       !! Length of the SubRivers
+      real(dp)              :: subRiverRunoff       !! Runoff to each SubRiver
 
       ! DATA REQUIREMENTS
       ! number of grid cells
@@ -83,21 +85,28 @@ module classGridCell1
       me%gridX = x
       me%gridY = y
       if (present(isEmpty)) me%isEmpty = isEmpty    ! isEmpty defaults to false if not present
-      me%name = "GridCell_" // trim(str(me%gridX)) // &
+      me%ref = "GridCell_" // trim(str(me%gridX)) // &
                     "_" // trim(str(me%gridY))      ! str() function is from UtilModule
 
       ! Only carry on if there's stuff to be simulated for this GridCell
       if (me%isEmpty .eqv. .false.) then
+        me%Qrunoff = 0                                            ! Default to no runoff
         ! Add SubRivers to the GridCell (if any are present in the data file)
         ! TODO: We only really want to be opening the data file once (it might
         ! already be open in parent classes, i.e. Environment), so
         ! consider opening in Globals
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")
-        grp = grp%getGroup(me%name)                             ! Get this GridCell's group
+        grp = grp%getGroup(me%ref)                              ! Get this GridCell's group
         var = grp%getVariable("nSubRivers")                     ! Get the number of SubRivers for looping over
         call var%getData(me%nSubRivers)
         allocate(me%colSubRivers(me%nSubRivers))                ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
+
+        if (grp%hasVariable("initial_runoff")) then             ! See if there is any runoff
+            var = grp%getVariable("initial_runoff")
+            call var%getData(me%Qrunoff)
+            me%Qrunoff = me%Qrunoff*C%timestep                   ! Convert from [m3/s] to [m3/timestep]
+        end if
         
         subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
                       "_" // trim(str(me%gridY)) // "_"
@@ -111,11 +120,24 @@ module classGridCell1
         end if
         ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
         do s = 1, me%nSubRivers
+          ! Split the runoff between SubRivers
+          if (me%Qrunoff > 0) then
+            subRiverRunoff = me%Qrunoff/me%nSubRivers
+          else
+            subRiverRunoff = 0
+          end if
           ! Check that group actually exists
           ! TODO: Maybe perform this check somewhere else - or at least perform some error checking here
           if (grp%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
             ! Allocate a new SubRiver to the colSubRivers array
-            allocate(me%colSubRivers(s)%item, source=SubRiver1(me%gridX, me%gridY, s, subRiverLength))
+            allocate(me%colSubRivers(s)%item, source=SubRiver1( &
+              me%gridX, &
+              me%gridY, &
+              s, &
+              subRiverLength, &
+              subRiverRunoff &
+              ) &
+            )
           end if
         end do
       end if
@@ -142,14 +164,29 @@ module classGridCell1
       type(integer) :: s                                             ! Loop counter
       ! Check that the GridCell is not empty before simulating anything
       ! TODO: Think about where these isEmpty tests are done - here or in the Environment?
-      ! There's also redundency here are me%nSubRivers is initialised to 0 and is only
-      ! setting to something else is the GridCell isn't empty.
+      ! There's also redundency here: me%nSubRivers is initialised to 0 and is only
+      ! set to something else if the GridCell isn't empty.
       if (.not. me%isEmpty) then
         do s = 1, me%nSubRivers
           r = Me%colSubRivers(s)%item%routing()                        ! call the routing method for each SubRiver in turn
                                                                        ! outflow discharge and SPM fluxes for each SubRiver are
                                                                        ! stored within that SubRiver, ready to be picked up by
                                                                        ! the downstream SubRiver
+        end do
+      end if
+    end function
+
+    !> Set the outflow from the temporary outflow variables that were setting by the
+    !! routing procedure. This step is kept separate from the routing so that the
+    !! wrong outflow isn't used as an inflow for another SubRiver whilst the SubRivers
+    !! are looped through.
+    function finaliseRoutingGridCell1(me) result(r)
+      class(GridCell1) :: me                                      !! This SubRiver1 instace
+      integer :: s                                                !! Iterator of SubRivers
+      type(Result) :: r                                           !! The Result object
+      if (.not. me%isEmpty) then
+        do s = 1, me%nSubRivers
+          r = me%colSubRivers(s)%item%finaliseRouting()
         end do
       end if
     end function

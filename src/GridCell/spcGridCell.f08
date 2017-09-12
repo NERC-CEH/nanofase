@@ -36,7 +36,7 @@ module spcGridCell
   end type                                                           ! DiffuseSource superclass
 
   type, abstract, public :: GridCell                                 ! type declaration for superclass
-    character(len=256) :: name                                       ! a name for the object
+    character(len=256) :: ref                                        ! a name for the object
                                                                      ! PROPERTIES
                                                                      ! Description
                                                                      ! -----------
@@ -51,6 +51,7 @@ module spcGridCell
     type(integer) :: nSoilProfiles = 0                               ! Number of contained soil profiles
     type(integer) :: nPointSources = 0                               ! Number of contained point sources
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
+    real(dp) :: Qrunoff                                              ! Runoff from the hydrological model
     logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
@@ -62,6 +63,7 @@ module spcGridCell
     procedure(createGridCell), deferred :: create                    ! create the GridCell object. Exposed name: create
     procedure(destroyGridCell), deferred :: destroy                  ! remove the GridCell object and all contained objects. Exposed name: destroy
     procedure(routingGridCell), deferred :: routing                  ! route water and suspended solids through all SubRiver objects. Exposed name: routing
+    procedure(finaliseRoutingGridCell), deferred :: finaliseRouting
   end type
 
   type GridCellElement                                               ! Container type for polymorphic GridCells
@@ -84,6 +86,11 @@ module spcGridCell
     function routingGridCell(Me) result(r)
       import GridCell, Result
       class(GridCell) :: Me                                          ! The GridCell instance.
+      type(Result) :: r
+    end function
+    function finaliseRoutingGridCell(me) result(r)
+      import GridCell, Result
+      class(GridCell) :: me
       type(Result) :: r
     end function
   end interface

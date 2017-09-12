@@ -10,6 +10,7 @@ program main
     type(objBedSedimentLayer1) :: bs1           ! Bed sediment layer
     type(objBedSedimentLayer1) :: bs2           ! Another bed sediment layer
     type(objBedSedimentLayer1) :: bs3
+    real :: start, finish
     type(RiverReach1) :: rr
     type(Result) :: r
     integer :: x,y,s,t,i                                ! Loop iterator
@@ -17,47 +18,64 @@ program main
 
     ! Initialise the error handler with custom error in Globals module
     call GLOBALS_INIT()
+    open(unit=2,file='output.txt')                                      ! Open the output data file
+
+    call cpu_time(start)
 
     r = env%create()                                                    ! Create the environment
-    r = env%update(t)                                                   ! Run the simulation for 1 time steps
+    do t=0, 200
+        r = env%update(t)                                               ! Run the simulation for 10 time steps
+        do x = 1, size(env%colGridCells, 1)                                 ! Loop through the rows
+            do y = 1, size(env%colGridCells, 2)                             ! Loop through the columns
+                if (.not. env%colGridCells(x,y)%item%isEmpty) then
+                    do s = 1, size(env%colGridCells(x,y)%item%colSubRivers)     ! Loop through the SubRivers
+                        ! Write to the data file
+                        write(2,*) t, ", ", x, &
+                             ", ", y, ", ", s, ", " &
+                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(1), ", " &
+                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(2), ", " &
+                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
+                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
+                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
+                    end do
+                end if
+            end do
+        end do
+    end do
     ! t doesn't do anything at the moment, but might be useful in the future for getting time-dependent
     ! data from input (e.g., met or runoff data).
-
-    open(unit=2,file='output.txt')                                      ! Open the output data file
 
     ! Looping through the grid-river structure to look at the result of the simulation
     do x = 1, size(env%colGridCells, 1)                                 ! Loop through the rows
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the columns
-            do s = 1, size(env%colGridCells(x,y)%item%colSubRivers)     ! Loop through the SubRivers
-                print *, "---"
-                print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%ref
-                do t = 1, size(env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows)
-                    write(*,*) "Inflow: " // env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows(t)%item%ref
-                    write(*,*) "Inflow Qout: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows(t)%item%getQOut())
+            if (.not. env%colGridCells(x,y)%item%isEmpty) then
+                do s = 1, size(env%colGridCells(x,y)%item%colSubRivers)     ! Loop through the SubRivers
+                    print *, "---"
+                    print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%ref
+                    do t = 1, size(env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows)
+                        write(*,*) "Inflow: " // env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows(t)%item%ref
+                        write(*,*) "Inflow Qout: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%inflows(t)%item%getQOut())
+                    end do
+                    do i = 1, size(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches)
+                        write(*,*) "Reach: " // env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%ref
+                        write(*,*) "Reach Qin: " // &
+                            str(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%Qin)
+                        write(*,*) "Reach volume: " &
+                            // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%getVolume())
+                    end do
+                    write(*,*) "SubRiver Qout: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut())
+                    write(*,*) "SubRiver spmOut: "
+                    write(*,*) env%colGridCells(x,y)%item%colSubRivers(s)%item%spmOut
                 end do
-                do i = 1, size(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches)
-                    write(*,*) "Reach: " // env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%ref
-                    write(*,*) "Reach Qin: " // &
-                        str(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%Q_in)
-                    write(*,*) "Reach volume: " &
-                        // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(i)%item%getVolume())
-                end do
-                write(*,*) "SubRiver Qout: " // str(env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut())
-                write(*,*) "SubRiver spmOut: "
-                write(*,*) env%colGridCells(x,y)%item%colSubRivers(s)%item%spmOut
-                ! Write to the data file
-                write(2,*) x, &
-                     ", ", y, ", ", s, ", " &
-                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(1), ", " &
-                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(2), ", " &
-                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(3), ", " &
-                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(4), ", " &
-                    , env%colGridCells(x,y)%item%colSubRivers(s)%item%getSpmOut(5)
-            end do
+            end if
         end do
     end do
 
     close(2)
+
+    call cpu_time(finish)
+
+    print *, finish-start
 
 
     ! ! Initialise the first bed sediment layer with two Biota objects,
