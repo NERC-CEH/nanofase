@@ -1,26 +1,25 @@
 {
     "dimensions" : [
-        { "name" : "nTimeSteps", "size" : 10 }
+        { "name" : "nTimeSteps", "size" : 10 },
+        { "name" : "nSizeClassesSpm", "size" : 5 },
+        { "name" : "nSizeClassesNP", "size" : 5 }
     ],
     "data" : [
         {
             "name" : "global",
             "type" : "group",
-            "dimensions" : [
-                { "name" : "size", "size" : 5 }
-            ],
             "data" : [
                 {
                     "name" : "spm_size_classes",
                     "type" : "variable",
-                    "dimensions" : [ "size" ],
+                    "dimensions" : [ "nSizeClassesSpm" ],
                     "datatype" : "f8",
                     "data" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ]
                 },
                 {
                     "name" : "np_size_classes",
                     "type" : "variable",
-                    "dimensions" : [ "size" ],
+                    "dimensions" : [ "nSizeClassesNP" ],
                     "datatype" : "f8",
                     "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
                 },
@@ -65,7 +64,14 @@
                                     "name" : "RiverReach_1_1_1_1",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { 
+                                            "name" : "initial_spm",
+                                            "type" : "variable",
+                                            "datatype" : "f8",
+                                            "dimensions" : [ "nSizeClassesSpm" ],
+                                            "data" : [ 100000000000, 100000000000, 100000000000, 100000000000, 100000000000 ]
+                                        }
                                     ]
                                 },
                                 {
@@ -77,13 +83,7 @@
                                 }
                             ]
                         },
-                        {
-                            "name" : "runoff",
-                            "type" : "variable",
-                            "datatype" : "f8",
-                            "dimensions" : [ "nTimeSteps" ],
-                            "data" : [ 300, 200, 100, 0, 0, 0, 0, 0, 0, 0]
-                        }
+                        { "name" : "initial_runoff", "type" : "variable", "datatype" : "f8", "data" : 10 }
                     ]
                 },
                 {
@@ -92,6 +92,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "initial_runoff", "type" : "variable", "datatype" : "f8", "data" : 10 },
                         {
                             "name" :  "SubRiver_1_2_1",
                             "type" : "group",
@@ -137,6 +138,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 3 },
+                        { "name" : "initial_runoff", "type" : "variable", "datatype" : "f8", "data" : 10 },
                         {
                             "name" :  "SubRiver_2_2_1",
                             "type" : "group",
@@ -265,6 +267,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "initial_runoff", "type" : "variable", "datatype" : "f8", "data" : 10 },
                         {
                             "name" :  "SubRiver_2_3_1",
                             "type" : "group",
@@ -301,6 +304,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "initial_runoff", "type" : "variable", "datatype" : "f8", "data" : 10 },
                         {
                             "name" :  "SubRiver_3_2_1",
                             "type" : "group",

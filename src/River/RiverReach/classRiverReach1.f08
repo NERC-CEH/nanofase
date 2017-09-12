@@ -16,22 +16,25 @@ module classRiverReach1
       contains
         procedure, public :: create => createRiverReach1
         procedure, public :: destroy => destroyRiverReach1
+        procedure, public :: update => update1
         procedure, public :: updateDimensions => updateDimensions1
         procedure, public :: simulate => simulate1
         procedure :: calculateWidth => calculateWidth1
         procedure :: calculateDepth => calculateDepth1
         procedure :: calculateVelocity => calculateVelocity1
         procedure :: calculateSettlingVelocity => calculateSettlingVelocity1
+        procedure :: calculateArea => calculateArea1
         procedure :: calculateVolume => calculateVolume1
     end type
 
   contains
 
     !> Create a RiverReach with x, y, s, r coordinates from the datafile.
-    function createRiverReach1(me, x, y, s, r, l) result(res)
+    function createRiverReach1(me, x, y, s, r, l, Qrunoff) result(res)
         class(RiverReach1) :: me                                !! The RiverReach1 instance.
         integer :: x, y, s, r                                   !! Grid, SubRiver and RiverReach references.
         real(dp) :: l                                           !! Length of the RiverReach (without meandering).
+        real(dp) :: Qrunoff                                     !! Any GridCell runoff (that has already been split to the correct RiverReach size)
         type(Result0D) :: D                                     !! Depth [m].
         type(Result0D) :: v                                     !! River velocity [m/s].
         type(Result0D) :: W                                     !! River width [m].
@@ -46,6 +49,15 @@ module classRiverReach1
         ! First, let's set the RiverReach's reference and the length
         me%ref = trim(ref(x,y,s,r))
         me%l = l
+        ! Allocate the arrays of size classes and set SPM to 0 to begin with
+        allocate(me%rho_spm(C%nSizeClassesSpm), &
+            me%spmIn(C%nSizeClassesSpm), &
+            me%spmOut(C%nSizeClassesSpm), &
+            me%m_spm(C%nSizeClassesSpm), &
+            stat=me%allst) 
+        me%rho_spm = 0                  ! Set SPM density and mass to 0 to begin with
+        me%m_spm = 0
+        me%Qrunoff = Qrunoff            ! Defaults to no runoff
 
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
@@ -53,6 +65,7 @@ module classRiverReach1
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")
         grp = grp%getGroup(trim(ref(x,y)))                      ! Get the GridCell we're in
+        
         grp = grp%getGroup(trim(ref(x,y,s)))                    ! Get the SubRiver we're in
         me%ncGroup = grp%getGroup(trim(ref(x,y,s,r)))           ! Finally, get the actual RiverReach group
         var = me%ncGroup%getVariable("slope")                   ! Get the slope
@@ -61,21 +74,18 @@ module classRiverReach1
             var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering).
             call var%getData(me%f_m)
         end if
+        if (me%ncGroup%hasVariable("initial_spm")) then         ! If there is some initial SPM content
+            var = me%ncGroup%getVariable("initial_spm")         ! This isn't a flux, it's just a mass
+            call var%getData(me%m_spm)
+        end if
         ! var = grp%getVariable("runoff")                         ! Get the flow
         ! call var%getData(me%Q_runoff)
 
-        ! Allocate size of settling velocity arrays
-        ! TODO: W_spm and k_settle not currently used as they're calculated 
-        ! per displacement, not for the entire reach (unless nDisp = 1, of course)
-        ! allocate(me%W_spm(C%nSizeClassesSpm))
-        ! allocate(me%k_settle(C%nSizeClassesSpm))
-        allocate(me%rho_spm(C%nSizeClassesSpm)) 
-        me%rho_spm = 0                  ! Set SPM densities to 0 to begin with
+        
 
         ! TODO: Get the temperature from somewhere
-        me%T = 15.0_dp
-
         ! TODO: Where should Manning's n come from? From Constants for the moment:
+        me%T = 15.0_dp
         me%n = C%n_river
 
         ! Calculate the initial dimensions, based on Q_in
@@ -106,20 +116,101 @@ module classRiverReach1
         ! TODO: Write some destroy logic
     end function
 
+    !> Update the RiverReach based on the inflow Q and SPM provided
+    function update1(me, Qin, spmIn) result(r)
+        class(RiverReach1) :: me                            !! This RiverReach1 instance
+        real(dp) :: Qin                                     !! Inflow to this reach
+        real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
+        type(Result) :: r                                   !! Result object to return
+        type(Result0D) :: W, D, v, area, volume             !! Result objects for dimensions etc
+        integer :: n                                        !! Size class loop iterator
+        real(dp) :: settlingVelocity(C%nSizeClassesSpm)     !! Settling velocity for each size class
+        real(dp) :: k_settle(C%nSizeClassesSpm)             !! Settling constant for each size class
+        real(dp) :: spmOut(C%nSizeClassesSpm)               !! Temporary variable for storing SPM outflow in
+
+        me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
+        me%spmIn = spmIn
+
+        ! Calculate the depth, velocity, area and volume
+        W = me%calculateWidth(me%Qin)
+        me%W = .dp. W
+        D = me%calculateDepth(me%W, me%S, me%Qin)
+        me%D = .dp. D
+        v = me%calculateVelocity(me%D, me%Qin, me%W)
+        me%v = .dp. v
+        area = me%calculateArea(me%D, me%W)
+        me%area = .dp. area
+        volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
+        me%volume = .dp. volume
+
+        ! Update the SPM according to inflow, and calculate the new SPM density
+        ! based on this and the new dimensions
+        me%m_spm = me%m_spm + me%spmIn              ! me%m_spm will have been set on previous timestep (or got from data file)
+        me%rho_spm = me%m_spm/me%volume             ! Likewise for me%rho_spm
+
+        ! Calculate the settling velocity and rate for SPM size classes
+        do n = 1, C%nSizeClassesSpm
+            ! If rho_spm < rho_w, no settling will occur and settling velocity = 0
+            if (me%rho_spm(n) > C%rho_w(me%T)) then
+                settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), me%T)
+                k_settle(n) = settlingVelocity(n)/me%D
+            else
+                settlingVelocity(n) = 0.0_dp
+                k_settle(n) = 0.0_dp
+            end if
+        end do
+
+        ! Remove settled SPM from the reach. TODO: This will go to BedSediment eventually
+        me%m_spm = me%m_spm - k_settle*me%m_spm
+        me%rho_spm = me%m_spm/me%volume                     ! Recalculate the density
+        ! If we've removed all of the SPM, set to 0
+        do n = 1, C%nSizeClassesSpm
+            if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
+                me%m_spm(n) = 0
+                me%rho_spm(n) = 0
+            end if
+        end do
+
+        ! Other stuff, like resuspension and abstract, to go here.
+
+        ! TODO: Does this make sense? If abstraction has occured, we'll need to recalculate Qout
+        me%Qout = me%Qin
+        ! Advect the SPM out of the reach at the outflow rate, until it has all gone
+        spmOut = me%Qout*me%rho_spm
+        do n = 1, C%nSizeClassesSpm
+            if (spmOut(n) .le. me%m_spm(n)) then
+                me%spmOut(n) = spmOut(n)
+                ! Update the SPM mass and density after it has been advected
+                me%m_spm(n) = me%m_spm(n) - me%spmOut(n)
+                me%rho_spm(n) = me%m_spm(n)/me%volume
+            else
+                ! If spmOut > current SPM mass, then actual spmOut must equal the SPM mass,
+                ! i.e., all of the remaining SPM has been advected out of the reach 
+                me%spmOut(n) = me%m_spm(n)
+                me%m_spm(n) = 0                    ! SPM mass and density must now be zero
+                me%rho_spm(n) = 0
+            end if
+        end do
+
+        r = Result( &
+            errors = [.error. W, .error. D, .error. v, .error. volume] &
+        )
+    end function
+
     !> Updates the dimensions for each time step, based on Q_in
-    function updateDimensions1(me, Q_in) result(r)
+    function updateDimensions1(me, Qin) result(r)
         class(RiverReach1) :: me            !! This RiverReach1 instance
-        real(dp) :: Q_in                    !! Inflow to this reach
+        real(dp) :: Qin                    !! Inflow to this reach
         type(Result) :: r                   !! Result object to return
         type(Result0D) :: W, D, v, volume
 
-        me%Q_in = Q_in                      ! Set this reach's inflow
+        me%Qin = Qin                      ! Set this reach's inflow
         ! Calculate the depth and velocities and set the instance's variables
-        W = me%calculateWidth(me%Q_in)
+        W = me%calculateWidth(me%Qin)
         me%W = .dp. W
-        D = me%calculateDepth(me%W, me%S, me%Q_in)
+        D = me%calculateDepth(me%W, me%S, me%Qin)
         me%D = .dp. D
-        v = me%calculateVelocity(me%D, me%Q_in, me%W)
+        v = me%calculateVelocity(me%D, me%Qin, me%W)
         me%v = .dp. v
         volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
         me%volume = .dp. volume
@@ -329,18 +420,31 @@ module classRiverReach1
         r = Result(data = W_spm)
     end function
 
-    !> Calculate the volume of a RiverReach:
+    !> Calculate the volume of a RiverReach, assuming a rectangular profile:
     !! $$
     !!      \text{volume} = DWlf_m
     !! $$
     pure function calculateVolume1(me, D, W, l, f_m) result(r)
         class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance
-        real(dp), intent(in) :: D                   !! River depth
-        real(dp), intent(in) :: W                   !! River width
-        real(dp), intent(in) :: l                   !! River length, without meandering
-        real(dp), intent(in) :: f_m                 !! Meandering factor
+        real(dp), intent(in) :: D                   !! River depth [m]
+        real(dp), intent(in) :: W                   !! River width [m]
+        real(dp), intent(in) :: l                   !! River length, without meandering [m]
+        real(dp), intent(in) :: f_m                 !! Meandering factor [-]
         type(Result0D) :: r                         !! The Result object
         r = Result(data = D*W*l*f_m)
+    end function
+
+    !> Calculate the area of a cross-section of the RiverReach, assuming
+    !! a rectangular profile:
+    !! $$
+    !!      \text{area} = DW
+    !! $$
+    pure function calculateArea1(me, D, W) result(r)
+        class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance
+        real(dp), intent(in) :: D                   !! River depth [m]
+        real(dp), intent(in) :: W                   !! River width [m]
+        type(Result0D) :: r                         !! The Result object
+        r = Result(data = D*W)
     end function
 
 end module

@@ -25,6 +25,7 @@ module classSubRiver1
         procedure, public :: create => createSubRiver1              ! create the SubRiver1 object. Exposed name: create
         procedure, public :: destroy => destroySubRiver1            ! remove the SubRiver1 object and all contained objects. Exposed name: destroy
         procedure, public :: routing => routingSubRiver1            ! route water and suspended solids through the SubRiver. Exposed name: routing
+        procedure, public :: finaliseRouting => finaliseRoutingSubRiver1 ! Finalise the routing by setting temp outflows to actual outflows
                                                                     ! Description
                                                                     ! -----------
         procedure, private :: auditrefs                             ! internal property function: sense check the inflow and outflow GridCell references
@@ -39,22 +40,25 @@ module classSubRiver1
     !> Return a newly-created SubRiver1 object. This is bound to SubRiver1 interface
     !! and is not type-bound.
     !! TODO: Do something with result object
-    function newSubRiver1(x, y, s, length) result(me)
+    function newSubRiver1(x, y, s, length, Qrunoff) result(me)
         type(SubRiver1) :: me                                       !! The new SubRiver to return
         integer :: x, y, s                                          !! Location of the SubRiver
         real(dp) :: length                                          !! Length of the SubRiver (without meandering)
+        real(dp) :: Qrunoff                                         !! Any initial runoff from the hydrological model
         type(Result) :: r                                           !! Result object
         ! Create the new SubRiver
-        r = me%create(x, y, s, length)
+        r = me%create(x, y, s, length, Qrunoff)
     end function
 
-    function createSubRiver1(me, x, y, s, length) result(r)         ! create the SubRiver object by reading data in from file
+    function createSubRiver1(me, x, y, s, length, Qrunoff) result(r)! create the SubRiver object by reading data in from file
         class(SubRiver1) :: me                                      ! the SubRiver instance
         type(integer), intent(in) :: x                              ! the row number of the enclosing GridCell
         type(integer), intent(in) :: y                              ! the column number of the enclosing GridCell
         type(integer), intent(in) :: s                              ! reference SubRiver number
         real(dp) :: length                                          ! The length of the SubRiver (without meandering)
+        real(dp) :: Qrunoff                                         ! Initial runoff from the hydrological model
         type(Result) :: r                                           ! the result object
+        real(dp) :: riverReachRunoff                                ! Runoff for each RiverReach
         type(NcDataset) :: NC                                       ! NetCDF dataset
         type(NcVariable) :: var                                     ! NetCDF variable
         type(NcGroup) :: grp                                        ! NetCDF group
@@ -83,8 +87,18 @@ module classSubRiver1
         ! Set of up to three inflow references inflowRefs(:),
         ! comprising Grid x and y references and  SubRiver number
         ! reference, or null if SubRiver is a headwater.
+
         allocate(errors(0))                                         ! No errors to begin with
+        allocate(me%spmOut(C%nSizeClassesSPM), &                    ! Initialise SPM arrays to size of size classes
+            me%spmIn(C%nSizeClassesSpm), &
+            me%tmpSpmOut(C%nSizeClassesSpm), &
+            me%tmpm_spm(C%nSizeClassesSpm), &
+            me%m_spm(C%nSizeClassesSpm), &
+            stat=me%allst)             
         me%length = length                                          ! Set the length
+        me%Qrunoff = Qrunoff                                        ! Set the runoff
+        me%spmOut = 0                                               ! Initialise SPM to zero
+        me%spmIn = 0
                                                                     ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
         nc = NcDataset(C%inputFile, "r")                            ! Open dataset as read-only
         sr1 = trim(str(x)) // "_"
@@ -157,11 +171,16 @@ module classSubRiver1
                                                                     ! AUDIT size(ReachTypes)=nReaches here
                                                                     ! ^ nReaches is set as size(ReachTypes) now - is there any reason not to do this?
         allocate(me%colReaches(1:me%nReaches), stat=me%allst)       ! Set colReaches to be of size nReaches
+        if (me%Qrunoff > 0) then                                    ! Split the runoff between the reaches
+            riverReachRunoff = me%Qrunoff/me%nReaches
+        else
+            riverReachRunoff = 0
+        end if
         do i = 1, me%nReaches                                       ! loop through each RiverReach in each SubRiver to create the reaches
             select case (me%reachTypes(i))                          ! look at the type identifier for the yth RiverReach
                 case (1)
                     allocate(r1, stat=me%allst)                     ! RiverReach1 type - create the object
-                    r = r1%create(x,y,s,i,me%length/me%nReaches)    ! call the RiverReach1 constructor
+                    r = r1%create(x,y,s,i,me%length/me%nReaches,riverReachRunoff)    ! call the RiverReach1 constructor
                     call move_alloc(r1, me%colReaches(i)%item)      ! move the RiverReach1 object to the yth element of the colReaches collection
                 case default
                     ! not a valid RiverReach type - must cause an error
@@ -184,19 +203,15 @@ module classSubRiver1
     function routingSubRiver1(me) result(r)                         ! routes inflow(s) through the specified SubRiver
         class(SubRiver1) :: me                                      ! the SubRiver instance
         type(Result) :: r                                           ! the Result object
-        type(real(dp)), allocatable :: Qin(:)                       ! the inflow, each element representing a RiverReach (m3)
-        ! Placed SPMin and nInflows in spcSubRiver type declaration to fit in with me%SPMin, me%nInflow calls below
-        ! type(real(dp)), allocatable :: SPMin(:)                   ! array of SPM masses, one per size class, in inflow (kg)
-        ! type(integer) :: nInflows                                 ! the number of inflows
-        type(integer) :: x                                          ! the row number of a GridCell
-        type(integer) :: y                                          ! the column number of a GridCell
-        type(integer) :: SR                                         ! SubRiver number reference
-        type(integer) :: ndisp                                      ! displacement counter
-        type(real(dp)) :: dQ                                        ! inflow volume (m3) per displacement
-        type(real(dp)) :: rQ                                        ! reach capacity (m3) per timestep
-        type(real(dp)) :: dSPM(C%nSizeClassesSPM)                   ! inflow SPM per size class (kg) per displacement
-        type(integer) :: i, j, n                                    ! loop counters
-        real(dp), allocatable :: rArray(:)                          ! Temporary variable to store type(Result) data arrays in
+        real(dp) :: Qin(me%nReaches + 1)                            ! The inflow, final element for outflow [m3/timestep]
+        real(dp) :: spmIn(me%nReaches + 1, C%nSizeClassesSpm)       ! The SPM inflow per size class, final element for outflow [kg/timestep]
+        ! type(integer) :: ndisp                                      ! displacement counter
+        ! type(real(dp)) :: dQ                                        ! inflow volume (m3) per displacement
+        ! type(real(dp)) :: rQ                                        ! reach capacity (m3) per timestep
+        ! type(real(dp)) :: dSPM(C%nSizeClassesSpm)                   ! inflow SPM per size class (kg) per displacement
+        type(integer) :: i                                          ! loop counter
+        real(dp) :: tmpSpmIn(C%nSizeClassesSpm)                     ! Temporary variable to pass as argument, avoiding array temporary warning (https://stackoverflow.com/questions/28859524/fortran-runtime-warning-temporary-array)
+        ! real(dp), allocatable :: rArray(:)                          ! Temporary variable to store type(Result) data arrays in
         ! Function purpose
         ! -------------------------------------------------------------
         ! route water and suspended material from the upstream
@@ -220,23 +235,38 @@ module classSubRiver1
         ! These variables are stored at object level for interrogation
         ! by the downstream SubRiver
 
-        me%nInflows = size(me%inflows)                              ! get the number of inflows to be processed
-        allocate(me%Qin(me%nReaches + 1), stat=me%allst)            ! initialise Qin - extra element holds final discharge
-        allocate(me%SPMin(me%nReaches + 1, C%nSizeClassesSPM), me%spmOut(C%nSizeClassesSPM), stat=me%allst)    ! initialise SPMin - extra element holds final discharge
-        me%Qin(1) = 0                                               ! Initalise Q and SPM to zero, before we add the inflows and sources
-        me%spmIn(1,:) = 0
-        do i = 1, me%nInflows                                       ! loop through the inflows to retrieve and sum discharges
-            me%Qin(1) = me%Qin(1) + me%inflows(i)%item%getQOut()    ! pull in discharge from upstream SubRiver to first RiverReach
-            do n = 1, C%nSizeClassesSPM                             ! loop through all SPM size classes
-                me%spmIn(1, n) = me%spmIn(1, n) + &                 ! pull in SPM fluxes from upstream SubRiver
-                    me%inflows(i)%item%getSpmOut(n)
-            end do
-        end do                                                      ! loop to sum all discharges and SPM fluxes
+        Qin = 0                                                 ! Initialise Q and SPM to zero, before we add the inflows and sources
+        spmIn = 0
+        me%tmpm_spm = 0                                         ! m_spm is obtained from summing across RiverReaches, so set to zero before
+                                                                ! starting the summation
+        ! Routing procedure:
+        !   - Loop through inflows and sum Q and SPM to store in me%Qin and me%spmIn
+        !   - Pass the inflows to the first RiverReach, which internally calculates an
+        !     outflow (and updates volume, densities, etc), which is then passed to the
+        !     next RiverReach, and so on.
+        !   - Outflow from final RiverReach used to set *temporary* outflow Q and SPM variables.
+        !     These are temporary so that they don't affect inflow to other SubRivers until all
+        !     SubRiver calculation are complete, after which a procedure in GridCell's update()
+        !     method stores them in me%Qout and me%spmOut.
+        do i = 1, me%nInflows                                       ! Loop through the inflows to retrieve and sum discharges
+            Qin(1) = Qin(1) + me%inflows(i)%item%getQOut()          ! Pull in discharge from upstream SubRiver to first RiverReach
+            ! SubRiver%Qout isn't set up all SubRivers have been routed, thus ensuring it is Qout for the correct timestep
+            spmIn(1,:) = spmIn(1,:) + me%inflows(i)%item%getSpmOut() ! pull in SPM fluxes from upstream SubRiver
+        end do
+
         do i = 1, me%nReaches                                       ! main routing loop
-            r = me%colReaches(i)%item%updateDimensions(me%Qin(i))   ! call function in RiverReach to set up dimensions of
+            ! Main simulation call to the RiverReach, which recalculates dimensions
+            ! and outflows based on the inflow Q and SPM
+            tmpSpmIn = spmIn(i,:)                                   ! Temporary array to avoid warning when using assumed shape as argument
+            r = me%colReaches(i)%item%update(Qin(i), tmpSpmIn)
+            Qin(i+1) = me%colReaches(i)%item%getQOut()              ! Set the next reach's inflows from this reach's outflow
+            spmIn(i+1,:) = me%colReaches(i)%item%getSpmOut()
+            me%tmpm_spm = me%tmpm_spm + me%colReaches(i)%item%m_spm ! Sum the SPM mass across the reaches to get total SPM mass for the SubRiver
+
+            ! r = me%colReaches(i)%item%updateDimensions(Qin(i))   ! call function in RiverReach to set up dimensions of
                                                                     ! the reach for this timestep. Qin(1) set above, Qin(>1)
                                                                     ! set by the previous loop iteration. This also sets me%Q_in for the reach.
-            rQ = me%colReaches(i)%item%getVolume()                  ! get volumetric capacity of the reach (m3) for this timestep
+            ! rQ = me%colReaches(i)%item%getVolume()                  ! get volumetric capacity of the reach (m3) for this timestep
             ! If the inflow Qin is larger than the reach's capacity rQ, then we need to split the inflow
             ! up into separate displacements and simulate the reach's routing for each of these displacements
             ! individually
@@ -251,47 +281,53 @@ module classSubRiver1
             !     ndisp = ndisp + 1                                   ! increment the number of displacements and repeat
             ! end do
             ! SH: Shouldn't the above be:
-            ndisp = 1
-            dQ = me%Qin(i) / ndisp
-            do while (dQ > rQ)
-                dQ = me%Qin(i) / ndisp                              ! Split Qin into the number of displacements,
-                ndisp = ndisp + 1                                   ! or keep it the same if Qin is never > rQ
-            end do
-            me%Qin(i + 1) = 0                                       ! initialise discharge summation for next RiverReach
-            do n = 1, C%nSizeClassesSPM                             ! compute inflow SPM fluxes for this displacement
-                dSPM(n) = me%spmIn(i, n) / ndisp                    ! SPM flux (kg) of size class 'n' for this displacement
-                me%spmIn(i + 1, n) = 0                              ! initialise SPM flux summation for next RiverReach
-            end do
-            do j = 1, ndisp                                         ! route water and SPM on each displacement
-                ! Main simulation call for the RiverReach (e.g., will get rid of stuff by settling, abstraction).
-                ! nDisp needs to be passed to simulate to calculate the SPM density.
-                ! Returned dQ and dSPM will then be put into Qin(i+1) and SPMin(i+1,:) and summed across each
-                ! loop iteration. Then, on the next iteration of the main loop (i, through the RiverReaches), Qin(i+1)
-                ! becomes Qin(i), the input volume to the next RiverReach. Similarly for each SPM size class.
-                ! On the final iteration, we exit the loop with the final outflow and SPM fluxes in Qin(nReaches + 1)
-                ! and SPMin(nReaches + 1, :)
-                rArray = .dp. me%colReaches(i)%item%simulate(dQ, dSPM, ndisp) ! simulate() returns an array:
-                dQ = rArray(1)                                      ! First element is outflow dQ
-                dSPM = rArray(2:)                                   ! Second element is outflow dSPM
-                ! SH: I changed simulate() to return variables rather than altering the dQ and dSPM passed to it
-                me%Qin(i + 1) = me%Qin(i + 1) + dQ                  ! sum the outflow discharge on each displacement
-                do n = 1, C%nSizeClassesSPM
-                    me%spmIn(i + 1, n) = me%spmIn(i + 1, n) + dSPM(n) ! sum the outflow SPM fluxes on each displacement
-                end do
-            end do
-        end do
-        me%QOut = me%Qin(me%nReaches + 1)                           ! store the final outflow volume (m3)
-        do n = 1, C%nSizeClassesSPM                                 ! compute inflow SPM fluxes for this displacement
-            me%spmOut(n) = me%spmIn(me%nReaches + 1, n)             ! output SPM flux (kg) of size class 'n' for this displacement
+            ! ndisp = 1
+            ! dQ = Qin(i) / ndisp
+            ! do while (dQ > rQ)
+            !     dQ = Qin(i) / ndisp                              ! Split Qin into the number of displacements,
+            !     ndisp = ndisp + 1                                   ! or keep it the same if Qin is never > rQ
+            ! end do
+            ! Qin(i + 1) = 0                                       ! initialise discharge summation for next RiverReach
+            ! do n = 1, C%nSizeClassesSPM                             ! compute inflow SPM fluxes for this displacement
+            !     dSPM(n) = spmIn(i, n) / ndisp                    ! SPM flux (kg) of size class 'n' for this displacement
+            !     spmIn(i + 1, n) = 0                              ! initialise SPM flux summation for next RiverReach
+            ! end do
+            ! do j = 1, ndisp                                         ! route water and SPM on each displacement
+            !     ! Main simulation call for the RiverReach (e.g., will get rid of stuff by settling, abstraction).
+            !     ! nDisp needs to be passed to simulate to calculate the SPM density.
+            !     ! Returned dQ and dSPM will then be put into Qin(i+1) and SPMin(i+1,:) and summed across each
+            !     ! loop iteration. Then, on the next iteration of the main loop (i, through the RiverReaches), Qin(i+1)
+            !     ! becomes Qin(i), the input volume to the next RiverReach. Similarly for each SPM size class.
+            !     ! On the final iteration, we exit the loop with the final outflow and SPM fluxes in Qin(nReaches + 1)
+            !     ! and SPMin(nReaches + 1, :)
+            !     rArray = .dp. me%colReaches(i)%item%simulate(dQ, dSPM, ndisp) ! simulate() returns an array:
+            !     dQ = rArray(1)                                      ! First element is outflow dQ
+            !     dSPM = rArray(2:)                                   ! Second element is outflow dSPM
+            !     ! SH: I changed simulate() to return variables rather than altering the dQ and dSPM passed to it
+            !     Qin(i + 1) = Qin(i + 1) + dQ                  ! sum the outflow discharge on each displacement
+            !     do n = 1, C%nSizeClassesSPM
+            !         spmIn(i + 1, n) = spmIn(i + 1, n) + dSPM(n) ! sum the outflow SPM fluxes on each displacement
+            !     end do
+            ! end do
         end do
 
-        ! *********************************************** !
-        ! Hack to set an outflow from the first grid cell !
-        ! *********************************************** !
-        if (me%ref == "SubRiver_1_1_1") then
-            me%QOut = 10*C%timeStep                             ! Q = 10 m3/s = 864000 m3/day
-            me%spmOut = 0.01_dp*me%Qout                         ! 0.01 kg/m3 advecting at 10 m3/s = 8640 kg/day
-        end if
+        ! Temporary storage for QOut and spmOut, until all SubRivers have been routed and we can
+        ! be sure that updating Qout won't result in the wrong timestep's Qout being used as Qin
+        ! to a downstream SubRiver
+        me%tmpQOut = Qin(me%nReaches + 1)                          ! store the final outflow volume [m3]
+        me%tmpSpmOut = spmIn(me%nReaches + 1, :)                   ! output SPM flux (kg) of size class 'n' for this displacement
+    end function
+    
+    !> Set the outflow and SPM mass from the temporary variables that were set by the
+    !! routing procedure. This step is kept separate from the routing so that the
+    !! wrong outflow isn't used as an inflow for another SubRiver whilst the SubRivers
+    !! are looped through.
+    function finaliseRoutingSubRiver1(me) result(r)
+        class(SubRiver1) :: me                                      !! This SubRiver1 instace
+        type(Result) :: r                                           !! The Result object
+        me%Qout = me%tmpQout
+        me%spmOut = me%tmpSpmOut
+        me%m_spm = me%tmpm_spm
     end function
     ! ******************************************************
     function auditrefs(me) result(r)
