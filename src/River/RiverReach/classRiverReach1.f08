@@ -58,6 +58,8 @@ module classRiverReach1
         me%rho_spm = 0                  ! Set SPM density and mass to 0 to begin with
         me%m_spm = 0
         me%Qrunoff = Qrunoff            ! Defaults to no runoff
+        ! TODO: Make runoff time-dependent! initial_runoff from data file currently used as
+        ! runoff for every time step.
 
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
@@ -124,6 +126,8 @@ module classRiverReach1
         real(dp) :: k_settle(C%nSizeClassesSpm)             !! Settling constant for each size class
         real(dp) :: spmOut(C%nSizeClassesSpm)               !! Temporary variable for storing SPM outflow in
 
+        ! TODO: Make runoff time-dependent! initial_runoff from data file currently used as
+        ! runoff for every time step.
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
         me%spmIn = spmIn
 

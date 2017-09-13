@@ -250,7 +250,7 @@ module classSubRiver1
         !     method stores them in me%Qout and me%spmOut.
         do i = 1, me%nInflows                                       ! Loop through the inflows to retrieve and sum discharges
             Qin(1) = Qin(1) + me%inflows(i)%item%getQOut()          ! Pull in discharge from upstream SubRiver to first RiverReach
-            ! SubRiver%Qout isn't set up all SubRivers have been routed, thus ensuring it is Qout for the correct timestep
+            ! SubRiver%Qout isn't set until all SubRivers have been routed, thus ensuring this is Qout for the correct timestep
             spmIn(1,:) = spmIn(1,:) + me%inflows(i)%item%getSpmOut() ! pull in SPM fluxes from upstream SubRiver
         end do
 
