@@ -246,7 +246,7 @@ module classSubRiver1
         !     next RiverReach, and so on.
         !   - Outflow from final RiverReach used to set *temporary* outflow Q and SPM variables.
         !     These are temporary so that they don't affect inflow to other SubRivers until all
-        !     SubRiver calculation are complete, after which a procedure in GridCell's update()
+        !     SubRiver calculations are complete, after which a procedure in GridCell's update()
         !     method stores them in me%Qout and me%spmOut.
         do i = 1, me%nInflows                                       ! Loop through the inflows to retrieve and sum discharges
             Qin(1) = Qin(1) + me%inflows(i)%item%getQOut()          ! Pull in discharge from upstream SubRiver to first RiverReach

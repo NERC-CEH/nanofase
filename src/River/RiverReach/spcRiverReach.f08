@@ -37,13 +37,10 @@ module spcRiverReach
       real(dp) :: area                                               ! The cross-sectional area of water in the reach [m2].
       real(dp) :: volume                                             ! The volume of water in the reach [m3].
       real(dp), allocatable :: rho_spm(:)                            ! Sediment particle densities [kg m-3]. Specified globally.
-      ! real(dp), allocatable :: k_settle(:)                           ! Sediment settling rates [s-1]. Computed on each timestep.
-      ! real(dp), allocatable :: W_spm(:)                              ! Sediment settling velocities [m s-1]. Computed on each timestep.
       real(dp) :: n                                                  ! Manning's roughness coefficient, for natural streams and major rivers.
                                                                      ! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
       integer :: allst                                               ! array allocation status, must be public so RiverReach1,2 etc can use it
                                                                      ! TODO: Add allst handling to error handler
-      ! type(Result), private :: r                                     ! Result object for returning from functions, for error checking
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
                                                                      ! -----------
@@ -60,9 +57,9 @@ module spcRiverReach
                                                                      ! PRIVATE ROUTINES
                                                                      ! Description
                                                                      ! -----------
-      procedure(updateDimensions), deferred :: updateDimensions      ! Update the dimensions of the RiverReach on each timestep
+      ! procedure(updateDimensions), deferred :: updateDimensions      ! Update the dimensions of the RiverReach on each timestep
       procedure(update), deferred :: update                          ! Run the RiverReach simulation for one timestep
-      procedure(simulate), deferred :: simulate                      ! DUMMY FUNCTION for the time being
+      ! procedure(simulate), deferred :: simulate                      ! DUMMY FUNCTION for the time being
       procedure(calculateDepth), deferred :: calculateDepth          ! compute the depth of the water column
       procedure(calculateWidth), deferred :: calculateWidth          ! compute the width of the reach
       procedure(calculateVelocity), deferred :: calculateVelocity    ! compute the water velocity
@@ -97,22 +94,22 @@ module spcRiverReach
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
         type(Result) :: r                                   !! The Result object
     end function
-    function updateDimensions(me, Qin) result(r)
-      use Globals
-      import RiverReach, Result
-      class(RiverReach) :: me
-      real(dp) :: Qin
-      type(Result) :: r
-    end function
-    function simulate(me, Q, spm, nDisp) result(r)
-      use Globals
-      import RiverReach, Result1D
-      class(RiverReach) :: me
-      real(dp) :: Q                                                ! Inflow per timestep
-      real(dp) :: spm(:)                                           ! SPM inflow per timestep
-      integer, optional :: nDisp                                   ! Number of displacement inflow (Q, SPM) is split into
-      type(Result1D) :: r
-    end function
+    ! function updateDimensions(me, Qin) result(r)
+    !   use Globals
+    !   import RiverReach, Result
+    !   class(RiverReach) :: me
+    !   real(dp) :: Qin
+    !   type(Result) :: r
+    ! end function
+    ! function simulate(me, Q, spm, nDisp) result(r)
+    !   use Globals
+    !   import RiverReach, Result1D
+    !   class(RiverReach) :: me
+    !   real(dp) :: Q                                                ! Inflow per timestep
+    !   real(dp) :: spm(:)                                           ! SPM inflow per timestep
+    !   integer, optional :: nDisp                                   ! Number of displacement inflow (Q, SPM) is split into
+    !   type(Result1D) :: r
+    ! end function
     pure function calculateDepth(Me, W, S, Q) result(r)
       use Globals
       import RiverReach, Result0D
