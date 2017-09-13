@@ -76,12 +76,8 @@ module classRiverReach1
         end if
         if (me%ncGroup%hasVariable("initial_spm")) then         ! If there is some initial SPM content
             var = me%ncGroup%getVariable("initial_spm")         ! This isn't a flux, it's just a mass
-            call var%getData(me%m_spm)
-        end if
-        ! var = grp%getVariable("runoff")                         ! Get the flow
-        ! call var%getData(me%Q_runoff)
-
-        
+            call var%getData(me%m_spm)                          ! Density can't be updated in we have volume from Qin, 
+        end if                                                  ! so this is left to the update() procedure
 
         ! TODO: Get the temperature from somewhere
         ! TODO: Where should Manning's n come from? From Constants for the moment:
