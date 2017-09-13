@@ -13,8 +13,7 @@ makefile
 # FORD compiled documentation (run `ford ford.md` to compile, if FORD installed)
 doc/dist/
 
-# Directory for personal code snippets (e.g., for error testing and reporting separate
-# to main program).
+# Directory for personal code snippets and any output.txt data file
 snip/
 
 # Prerequisites
