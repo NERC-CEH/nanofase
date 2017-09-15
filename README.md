@@ -28,9 +28,9 @@ The program is executed via [main.f08](src/main.f08), which is *currently* respo
 `create()` is responsible for constructing the grid structure (from the data file), in turn creating GridCell objects which subsequently create the SubRiver objects they contain, and so-on down the object hierarchy. After the grid has been set up, links are made between individual SubRivers and their inflows; this operation must be performed separately so that we can ensure *all* SubRiver objects have been created before we try to link them via pointers.
 
 #### GridCell%create(x, y, isEmpty)
-This creates a GridCell object with position x, y. It constructs a reference for the GridCell, of the format "GridCell\_x\_y" and gets runoff data from the data file. It then creates the collection of SubRivers that it contains (which are again specified in the data file). GridCell size and runoff are divided by the number of SubRivers and passed to each SubRiver as length and runoff.
+This creates a GridCell object with position x, y. It constructs a reference for the GridCell, of the format "GridCell\_x\_y" and gets time-dependent runoff data from the data file. It then creates the collection of SubRivers that it contains (which are again specified in the data file). GridCell size and runoff are divided by the number of SubRivers and passed to each SubRiver as length and runoff.
 
-#### SubRiver%create(x, y, s, length, Qrunoff)
+#### SubRiver%create(x, y, s, length, QrunoffTimeSeries)
 This is first responsible for allocating the size of arrays related to SPM, which are all the size of the number of SPM size classes (which is obtained from the data file and provided via a constant, `C%nSizeClassesSpm`). The length and runoff are set via the input parameters, and SPM inflow and discharge (`me%spmIn` and `me%spmOut`) are initialised to 0.
 
 A SubRiver character reference is then generated, of the format "SubRiver\_x\_y\_s" (where "s" is an integer representing the index of the SubRiver within the GridCell).
@@ -39,8 +39,8 @@ A SubRiver character reference is then generated, of the format "SubRiver\_x\_y\
 
 Each SubRiver can contain a collection of RiverReaches, and these are now created and passed length and Qrunoff as the SubRiver length and Qrunoff divided by the number of reaches.
 
-#### RiverReach%create(x, y, s, r, l, Qrunoff)
-In a similar fashion to `SubRiver%create()`, this method first allocates SPM-related arrays, and then generates a RiverReach character reference, of the format "RiverReach\_x\_y\_s\_r". Initial SPM densities `me%rho_spm` and masses `me%m_spm` (i.e., the mass of SPM currently within the reach) are set to zero, and runoff set to that provided by the Qrunoff parameter. *Note: This is a hack at the moment: initial_runoff in the data file actually provides runoff for every timestep.* The slope `me%S` is also obtained from the data file.
+#### RiverReach%create(x, y, s, r, l, QrunoffTimeSeries)
+In a similar fashion to `SubRiver%create()`, this method first allocates SPM-related arrays, and then generates a RiverReach character reference, of the format "RiverReach\_x\_y\_s\_r". Initial SPM densities `me%rho_spm` and masses `me%m_spm` (i.e., the mass of SPM currently within the reach) are set to zero, and time-dependent runoff set to that provided by the QrunoffTimeSeries parameter. The slope `me%S` is also obtained from the data file.
 
 The method then checks the data file to see if a river meandering factor `me%f_m` (which defaults to 1) and initial SPM input have been provided. The initial SPM input is simply a mass (not a flux) and `me%m_spm` is updated accordingly. **Note** that the SPM densities `me%rho_spm` cannot be updated until we know the *volume* of the reach, and the volume is dependent on the inflow rate and thus it is set by `update()`. Thus, before the first time step is simulated, RiverReaches may have a *non-zero SPM mass but zero SPM density*.
 
@@ -70,7 +70,7 @@ Then, we loop through all of the reaches, calling an `update` method on each, pr
 
 #### RiverReach%update()
 
-This is where the actual routing takes place. First off, the `Qin` provided is appended by any runoff specified when we created the RiverReach to form the total inflow `me%Qin` for the cell.  *Note: Runoff is a hack at the moment: initial_runoff in the data file actually provides runoff for every timestep.* A number of procedures then calculate the dimensions of the RiverReach, using `me%Qin` (amongst other things) as an input; see `calculuateWidth1`, `calculateDepth1`, `calculateVelocity1`, `calculateArea1` and `calculateVolume1` in [classRiverReach1.f08](src/River/RiverReach/classRiverReach1.f08).
+This is where the actual routing takes place. First off, the `Qin` provided is appended by any runoff for this time step (the time series of runoff data was stored in a state variable `me%QrunoffTimeSeries` when we created the RiverReach, and we obtain this time step's `me%Qrunoff` from that), to form the total inflow `me%Qin` for the cell. A number of procedures then calculate the dimensions of the RiverReach, using `me%Qin` (amongst other things) as an input; see `calculuateWidth1`, `calculateDepth1`, `calculateVelocity1`, `calculateArea1` and `calculateVolume1` in [classRiverReach1.f08](src/River/RiverReach/classRiverReach1.f08).
 
 The current SPM mass `me%m_spm` is appended to by the inflow and the SPM density calculated from this mass and the RiverReach volume that's just been calculated. For each of the SPM size classes, we then calculate a settling velocity and corresponding settling rate, which are zero if the temperature-dependent water density exceeds the SPM density.
 

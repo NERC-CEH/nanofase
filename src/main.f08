@@ -41,8 +41,6 @@ program main
         write(3,*) t, ", ", env%colGridCells(1,1)%item%colSubRivers(1)%item%colReaches(1)%item%Qrunoff
         write(4,*) t, ", ", env%colGridCells(1,1)%item%colSubRivers(1)%item%colReaches(1)%item%m_spmTimeSeries(1,t)
     end do
-    ! t doesn't do anything at the moment, but might be useful in the future for getting time-dependent
-    ! data from input (e.g., met or runoff data).
 
     close(2)                                                                ! Close the output file
     call cpu_time(finish)                                                   ! Simulation finish time
