@@ -156,7 +156,7 @@ module classEnvironment1
         ! Perform the main routing procedure
         do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
             do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%routing()         ! Run routing simulation for each GridCell
+                r = me%colGridCells(x,y)%item%routing(t)        ! Run routing simulation for each GridCell
             end do
         end do
         ! Finalise the routing by setting outflows to temporary outflows that were stored

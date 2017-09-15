@@ -30,11 +30,11 @@ module classRiverReach1
   contains
 
     !> Create a RiverReach with x, y, s, r coordinates from the datafile.
-    function createRiverReach1(me, x, y, s, r, l, Qrunoff) result(res)
+    function createRiverReach1(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
         class(RiverReach1) :: me                                !! The RiverReach1 instance.
         integer :: x, y, s, r                                   !! Grid, SubRiver and RiverReach references.
         real(dp) :: l                                           !! Length of the RiverReach (without meandering).
-        real(dp) :: Qrunoff                                     !! Any GridCell runoff (that has already been split to the correct RiverReach size)
+        real(dp), allocatable :: QrunoffTimeSeries(:)           !! Any GridCell runoff (that has already been split to the correct RiverReach size)
         type(Result0D) :: D                                     !! Depth [m].
         type(Result0D) :: v                                     !! River velocity [m/s].
         type(Result0D) :: W                                     !! River width [m].
@@ -57,7 +57,7 @@ module classRiverReach1
             stat=me%allst) 
         me%rho_spm = 0                  ! Set SPM density and mass to 0 to begin with
         me%m_spm = 0
-        me%Qrunoff = Qrunoff            ! Defaults to no runoff
+        allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)            ! Defaults to no runoff
         ! TODO: Make runoff time-dependent! initial_runoff from data file currently used as
         ! runoff for every time step.
 
@@ -76,10 +76,18 @@ module classRiverReach1
             var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering).
             call var%getData(me%f_m)
         end if
-        if (me%ncGroup%hasVariable("initial_spm")) then         ! If there is some initial SPM content
-            var = me%ncGroup%getVariable("initial_spm")         ! This isn't a flux, it's just a mass
-            call var%getData(me%m_spm)                          ! Density can't be updated in we have volume from Qin, 
-        end if                                                  ! so this is left to the update() procedure
+        ! if (me%ncGroup%hasVariable("initial_spm")) then         ! If there is some initial SPM content
+        !     var = me%ncGroup%getVariable("initial_spm")         ! This isn't a flux, it's just a mass
+        !     call var%getData(me%m_spm)                          ! Density can't be updated in we have volume from Qin, 
+        ! end if                                                  ! so this is left to the update() procedure
+        allocate(me%m_spmTimeSeries(C%nSizeClassesSpm,C%nTimeSteps))
+        if (me%ncGroup%hasVariable("spm")) then
+            var = me%ncGroup%getVariable("spm")
+            call var%getData(me%m_spmTimeSeries)
+            me%m_spmTimeSeries = me%m_spmTimeSeries*C%timeStep      ! spm should be in kg/s, thus need to convert to kg/timestep
+        else
+            me%m_spmTimeSeries = 0
+        end if
 
         ! TODO: Get the temperature from somewhere
         ! TODO: Where should Manning's n come from? From Constants for the moment:
@@ -115,28 +123,30 @@ module classRiverReach1
     end function
 
     !> Update the RiverReach based on the inflow Q and SPM provided
-    function update1(me, Qin, spmIn) result(r)
+    function update1(me, Qin, spmIn, t) result(r)
         class(RiverReach1) :: me                            !! This RiverReach1 instance
         real(dp) :: Qin                                     !! Inflow to this reach
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
         type(Result) :: r                                   !! Result object to return
         type(Result0D) :: W, D, v, area, volume             !! Result objects for dimensions etc
         integer :: n                                        !! Size class loop iterator
+        integer :: t                                        !! What time step are we on?
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     !! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             !! Settling constant for each size class
         real(dp) :: spmOut(C%nSizeClassesSpm)               !! Temporary variable for storing SPM outflow in
 
+        me%Qrunoff = me%QrunoffTimeSeries(t)
         ! TODO: Make runoff time-dependent! initial_runoff from data file currently used as
         ! runoff for every time step.
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
-        me%spmIn = spmIn
+        me%spmIn = spmIn + me%m_spmTimeSeries(:,t)          ! Inflow SPM from upstream reach + inflow from data file
 
         ! Calculate the depth, velocity, area and volume
-        W = me%calculateWidth(me%Qin)
+        W = me%calculateWidth(me%Qin/C%timeStep)
         me%W = .dp. W
-        D = me%calculateDepth(me%W, me%S, me%Qin)
+        D = me%calculateDepth(me%W, me%S, me%Qin/C%timeStep)
         me%D = .dp. D
-        v = me%calculateVelocity(me%D, me%Qin, me%W)
+        v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
         me%v = .dp. v
         area = me%calculateArea(me%D, me%W)
         me%area = .dp. area
@@ -163,6 +173,7 @@ module classRiverReach1
         ! Remove settled SPM from the reach. TODO: This will go to BedSediment eventually
         me%m_spm = me%m_spm - k_settle*me%m_spm
         me%rho_spm = me%m_spm/me%volume                     ! Recalculate the density
+
         ! If we've removed all of the SPM, set to 0
         do n = 1, C%nSizeClassesSpm
             if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
@@ -177,6 +188,7 @@ module classRiverReach1
         me%Qout = me%Qin
         ! Advect the SPM out of the reach at the outflow rate, until it has all gone
         spmOut = me%Qout*me%rho_spm
+        print *, spmOut(1), me%Qout, me%m_spm(1)
         do n = 1, C%nSizeClassesSpm
             if (spmOut(n) .le. me%m_spm(n)) then
                 me%spmOut(n) = spmOut(n)

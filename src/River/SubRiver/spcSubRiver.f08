@@ -44,6 +44,7 @@ module spcSubRiver
         integer, allocatable :: reachTypes(:)                       ! integer array of Reach type identifiers
         real(dp) :: Qin                                             ! Inflow per timestep [m3]
         real(dp) :: Qout                                            ! discharge from the Subriver [m3]
+        real(dp), allocatable :: QrunoffTimeSeries(:)               ! Complete time series runoff data [m3/timestep]
         real(dp) :: Qrunoff                                         ! Initial runoff from the hydrological model [m3]
         real(dp) :: tmpQout                                         ! Temporary variable to store Qout whilst other SubRivers are using previous timestep's Qout,
                                                                     ! Otherwise, Qin to a SubRiver might be set to the this timestep's Qout instead of the previous
@@ -80,7 +81,7 @@ module spcSubRiver
     end type
 
     abstract interface
-        function createSubRiver(me, x, y, s, length, Qrunoff) result(r) ! create the SubRiver object by reading data in from file
+        function createSubRiver(me, x, y, s, length, QrunoffTimeSeries) result(r) ! create the SubRiver object by reading data in from file
             use Globals
             import SubRiver, Result
             class(SubRiver) :: me                                   ! the SubRiver instance
@@ -88,7 +89,7 @@ module spcSubRiver
             type(integer), intent(in) :: y                          ! the column number of the enclosing GridCell
             type(integer), intent(in) :: s                          ! reference SubRiver number
             real(dp) :: length                                      ! The SubRiver length
-            real(dp) :: Qrunoff                                     ! Any initial runoff
+            real(dp), allocatable :: QrunoffTimeSeries(:)           ! Any initial runoff
             type(Result) :: r                                       ! the result object
         end function
         function destroySubRiver(me) result(r)
@@ -96,9 +97,10 @@ module spcSubRiver
             class(SubRiver) :: me                                   ! the SubRiver instance
             type(Result) :: r                                       ! the result object
         end function
-        function routingSubRiver(me) result(r)                      ! routes inflow(s) through the SubRiver
+        function routingSubRiver(me, t) result(r)                      ! routes inflow(s) through the SubRiver
             import SubRiver, Result
             class(SubRiver) :: me                                   ! the SubRiver instance
+            integer :: t                                            ! What time step are we on?
             type(Result) :: r                                       ! the result object
         end function
         function finaliseRoutingSubRiver(me) result(r)
