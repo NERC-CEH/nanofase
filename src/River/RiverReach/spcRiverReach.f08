@@ -26,9 +26,11 @@ module spcRiverReach
       real(dp) :: Qin                                                ! Inflow from upstream reach [m3]
       real(dp) :: Qout                                               ! Outflow to the next reach [m3]
       real(dp) :: Qrunoff                                            ! Runoff from hydrological model [m3]
+      real(dp), allocatable :: QrunoffTimeSeries(:)
       real(dp), allocatable :: spmIn(:)                              ! Inflow SPM from upstream reach [kg]
       real(dp), allocatable :: spmOut(:)                             ! Outflow SPM to next reach [kg]
       real(dp), allocatable :: m_spm(:)                              ! Mass of the SPM currently in reach [kg]
+      real(dp), allocatable :: m_spmTimeSeries(:,:)                  ! Time series of SPM inputs [kg]
       real(dp) :: W                                                  ! Width of reach [m]. Computed on each timestep.
       real(dp) :: D                                                  ! Depth of water column [m]. Computed on each timestep.
       real(dp) :: v                                                  ! Water velocity [m s-1]. Computed on each timestep.
@@ -72,13 +74,13 @@ module spcRiverReach
       procedure :: getSpmOut => getSpmOutRiverReach                  ! Return the SPM discharge
     end type
   abstract interface
-    function createRiverReach(me, x, y, s, r, l, Qrunoff) result(res)
+    function createRiverReach(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
       use Globals                                                    ! Interface blocks don't have access to used modules in this module, thus we need to use/import again
       import RiverReach, Result, Result0D
       class(RiverReach) :: me                                        ! The RiverReach instance.
       integer :: x, y, s, r                                          ! GridCell, SubRiver and RiverReach identifiers.
       real(dp) :: l                                                  ! The RiverReach length.
-      real(dp) :: Qrunoff                                            ! Any initial runoff.
+      real(dp), allocatable :: QrunoffTimeSeries(:)                  ! Any initial runoff.
       type(Result) :: res                                            ! The Result object.
     end function
     function destroyRiverReach(Me) result(r)
@@ -86,11 +88,12 @@ module spcRiverReach
       class(RiverReach) :: Me                                        ! The RiverReach instance
       type(Result) :: r                                              ! The Result object to return
     end function
-    function update(me, Qin, spmIn) result(r)
+    function update(me, Qin, spmIn, t) result(r)
         use Globals
         import RiverReach, Result
         class(RiverReach) :: me                             !! This RiverReach instance
         real(dp) :: Qin                                     !! Inflow to this reach
+        integer :: t                                        !! What time step are we on?
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
         type(Result) :: r                                   !! The Result object
     end function

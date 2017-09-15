@@ -51,6 +51,7 @@ module spcGridCell
     type(integer) :: nSoilProfiles = 0                               ! Number of contained soil profiles
     type(integer) :: nPointSources = 0                               ! Number of contained point sources
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
+    real(dp), allocatable :: QrunoffTimeSeries(:)                    ! Runoff from the hydrological model
     real(dp) :: Qrunoff                                              ! Runoff from the hydrological model
     logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS
@@ -83,9 +84,10 @@ module spcGridCell
       class(GridCell) :: Me                                          ! The GridCell instance.
       type(Result) :: r
     end function
-    function routingGridCell(Me) result(r)
+    function routingGridCell(Me, t) result(r)
       import GridCell, Result
       class(GridCell) :: Me                                          ! The GridCell instance.
+      integer :: t                                                   ! What time step are we on?
       type(Result) :: r
     end function
     function finaliseRoutingGridCell(me) result(r)

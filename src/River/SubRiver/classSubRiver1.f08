@@ -40,30 +40,30 @@ module classSubRiver1
     !> Return a newly-created SubRiver1 object. This is bound to SubRiver1 interface
     !! and is not type-bound.
     !! TODO: Do something with result object
-    function newSubRiver1(x, y, s, length, Qrunoff) result(me)
+    function newSubRiver1(x, y, s, length, QrunoffTimeSeries) result(me)
         type(SubRiver1) :: me                                       !! The new SubRiver to return
         integer :: x, y, s                                          !! Location of the SubRiver
         real(dp) :: length                                          !! Length of the SubRiver (without meandering)
-        real(dp) :: Qrunoff                                         !! Any initial runoff from the hydrological model
+        real(dp), allocatable :: QrunoffTimeSeries(:)               !! Any initial runoff from the hydrological model
         type(Result) :: r                                           !! Result object
         ! Create the new SubRiver
-        r = me%create(x, y, s, length, Qrunoff)
+        r = me%create(x, y, s, length, QrunoffTimeSeries)
     end function
 
-    function createSubRiver1(me, x, y, s, length, Qrunoff) result(r)! create the SubRiver object by reading data in from file
+    function createSubRiver1(me, x, y, s, length, QrunoffTimeSeries) result(r)! create the SubRiver object by reading data in from file
         class(SubRiver1) :: me                                      ! the SubRiver instance
         type(integer), intent(in) :: x                              ! the row number of the enclosing GridCell
         type(integer), intent(in) :: y                              ! the column number of the enclosing GridCell
         type(integer), intent(in) :: s                              ! reference SubRiver number
         real(dp) :: length                                          ! The length of the SubRiver (without meandering)
-        real(dp) :: Qrunoff                                         ! Initial runoff from the hydrological model
+        real(dp), allocatable :: QrunoffTimeSeries(:)               ! Initial runoff from the hydrological model
         type(Result) :: r                                           ! the result object
-        real(dp) :: riverReachRunoff                                ! Runoff for each RiverReach
+        real(dp), allocatable :: riverReachRunoffTimeSeries(:)      ! Runoff for each RiverReach
         type(NcDataset) :: NC                                       ! NetCDF dataset
         type(NcVariable) :: var                                     ! NetCDF variable
         type(NcGroup) :: grp                                        ! NetCDF group
         type(NcGroup) :: subRiverGrp                                ! NetCDF group specifically for this SubRiver
-        type(integer) :: i                                          ! loop counter
+        type(integer) :: i, t                                       ! loop counter
         type(character(len=100)) :: sr1                             ! string to dynamically compile and hold group names (must be specific length)
         type(character(len=100)) :: sr2                             ! string to dynamically compile and hold group names
         type(RiverReach1), allocatable :: r1                        ! private RiverReach1 type, used for dynamic assignment
@@ -96,7 +96,7 @@ module classSubRiver1
             me%m_spm(C%nSizeClassesSpm), &
             stat=me%allst)             
         me%length = length                                          ! Set the length
-        me%Qrunoff = Qrunoff                                        ! Set the runoff
+        allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! Set the runoff
         me%spmOut = 0                                               ! Initialise SPM to zero
         me%spmIn = 0
                                                                     ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
@@ -171,16 +171,19 @@ module classSubRiver1
                                                                     ! AUDIT size(ReachTypes)=nReaches here
                                                                     ! ^ nReaches is set as size(ReachTypes) now - is there any reason not to do this?
         allocate(me%colReaches(1:me%nReaches), stat=me%allst)       ! Set colReaches to be of size nReaches
-        if (me%Qrunoff > 0) then                                    ! Split the runoff between the reaches
-            riverReachRunoff = me%Qrunoff/me%nReaches
-        else
-            riverReachRunoff = 0
-        end if
+        allocate(riverReachRunoffTimeSeries(size(me%QrunoffTimeSeries)))
+        do t = 1, size(me%QrunoffTimeSeries)                        ! Split the runoff between the reaches
+            if (me%QrunoffTimeSeries(t) > 0) then
+                riverReachRunoffTimeSeries(t) = me%QrunoffTimeSeries(t)/me%nReaches
+            else
+                riverReachRunoffTimeSeries(t) = 0
+            end if
+        end do
         do i = 1, me%nReaches                                       ! loop through each RiverReach in each SubRiver to create the reaches
             select case (me%reachTypes(i))                          ! look at the type identifier for the yth RiverReach
                 case (1)
                     allocate(r1, stat=me%allst)                     ! RiverReach1 type - create the object
-                    r = r1%create(x,y,s,i,me%length/me%nReaches,riverReachRunoff)    ! call the RiverReach1 constructor
+                    r = r1%create(x,y,s,i,me%length/me%nReaches,riverReachRunoffTimeSeries)    ! call the RiverReach1 constructor
                     call move_alloc(r1, me%colReaches(i)%item)      ! move the RiverReach1 object to the yth element of the colReaches collection
                 case default
                     ! not a valid RiverReach type - must cause an error
@@ -200,8 +203,9 @@ module classSubRiver1
 
     end function
     ! TODO: Sort out object storage of spmIn and Q_in
-    function routingSubRiver1(me) result(r)                         ! routes inflow(s) through the specified SubRiver
+    function routingSubRiver1(me, t) result(r)                         ! routes inflow(s) through the specified SubRiver
         class(SubRiver1) :: me                                      ! the SubRiver instance
+        integer :: t                                                ! What time step are we on?
         type(Result) :: r                                           ! the Result object
         real(dp) :: Qin(me%nReaches + 1)                            ! The inflow, final element for outflow [m3/timestep]
         real(dp) :: spmIn(me%nReaches + 1, C%nSizeClassesSpm)       ! The SPM inflow per size class, final element for outflow [kg/timestep]
@@ -258,7 +262,7 @@ module classSubRiver1
             ! Main simulation call to the RiverReach, which recalculates dimensions
             ! and outflows based on the inflow Q and SPM
             tmpSpmIn = spmIn(i,:)                                   ! Temporary array to avoid warning when using assumed shape as argument
-            r = me%colReaches(i)%item%update(Qin(i), tmpSpmIn)
+            r = me%colReaches(i)%item%update(Qin(i), tmpSpmIn, t)
             Qin(i+1) = me%colReaches(i)%item%getQOut()              ! Set the next reach's inflows from this reach's outflow
             spmIn(i+1,:) = me%colReaches(i)%item%getSpmOut()
             me%tmpm_spm = me%tmpm_spm + me%colReaches(i)%item%m_spm ! Sum the SPM mass across the reaches to get total SPM mass for the SubRiver

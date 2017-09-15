@@ -66,9 +66,10 @@ module classGridCell1
       type(NcVariable)      :: var                  !! NetCDF variable
       type(NcGroup)         :: grp                  !! NetCDF group
       integer               :: s                    !! Iterator for SubRivers
+      integer               :: t                    !! Iterator for time series
       character(len=100)    :: subRiverPrefix       !! Prefix for SubRivers ref, e.g. SubRiver_1_1
       real(dp)              :: subRiverLength       !! Length of the SubRivers
-      real(dp)              :: subRiverRunoff       !! Runoff to each SubRiver
+      real(dp), allocatable :: subRiverRunoffTimeSeries(:) !! Runoff to each SubRiver
 
       ! DATA REQUIREMENTS
       ! number of grid cells
@@ -102,11 +103,22 @@ module classGridCell1
         call var%getData(me%nSubRivers)
         allocate(me%colSubRivers(me%nSubRivers))                ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
 
-        if (grp%hasVariable("initial_runoff")) then             ! See if there is any runoff
-            var = grp%getVariable("initial_runoff")
-            call var%getData(me%Qrunoff)
-            me%Qrunoff = me%Qrunoff*C%timestep                   ! Convert from [m3/s] to [m3/timestep]
+        ! Get the time-dependent runoff data from the file and put in array ready for us
+        allocate(me%QrunoffTimeSeries(C%nTimeSteps))
+        if (grp%hasVariable("runoff")) then
+          var = grp%getVariable("runoff")
+          call var%getData(me%QrunoffTimeSeries)                 
+          me%QrunoffTimeSeries = me%QrunoffTimeSeries*C%timeStep ! runoff from data file should be in m3/s, convert to m3/timestep
+        else
+          me%QrunoffTimeSeries = 0
         end if
+        allocate(subRiverRunoffTimeSeries(size(me%QrunoffTimeSeries)))
+
+        ! if (grp%hasVariable("initial_runoff")) then             ! See if there is any runoff
+        !     var = grp%getVariable("initial_runoff")
+        !     call var%getData(me%Qrunoff)
+        !     me%Qrunoff = me%Qrunoff*C%timestep                   ! Convert from [m3/s] to [m3/timestep]
+        ! end if
         
         subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
                       "_" // trim(str(me%gridY)) // "_"
@@ -121,11 +133,18 @@ module classGridCell1
         ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
         do s = 1, me%nSubRivers
           ! Split the runoff between SubRivers
-          if (me%Qrunoff > 0) then
-            subRiverRunoff = me%Qrunoff/me%nSubRivers
-          else
-            subRiverRunoff = 0
-          end if
+          do t = 1, size(me%QrunoffTimeSeries)
+            if (me%QrunoffTimeSeries(t) > 0) then
+              subRiverRunoffTimeSeries(t) = me%QrunoffTimeSeries(t)/me%nSubRivers
+            else
+              subRiverRunoffTimeSeries(t) = 0
+            end if
+          end do
+          ! if (me%Qrunoff > 0) then
+          !   subRiverRunoff = me%Qrunoff/me%nSubRivers
+          ! else
+          !   subRiverRunoff = 0
+          ! end if
           ! Check that group actually exists
           ! TODO: Maybe perform this check somewhere else - or at least perform some error checking here
           if (grp%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
@@ -135,7 +154,7 @@ module classGridCell1
               me%gridY, &
               s, &
               subRiverLength, &
-              subRiverRunoff &
+              subRiverRunoffTimeSeries &
               ) &
             )
           end if
@@ -158,8 +177,9 @@ module classGridCell1
       end do
       r = Me%objDiffuseSource%item%destroy()                        ! remove the DiffuseSource object and any contained objects
     end function
-    function routingGridCell1(Me) result(r)
+    function routingGridCell1(Me, t) result(r)
       class(GridCell1) :: Me                                         ! The GridCell instance.
+      integer :: t                                                   ! What time step are we on?
       type(Result) :: r                                              ! Result object
       type(integer) :: s                                             ! Loop counter
       ! Check that the GridCell is not empty before simulating anything
@@ -168,7 +188,7 @@ module classGridCell1
       ! set to something else if the GridCell isn't empty.
       if (.not. me%isEmpty) then
         do s = 1, me%nSubRivers
-          r = Me%colSubRivers(s)%item%routing()                        ! call the routing method for each SubRiver in turn
+          r = Me%colSubRivers(s)%item%routing(t)                        ! call the routing method for each SubRiver in turn
                                                                        ! outflow discharge and SPM fluxes for each SubRiver are
                                                                        ! stored within that SubRiver, ready to be picked up by
                                                                        ! the downstream SubRiver
