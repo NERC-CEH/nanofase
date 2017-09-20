@@ -113,12 +113,6 @@ module classGridCell1
           me%QrunoffTimeSeries = 0
         end if
         allocate(subRiverRunoffTimeSeries(size(me%QrunoffTimeSeries)))
-
-        ! if (grp%hasVariable("initial_runoff")) then             ! See if there is any runoff
-        !     var = grp%getVariable("initial_runoff")
-        !     call var%getData(me%Qrunoff)
-        !     me%Qrunoff = me%Qrunoff*C%timestep                   ! Convert from [m3/s] to [m3/timestep]
-        ! end if
         
         subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
                       "_" // trim(str(me%gridY)) // "_"

@@ -76,10 +76,7 @@ module classRiverReach1
             var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering).
             call var%getData(me%f_m)
         end if
-        ! if (me%ncGroup%hasVariable("initial_spm")) then         ! If there is some initial SPM content
-        !     var = me%ncGroup%getVariable("initial_spm")         ! This isn't a flux, it's just a mass
-        !     call var%getData(me%m_spm)                          ! Density can't be updated in we have volume from Qin, 
-        ! end if                                                  ! so this is left to the update() procedure
+
         allocate(me%m_spmTimeSeries(C%nSizeClassesSpm,C%nTimeSteps))
         if (me%ncGroup%hasVariable("spm")) then
             var = me%ncGroup%getVariable("spm")
@@ -88,31 +85,12 @@ module classRiverReach1
         else
             me%m_spmTimeSeries = 0
         end if
+        ! Density can't be updated in we have volume from Qin, so this is left to the update() procedure
 
         ! TODO: Get the temperature from somewhere
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%T = 15.0_dp
         me%n = C%n_river
-
-        ! Calculate the initial dimensions, based on Q_in
-        ! r = me%initDimensions()
-
-        ! Only loop through size classes if there wasn't a array size mismatch error,
-        ! otherwise a runtime error will be triggered before our custom error.
-        ! if (error%notError()) then
-        !     ! Calculate sediment particle settling velocity for each size class,
-        !     ! then set the settling rate (W_spm/D) accordingly
-        !     do i=1, C%nSizeClassesSPM
-        !         ! Currently no error checking in this procedure, but if that changes
-        !         ! we'll need to check for them here
-        !         me%W_spm(i) = .dp. me%calculateSettlingVelocity(C%d_spm(i), me%rho_spm(i), me%T)
-        !         me%k_settle(i) = me%W_spm(i)/me%D
-        !     end do
-        ! end if
-
-        ! Return any errors there might have been, add this procedure to trace
-        ! res = Result(errors=[error,.errors.W,.errors.D,.errors.v])
-        ! call res%addToTrace("Creating River Reach")
     end function
 
     !> Destroy this RiverReach1
@@ -136,8 +114,6 @@ module classRiverReach1
         real(dp) :: spmOut(C%nSizeClassesSpm)               !! Temporary variable for storing SPM outflow in
 
         me%Qrunoff = me%QrunoffTimeSeries(t)
-        ! TODO: Make runoff time-dependent! initial_runoff from data file currently used as
-        ! runoff for every time step.
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
         me%spmIn = spmIn + me%m_spmTimeSeries(:,t)          ! Inflow SPM from upstream reach + inflow from data file
 
