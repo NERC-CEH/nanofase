@@ -31,10 +31,37 @@ module spcBedSediment                                               ! abstract s
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: create => createBedSediment            ! constructor method
         procedure, public :: destroy => destroyBedSediment          ! finaliser method
+        procedure(calculateResuspension), public :: calculateResuspensionBedSediment ! calculuate resuspension
+        procedure(calculateStreamPower), public ::  calculateStreamPowerBedSediment ! calculate stream power per unit area of stream bed
         procedure, public :: getNLayers                             ! property function, returns number of bed sediment layers
         procedure, public :: Depth                                  ! property function to return total depth of BedSediment
                                                                     ! any other subroutines or functions go here
     end type
+
+    abstract interface
+        function calculateResuspensionBedSediment(me, a, m_bed, alpha, omega, R_h, R_hmax) result(r)
+            use Globals
+            import BedSediment, Result1D
+            class(BedSediment1) :: me
+            real(dp) :: a                                   !! Calibration factor [s2/kg]
+            real(dp) :: m_bed                               !! Bed mass per unit area [kg/m2]
+            real(dp) :: alpha                               !! Proportion of size class that can be resuspended [-]
+            real(dp) :: omega                               !! Stream power per unit area of stream bed [J/s/m2]
+            real(dp) :: R_h                                 !! Actual hydraulic radius [m]
+            real(dp) :: R_hmax                              !! Maximum hydraulic radius [m]
+            type(Result1D) :: r
+        end function
+
+        function calculateStreamPowerBedSediment(me, rho_w, g, Q, W, S) result(r)
+            class(BedSediment1) :: me
+            real(dp) :: rho_w                               !! Density of water [kg/m3]
+            real(dp) :: g                                   !! Gravitational acceleration [m/s]
+            real(dp) :: Q                                   !! Discharge [m3/s]
+            real(dp) :: W                                   !! River width [m]
+            real(dp) :: S                                   !! River slope [m/m]
+            type(Result1D) :: r
+        end function
+    end interface
   contains
     subroutine createBedSediment(Me, &
                       lname, &
