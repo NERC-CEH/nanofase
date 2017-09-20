@@ -3,24 +3,18 @@ module spcBedSediment                                               ! abstract s
                                                                     ! objects of this class cannot be instantiated, only objects of its subclasses
     use spcBedSedimentLayer                                         ! USEs the spcBedSedimentLayer superclass and subclasses
     use classBedSedimentLayer1
-    use classBedSedimentLayer2
     use Globals
     use ResultModule                                                ! Error handling
-    use ErrorInstanceModule
-    use ErrorCriteriaModule
+    use ErrorInstanceModule                                         ! generation of trace error messages
     implicit none                                                   ! force declaration of all variables
-    private
-
     type BedSedimentLayerElement
         class(BedSedimentLayer), allocatable :: item                ! Storing polymorphic class(BedSedimentLayer) in derived type so that a collection of
     end type                                                        ! different extended types of BedSedimentLayer can be stored in an array.
-
     type, abstract, public :: BedSediment                           ! type declaration for superclass
-        private
         character(len=256) :: name                                  ! a name for the object
                                                                     ! define variables for 'has a' objects: BedSedimentLayer
-        class(BedSedimentLayerElement), allocatable :: &
-                    colBedSedimentLayer(:)                          ! collection of BedSedimentLayer objects
+        class(BedSedimentLayerElement), private, allocatable :: &
+        colBedSedimentLayer(:)                                      ! collection of BedSedimentLayer objects
                                                                     ! properties
         integer :: nLayers                                          ! number of BedSedimentLayer objects
         integer :: allst                                            ! array allocation status
@@ -31,8 +25,10 @@ module spcBedSediment                                               ! abstract s
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: create => createBedSediment            ! constructor method
         procedure, public :: destroy => destroyBedSediment          ! finaliser method
-        procedure(calculateResuspensionBedSediment), deferred, public :: calculateResuspension ! calculuate resuspension
-        procedure(calculateStreamPowerBedSediment), deferred, public ::  calculateStreamPower ! calculate stream power per unit area of stream bed
+        procedure(ResuspensionBedSediment), &
+        deferred, public :: Resuspension                            ! calculate resuspension
+        procedure(StreamPowerBedSediment), &
+        deferred, public ::  StreamPower                            ! calculate stream power per unit area of stream bed
         procedure, public :: getNLayers                             ! property function, returns number of bed sediment layers
         procedure, public :: Depth                                  ! property function to return total depth of BedSediment
                                                                     ! any other subroutines or functions go here

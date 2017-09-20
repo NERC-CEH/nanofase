@@ -15,7 +15,7 @@ module spcRiverReach
     use spcBedSediment
     implicit none                                                    ! force declaration of all variables
     type BedSedimentElement                                          ! container type for class(BedSediment), the actual type of the bed sediment superclass
-      class(BedSediment), allocatable :: item
+      class(BedSediment), private, allocatable :: item
     end type
     type, abstract, public :: RiverReach                             ! type declaration for superclass
       character(len=256) :: ref                                      ! a reference for the object
@@ -46,7 +46,7 @@ module spcRiverReach
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
                                                                      ! -----------
-      type(BedSedimentElement), allocatable :: objBedSediment        ! contained BedSediment object
+      type(BedSedimentElement) :: objBedSediment                     ! contained BedSediment object
       real(dp) :: T                                                  ! Temperature [C]
       type(NcGroup) :: ncGroup                                       ! The NETCDF group for this RiverReach
     contains

@@ -2,24 +2,11 @@ module spcBedSedimentLayer                                          ! abstract s
                                                                     ! defines the properties and methods shared by all BedSedimentLayer objects
                                                                     ! objects of this class cannot be instantiated, only objects of its subclasses
     use Globals
-    use ResultModule
-    use spcBiota                                                    ! USEs the spcBiota superclass and subclasses
-    use classBiota1
-    use classBiota2
-    use spcReactor                                                  ! USEs the spcReactor superclass and subclasses
-    use classReactor1
-    use classReactor2                            
+    use netcdf                                                      ! input/output handling
+    use mo_netcdf                                                   ! input/output handling
+    use ResultModule                                                ! error handling classes, required for
+    use ErrorInstanceModule                                         ! generation of trace error messages
     implicit none                                                   ! force declaration of all variables
-
-    type BiotaElement                                               ! Storing polymorphic class(Biota) in derived type so that a collection of
-        class(Biota), allocatable :: item                           ! different extended types of Biota can be stored in an array. Simply storing
-    end type                                                        ! class(Biota) in an array means you can't allocate each separate element to
-                                                                    ! a different extended type (e.g., Biota1, Biota2), as the array must be of
-                                                                    ! all the same type.
-    type ReactorElement                                             ! Same as for class(Biota).
-        class(Reactor), allocatable :: item
-    end type
-
     type, abstract, public :: BedSedimentLayer                      ! type declaration for superclass
         character(len=256) :: name                                  ! a name for the object
                                                                     ! define variables for 'has a' objects: Biota and Reactor
@@ -172,7 +159,7 @@ module spcBedSedimentLayer                                          ! abstract s
         error = ERROR_HANDLER%positive( &                           ! Enforce that ld must be positive
             ld, &
             message="Bed Sediment layer depth must be positive." &
-        )                          
+        )
         r = Result(error=error)                                     ! Construct the result to return
         if (error%notError()) Me%Depth = ld                         ! If no error was returned
     end function
