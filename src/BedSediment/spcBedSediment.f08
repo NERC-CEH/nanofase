@@ -35,7 +35,7 @@ module spcBedSediment                                               ! abstract s
     end type
 
     abstract interface
-        function calculateResuspensionBedSediment(me, a, m_bed, alpha, omega, R_h, R_hmax) result(r)
+        function ResuspensionBedSediment(me, a, m_bed, alpha, omega, R_h, R_hmax) result(r)
             use Globals
             import BedSediment, Result0D
             class(BedSediment) :: me
@@ -48,7 +48,7 @@ module spcBedSediment                                               ! abstract s
             type(Result0D) :: r
         end function
 
-        function calculateStreamPowerBedSediment(me, rho_water, g, Q, W, S) result(r)
+        function StreamPowerBedSediment(me, rho_water, g, Q, W, S) result(r)
             use Globals
             import BedSediment, Result0D
             class(BedSediment) :: me
@@ -73,7 +73,7 @@ module spcBedSediment                                               ! abstract s
                                                                     ! internal variables
         type(integer) :: x                                          ! loop counter
         type(objBedSedimentLayer1), allocatable :: BSL1             ! object of type BedSedimentLayer1
-        type(objBedSedimentLayer2), allocatable :: BSL2             ! object of type BedSedimentLayer2
+        ! type(objBedSedimentLayer2), allocatable :: BSL2             ! object of type BedSedimentLayer2
 
         Me%name = lname                                             ! the name of this object
         Me%nLayers = size(ltBSL)                                    ! number of BedSedimentLayer objects to create
@@ -98,11 +98,11 @@ module spcBedSediment                                               ! abstract s
                         call BSL1%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
                         call move_alloc(BSL1, &
                             Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of the BedSedimentLayer collection
-                    case (2)
-                        allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
-                        call BSL2%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
-                        call move_alloc(BSL2, &
-                            Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of colBiota
+                    ! case (2)
+                    !     allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
+                    !     call BSL2%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
+                    !     call move_alloc(BSL2, &
+                    !         Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of colBiota
                     case default
                         call ERROR_HANDLER%trigger(997)             ! error - ltBSL(y) points to an invalid number. Need to abort and report.
                 end select

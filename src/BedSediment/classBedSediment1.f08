@@ -9,8 +9,8 @@ module classBedSediment1                                             ! class def
         BedSediment1                                                 ! type declaration for class - extends abstract superclass
 
       contains
-        procedure, public :: calculateResuspension => calculateResuspensionBedSediment1
-        procedure, public :: calculateStreamPower => calculateStreamPowerBedSediment1
+        procedure, public :: Resuspension => calculateResuspensionBedSediment1
+        procedure, public :: StreamPower => calculateStreamPowerBedSediment1
     end type
 
   contains
