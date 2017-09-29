@@ -3,24 +3,18 @@ module spcBedSediment                                               ! abstract s
                                                                     ! objects of this class cannot be instantiated, only objects of its subclasses
     use spcBedSedimentLayer                                         ! USEs the spcBedSedimentLayer superclass and subclasses
     use classBedSedimentLayer1
-    use classBedSedimentLayer2
     use Globals
     use ResultModule                                                ! Error handling
-    use ErrorInstanceModule
-    use ErrorCriteriaModule
+    use ErrorInstanceModule                                         ! generation of trace error messages
     implicit none                                                   ! force declaration of all variables
-    private
-
     type BedSedimentLayerElement
         class(BedSedimentLayer), allocatable :: item                ! Storing polymorphic class(BedSedimentLayer) in derived type so that a collection of
     end type                                                        ! different extended types of BedSedimentLayer can be stored in an array.
-
     type, abstract, public :: BedSediment                           ! type declaration for superclass
-        private
         character(len=256) :: name                                  ! a name for the object
                                                                     ! define variables for 'has a' objects: BedSedimentLayer
-        class(BedSedimentLayerElement), allocatable :: &
-                    colBedSedimentLayer(:)                          ! collection of BedSedimentLayer objects
+        class(BedSedimentLayerElement), private, allocatable :: &
+        colBedSedimentLayer(:)                                      ! collection of BedSedimentLayer objects
                                                                     ! properties
         integer :: nLayers                                          ! number of BedSedimentLayer objects
         integer :: allst                                            ! array allocation status
@@ -31,10 +25,41 @@ module spcBedSediment                                               ! abstract s
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: create => createBedSediment            ! constructor method
         procedure, public :: destroy => destroyBedSediment          ! finaliser method
+        procedure(ResuspensionBedSediment), &
+        deferred, public :: Resuspension                            ! calculate resuspension
+        procedure(StreamPowerBedSediment), &
+        deferred, public ::  StreamPower                            ! calculate stream power per unit area of stream bed
         procedure, public :: getNLayers                             ! property function, returns number of bed sediment layers
         procedure, public :: Depth                                  ! property function to return total depth of BedSediment
                                                                     ! any other subroutines or functions go here
     end type
+
+    abstract interface
+        function ResuspensionBedSediment(me, a, m_bed, alpha, omega, R_h, R_hmax) result(r)
+            use Globals
+            import BedSediment, Result0D
+            class(BedSediment) :: me
+            real(dp) :: a                                   !! Calibration factor [s2/kg]
+            real(dp) :: m_bed                               !! Bed mass per unit area [kg/m2]
+            real(dp) :: alpha                               !! Proportion of size class that can be resuspended [-]
+            real(dp) :: omega                               !! Stream power per unit area of stream bed [J/s/m2]
+            real(dp) :: R_h                                 !! Actual hydraulic radius [m]
+            real(dp) :: R_hmax                              !! Maximum hydraulic radius [m]
+            type(Result0D) :: r
+        end function
+
+        function StreamPowerBedSediment(me, rho_water, g, Q, W, S) result(r)
+            use Globals
+            import BedSediment, Result0D
+            class(BedSediment) :: me
+            real(dp) :: rho_water                           !! Density of water [kg/m3]
+            real(dp) :: g                                   !! Gravitational acceleration [m/s]
+            real(dp) :: Q                                   !! Discharge [m3/s]
+            real(dp) :: W                                   !! River width [m]
+            real(dp) :: S                                   !! River slope [m/m]
+            type(Result0D) :: r
+        end function
+    end interface
   contains
     subroutine createBedSediment(Me, &
                       lname, &
@@ -48,7 +73,7 @@ module spcBedSediment                                               ! abstract s
                                                                     ! internal variables
         type(integer) :: x                                          ! loop counter
         type(objBedSedimentLayer1), allocatable :: BSL1             ! object of type BedSedimentLayer1
-        type(objBedSedimentLayer2), allocatable :: BSL2             ! object of type BedSedimentLayer2
+        ! type(objBedSedimentLayer2), allocatable :: BSL2             ! object of type BedSedimentLayer2
 
         Me%name = lname                                             ! the name of this object
         Me%nLayers = size(ltBSL)                                    ! number of BedSedimentLayer objects to create
@@ -73,11 +98,11 @@ module spcBedSediment                                               ! abstract s
                         call BSL1%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
                         call move_alloc(BSL1, &
                             Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of the BedSedimentLayer collection
-                    case (2)
-                        allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
-                        call BSL2%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
-                        call move_alloc(BSL2, &
-                            Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of colBiota
+                    ! case (2)
+                    !     allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
+                    !     call BSL2%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
+                    !     call move_alloc(BSL2, &
+                    !         Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of colBiota
                     case default
                         call ERROR_HANDLER%trigger(997)             ! error - ltBSL(y) points to an invalid number. Need to abort and report.
                 end select

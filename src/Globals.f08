@@ -28,6 +28,7 @@ module Globals
         ! Structure and time
         real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
         integer :: timeStep                 !! The timestep to run the model on [s].
+        integer :: nTimeSteps               !! The number of timesteps.
 
       contains
         procedure :: rho_w, nu_w
@@ -73,6 +74,8 @@ module Globals
         call var%getData(C%gridCellSize)
         var = grp%getVariable("timeStep")                   ! Get the timestep to run the model on [s]
         call var%getData(C%timeStep)
+        var = grp%getVariable("nTimeSteps")                 ! Get the number of time steps [s]
+        call var%getData(C%nTimeSteps)
         ! Set the number of size classes
         C%nSizeClassesSPM = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
