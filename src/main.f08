@@ -14,8 +14,6 @@ program main
 
     call GLOBALS_INIT()                                                 ! Set up global vars and constants
     open(unit=2,file='output.txt')                                      ! Open the output data file
-    open(unit=3,file='output_hydrograph.txt')
-    open(unit=4,file='output_spm.txt')
 
     call cpu_time(start)                                                ! Simulation start time
 
@@ -38,8 +36,6 @@ program main
                 end if
             end do
         end do
-        write(3,*) t, ", ", env%colGridCells(1,1)%item%colSubRivers(1)%item%colReaches(1)%item%Qrunoff
-        write(4,*) t, ", ", env%colGridCells(1,1)%item%colSubRivers(1)%item%colReaches(1)%item%m_spmTimeSeries(1,t)
     end do
 
     close(2)                                                                ! Close the output file
