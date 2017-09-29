@@ -95,23 +95,17 @@ module classSubRiver1
             me%tmpm_spm(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
             stat=me%allst)             
+        me%ref = trim(ref(x, y, s))                                 ! Create SubRiver reference name, SubRiver_x_y_s
         me%length = length                                          ! Set the length
         allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! Set the runoff
         me%spmOut = 0                                               ! Initialise SPM to zero
         me%spmIn = 0
-                                                                    ! NO NEED TO AUDIT SC - WILL ALREADY HAVE BEEN done
+        ! Get the input data
         nc = NcDataset(C%inputFile, "r")                            ! Open dataset as read-only
-        sr1 = trim(str(x)) // "_"
-        sr1 = trim(sr1) // trim(str(y))
-        sr1 = "SubRiver_" // trim(sr1)
-        sr2 = "_" // trim(str(s))
-        sr1 = trim(sr1) // trim(sr2)                                ! dynamically create reference group name for subriver
-                                                                    ! Format is SubRiver_x_y_s
-        me%ref = sr1                                                ! Store this in instance variable (useful for printing errors later)
         grp = nc%getGroup("Environment")
         grp = grp%getGroup("GridCell_" // trim(str(x)) // "_" // trim(str(y)))
         subRiverGrp = grp%getGroup(me%ref)                          ! point to the SubRiver group
-        var = subRiverGrp%getVariable("nInflows")                   ! point to the variable nInflow: the number of inflows
+        var = subRiverGrp%getVariable("nInflows")                   ! point to the variable nInflows: the number of inflows
         call var%getData(me%nInflows)                               ! pull data into variable: number of inflows
                                                                     ! AUDITING CODE HERE - RETURN ERROR IF nInflows IS NOT =1, 2 OR 3
                                                                     ! TODO: Also check nInflows equals number of inflow_x groups (or just get rid of nInflows)
@@ -191,6 +185,7 @@ module classSubRiver1
         end do
         call r%addToTrace("Creating " // me%ref)
     end function
+    
     function destroySubRiver1(me) result(r)
         class(SubRiver1) :: me                                      ! the SubRiver instance
         type(Result) :: r                                           ! the Result object
@@ -198,10 +193,9 @@ module classSubRiver1
         do i = 1, me%nReaches                                       ! loop through each RiverReach
             r = me%colReaches(i)%item%destroy()                     ! call destroy routine in the SubRiver object
         end do
-
         ! TODO: Something here to compile all returned Result objects into one?
-
     end function
+
     ! TODO: Sort out object storage of spmIn and Q_in
     function routingSubRiver1(me, t) result(r)                         ! routes inflow(s) through the specified SubRiver
         class(SubRiver1) :: me                                      ! the SubRiver instance
@@ -224,27 +218,23 @@ module classSubRiver1
         !
         ! Function inputs
         ! -------------------------------------------------------------
-        ! function uses inflowRefs(:) to interrogate other SubRivers
-        ! for their discharge and suspended material fluxes.
-        ! Does this by referencing Subrivers as
-        ! Environment%GridCell(x, y)%SubRiver(z) for a SubRiver
-        ! outside the GridCell, and
-        ! GridCell(x, y)%Subriver(z) for a Subriver in this GridCell.
-        ! HOW DO WE ENSURE THAT WE CAN REFERENCE THE ENVIRONMENT OBJECT FROM HERE???
+        ! Function uses inflows(:), which point to inflow SubRivers,
+        ! to interrogate other SubRivers for their discharge and suspended material
+        ! fluxes.
         !
         ! Function outputs/outcomes
         ! -------------------------------------------------------------
         ! Qout : outflow discharge (m3)
-        ! Sout(:) : outflow SPM fluxes (kg)
+        ! spmOut(:) : outflow SPM fluxes (kg)
         ! These variables are stored at object level for interrogation
         ! by the downstream SubRiver
 
         Qin = 0                                                 ! Initialise Q and SPM to zero, before we add the inflows and sources
         spmIn = 0
         me%tmpm_spm = 0                                         ! m_spm is obtained from summing across RiverReaches, so set to zero before
-                                                                ! starting the summation
+                                                                ! starting the summation. Reason for temporary var detailed below.
         ! Routing procedure:
-        !   - Loop through inflows and sum Q and SPM to store in me%Qin and me%spmIn
+        !   - Loop through inflows and sum Q and SPM
         !   - Pass the inflows to the first RiverReach, which internally calculates an
         !     outflow (and updates volume, densities, etc), which is then passed to the
         !     next RiverReach, and so on.
@@ -267,6 +257,11 @@ module classSubRiver1
             spmIn(i+1,:) = me%colReaches(i)%item%getSpmOut()
             me%tmpm_spm = me%tmpm_spm + me%colReaches(i)%item%m_spm ! Sum the SPM mass across the reaches to get total SPM mass for the SubRiver
 
+            ! ***
+            ! SH: As we're calculating the volume from Qin (see calculateWidth, calculateDepth and calculateVolume
+            ! in classRiverReach.f08), that always contrains the volume to be larger than
+            ! Qin - i.e., Qin forces the river to be large enough to encompass the inflow. Thus, is the below approach needed?
+            ! ***
             ! r = me%colReaches(i)%item%updateDimensions(Qin(i))   ! call function in RiverReach to set up dimensions of
                                                                     ! the reach for this timestep. Qin(1) set above, Qin(>1)
                                                                     ! set by the previous loop iteration. This also sets me%Q_in for the reach.
@@ -274,16 +269,11 @@ module classSubRiver1
             ! If the inflow Qin is larger than the reach's capacity rQ, then we need to split the inflow
             ! up into separate displacements and simulate the reach's routing for each of these displacements
             ! individually
-            ! ***
-            ! SH: As we're calculating the volume from Qin (see calculateWidth, calculateDepth and calculateVolume
-            ! in classRiverReach.f08), I think that always contrains the volume to be larger than
-            ! Qin - i.e., Qin forces the river to be large enough to encompass the inflow. Thus, is this approach needed?
-            ! ***
-            ! ndisp = 0                                               ! count number of displacements required
-            ! do while (dQ > Qin(i))                                  ! loop until the inflow volume is less than the number of displacements
-            !     dQ = rQ / (ndisp + 1)                               ! compute input volume as a function of the no. of displacements
-            !     ndisp = ndisp + 1                                   ! increment the number of displacements and repeat
-            ! end do
+            ! ! ndisp = 0                                               ! count number of displacements required
+            ! ! do while (dQ > Qin(i))                                  ! loop until the inflow volume is less than the number of displacements
+            ! !     dQ = rQ / (ndisp + 1)                               ! compute input volume as a function of the no. of displacements
+            ! !     ndisp = ndisp + 1                                   ! increment the number of displacements and repeat
+            ! ! end do
             ! SH: Shouldn't the above be:
             ! ndisp = 1
             ! dQ = Qin(i) / ndisp
@@ -333,6 +323,7 @@ module classSubRiver1
         me%spmOut = me%tmpSpmOut
         me%m_spm = me%tmpm_spm
     end function
+
     ! ******************************************************
     function auditrefs(me) result(r)
         class(SubRiver1) :: me                                      ! the SubRiver instance
