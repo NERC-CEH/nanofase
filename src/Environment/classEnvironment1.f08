@@ -92,13 +92,14 @@ module classEnvironment1
         ! TODO: Do something with result object! And audit that inflows are coming from rational cells
         do x = 1, size(me%colGridCells, 1)                                              ! Loop through the rows
             do y = 1, size(me%colGridCells, 2)                                          ! Loop through the columns
-                do s = 1, size(me%colGridCells(x,y)%item%colSubRivers)                  ! Loop through the SubRivers
-                    associate(subRiver => me%colGridCells(x,y)%item%colSubRivers(s)%item)
-                        do i =1, subRiver%nInflows                                      ! Loop through the inflows
-                            ! Get the inflow coordinates
-                            iX = subRiver%inflowRefs(i)%gridX
-                            iY = subRiver%inflowRefs(i)%gridY
-                            iS = subRiver%inflowRefs(i)%subRiver
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    do s = 1, size(me%colGridCells(x,y)%item%colSubRivers)                  ! Loop through the SubRivers
+                        associate(subRiver => me%colGridCells(x,y)%item%colSubRivers(s)%item)
+                            do i =1, subRiver%nInflows                                      ! Loop through the inflows
+                                ! Get the inflow coordinates
+                                iX = subRiver%inflowRefs(i)%gridX
+                                iY = subRiver%inflowRefs(i)%gridY
+                                iS = subRiver%inflowRefs(i)%subRiver
 ! *** SL:
 ! is this the best place to do the auditing?
 ! I'm thinking that there could be errors that need careful thinking about
@@ -110,27 +111,29 @@ module classEnvironment1
 ! SubRiver can be the same).
 ! Worth having a sit-down to go through how to structure this auditing.
 ! ***
-                            isValidInflow = .true.
-                            ! Check that (iX, iY) is a neighbouring or the same GridCell
-                            if (abs(iX-x) > 1 .or. abs(iY-y) > 1) isValidInflow = .false.
-                            ! If the inflow is coming from different cell, is it from the outflow to that cell?
-                            if ((iX /= x .or. iY /= y) &
-                                .and. (me%colGridCells(iX,iY)%item%nSubRivers /= iS)) isValidInflow = .false.
-                            ! If invalid inflow, generate an error
-                            if (.not. isValidInflow) then
-                                errors = [errors, ErrorInstance( &
-                                    code = 401, &
-                                    message = "Invalid SubRiver inflow from " &
-                                        // trim(adjustl(me%colGridCells(iX,iY)%item%colSubRivers(iS)%item%ref)) // &
-                                        " to " // trim(adjustl(subRiver%ref)) // ". Inflow must be from a neighbouring SubRiver." &
-                                )]
-                            end if
+                                isValidInflow = .true.
+                                ! Check that (iX, iY) is a neighbouring or the same GridCell
+                                if (abs(iX-x) > 1 .or. abs(iY-y) > 1) isValidInflow = .false.
+                                ! If the inflow is coming from different cell, is it from the outflow to that cell?
+                                if ((iX /= x .or. iY /= y) &
+                                    .and. (me%colGridCells(iX,iY)%item%nSubRivers /= iS)) isValidInflow = .false.
+                                ! If invalid inflow, generate an error
+                                if (.not. isValidInflow) then
+                                    errors = [errors, ErrorInstance( &
+                                        code = 401, &
+                                        message = "Invalid SubRiver inflow from " &
+                                            // trim(adjustl(me%colGridCells(iX,iY)%item%colSubRivers(iS)%item%ref)) // &
+                                            " to " // trim(adjustl(subRiver%ref)) // &
+                                            ". Inflow must be from a neighbouring SubRiver." &
+                                    )]
+                                end if
 
-                            ! Point this SubRiver's inflows pointer to the corresponding SubRiver
-                            subRiver%inflows(i)%item => me%colGridCells(iX,iY)%item%colSubRivers(iS)%item
-                        end do
-                    end associate
-                end do
+                                ! Point this SubRiver's inflows pointer to the corresponding SubRiver
+                                subRiver%inflows(i)%item => me%colGridCells(iX,iY)%item%colSubRivers(iS)%item
+                            end do
+                        end associate
+                    end do
+                end if
             end do
         end do
         call r%addErrors(errors)        ! Add any errors that have occurred
@@ -150,9 +153,17 @@ module classEnvironment1
         integer :: t                                            !! Current time step
         type(Result) :: r
         integer :: x, y, s
+        ! Perform the main routing procedure
         do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
             do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%routing()         ! Run routing simulation for each GridCell
+                r = me%colGridCells(x,y)%item%routing(t)        ! Run routing simulation for each GridCell
+            end do
+        end do
+        ! Finalise the routing by setting outflows to temporary outflows that were stored
+        ! to avoid routing using the wrong timestep's outflow as an inflow.
+        do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
+            do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
+                r = me%colGridCells(x,y)%item%finaliseRouting()    ! finaliseRouting() loops through SubRivers
             end do
         end do
         ! *** SL comments re SubRiver routing and the SubRiver%routing() function:
