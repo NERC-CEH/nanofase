@@ -127,6 +127,8 @@ module classRiverReach1
         volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
         me%volume = .dp. volume
 
+        if (me%Qin > me%volume)
+
         ! Update the SPM according to inflow, and calculate the new SPM density
         ! based on this and the new dimensions
         me%m_spm = me%m_spm + me%spmIn              ! me%m_spm will have been set on previous timestep (or got from data file)
