@@ -18,7 +18,8 @@ program main
     call cpu_time(start)                                                ! Simulation start time
 
     r = env%create()                                                    ! Create the environment
-    do t=1, 8760
+    do t=1, 365
+        print *, t
         r = env%update(t)                                               ! Run the simulation for 1 year
         do x = 1, size(env%colGridCells, 1)                             ! Loop through the rows
             do y = 1, size(env%colGridCells, 2)                         ! Loop through the columns
@@ -32,6 +33,7 @@ program main
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
+                        print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut()
                     end do
                 end if
             end do

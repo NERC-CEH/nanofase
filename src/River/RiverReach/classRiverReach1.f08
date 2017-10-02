@@ -103,13 +103,17 @@ module classRiverReach1
         class(RiverReach1) :: me                            !! This RiverReach1 instance
         real(dp) :: Qin                                     !! Inflow to this reach
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
+        integer :: t                                        !! What time step are we on?
         type(Result) :: r                                   !! Result object to return
         type(Result0D) :: W, D, v, area, volume             !! Result objects for dimensions etc
         integer :: n                                        !! Size class loop iterator
-        integer :: t                                        !! What time step are we on?
+        integer :: nDisp                                    !! Number of displacements to split reach into
+        integer :: i                                        !! Iterator for displacements
+        real(dp) :: dQin                                    !! Qin for each displacement
+        real(dp) :: dSpmIn(C%nSizeClassesSpm)               !! spmIn for each displacement
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     !! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             !! Settling constant for each size class
-        real(dp) :: spmOut(C%nSizeClassesSpm)               !! Temporary variable for storing SPM outflow in
+        real(dp) :: dSpmOut(C%nSizeClassesSpm)              !! SPM outflow for the displacement
 
         me%Qrunoff = me%QrunoffTimeSeries(t)
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
@@ -127,14 +131,20 @@ module classRiverReach1
         volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
         me%volume = .dp. volume
 
-        ! Update the SPM according to inflow, and calculate the new SPM density
-        ! based on this and the new dimensions
-        me%m_spm = me%m_spm + me%spmIn              ! me%m_spm will have been set on previous timestep (or got from data file)
-        me%rho_spm = me%m_spm/me%volume
+        ! If Qin for this timestep is bigger than the reach volume, then we need to
+        ! split into a number of displacements
+        nDisp = 1
+        dQin = me%Qin
+        do while (dQin > me%volume)                 ! Figure out how many displacements we need
+            dQin = me%Qin/nDisp                     ! Inflow to the first displacement
+            nDisp = nDisp + 1
+        end do
+        dSpmIn = me%spmIn/nDisp                     ! SPM inflow to the first displacment
+        me%Qout = 0                                 ! Reset Qout for this timestep
+        me%spmOut = 0                               ! Reset spmOut for this timestep
 
-        ! Calculate the settling velocity and rate for SPM size classes
+        ! Calculate the settling velocity and rate for each SPM size class
         do n = 1, C%nSizeClassesSpm
-            ! If rho_spm < rho_w, no settling will occur and settling velocity = 0
             if (me%rho_spm(n) > C%rho_w(me%T)) then
                 settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), me%T)
                 k_settle(n) = settlingVelocity(n)/me%D
@@ -144,37 +154,99 @@ module classRiverReach1
             end if
         end do
 
-        ! Remove settled SPM from the reach. TODO: This will go to BedSediment eventually
-        me%m_spm = me%m_spm - k_settle*me%m_spm
-        me%rho_spm = me%m_spm/me%volume                     ! Recalculate the density
-        ! If we've removed all of the SPM, set to 0
-        do n = 1, C%nSizeClassesSpm
-            if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
-                me%m_spm(n) = 0
-                me%rho_spm(n) = 0
-            end if
+        do i = 1, nDisp
+            ! Update SPM according to inflow for this displacement, then calculate
+            ! new SPM density based on this and the dimensions
+            me%m_spm = me%m_spm + dSpmIn           ! Add inflow SPM to SPM already in reach
+            me%rho_spm = me%m_spm/me%volume
+
+            ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
+            me%m_spm = me%m_spm - k_settle*me%m_spm
+            me%rho_spm = me%m_spm/me%volume             ! Recalculate the density
+            ! If we've removed all of the SPM, set to 0
+            do n = 1, C%nSizeClassesSpm
+                if (me%m_spm(n) < 0) then                 ! If we've removed all of the SPM, set to 0
+                    me%m_spm(n) = 0
+                    me%rho_spm(n) = 0
+                end if
+            end do
+
+            ! Other stuff, like resuspension and abstraction, to go here.
+
+            ! Advect the SPM out of the reach at the outflow rate, until it has all gone
+            ! TODO: Set dQout different to dQin based on abstraction etc.
+            dSpmOut = dQin*me%rho_spm
+            do n = 1, C%nSizeClassesSpm
+                if (dSpmOut(n) .le. me%m_spm(n)) then
+                    ! Update the SPM mass and density after it has been advected
+                    me%m_spm(n) = me%m_spm(n) - dSpmOut(n)
+                    me%rho_spm(n) = me%m_spm(n)/me%volume
+                else
+                    ! If dSpmOut > current SPM mass, then actual spmOut must equal the SPM mass,
+                    ! i.e., all of the remaining SPM has been advected out of the reach 
+                    dSpmOut(n) = me%m_spm(n)
+                    me%m_spm(n) = 0                       ! SPM mass and density must now be zero
+                    me%rho_spm(n) = 0
+                end if
+            end do
+
+            ! Sum the displacement outflows and mass for the final outflow
+            ! Currently, Qout = Qin. Maybe abstraction etc will change this
+            me%Qout = me%Qout + dQin
+            me%spmOut = me%spmOut + dSpmOut
         end do
 
-        ! Other stuff, like resuspension and abstraction, to go here.
+        ! Set the final SPM density
+        me%rho_spm = me%m_spm/me%volume
 
-        ! TODO: Does this make sense? If abstraction has occured, we'll need to recalculate Qout
-        me%Qout = me%Qin
-        ! Advect the SPM out of the reach at the outflow rate, until it has all gone
-        spmOut = me%Qout*me%rho_spm
-        do n = 1, C%nSizeClassesSpm
-            if (spmOut(n) .le. me%m_spm(n)) then
-                me%spmOut(n) = spmOut(n)
-                ! Update the SPM mass and density after it has been advected
-                me%m_spm(n) = me%m_spm(n) - me%spmOut(n)
-                me%rho_spm(n) = me%m_spm(n)/me%volume
-            else
-                ! If spmOut > current SPM mass, then actual spmOut must equal the SPM mass,
-                ! i.e., all of the remaining SPM has been advected out of the reach 
-                me%spmOut(n) = me%m_spm(n)
-                me%m_spm(n) = 0                    ! SPM mass and density must now be zero
-                me%rho_spm(n) = 0
-            end if
-        end do
+        ! ! Update the SPM according to inflow, and calculate the new SPM density
+        ! ! based on this and the new dimensions
+        ! me%m_spm = me%m_spm + me%spmIn              ! me%m_spm will have been set on previous timestep (or got from data file)
+        ! me%rho_spm = me%m_spm/me%volume
+
+        ! ! Calculate the settling velocity and rate for SPM size classes
+        ! do n = 1, C%nSizeClassesSpm
+        !     ! If rho_spm < rho_w, no settling will occur and settling velocity = 0
+        !     if (me%rho_spm(n) > C%rho_w(me%T)) then
+        !         settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), me%T)
+        !         k_settle(n) = settlingVelocity(n)/me%D
+        !     else
+        !         settlingVelocity(n) = 0.0_dp
+        !         k_settle(n) = 0.0_dp
+        !     end if
+        ! end do
+
+        ! ! Remove settled SPM from the reach. TODO: This will go to BedSediment eventually
+        ! me%m_spm = me%m_spm - k_settle*me%m_spm
+        ! me%rho_spm = me%m_spm/me%volume                     ! Recalculate the density
+        ! ! If we've removed all of the SPM, set to 0
+        ! do n = 1, C%nSizeClassesSpm
+        !     if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
+        !         me%m_spm(n) = 0
+        !         me%rho_spm(n) = 0
+        !     end if
+        ! end do
+
+        ! ! Other stuff, like resuspension and abstraction, to go here.
+
+        ! ! TODO: Does this make sense? If abstraction has occured, we'll need to recalculate Qout
+        ! me%Qout = me%Qin
+        ! ! Advect the SPM out of the reach at the outflow rate, until it has all gone
+        ! spmOut = me%Qout*me%rho_spm
+        ! do n = 1, C%nSizeClassesSpm
+        !     if (spmOut(n) .le. me%m_spm(n)) then
+        !         me%spmOut(n) = spmOut(n)
+        !         ! Update the SPM mass and density after it has been advected
+        !         me%m_spm(n) = me%m_spm(n) - me%spmOut(n)
+        !         me%rho_spm(n) = me%m_spm(n)/me%volume
+        !     else
+        !         ! If spmOut > current SPM mass, then actual spmOut must equal the SPM mass,
+        !         ! i.e., all of the remaining SPM has been advected out of the reach 
+        !         me%spmOut(n) = me%m_spm(n)
+        !         me%m_spm(n) = 0                    ! SPM mass and density must now be zero
+        !         me%rho_spm(n) = 0
+        !     end if
+        ! end do
         ! Return the Result object with any errors
         r = Result( &
             errors = [.error. W, .error. D, .error. v, .error. volume] &
