@@ -19,7 +19,6 @@ program main
 
     r = env%create()                                                    ! Create the environment
     do t=1, 365
-        print *, t
         r = env%update(t)                                               ! Run the simulation for 1 year
         do x = 1, size(env%colGridCells, 1)                             ! Loop through the rows
             do y = 1, size(env%colGridCells, 2)                         ! Loop through the columns
@@ -33,11 +32,14 @@ program main
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
-                        print *, env%colGridCells(x,y)%item%colSubRivers(s)%item%getQOut()
                     end do
                 end if
             end do
         end do
+        ! print *, t
+        ! print *, env%colGridCells(1,1)%item%colSubRivers(1)%item%colReaches(1)%item%volume
+        print *, env%colGridCells(1,1)%item%colSubRivers(1)%item%m_spm(1)
+        ! print *, env%colGridCells(1,1)%item%colSubRivers(1)%item%getSpmOutBySizeClass(1)
     end do
 
     close(2)                                                                ! Close the output file

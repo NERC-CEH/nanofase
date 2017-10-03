@@ -75,7 +75,7 @@ module classRiverReach1
             call var%getData(me%f_m)
         end if
 
-        allocate(me%m_spmTimeSeries(C%nSizeClassesSpm,C%nTimeSteps))
+        allocate(me%m_spmTimeSeries(C%nTimeSteps,C%nSizeClassesSpm))
         if (me%ncGroup%hasVariable("spm")) then
             var = me%ncGroup%getVariable("spm")
             call var%getData(me%m_spmTimeSeries)
@@ -117,7 +117,7 @@ module classRiverReach1
 
         me%Qrunoff = me%QrunoffTimeSeries(t)
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
-        me%spmIn = spmIn + me%m_spmTimeSeries(:,t)          ! Inflow SPM from upstream reach + inflow from data file
+        me%spmIn = spmIn + me%m_spmTimeSeries(t,:)          ! Inflow SPM from upstream reach + inflow from data file
 
         ! Calculate the depth, velocity, area and volume
         W = me%calculateWidth(me%Qin/C%timeStep)
@@ -142,6 +142,8 @@ module classRiverReach1
         dSpmIn = me%spmIn/nDisp                     ! SPM inflow to the first displacment
         me%Qout = 0                                 ! Reset Qout for this timestep
         me%spmOut = 0                               ! Reset spmOut for this timestep
+
+        ! if (trim(me%ref) == "RiverReach_1_1_1_1") print *, me%m_spmTimeSeries(:,t)
 
         ! Calculate the settling velocity and rate for each SPM size class
         do n = 1, C%nSizeClassesSpm
@@ -194,6 +196,8 @@ module classRiverReach1
             ! Currently, Qout = Qin. Maybe abstraction etc will change this
             me%Qout = me%Qout + dQin
             me%spmOut = me%spmOut + dSpmOut
+
+            ! if (trim(me%ref) == "RiverReach_1_1_1_1" .and. i == 1) print *, me%volume, me%spmOut(1), nDisp
         end do
 
         ! Set the final SPM density
