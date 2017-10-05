@@ -103,12 +103,13 @@ module classGridCell1
         call var%getData(me%nSubRivers)
         allocate(me%colSubRivers(me%nSubRivers))                ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
 
-        ! Get the time-dependent runoff data from the file and put in array ready for us
+        ! Get the time-dependent runoff data from the file and put in array ready for use
+        ! TODO: Runoff data currently m3/s, but maybe this should be m/s instead?
         allocate(me%QrunoffTimeSeries(C%nTimeSteps))
         if (grp%hasVariable("runoff")) then
           var = grp%getVariable("runoff")
           call var%getData(me%QrunoffTimeSeries)                 
-          me%QrunoffTimeSeries = me%QrunoffTimeSeries*C%timeStep ! runoff from data file should be in m3/s, convert to m3/timestep
+          me%QrunoffTimeSeries = me%QrunoffTimeSeries*C%timeStep ! Convert to m3/timestep
         else
           me%QrunoffTimeSeries = 0
         end if
