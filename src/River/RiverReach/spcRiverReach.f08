@@ -47,7 +47,6 @@ module spcRiverReach
                                                                      ! Description
                                                                      ! -----------
       type(BedSedimentElement) :: objBedSediment                     ! contained BedSediment object
-      real(dp) :: T                                                  ! Temperature [C]
       type(NcGroup) :: ncGroup                                       ! The NETCDF group for this RiverReach
     contains
                                                                      ! METHODS

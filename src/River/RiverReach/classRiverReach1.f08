@@ -55,17 +55,14 @@ module classRiverReach1
             stat=me%allst) 
         me%rho_spm = 0                  ! Set SPM density and mass to 0 to begin with
         me%m_spm = 0
-        allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)            ! Defaults to no runoff
-        ! TODO: Make runoff time-dependent! initial_runoff from data file currently used as
-        ! runoff for every time step.
+        allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! This reach's runoff
 
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
-        ! TODO: Check these groups exist (hasGroup())
+        ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")
         grp = grp%getGroup(trim(ref(x,y)))                      ! Get the GridCell we're in
-        
         grp = grp%getGroup(trim(ref(x,y,s)))                    ! Get the SubRiver we're in
         me%ncGroup = grp%getGroup(trim(ref(x,y,s,r)))           ! Finally, get the actual RiverReach group
         var = me%ncGroup%getVariable("slope")                   ! Get the slope
@@ -75,6 +72,7 @@ module classRiverReach1
             call var%getData(me%f_m)
         end if
 
+        ! Get the time series of SPM inflows
         allocate(me%m_spmTimeSeries(C%nTimeSteps,C%nSizeClassesSpm))
         if (me%ncGroup%hasVariable("spm")) then
             var = me%ncGroup%getVariable("spm")
@@ -83,11 +81,9 @@ module classRiverReach1
         else
             me%m_spmTimeSeries = 0
         end if
-        ! Density can't be updated in we have volume from Qin, so this is left to the update() procedure
+        ! Initial density can't be updated in we have volume from Qin, so this is left to the update() procedure
 
-        ! TODO: Get the temperature from somewhere
         ! TODO: Where should Manning's n come from? From Constants for the moment:
-        me%T = 15.0_dp
         me%n = C%n_river
     end function
 
@@ -115,9 +111,11 @@ module classRiverReach1
         real(dp) :: k_settle(C%nSizeClassesSpm)             !! Settling constant for each size class
         real(dp) :: dSpmOut(C%nSizeClassesSpm)              !! SPM outflow for the displacement
 
-        me%Qrunoff = me%QrunoffTimeSeries(t)
+        me%Qrunoff = me%QrunoffTimeSeries(t)                ! Get the runoff for this time step.
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
         me%spmIn = spmIn + me%m_spmTimeSeries(t,:)          ! Inflow SPM from upstream reach + inflow from data file
+        ! TODO: m_spm shouldn't really be used as a symbol for what is a mass flux,
+        ! change the name to something else, e.g. spmInTimeSeries.
 
         ! Calculate the depth, velocity, area and volume
         W = me%calculateWidth(me%Qin/C%timeStep)
@@ -133,28 +131,11 @@ module classRiverReach1
 
         ! If Qin for this timestep is bigger than the reach volume, then we need to
         ! split into a number of displacements
-        nDisp = 1
-        dQin = me%Qin
-        do while (dQin > me%volume)                 ! Figure out how many displacements we need
-            dQin = me%Qin/nDisp                     ! Inflow to the first displacement
-            nDisp = nDisp + 1
-        end do
+        nDisp = ceiling(me%Qin/me%volume)           
+        dQin = me%Qin/nDisp                         ! Inflow to the first displacement
         dSpmIn = me%spmIn/nDisp                     ! SPM inflow to the first displacment
         me%Qout = 0                                 ! Reset Qout for this timestep
         me%spmOut = 0                               ! Reset spmOut for this timestep
-
-        ! if (trim(me%ref) == "RiverReach_1_1_1_1") print *, me%m_spmTimeSeries(:,t)
-
-        ! Calculate the settling velocity and rate for each SPM size class
-        do n = 1, C%nSizeClassesSpm
-            if (me%rho_spm(n) > C%rho_w(me%T)) then
-                settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), me%T)
-                k_settle(n) = settlingVelocity(n)/me%D
-            else
-                settlingVelocity(n) = 0.0_dp
-                k_settle(n) = 0.0_dp
-            end if
-        end do
 
         do i = 1, nDisp
             ! Update SPM according to inflow for this displacement, then calculate
@@ -162,8 +143,14 @@ module classRiverReach1
             me%m_spm = me%m_spm + dSpmIn           ! Add inflow SPM to SPM already in reach
             me%rho_spm = me%m_spm/me%volume
 
+            ! Calculate the settling velocity and rate for each SPM size class
+            do n = 1, C%nSizeClassesSpm
+                settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), C%T)
+                k_settle(n) = settlingVelocity(n)/me%D
+            end do
+
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
-            me%m_spm = me%m_spm - k_settle*me%m_spm
+            me%m_spm = me%m_spm - (k_settle*C%timeStep/nDisp)*me%m_spm
             me%rho_spm = me%m_spm/me%volume             ! Recalculate the density
             ! If we've removed all of the SPM, set to 0
             do n = 1, C%nSizeClassesSpm
@@ -203,54 +190,6 @@ module classRiverReach1
         ! Set the final SPM density
         me%rho_spm = me%m_spm/me%volume
 
-        ! ! Update the SPM according to inflow, and calculate the new SPM density
-        ! ! based on this and the new dimensions
-        ! me%m_spm = me%m_spm + me%spmIn              ! me%m_spm will have been set on previous timestep (or got from data file)
-        ! me%rho_spm = me%m_spm/me%volume
-
-        ! ! Calculate the settling velocity and rate for SPM size classes
-        ! do n = 1, C%nSizeClassesSpm
-        !     ! If rho_spm < rho_w, no settling will occur and settling velocity = 0
-        !     if (me%rho_spm(n) > C%rho_w(me%T)) then
-        !         settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), me%T)
-        !         k_settle(n) = settlingVelocity(n)/me%D
-        !     else
-        !         settlingVelocity(n) = 0.0_dp
-        !         k_settle(n) = 0.0_dp
-        !     end if
-        ! end do
-
-        ! ! Remove settled SPM from the reach. TODO: This will go to BedSediment eventually
-        ! me%m_spm = me%m_spm - k_settle*me%m_spm
-        ! me%rho_spm = me%m_spm/me%volume                     ! Recalculate the density
-        ! ! If we've removed all of the SPM, set to 0
-        ! do n = 1, C%nSizeClassesSpm
-        !     if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
-        !         me%m_spm(n) = 0
-        !         me%rho_spm(n) = 0
-        !     end if
-        ! end do
-
-        ! ! Other stuff, like resuspension and abstraction, to go here.
-
-        ! ! TODO: Does this make sense? If abstraction has occured, we'll need to recalculate Qout
-        ! me%Qout = me%Qin
-        ! ! Advect the SPM out of the reach at the outflow rate, until it has all gone
-        ! spmOut = me%Qout*me%rho_spm
-        ! do n = 1, C%nSizeClassesSpm
-        !     if (spmOut(n) .le. me%m_spm(n)) then
-        !         me%spmOut(n) = spmOut(n)
-        !         ! Update the SPM mass and density after it has been advected
-        !         me%m_spm(n) = me%m_spm(n) - me%spmOut(n)
-        !         me%rho_spm(n) = me%m_spm(n)/me%volume
-        !     else
-        !         ! If spmOut > current SPM mass, then actual spmOut must equal the SPM mass,
-        !         ! i.e., all of the remaining SPM has been advected out of the reach 
-        !         me%spmOut(n) = me%m_spm(n)
-        !         me%m_spm(n) = 0                    ! SPM mass and density must now be zero
-        !         me%rho_spm(n) = 0
-        !     end if
-        ! end do
         ! Return the Result object with any errors
         r = Result( &
             errors = [.error. W, .error. D, .error. v, .error. volume] &
@@ -286,7 +225,7 @@ module classRiverReach1
     !! $$
     !! where
     !! $$
-    !!      f(D) = WD \left( \frac{WD}{w+2D} \right)**{2/3} \frac{\sqrt{S}}{n} - Q = 0
+    !!      f(D) = WD \left( \frac{WD}{W+2D} \right)**{2/3} \frac{\sqrt{S}}{n} - Q = 0
     !! $$
     !! and
     !! $$
@@ -303,21 +242,23 @@ module classRiverReach1
         real(dp) :: alpha                       !! Constant extracted from f and df
         integer :: i                            !! Loop iterator to make sure loop isn't endless.
         integer :: iMax                         !! Maximum number of iterations before error.
+        real(dp) :: epsilon                     !! Proximity to zero allowed.
         type(ErrorInstance) :: error            !! Variable to store error in.
         character(len=100) :: iChar             !! Loop iterator as character (for error message).
         character(len=100) :: fChar             !! f(D) value as character (for error message).
+        character(len=100) :: epsilonChar       !! Proximity of f(D) to zero as character (for error message).
         type(Result0D) :: r                     !! The result object.
 
-        ! TODO: Allow user (e.g., data file) to specify max iterations, max iterations
-        ! and precision?
+        ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
         D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
         i = 1                                                                   ! Iterator for Newton solver
-        iMax = 10000                                                            ! Allow 10000 iterations before solving
+        iMax = 10000                                                            ! Allow 10000 iterations
+        epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
         alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
         f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
 
         ! Loop through and solve until f(D) is within e-9 of zero.
-        do while (abs(f) > 1.0e-9_dp .and. i <= iMax)
+        do while (abs(f) > epsilon .and. i <= iMax)
             f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q            ! f(D) based on D_{m-1}
             df = alpha * ((D_i)**(5.0_dp/3.0_dp) * (6*D_i + 5*W))/(3*D_i * (2*D_i + W)**(5.0_dp/3.0_dp))
             D_i = D_i - f/df                                                    ! Calculate D_i based on D_{m-1}
@@ -334,11 +275,13 @@ module classRiverReach1
         else if (i > iMax) then                                                 ! If max number of iterations reached
             write(iChar,*) iMax
             write(fChar,*) f
+            write(epsilonChar,'(ES2.1)') epsilon
             error = ErrorInstance( &
                 code = 300, &
                 message = "Newton's method failed to converge - maximum number of iterations (" &
                     // trim(adjustl(iChar)) // ") exceeded." &
-                    // "Precision (proximity to zero) required: 1e-9. Final value: " // trim(fChar) // ".", &
+                    // "Precision (proximity to zero) required: " // trim(epsilonChar) &
+                    // ". Final value: " // trim(fChar) // ".", &
                 trace = ["Calculating river depth"] &
             )
         else
@@ -387,9 +330,14 @@ module classRiverReach1
         real(dp) :: dStar                           !! Dimensionless particle diameter.
         real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
         type(Result0D) :: r                         !! The Result object.
-        dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d  ! Calculate the dimensional particle diameter
-        W_spm = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                   ! Calculate the settling velocity
-            * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
+        ! Settling only occurs if density of SPM is greater than density of water
+        if (rho_spm > C%rho_w(T)) then
+            dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
+            W_spm = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                     ! Calculate the settling velocity
+                * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
+        else
+            W_spm = 0.0_dp
+        end if
         r = Result(data = W_spm)
     end function
 

@@ -36,10 +36,6 @@ program main
                 end if
             end do
         end do
-        ! print *, t
-        ! print *, env%colGridCells(1,1)%item%colSubRivers(1)%item%colReaches(1)%item%volume
-        print *, env%colGridCells(1,1)%item%colSubRivers(1)%item%m_spm(1)
-        ! print *, env%colGridCells(1,1)%item%colSubRivers(1)%item%getSpmOutBySizeClass(1)
     end do
 
     close(2)                                                                ! Close the output file

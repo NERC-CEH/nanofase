@@ -25,7 +25,8 @@
                 },
                 { "name" : "gridCellSize", "type" : "variable", "datatype" : "f8", "data" : 1000 },
                 { "name" : "timeStep", "type" : "variable", "datatype" : "f8", "data" : 86400 },
-                { "name" : "nTimeSteps", "type" : "variable", "datatype" : "f8", "data" : 365 }
+                { "name" : "nTimeSteps", "type" : "variable", "datatype" : "f8", "data" : 365 },
+                { "name" : "temperature", "type" : "variable", "datatype" : "f8", "data" : 15 }
             ]
         },
         {
