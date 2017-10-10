@@ -15,20 +15,23 @@ module spcSubRiver
     use ResultModule                                                ! error handling classes, required for
     use ErrorInstanceModule                                         ! generation of trace error messages
     use spcRiverReach                                               ! use containing object type
-    ! DO WE NEED TO USE ALL CONTAINING OBJECT TYPES?
     implicit none                                                   ! force declaration of all variables
+
     type RiverReachElement                                          ! container type for class(RiverReach), the actual type of the RiverReach class
         class(RiverReach), allocatable :: item                      ! a variable of type RiverReachElement can be of any object type inheriting from the
     end type                                                        ! RiverReach superclass
+
     type RoutingRef                                                 ! an internal user-defined type, defining a reference to a SubRiver sending water to this
         type(integer) :: gridX                                      ! SubRiver, or receiving water from it. Comprises row (X) and column (Y) references to the GridCell
         type(integer) :: gridY                                      ! containing the sending/receiving subriver
         type(integer) :: subRiver                                   ! (as this SubRiver) and the in-cell SubRiver reference number
     end type
+
     ! SubRiverPointer used for SubRiver inflows array, so the elements within can point to other GridCell's colSubRiver elements
     type SubRiverPointer
         class(SubRiver), pointer :: item => null()                  ! as item is a pointer, this definition can come before type(SubRiver)
     end type
+    
     type, abstract, public :: SubRiver                              ! type declaration for superclass
         character(len=100) :: ref                                   ! SubRiver reference of the format SubRiver_x_y_n, where x is GridCell row,
                                                                     ! y is GridCell column and n is SubRiver number in GridCell
@@ -46,9 +49,8 @@ module spcSubRiver
         real(dp) :: Qout                                            ! discharge from the Subriver [m3]
         real(dp), allocatable :: QrunoffTimeSeries(:)               ! Complete time series runoff data [m3/timestep]
         real(dp) :: Qrunoff                                         ! Initial runoff from the hydrological model [m3]
-        real(dp) :: tmpQout                                         ! Temporary variable to store Qout whilst other SubRivers are using previous timestep's Qout,
+        real(dp) :: tmpQout                                         ! Temporary variable to store Qout whilst other SubRivers are using previous timestep's Qout.
                                                                     ! Otherwise, Qin to a SubRiver might be set to the this timestep's Qout instead of the previous
-        ! TODO: I don't think me%spmIn is actually used - check
         real(dp), allocatable :: spmIn(:)                           ! Inflow SPM masses [kg] for each size class
         real(dp), allocatable :: spmOut(:)                          ! Outflow SPM masses [kg], one per size class
         real(dp), allocatable :: tmpSpmOut(:)                       ! Temporary outflow SPM masses (see tmpQout description)

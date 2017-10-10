@@ -1,5 +1,4 @@
 module classRiverReach1
-    use netcdf                  ! TODO: Check if netcdf library is needed - don't think so
     use mo_netcdf
     use Globals
     use UtilModule
@@ -183,8 +182,6 @@ module classRiverReach1
             ! Currently, Qout = Qin. Maybe abstraction etc will change this
             me%Qout = me%Qout + dQin
             me%spmOut = me%spmOut + dSpmOut
-
-            ! if (trim(me%ref) == "RiverReach_1_1_1_1" .and. i == 1) print *, me%volume, me%spmOut(1), nDisp
         end do
 
         ! Set the final SPM density
