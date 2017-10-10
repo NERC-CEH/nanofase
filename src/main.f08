@@ -1,4 +1,3 @@
-! Test implementation of the bed sediment and biota classes.
 program main
     use Globals                                 ! For error handling. ErrorCriteria object is ERROR_HANDLER
     use UtilModule
