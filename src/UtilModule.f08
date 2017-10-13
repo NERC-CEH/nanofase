@@ -1,5 +1,4 @@
-!>
-!! Module with a handful of useful procedures
+!> Module with a handful of useful globally-available procedures
 module UtilModule
     use Globals
     implicit none
@@ -26,7 +25,7 @@ module UtilModule
             str = trim(adjustl(str))
         end function
 
-        !> Convert an integer to a string
+        !> Convert a real to a string
         pure function strFromReal(r) result(str)
             real, intent(in) :: r           !! The integer to convert to a string
             character(len=256) :: str       !! The string to return
@@ -34,7 +33,7 @@ module UtilModule
             str = trim(adjustl(str))
         end function
 
-        !> Convert an integer to a string
+        !> Convert a double-precision real to a string
         pure function strFromDp(r) result(str)
             real(dp), intent(in) :: r           !! The integer to convert to a string
             character(len=256) :: str       !! The string to return

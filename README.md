@@ -56,8 +56,6 @@ For the moment, the main operation the program performs is routing water and SPM
 
 A second loop through the grid structure is then needed to "finalise" the routing, setting temporary SPM discharge variables to actual SPM discharge variables. This is due to the way that SubRiver inflows are specified as pointers to the actual SubRiver objects that provide the inflow. If routing was performed for one SubRiver and that SubRiver's SPM discharge (`spmOut`) immediately set, then a downstream SubRiver (whose routing procedure we called later in the loop) would use this discharge as its inflow, as opposed to the previous timestep's discharge. That is, it would be using discharge from the wrong timestep as its inflow. Thus, we wait until the main routing loop has finished, before finally setting actual SPM discharge variables.
 
-*Note:* `t` isn't currently used, but might be in the future to obtained time-dependent data from the data file.
-
 #### GridCell%update()
 
 GridCell's routing procedure simply calls the routing procedure on every SubRiver it contains.

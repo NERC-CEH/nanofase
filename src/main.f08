@@ -1,5 +1,5 @@
 program main
-    use Globals                                 ! For error handling. ErrorCriteria object is ERROR_HANDLER
+    use Globals
     use UtilModule
     use classBedSedimentLayer1
     use classRiverReach1
