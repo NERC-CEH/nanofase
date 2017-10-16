@@ -72,7 +72,7 @@
                                             "type" : "variable",
                                             "datatype" : "f8",
                                             "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
-                                            "data" : "data/spm.json"
+                                            "data" : "spm.json"
                                         }
                                     ]
                                 },
@@ -86,7 +86,7 @@
                                             "type" : "variable",
                                             "datatype" : "f8",
                                             "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
-                                            "data" : "data/spm.json"
+                                            "data" : "spm.json"
                                         }
                                     ]
                                 }
@@ -97,7 +97,7 @@
                             "type" : "variable",
                             "datatype" : "f8",
                             "dimensions" : [ "nTimeSteps" ],
-                            "data" : "data/runoff.json"
+                            "data" : "runoff.json"
                         }
                     ]
                 },
@@ -285,7 +285,7 @@
                             "type" : "variable",
                             "datatype" : "f8",
                             "dimensions" : [ "nTimeSteps" ],
-                            "data" : "data/runoff.json"
+                            "data" : "runoff.json"
                         },
                         {
                             "name" :  "SubRiver_2_3_1",
@@ -309,7 +309,7 @@
                                             "type" : "variable",
                                             "datatype" : "f8",
                                             "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
-                                            "data" : "data/spm.json"
+                                            "data" : "spm.json"
                                         }
                                     ]
                                 },
@@ -323,7 +323,7 @@
                                             "type" : "variable",
                                             "datatype" : "f8",
                                             "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
-                                            "data" : "data/spm.json"
+                                            "data" : "spm.json"
                                         }
                                     ]
                                 }

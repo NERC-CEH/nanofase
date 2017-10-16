@@ -1,4 +1,5 @@
 module Globals
+    use json_module
     use mo_netcdf
     use ErrorCriteriaModule
     use ErrorInstanceModule
@@ -46,11 +47,16 @@ module Globals
         type(NcDataset) :: NC                               !! NetCDF dataset
         type(NcVariable) :: var                             !! NetCDF variable
         type(NcGroup) :: grp                                !! NetCDF group
+        type(json_file) :: config                           !! JSON config file
+        logical :: jsonVarFound                             !! Was the JSON variable found?
         real(dp), allocatable :: spmSizeClasses(:)          !! Array of sediment particle sizes
         real(dp), allocatable :: npSizeClasses(:)           !! Array of nanoparticle particle sizes
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=[ &
+            ! File operations
+            ErrorInstance(code=200, message="File not found."), &
+            ErrorInstance(code=201, message="Variable not found in input file."), &
             ! Numerical calculations
             ErrorInstance(code=300, message="Newton's method failed to converge."), &
             ! Grid and geography
@@ -61,6 +67,23 @@ module Globals
             ErrorInstance(code=997,message="Invalid bed sediment layer index provided when creating bed sediment."), &
             ErrorInstance(code=996,message="Invalid number of bed sediment layers provided. Must be greater than zero.") &
         ])
+
+        ! Get config options from the config file
+        ! TODO: NOT WORKING
+        ! call config%initialize()
+        ! call config%load_file(filename = '../config.json')
+        ! if (config%failed()) call ERROR_HANDLER%trigger( &
+        !     error = ErrorInstance(code=200, message="Config file config.json not found."))
+        ! ! call config%get('data.input_file', C%inputFile, jsonVarFound)
+        ! ! if (.not. jsonVarFound) call ERROR_HANDLER%queue(201, message="data.input_file variable not found in config file.")
+        ! call config%get('run.timestep', C%timeStep, jsonVarFound)
+        ! if (.not. jsonVarFound) call ERROR_HANDLER%queue( &
+        !     error = ErrorInstance(201, message="run.timestep variable not found in config file."))
+        ! call config%get('run.n_timesteps', C%nTimeSteps, jsonVarFound)
+        ! if (.not. jsonVarFound) call ERROR_HANDLER%queue( &
+        !     error = ErrorInstance(201, message="run.n_timesteps variable not found in config file."))
+
+        ! call config%destroy()
 
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
