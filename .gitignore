@@ -49,3 +49,10 @@ output*.*
 *.exe
 *.out
 *.app
+
+# Code::Blocks
+*.cbp
+*.depend
+*.layout
+bin/
+obj/
