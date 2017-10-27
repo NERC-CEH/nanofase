@@ -42,6 +42,7 @@ module spcGridCell
                                                                      ! -----------
     type(integer) :: gridX                                           ! grid cell x reference
     type(integer) :: gridY                                           ! grid cell y reference
+    real(dp) :: area                                                 ! Area of the GridCell
     type(SubRiverElement), allocatable :: colSubRivers(:)            ! array of SubRiverElement objects to hold the subrivers
     type(SoilProfileElement), allocatable :: colSoilProfiles(:)      ! array of SoilProfileElement objects to hold the soil profiles
     ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
@@ -53,6 +54,13 @@ module spcGridCell
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
     real(dp), allocatable :: QrunoffTimeSeries(:)                    ! Runoff from the hydrological model
     real(dp) :: Qrunoff                                              ! Runoff from the hydrological model
+    real(dp) :: C_usle                                               ! Cover and land management factor [-]
+    real(dp) :: K_usle                                               ! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
+    real(dp) :: LS_usle                                              ! Topographic factor [-]
+    real(dp) :: P_usle                                               ! Support practice factor [-]
+    real(dp) :: CFRG_usle                                            ! Coarse fragment factor [-]
+    real(dp) :: erodedSedimentRUSLE                                  ! RUSLE2015 sediment yield for this GridCell (2010): https://esdac.jrc.ec.europa.eu/content/soil-erosion-water-rusle2015
+    real(dp) :: erodedSediment                                       ! Sediment yield eroded on this timestep [kg/timestep]
     logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
@@ -63,8 +71,9 @@ module spcGridCell
                                                                      ! -----------
     procedure(createGridCell), deferred :: create                    ! create the GridCell object. Exposed name: create
     procedure(destroyGridCell), deferred :: destroy                  ! remove the GridCell object and all contained objects. Exposed name: destroy
-    procedure(routingGridCell), deferred :: routing                  ! route water and suspended solids through all SubRiver objects. Exposed name: routing
-    procedure(finaliseRoutingGridCell), deferred :: finaliseRouting
+    procedure(updateGridCell), deferred :: update                    ! route water and suspended solids through all SubRiver objects. Exposed name: routing
+    procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate  
+    procedure(erodeSoilGridCell), deferred :: erodeSoil              ! Obtain soil erosion for a given timestep
   end type
 
   type GridCellElement                                               ! Container type for polymorphic GridCells
@@ -72,28 +81,34 @@ module spcGridCell
   end type
 
   abstract interface
-    function createGridCell(Me, x, y, isEmpty) result(r)
+    function createGridCell(me, x, y, isEmpty) result(r)
       import GridCell, Result
-      class(GridCell) :: Me                                          !! The GridCell instance.
+      class(GridCell) :: me                                          !! The GridCell instance.
       integer :: x, y                                                !! The (x,y) position of the GridCell.
       logical, optional :: isEmpty                                   !! Is anything to be simulated for this GridCell?
       type(Result) :: r
     end function
-    function destroyGridCell(Me) result(r)
+    function destroyGridCell(me) result(r)
       import GridCell, Result
-      class(GridCell) :: Me                                          ! The GridCell instance.
+      class(GridCell) :: me                                          ! The GridCell instance.
       type(Result) :: r
     end function
-    function routingGridCell(Me, t) result(r)
+    function updateGridCell(me, t) result(r)
       import GridCell, Result
-      class(GridCell) :: Me                                          ! The GridCell instance.
+      class(GridCell) :: me                                          ! The GridCell instance.
       integer :: t                                                   ! What time step are we on?
       type(Result) :: r
     end function
-    function finaliseRoutingGridCell(me) result(r)
+    function finaliseUpdateGridCell(me) result(r)
       import GridCell, Result
       class(GridCell) :: me
       type(Result) :: r
+    end function
+    function erodeSoilGridCell(me, t) result(r)
+      import GridCell, Result
+      class(GridCell)     :: me               !! This GridCell instance
+      integer             :: t                !! The timestep we're on
+      type(Result)        :: r                !! The Result object
     end function
   end interface
 end module

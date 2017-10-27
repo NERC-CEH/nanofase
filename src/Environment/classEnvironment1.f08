@@ -156,14 +156,14 @@ module classEnvironment1
         ! Perform the main routing procedure
         do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
             do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%routing(t)        ! Run routing simulation for each GridCell
+                r = me%colGridCells(x,y)%item%update(t)         ! Run routing simulation for each GridCell
             end do
         end do
         ! Finalise the routing by setting outflows to temporary outflows that were stored
         ! to avoid routing using the wrong timestep's outflow as an inflow.
         do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
             do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%finaliseRouting()    ! finaliseRouting() loops through SubRivers
+                r = me%colGridCells(x,y)%item%finaliseUpdate()  ! finaliseUpdate() loops through SubRivers
             end do
         end do
         ! *** SL comments re SubRiver routing and the SubRiver%routing() function:
