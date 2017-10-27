@@ -23,7 +23,7 @@ RUN apt-get update && \
     cd hdf5-${v} && \
     ./configure --with-zlib=$DIR --prefix=$DIR && \
     make && make install && cd .. && \
-    rm hdf-5-${v}.tar.gz && \
+    rm hdf5-${v}.tar.gz && \
     v=4.4.1.1 && \
     wget ftp://ftp.unidata.ucar.edu/pub/netcdf/netcdf-${v}.tar.gz && \
     tar -xf netcdf-${v}.tar.gz && \
