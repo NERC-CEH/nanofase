@@ -5,7 +5,7 @@ module spcRiverReach
                                                                      ! a RiverReach class computes water velocity, depth and sediment dynamics for
                                                                      ! a defined length of (homogeneous) flowing water
                                                                      ! IMPORTED MODULES
-                                                                    ! Description
+                                                                     ! Description
                                                                      ! -----------
     use Globals                                                      ! global declarations
     use netcdf                                                       ! input/output handling

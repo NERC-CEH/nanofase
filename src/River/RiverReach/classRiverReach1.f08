@@ -52,7 +52,7 @@ module classRiverReach1
             me%spmIn(C%nSizeClassesSpm), &
             me%spmOut(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
-            stat=me%allst) 
+            stat=me%allst)
         me%rho_spm = 0                  ! Set SPM density and mass to 0 to begin with
         me%m_spm = 0
         allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)            ! Defaults to no runoff
@@ -65,7 +65,7 @@ module classRiverReach1
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")
         grp = grp%getGroup(trim(ref(x,y)))                      ! Get the GridCell we're in
-        
+
         grp = grp%getGroup(trim(ref(x,y,s)))                    ! Get the SubRiver we're in
         me%ncGroup = grp%getGroup(trim(ref(x,y,s,r)))           ! Finally, get the actual RiverReach group
         var = me%ncGroup%getVariable("slope")                   ! Get the slope
@@ -169,7 +169,7 @@ module classRiverReach1
                 me%rho_spm(n) = me%m_spm(n)/me%volume
             else
                 ! If spmOut > current SPM mass, then actual spmOut must equal the SPM mass,
-                ! i.e., all of the remaining SPM has been advected out of the reach 
+                ! i.e., all of the remaining SPM has been advected out of the reach
                 me%spmOut(n) = me%m_spm(n)
                 me%m_spm(n) = 0                    ! SPM mass and density must now be zero
                 me%rho_spm(n) = 0
@@ -189,7 +189,7 @@ module classRiverReach1
     !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
     !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
     pure function calculateWidth1(me, Q) result(r)
-        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
+        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance.
         real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s].
         type(ErrorInstance) :: error            !! Variable to store error in.
         type(Result0D) :: r                     !! Result object to return.

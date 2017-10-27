@@ -94,7 +94,7 @@ module classSubRiver1
             me%tmpSpmOut(C%nSizeClassesSpm), &
             me%tmpm_spm(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
-            stat=me%allst)             
+            stat=me%allst)
         me%ref = trim(ref(x, y, s))                                 ! Create SubRiver reference name, SubRiver_x_y_s
         me%length = length                                          ! Set the length
         allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! Set the runoff
@@ -185,7 +185,7 @@ module classSubRiver1
         end do
         call r%addToTrace("Creating " // me%ref)
     end function
-    
+
     function destroySubRiver1(me) result(r)
         class(SubRiver1) :: me                                      ! the SubRiver instance
         type(Result) :: r                                           ! the Result object
@@ -311,13 +311,13 @@ module classSubRiver1
         me%tmpQOut = Qin(me%nReaches + 1)                          ! store the final outflow volume [m3]
         me%tmpSpmOut = spmIn(me%nReaches + 1, :)                   ! output SPM flux (kg) of size class 'n' for this displacement
     end function
-    
+
     !> Set the outflow and SPM mass from the temporary variables that were set by the
     !! routing procedure. This step is kept separate from the routing so that the
     !! wrong outflow isn't used as an inflow for another SubRiver whilst the SubRivers
     !! are looped through.
     function finaliseRoutingSubRiver1(me) result(r)
-        class(SubRiver1) :: me                                      !! This SubRiver1 instace
+        class(SubRiver1) :: me                                      !! This SubRiver1 instance
         type(Result) :: r                                           !! The Result object
         me%Qout = me%tmpQout
         me%spmOut = me%tmpSpmOut
