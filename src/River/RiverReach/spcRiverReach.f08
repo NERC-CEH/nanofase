@@ -71,88 +71,88 @@ module spcRiverReach
         procedure :: getSpmOut => getSpmOutRiverReach               ! Return the SPM discharge
     end type
 
-abstract interface
-    function createRiverReach(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
-        use Globals
-        import RiverReach, Result, Result0D
-        class(RiverReach) :: me                                     !! The RiverReach instance
-        integer :: x, y, s, r                                       !! GridCell, SubRiver and RiverReach identifiers
-        real(dp) :: l                                               !! The RiverReach length [m]
-        real(dp), allocatable :: QrunoffTimeSeries(:)               !! Any initial runoff [m3/s]
-        type(Result) :: res                                         !! The Result object
-    end function
-    function destroyRiverReach(Me) result(r)
-        import RiverReach, Result
-        class(RiverReach) :: Me                                     !! The RiverReach instance
-        type(Result) :: r                                           !! The Result object to return
-    end function
-    function update(me, Qin, spmIn, t) result(r)
-        use Globals
-        import RiverReach, Result
-        class(RiverReach) :: me                                     !! This RiverReach instance
-        real(dp) :: Qin                                             !! Inflow to this reach [m3/timestep]
-        integer :: t                                                !! What time step are we on?
-        real(dp) :: spmIn(C%nSizeClassesSpm)                        !! Inflow SPM to this reach [kg/timestep]
-        type(Result) :: r                                           !! The Result object
-    end function
-    pure function calculateDepth(Me, W, S, Q) result(r)
-        use Globals
-        import RiverReach, Result0D
-        class(RiverReach), intent(in) :: Me                         !! The RiverReach instance
-        real(dp), intent(in) :: W                                   !! River width [m]
-        real(dp), intent(in) :: S                                   !! River slope [-]
-        real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
-        type(Result0D) :: r                                         !! The result object
-    end function
-    function calculateWidth(Me, Q) result(r)
-        use Globals
-        import RiverReach, Result0D
-        class(RiverReach), intent(in) :: Me                         !! The RiverReach instance
-        real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
-        type(ErrorInstance) :: error                                !! Variable to store error in
-        type(Result0D) :: r                                         !! Result object to return
-    end function
-    pure function calculateVolume(me, D, W, l, f_m) result(r)
-        use Globals
-        import RiverReach, Result0D
-        class(RiverReach), intent(in) :: me                         !! The RiverReach instance
-        real(dp), intent(in) :: D                                   !! River depth [m]
-        real(dp), intent(in) :: W                                   !! River width [m]
-        real(dp), intent(in) :: l                                   !! River length, without meandering [m]
-        real(dp), intent(in) :: f_m                                 !! Meandering factor [-]
-        type(Result0D) :: r                                         !! The Result object
-    end function
-    pure function calculateArea(me, D, W) result(r)
-        use Globals
-        import RiverReach, Result0D
-        class(RiverReach), intent(in) :: me                         !! The RiverReach instance
-        real(dp), intent(in) :: D                                   !! River depth [m]
-        real(dp), intent(in) :: W                                   !! River width [m]
-        type(Result0D) :: r                                         !! The Result object
-    end function
-    pure function calculateVelocity(me, D, Q, W) result(r)
-        use Globals
-        import RiverReach, Result0D
-        class(RiverReach), intent(in) :: me                         !! The RiverReach instance
-        real(dp), intent(in) :: D                                   !! River depth [m]
-        real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
-        real(dp), intent(in) :: W                                   !! River width [m]
-        type(Result0D) :: r                                         !! The Result object
-    end function
-    function calculateSettlingVelocity(Me, d, rho_spm, T) result(r)
-        use Globals
-        import RiverReach, Result0D
-        class(RiverReach), intent(in) :: me                         !! The RiverReach instance
-        real(dp), intent(in) :: d                                   !! Sediment particle diameter [m]
-        real(dp), intent(in) :: rho_spm                             !! Sediment particle density [kg/m3]
-        real(dp), intent(in) :: T                                   !! Temperature [C]
-        real(dp) :: dStar                                           !! Dimensionless particle diameter [-]
-        real(dp) :: W_spm                                           !! Calculated settling velocity [m/s]
-        type(Result0D) :: r                                         !! The Result object
-    end function
-end interface
+    abstract interface
+        function createRiverReach(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
+            use Globals
+            import RiverReach, Result, Result0D
+            class(RiverReach) :: me                                     !! The RiverReach instance
+            integer :: x, y, s, r                                       !! GridCell, SubRiver and RiverReach identifiers
+            real(dp) :: l                                               !! The RiverReach length [m]
+            real(dp), allocatable :: QrunoffTimeSeries(:)               !! Any initial runoff [m3/s]
+            type(Result) :: res                                         !! The Result object
+        end function
+        function destroyRiverReach(Me) result(r)
+            import RiverReach, Result
+            class(RiverReach) :: Me                                     !! The RiverReach instance
+            type(Result) :: r                                           !! The Result object to return
+        end function
+        function update(me, Qin, spmIn, t) result(r)
+            use Globals
+            import RiverReach, Result
+            class(RiverReach) :: me                                     !! This RiverReach instance
+            real(dp) :: Qin                                             !! Inflow to this reach [m3/timestep]
+            integer :: t                                                !! What time step are we on?
+            real(dp) :: spmIn(C%nSizeClassesSpm)                        !! Inflow SPM to this reach [kg/timestep]
+            type(Result) :: r                                           !! The Result object
+        end function
+        pure function calculateDepth(Me, W, S, Q) result(r)
+            use Globals
+            import RiverReach, Result0D
+            class(RiverReach), intent(in) :: Me                         !! The RiverReach instance
+            real(dp), intent(in) :: W                                   !! River width [m]
+            real(dp), intent(in) :: S                                   !! River slope [-]
+            real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
+            type(Result0D) :: r                                         !! The result object
+        end function
+        function calculateWidth(Me, Q) result(W)
+            use Globals
+            import RiverReach, Result0D
+            class(RiverReach), intent(in) :: Me                         !! The RiverReach instance
+            real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
+            type(ErrorInstance) :: error                                !! Variable to store error in
+            real(dp) :: W                                               !! Calculated width [m]
+        end function
+        pure function calculateVolume(me, D, W, l, f_m) result(volume)
+            use Globals
+            import RiverReach, Result0D
+            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            real(dp), intent(in) :: D                                   !! River depth [m]
+            real(dp), intent(in) :: W                                   !! River width [m]
+            real(dp), intent(in) :: l                                   !! River length, without meandering [m]
+            real(dp), intent(in) :: f_m                                 !! Meandering factor [-]
+            real(dp) :: volume                                          !! Calculated volume [m3]
+        end function
+        pure function calculateArea(me, D, W) result(area)
+            use Globals
+            import RiverReach, Result0D
+            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            real(dp), intent(in) :: D                                   !! River depth [m]
+            real(dp), intent(in) :: W                                   !! River width [m]
+            real(dp) :: area                                            !! Calculated area [m2]
+        end function
+        pure function calculateVelocity(me, D, Q, W) result(v)
+            use Globals
+            import RiverReach
+            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            real(dp), intent(in) :: D                                   !! River depth [m]
+            real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
+            real(dp), intent(in) :: W                                   !! River width [m]
+            real(dp) :: v                                               !! The calculated velocity [m/s]
+        end function
+        function calculateSettlingVelocity(Me, d, rho_spm, T) result(W_spm)
+            use Globals
+            import RiverReach, Result0D
+            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            real(dp), intent(in) :: d                                   !! Sediment particle diameter [m]
+            real(dp), intent(in) :: rho_spm                             !! Sediment particle density [kg/m3]
+            real(dp), intent(in) :: T                                   !! Temperature [C]
+            real(dp) :: dStar                                           !! Dimensionless particle diameter [-]
+            real(dp) :: W_spm                                           !! Calculated settling velocity [m/s]
+        end function
+    end interface
 
-contains
+  contains
+
     !> Return the volume of the RiverReach.
     function getVolumeRiverReach(me) result(volume)
         class(RiverReach) :: me

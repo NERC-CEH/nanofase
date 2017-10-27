@@ -71,8 +71,8 @@ module spcSubRiver
                                                                     ! -----------
         procedure(createSubRiver), deferred :: create               ! create the SubRiver object. Exposed name: create
         procedure(destroySubRiver), deferred :: destroy             ! remove the SubRiver object and all contained objects. Exposed name: destroy
-        procedure(routingSubRiver), deferred :: routing             ! route water and suspended solids through a SubRiver. Exposed name: routing
-        procedure(finaliseRoutingSubRiver), deferred :: finaliseRouting ! Finalise the routing by setting temp outflows to actual outflows
+        procedure(updateSubRiver), deferred :: update               ! route water and suspended solids through a SubRiver. Exposed name: routing
+        procedure(finaliseUpdateSubRiver), deferred :: finaliseUpdate ! Finalise the routing by setting temp outflows to actual outflows
         procedure :: getQOut => getQOutSubRiver                     ! Return the outflow Q [m3]
         procedure :: getSpmOut => getSpmOutSubRiver                 ! Return the outflow SPM for all size classes [kg]
         procedure :: getSpmOutBySizeClass => getSpmOutBySizeClassSubRiver ! Return the outflow SPM for an individual size class [kg]
@@ -99,13 +99,13 @@ module spcSubRiver
             class(SubRiver) :: me                                   ! the SubRiver instance
             type(Result) :: r                                       ! the result object
         end function
-        function routingSubRiver(me, t) result(r)                      ! routes inflow(s) through the SubRiver
+        function updateSubRiver(me, t) result(r)                      ! routes inflow(s) through the SubRiver
             import SubRiver, Result
             class(SubRiver) :: me                                   ! the SubRiver instance
             integer :: t                                            ! What time step are we on?
             type(Result) :: r                                       ! the result object
         end function
-        function finaliseRoutingSubRiver(me) result(r)
+        function finaliseUpdateSubRiver(me) result(r)
             import SubRiver, Result
             class(SubRiver) :: me
             type(Result) :: r

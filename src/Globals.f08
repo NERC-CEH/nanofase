@@ -17,7 +17,7 @@ module Globals
 
         ! Data input
         real(dp) :: T = 15.0_dp             !! Temperature [C]
-        character(len=7) :: inputFile = 'data.nc'   !! Name of the data input file. TODO: Get this from config file.
+        character(len=12) :: inputFile = 'data/data.nc'   !! Name of the data input file. TODO: Get this from config file.
         real(dp), allocatable :: d_spm(:)   !! Suspended particulate matter size class diameters [m]
         real(dp), allocatable :: d_np(:)    !! Nanoparticle size class diameters [m]
         integer :: nSizeClassesSpm          !! Number of sediment particle size classes
@@ -31,6 +31,9 @@ module Globals
         real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
         integer :: timeStep                 !! The timestep to run the model on [s].
         integer :: nTimeSteps               !! The number of timesteps.
+
+        ! Alogrithm choices
+        character(len=5) :: soilErosion = 'musle'
 
       contains
         procedure :: rho_w, nu_w
@@ -57,15 +60,19 @@ module Globals
             ! File operations
             ErrorInstance(code=200, message="File not found."), &
             ErrorInstance(code=201, message="Variable not found in input file."), &
+            ErrorInstance(code=202, message="Group not found in input file."), &
+            ErrorInstance(code=203, message="Unknown config file option."), &
             ! Numerical calculations
             ErrorInstance(code=300, message="Newton's method failed to converge."), &
             ! Grid and geography
             ErrorInstance(code=401, message="Invalid SubRiver inflow reference. Inflow must be from a neighbouring SubRiver."), &
+            ! River routing
+            ErrorInstance(code=500, message="All SPM advected from RiverReach.", isCritical=.false.), &
             ! Object type errors
-            ErrorInstance(code=999,message="Invalid biota index provided when creating bed sediment layer."), &
-            ErrorInstance(code=998,message="Invalid reactor index provided when creating bed sediment layer."), &
-            ErrorInstance(code=997,message="Invalid bed sediment layer index provided when creating bed sediment."), &
-            ErrorInstance(code=996,message="Invalid number of bed sediment layers provided. Must be greater than zero.") &
+            ErrorInstance(code=901, message="Invalid RiverReach type index provided."), &
+            ErrorInstance(code=902, message="Invalid Biota index provided."), &
+            ErrorInstance(code=903, message="Invalid Reactor index provided."), &
+            ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.") &
         ])
 
         ! Get config options from the config file

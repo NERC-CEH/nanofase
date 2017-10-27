@@ -6,5 +6,8 @@
     "run" : {
         "timestep" : 86400,
         "n_timesteps" : 365
+    },
+    "model" : {
+        "soil_erosion" : "data"
     }
 }

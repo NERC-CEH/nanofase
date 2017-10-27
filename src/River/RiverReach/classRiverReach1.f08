@@ -76,7 +76,7 @@ module classRiverReach1
         if (me%ncGroup%hasVariable("spm")) then
             var = me%ncGroup%getVariable("spm")
             call var%getData(me%m_spmTimeSeries)
-            me%m_spmTimeSeries = me%m_spmTimeSeries*C%timeStep      ! spm should be in kg/s, thus need to convert to kg/timestep
+            me%m_spmTimeSeries = me%m_spmTimeSeries*C%timeStep      ! SPM should be in kg/s, thus need to convert to kg/timestep
         else
             me%m_spmTimeSeries = 0
         end if
@@ -100,8 +100,8 @@ module classRiverReach1
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
         integer :: t                                        !! What time step are we on?
         type(Result) :: r                                   !! Result object to return
-        type(Result0D) :: W, D, v, area, volume             !! Result objects for dimensions etc
-        integer :: n                                        !! Size class loop iterator
+        type(Result0D) :: D                                 !! Result objects for depth
+        integer :: n                                        !! Size class loop it  erator
         integer :: nDisp                                    !! Number of displacements to split reach into
         integer :: i                                        !! Iterator for displacements
         real(dp) :: dQin                                    !! Qin for each displacement
@@ -117,43 +117,40 @@ module classRiverReach1
         ! change the name to something else, e.g. spmInTimeSeries.
 
         ! Calculate the depth, velocity, area and volume
-        W = me%calculateWidth(me%Qin/C%timeStep)
-        me%W = .dp. W                                       ! Getting data from the Result object
+        me%W = me%calculateWidth(me%Qin/C%timeStep)
         D = me%calculateDepth(me%W, me%S, me%Qin/C%timeStep)
-        me%D = .dp. D
-        v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
-        me%v = .dp. v
-        area = me%calculateArea(me%D, me%W)
-        me%area = .dp. area
-        volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
-        me%volume = .dp. volume
+        me%D = .dp. D                                       ! Get real(dp) data from Result object
+        call r%addError(.error. D)                          ! Add any error that occurred
+        me%v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
+        me%area = me%calculateArea(me%D, me%W)
+        me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
 
         ! If Qin for this timestep is bigger than the reach volume, then we need to
         ! split into a number of displacements
         nDisp = ceiling(me%Qin/me%volume)           
-        dQin = me%Qin/nDisp                         ! Inflow to the first displacement
-        dSpmIn = me%spmIn/nDisp                     ! SPM inflow to the first displacment
-        me%Qout = 0                                 ! Reset Qout for this timestep
-        me%spmOut = 0                               ! Reset spmOut for this timestep
+        dQin = me%Qin/nDisp                                 ! Inflow to the first displacement
+        dSpmIn = me%spmIn/nDisp                             ! SPM inflow to the first displacment
+        me%Qout = 0                                         ! Reset Qout for this timestep
+        me%spmOut = 0                                       ! Reset spmOut for this timestep
 
         do i = 1, nDisp
             ! Update SPM according to inflow for this displacement, then calculate
             ! new SPM density based on this and the dimensions
-            me%m_spm = me%m_spm + dSpmIn           ! Add inflow SPM to SPM already in reach
+            me%m_spm = me%m_spm + dSpmIn                    ! Add inflow SPM to SPM already in reach
             me%rho_spm = me%m_spm/me%volume
 
             ! Calculate the settling velocity and rate for each SPM size class
             do n = 1, C%nSizeClassesSpm
-                settlingVelocity(n) = .dp. me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), C%T)
+                settlingVelocity(n) = me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), C%T)
                 k_settle(n) = settlingVelocity(n)/me%D
             end do
 
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             me%m_spm = me%m_spm - (k_settle*C%timeStep/nDisp)*me%m_spm
-            me%rho_spm = me%m_spm/me%volume             ! Recalculate the density
+            me%rho_spm = me%m_spm/me%volume                     ! Recalculate the density
             ! If we've removed all of the SPM, set to 0
             do n = 1, C%nSizeClassesSpm
-                if (me%m_spm(n) < 0) then                 ! If we've removed all of the SPM, set to 0
+                if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
                     me%m_spm(n) = 0
                     me%rho_spm(n) = 0
                 end if
@@ -183,14 +180,22 @@ module classRiverReach1
             me%Qout = me%Qout + dQin
             me%spmOut = me%spmOut + dSpmOut
         end do
-
+        ! If there's no SPM left, add the "all SPM advected" warning
+        do n = 1, C%nSizeClassesSpm
+            if (me%m_spm(n) == 0 .and. me%spmIn(n) /= 0) then
+                call r%addError(ErrorInstance( &
+                    code=500, &
+                    message="All SPM in size class " // trim(str(n)) // " (" // trim(str(C%d_spm(n)*1e6)) // &
+                            " um) advected from RiverReach.", &
+                    isCritical=.false.) &
+                )
+            end if 
+        end do
+        
         ! Set the final SPM density
         me%rho_spm = me%m_spm/me%volume
-
-        ! Return the Result object with any errors
-        r = Result( &
-            errors = [.error. W, .error. D, .error. v, .error. volume] &
-        )
+        ! Add what we're doing here to the error trace
+        call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
 
     !> Calculate the width \( W \) of the river based on the discharge:
@@ -200,19 +205,12 @@ module classRiverReach1
     !! References:
     !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
     !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
-    pure function calculateWidth1(me, Q) result(r)
-        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
-        real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s].
-        type(ErrorInstance) :: error            !! Variable to store error in.
-        type(Result0D) :: r                     !! Result object to return.
-        ! Make sure the flow is positive
-        error = ERROR_HANDLER%positive(Q, "Flow rate Q must be positive.")
-        ! Calculate the width and return as Result object
-        r = Result( &
-            data = 1.22*Q**0.557, &
-            error = error &
-        )
-        call r%addToTrace("Calculating river width")
+    pure function calculateWidth1(me, Q) result(W)
+        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance
+        real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s]
+        type(ErrorInstance) :: error            !! Variable to store error in
+        real(dp) :: W                           !! The calculated width \( W \) [m]
+        W = 1.22*Q**0.557                       ! Calculate the width
     end function
 
     !> Calculate water depth from Manning's roughness coefficient,
@@ -254,7 +252,7 @@ module classRiverReach1
         alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
         f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
 
-        ! Loop through and solve until f(D) is within e-9 of zero.
+        ! Loop through and solve until f(D) is within e-9 of zero, or max iterations reached
         do while (abs(f) > epsilon .and. i <= iMax)
             f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q            ! f(D) based on D_{m-1}
             df = alpha * ((D_i)**(5.0_dp/3.0_dp) * (6*D_i + 5*W))/(3*D_i * (2*D_i + W)**(5.0_dp/3.0_dp))
@@ -266,20 +264,18 @@ module classRiverReach1
             write(iChar,*) i
             error = ErrorInstance( &
                 code = 300, &
-                message = "Newton's method diverged to NaN after " // trim(adjustl(iChar)) // " iterations.", &
-                trace = ["Calculating river depth"] &
+                message = "Newton's method diverged to NaN after " // trim(adjustl(iChar)) // " iterations." &
             )
         else if (i > iMax) then                                                 ! If max number of iterations reached
             write(iChar,*) iMax
             write(fChar,*) f
-            write(epsilonChar,'(ES2.1)') epsilon
+            write(epsilonChar,*) epsilon
             error = ErrorInstance( &
                 code = 300, &
                 message = "Newton's method failed to converge - maximum number of iterations (" &
-                    // trim(adjustl(iChar)) // ") exceeded." &
-                    // "Precision (proximity to zero) required: " // trim(epsilonChar) &
-                    // ". Final value: " // trim(fChar) // ".", &
-                trace = ["Calculating river depth"] &
+                    // trim(adjustl(iChar)) // ") exceeded. " &
+                    // "Precision (proximity to zero) required: " // trim(adjustl(epsilonChar)) &
+                    // ". Final value: " // trim(adjustl(fChar)) // "." &
             )
         else
             error = ERROR_HANDLER%getNoError()                                  ! Otherwise, no error occurred
@@ -288,21 +284,20 @@ module classRiverReach1
             data = D_i, &
             error = error &
         )
+        call r%addToTrace("Calculating river depth")
     end function
 
     !> Calculate the velocity of the river:
     !! $$
     !!      v = \frac{Q}{WD}
     !! $$
-    pure function calculateVelocity1(me, D, Q, W) result(r)
-        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance.
-        real(dp), intent(in) :: D               !! River depth \( D \) [m].
-        real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s].
-        real(dp), intent(in) :: W               !! River width \( W \) [m].
-        type(Result0D) :: r                     !! The result object.
-        r = Result( &                           ! Return the velocity. No error can occur here.
-            data = Q/(W*D) &
-        )
+    pure function calculateVelocity1(me, D, Q, W) result(v)
+        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance
+        real(dp), intent(in) :: D               !! River depth \( D \) [m]
+        real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
+        real(dp), intent(in) :: W               !! River width \( W \) [m]
+        real(dp) :: v                    !! The calculated velocity \( v \) [m/s]
+        v = Q/(W*D)
     end function
 
     !> Calculate the settling velocity of sediment particles for an individual
@@ -319,14 +314,13 @@ module classRiverReach1
     !!      \Delta = \frac{\rho_spm}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
-    function calculateSettlingVelocity1(me, d, rho_spm, T) result(r)
+    function calculateSettlingVelocity1(me, d, rho_spm, T) result(W_spm)
         class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
         real(dp), intent(in) :: rho_spm             !! Sediment particle density [kg/m**3].
         real(dp), intent(in) :: T                   !! Temperature [C].
         real(dp) :: dStar                           !! Dimensionless particle diameter.
         real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
-        type(Result0D) :: r                         !! The Result object.
         ! Settling only occurs if density of SPM is greater than density of water
         if (rho_spm > C%rho_w(T)) then
             dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
@@ -335,21 +329,20 @@ module classRiverReach1
         else
             W_spm = 0.0_dp
         end if
-        r = Result(data = W_spm)
     end function
 
     !> Calculate the volume of a RiverReach, assuming a rectangular profile:
     !! $$
     !!      \text{volume} = DWlf_m
     !! $$
-    pure function calculateVolume1(me, D, W, l, f_m) result(r)
+    pure function calculateVolume1(me, D, W, l, f_m) result(volume)
         class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
         real(dp), intent(in) :: l                   !! River length, without meandering [m]
         real(dp), intent(in) :: f_m                 !! Meandering factor [-]
-        type(Result0D) :: r                         !! The Result object
-        r = Result(data = D*W*l*f_m)
+        real(dp) :: volume                          !! The calculated volume [m3]
+        volume = D*W*l*f_m
     end function
 
     !> Calculate the area of a cross-section of the RiverReach, assuming
@@ -357,12 +350,12 @@ module classRiverReach1
     !! $$
     !!      \text{area} = DW
     !! $$
-    pure function calculateArea1(me, D, W) result(r)
+    pure function calculateArea1(me, D, W) result(area)
         class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
-        type(Result0D) :: r                         !! The Result object
-        r = Result(data = D*W)
+        real(dp) :: area                            !! The calculated area [m3]
+        area = D*W
     end function
 
 end module
