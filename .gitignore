@@ -56,3 +56,5 @@ output*.*
 *.layout
 bin/
 obj/
+doxygen/
+dockerfile
