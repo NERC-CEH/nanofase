@@ -1,4 +1,5 @@
 module Globals
+    use json_module
     use mo_netcdf
     use ErrorCriteriaModule
     use ErrorInstanceModule
@@ -15,7 +16,8 @@ module Globals
                                             !! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
 
         ! Data input
-        character(len=7) :: inputFile = 'data.nc'   !! Name of the data input file. TODO: Get this from config file.
+        real(dp) :: T = 15.0_dp             !! Temperature [C]
+        character(len=12) :: inputFile = 'data/data.nc'   !! Name of the data input file. TODO: Get this from config file.
         real(dp), allocatable :: d_spm(:)   !! Suspended particulate matter size class diameters [m]
         real(dp), allocatable :: d_np(:)    !! Nanoparticle size class diameters [m]
         integer :: nSizeClassesSpm          !! Number of sediment particle size classes
@@ -29,6 +31,9 @@ module Globals
         real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
         integer :: timeStep                 !! The timestep to run the model on [s].
         integer :: nTimeSteps               !! The number of timesteps.
+
+        ! Alogrithm choices
+        character(len=5) :: soilErosion = 'musle'
 
       contains
         procedure :: rho_w, nu_w
@@ -45,21 +50,47 @@ module Globals
         type(NcDataset) :: NC                               !! NetCDF dataset
         type(NcVariable) :: var                             !! NetCDF variable
         type(NcGroup) :: grp                                !! NetCDF group
+        type(json_file) :: config                           !! JSON config file
+        logical :: jsonVarFound                             !! Was the JSON variable found?
         real(dp), allocatable :: spmSizeClasses(:)          !! Array of sediment particle sizes
         real(dp), allocatable :: npSizeClasses(:)           !! Array of nanoparticle particle sizes
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=[ &
+            ! File operations
+            ErrorInstance(code=200, message="File not found."), &
+            ErrorInstance(code=201, message="Variable not found in input file."), &
+            ErrorInstance(code=202, message="Group not found in input file."), &
+            ErrorInstance(code=203, message="Unknown config file option."), &
             ! Numerical calculations
             ErrorInstance(code=300, message="Newton's method failed to converge."), &
             ! Grid and geography
             ErrorInstance(code=401, message="Invalid SubRiver inflow reference. Inflow must be from a neighbouring SubRiver."), &
+            ! River routing
+            ErrorInstance(code=500, message="All SPM advected from RiverReach.", isCritical=.false.), &
             ! Object type errors
-            ErrorInstance(code=999,message="Invalid biota index provided when creating bed sediment layer."), &
-            ErrorInstance(code=998,message="Invalid reactor index provided when creating bed sediment layer."), &
-            ErrorInstance(code=997,message="Invalid bed sediment layer index provided when creating bed sediment."), &
-            ErrorInstance(code=996,message="Invalid number of bed sediment layers provided. Must be greater than zero.") &
+            ErrorInstance(code=901, message="Invalid RiverReach type index provided."), &
+            ErrorInstance(code=902, message="Invalid Biota index provided."), &
+            ErrorInstance(code=903, message="Invalid Reactor index provided."), &
+            ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.") &
         ])
+
+        ! Get config options from the config file
+        ! TODO: NOT WORKING
+        ! call config%initialize()
+        ! call config%load_file(filename = '../config.json')
+        ! if (config%failed()) call ERROR_HANDLER%trigger( &
+        !     error = ErrorInstance(code=200, message="Config file config.json not found."))
+        ! ! call config%get('data.input_file', C%inputFile, jsonVarFound)
+        ! ! if (.not. jsonVarFound) call ERROR_HANDLER%queue(201, message="data.input_file variable not found in config file.")
+        ! call config%get('run.timestep', C%timeStep, jsonVarFound)
+        ! if (.not. jsonVarFound) call ERROR_HANDLER%queue( &
+        !     error = ErrorInstance(201, message="run.timestep variable not found in config file."))
+        ! call config%get('run.n_timesteps', C%nTimeSteps, jsonVarFound)
+        ! if (.not. jsonVarFound) call ERROR_HANDLER%queue( &
+        !     error = ErrorInstance(201, message="run.n_timesteps variable not found in config file."))
+
+        ! call config%destroy()
 
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only

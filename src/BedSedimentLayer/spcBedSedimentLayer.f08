@@ -4,6 +4,8 @@ module spcBedSedimentLayer                                           !! abstract
     use Globals
     use ResultModule                                                 !! error handling classes, required for
     use ErrorInstanceModule                                          !! generation of trace error messages
+    use spcFineSediment                                              !! USEs FineSediment superclass
+    use classBedSedimentLayer1                                       !! USEs all subclasses of FineSediment
     implicit none                                                    !! force declaration of all variables
     type FineSedimentElement
         class(FineSediment), allocatable :: item                     !! Storing polymorphic class(FineSediment) in derived type so that a set of
@@ -14,14 +16,14 @@ module spcBedSedimentLayer                                           !! abstract
                                                                      !! properties
         class(FineSedimentElement), public, allocatable :: &
         colFineSediments(:)                                          !! collection of FineSediment objects
-        real(dp), public :: C_total                                  !! total capacity [m3 -2]
-        real(dp), public :: V_c                                      !! coarse material volume [m3 m-2]
-        real(dp), public, allocatable :: pd_comp(:)                  !! particle densities of sediment components [kg m-3]
-        integer, private :: nSizeClasses                             !! number of sediment size classes
-        integer, private :: nFComp                                   !! number of fractional composition terms for sediment
-        real(dp), private, allocatable :: C_f_l(:)                   !! LOCAL capacity for fine sediment [m3 m-2]
-        real(dp), private, allocatable :: C_w_l(:)                   !! LOCAL capacity for water [m3 m-2]
-        integer, private :: allst                                    !! array allocation status
+        real(dp) :: C_total                                          !! total capacity [m3 m-2]
+        real(dp) :: V_c                                              !! coarse material volume [m3 m-2]
+        real(dp), allocatable :: pd_comp(:)                          !! particle densities of sediment components [kg m-3]
+        integer :: nSizeClasses                                      !! number of sediment size classes
+        integer :: nFComp                                            !! number of fractional composition terms for sediment
+        real(dp), allocatable :: C_f_l(:)                            !! LOCAL capacity for fine sediment [m3 m-2]
+        real(dp), allocatable :: C_w_l(:)                            !! LOCAL capacity for water [m3 m-2]
+        integer :: allst                                             !! array allocation status
     contains
                                                                      !! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: A_f => GetAf                            !! available capacity for a fine sediment size fraction
@@ -29,6 +31,7 @@ module spcBedSedimentLayer                                           !! abstract
         procedure, public :: C_f => GetCf                            !! return total capacity for a fine sediment size fraction
         procedure, public :: C_w => GetCw                            !! return total capacity for water associated with a fine sediment size fraction
         procedure, public :: volSLR => GetvolSLR                     !! return volumetric solid:liquid ratio for this layer; applies to all size classes
+        procedure, public :: C_f_layer => GetCflayer                 !! return total fine sediment capacity in the layer
         procedure, public :: M_f_layer => GetMflayer                 !! return total fine sediment mass in the layer
         procedure, public :: V_f_layer => GetVflayer                 !! return total fine sediment volume in the layer
         procedure, public :: V_w_layer => GetVwlayer                 !! return total water volume in the layer
@@ -48,33 +51,37 @@ module spcBedSedimentLayer                                           !! abstract
     end type
     abstract interface
         !> create a BedSedimentLayer object and its incorporated BedSediment objects
-        function createBedSedimentLayer1(Me, &
-                                         nsc, &
-                                         FSType, &
-                                         C_tot, &
-                                         V_f(:), &
-                                         M_f(:), &
-                                         f_comp(::), &
-                                         pd_comp(:), &
-                                         Porosity) result(r)
+        function createBedSedimentLayer(Me, &
+                                        n, &
+                                        nsc, &
+                                        FSType, &
+                                        C_tot, &
+                                        V_f(:), &
+                                        M_f(:), &
+                                        f_comp(::), &
+                                        pd_comp(:), &
+                                        Porosity) result(r)
                                                                      !! sets number of particle size classes
                                                                      !! reads in fixed layer volume
                                                                      !! reads in volumes of fine sediment and water in each size class
                                                                      !! sets volume of coarse material
             implicit none
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
+            character(len=256) :: n                                  !! a name for the object
             integer, intent(in) :: nsc                               !! the number of particle size classes
             integer, intent(in) :: FSType                            !! the type identification number of the FineSediment(s)
             real(dp), intent(in) :: C_tot                            !! the total volume of the layer
             real(dp), intent(in), optional, allocatable :: V_f(:)    !! set of fine sediment volumes, if being used to define layer
             real(dp), intent(in), optional, allocatable :: M_f(:)    !! set of fine sediment masses, if being used to define layer
             real(dp), intent(in), allocatable :: f_comp(::)          !! set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
-            real(dp), intent(in), allocatable :: pd_comp(:)          !! set of fractional particle densities
+            real(dp), intent(in), allocatable :: pdcomp(:)           !! set of fractional particle densities
             real(dp), intent(in), optional :: Porosity               !! layer porosity, if being used to define layer
             type(Result), intent(out) :: r                           !! The Result object.
-            type(ErrorInstance) :: error                             !! To return errors
+            type(ErrorCriteria) :: er                                !! LOCAL ErrorCriteria object for error handling.
             type(FineSediment1) :: fs1                               !! LOCAL object of type FineSediment1, for implementation of polymorphism
             real(dp) :: slr                                          !! LOCAL volumetric solid:liquid ratio
+            character(len=*) :: tr                                   !! LOCAL name of this procedure, for trace
+            logical :: criterr                                       !! LOCAL .true. if one or more critical errors tripped
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -84,6 +91,7 @@ module spcBedSedimentLayer                                           !! abstract
             ! Function inputs
             ! -------------------------------------------------------------------------------
             ! Function takes as inputs:
+            ! n (character)         a name unambiguously identifying the object
             ! nsc (integer)         the number of size classes of sediment
             ! FStype (integer)      the subtype of the spcFineSediment Superclass to use
             !                       to create fine sediment objects
@@ -109,9 +117,8 @@ module spcBedSedimentLayer                                           !! abstract
             ! -------------------------------------------------------------------------------
         end function
         !> destroy this object
-        function destroyBedSedimentLayer
-            ! TODO: logic here
-        end function
+        subroutine destroyBedSedimentLayer(Me)
+        end subroutine
         !> add sediment and water to this layer
         function AddSediment(Me, S, F) result(r)
             implicit none
@@ -236,6 +243,16 @@ module spcBedSedimentLayer                                           !! abstract
             do x = 1, Me%nSizeClasses
                 Mf_layer = Mf_layer + &
                             Me%colFineSediment(x)%item%M_f           !! sum across all size classes
+            end do
+        end function
+        !> return the sediment capacity in the layer across all size fractions
+        pure function GetCflayer(Me) result (Cf_layer)
+            implicit none
+            class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
+            real(dp), intent(out) :: Cf_layer                        !! return value
+            integer :: s                                             !! loop counter
+            do s = 1, Me%nSizeClasses
+                Cf_layer = Cf_layer +  Me%GetCf(s)                   !! sum across all size classes
             end do
         end function
         !> return the sediment volume in the layer across all size fractions

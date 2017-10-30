@@ -1,6 +1,5 @@
-! Test implementation of the bed sediment and biota classes.
 program main
-    use Globals                                 ! For error handling. ErrorCriteria object is ERROR_HANDLER
+    use Globals
     use UtilModule
     use classBedSedimentLayer1
     use classRiverReach1
@@ -18,7 +17,7 @@ program main
     call cpu_time(start)                                                ! Simulation start time
 
     r = env%create()                                                    ! Create the environment
-    do t=1, 8760
+    do t=1, 365
         r = env%update(t)                                               ! Run the simulation for 1 year
         do x = 1, size(env%colGridCells, 1)                             ! Loop through the rows
             do y = 1, size(env%colGridCells, 2)                         ! Loop through the columns

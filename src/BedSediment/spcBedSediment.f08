@@ -13,11 +13,12 @@ module spcBedSediment                                                !! abstract
     type, abstract, public :: BedSediment                            !! type declaration for superclass
         character(len=256) :: name                                   !! a name for the object
                                                                      !! define variables for 'has a' objects: BedSedimentLayer
-        class(BedSedimentLayerElement), public, allocatable :: &
+        class(BedSedimentLayerElement), allocatable :: &
         colBedSedimentLayers(:)                                      !! collection of BedSedimentLayer objects
                                                                      !! properties
         integer :: nSizeClasses                                      !! number of fine sediment size classes
         integer :: nLayers                                           !! number of layers (BedSedimentLayer objects)
+        integer :: nFComp                                            !! number of fractional composition terms for sediment
         integer :: allst                                             !! array allocation status
                                                                      !! any private variable declarations go here
     contains
@@ -39,6 +40,54 @@ module spcBedSediment                                                !! abstract
         procedure, public :: Mf_sed_all => Get_Mf_sed_all            !! fine sediment mass in all size classes
     end type
     abstract interface
+        !> compute deposition to bed sediment, including burial and downward shifting of fine sediment and water
+        function DepositSediment(Me, D) result (r)
+            ! TODO: replace D with real array to represent SPM *masses* only
+            class(BedSediment) :: Me                                 !! self-reference
+            type(FineSedimentElement), intent(in), allocatable :: D(:) !! Depositing sediment by size class
+            type(Result) :: r                                        !! returned Result object
+            type(FineSedimentElement), allocatable :: Q              !! LOCAL object to receive sediment being buried
+            type(FineSedimentElement), allocatable :: T              !! LOCAL object to receive sediment being buried
+            type(FineSedimentElement), allocatable :: U              !! LOCAL object to receive sediment that has been buried
+            integer :: S                                             !! LOCAL loop counter for size classes
+            integer :: L                                             !! LOCAL counter for layers
+            integer :: A                                             !! LOCAL second counter for layers
+            real(dp) :: A_f_sed                                      !! LOCAL available fine sediment capacity for size class
+            real(dp) :: deltaV_f_temp                                !! LOCAL volume of fine sediment requiring burial to create space for deposition
+            real(dp) :: deltaV_w_temp                                !! LOCAL volume of water requiring burial to create space for deposition
+            real(dp) :: V_f_b                                        !! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
+            real(dp) :: V_w_b                                        !! LOCAL available water capacity in the receiving layer [m3 m-2]
+            character(len=*) :: tr                                   !! LOCAL name of this procedure, for trace
+            logical :: criterr                                       !! LOCAL .true. if one or more critical errors tripped
+            !
+            ! Function purpose
+                ! -------------------------------------------------------------------------------
+            ! Deposit specified masses of fine sediment in each size class, and their
+            ! associated water. Function buries sediment and shifts remaining sediment down
+            ! to make space for deposition, if required
+            !
+            ! Function inputs
+            ! -------------------------------------------------------------------------------
+            ! Function takes as inputs:
+            ! D (FineSedimentElement)  FineSediment object representing the depositing fine
+            !                          sediment and water
+            !
+            ! Function outputs/outcomes
+            ! -------------------------------------------------------------------------------
+            !
+            ! Notes
+            ! -------------------------------------------------------------------------------
+            ! 1.    Currently does not account fully for sediment burial, in the sense that
+            !       it does not tally mass, volume and composition of buried material. This
+            !       will need to be added before burial losses of a chemical vector can be
+            !       computed.
+            !       ACTION: add code to mix FineSediments together and return a single
+            !       FineSediment object. This code can be used to tally up the sediment that
+            !       is lost through burial.
+            ! 2.    The FineSediment objects in D should not contain any water, but if they
+            !       do it is not a problem as it will be overwritten.
+            ! -------------------------------------------------------------------------------
+        end function
 !        function ResuspensionBedSediment(me, a, m_bed, alpha, omega, R_h, R_hmax) result(r)
 !            use Globals
 !            import BedSediment, Result0D

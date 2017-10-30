@@ -15,20 +15,23 @@ module spcSubRiver
     use ResultModule                                                ! error handling classes, required for
     use ErrorInstanceModule                                         ! generation of trace error messages
     use spcRiverReach                                               ! use containing object type
-    ! DO WE NEED TO USE ALL CONTAINING OBJECT TYPES?
     implicit none                                                   ! force declaration of all variables
+
     type RiverReachElement                                          ! container type for class(RiverReach), the actual type of the RiverReach class
         class(RiverReach), allocatable :: item                      ! a variable of type RiverReachElement can be of any object type inheriting from the
     end type                                                        ! RiverReach superclass
+
     type RoutingRef                                                 ! an internal user-defined type, defining a reference to a SubRiver sending water to this
         type(integer) :: gridX                                      ! SubRiver, or receiving water from it. Comprises row (X) and column (Y) references to the GridCell
         type(integer) :: gridY                                      ! containing the sending/receiving subriver
         type(integer) :: subRiver                                   ! (as this SubRiver) and the in-cell SubRiver reference number
     end type
+
     ! SubRiverPointer used for SubRiver inflows array, so the elements within can point to other GridCell's colSubRiver elements
     type SubRiverPointer
         class(SubRiver), pointer :: item => null()                  ! as item is a pointer, this definition can come before type(SubRiver)
     end type
+    
     type, abstract, public :: SubRiver                              ! type declaration for superclass
         character(len=100) :: ref                                   ! SubRiver reference of the format SubRiver_x_y_n, where x is GridCell row,
                                                                     ! y is GridCell column and n is SubRiver number in GridCell
@@ -46,9 +49,8 @@ module spcSubRiver
         real(dp) :: Qout                                            ! discharge from the Subriver [m3]
         real(dp), allocatable :: QrunoffTimeSeries(:)               ! Complete time series runoff data [m3/timestep]
         real(dp) :: Qrunoff                                         ! Initial runoff from the hydrological model [m3]
-        real(dp) :: tmpQout                                         ! Temporary variable to store Qout whilst other SubRivers are using previous timestep's Qout,
+        real(dp) :: tmpQout                                         ! Temporary variable to store Qout whilst other SubRivers are using previous timestep's Qout.
                                                                     ! Otherwise, Qin to a SubRiver might be set to the this timestep's Qout instead of the previous
-        ! TODO: I don't think me%spmIn is actually used - check
         real(dp), allocatable :: spmIn(:)                           ! Inflow SPM masses [kg] for each size class
         real(dp), allocatable :: spmOut(:)                          ! Outflow SPM masses [kg], one per size class
         real(dp), allocatable :: tmpSpmOut(:)                       ! Temporary outflow SPM masses (see tmpQout description)
@@ -69,8 +71,8 @@ module spcSubRiver
                                                                     ! -----------
         procedure(createSubRiver), deferred :: create               ! create the SubRiver object. Exposed name: create
         procedure(destroySubRiver), deferred :: destroy             ! remove the SubRiver object and all contained objects. Exposed name: destroy
-        procedure(routingSubRiver), deferred :: routing             ! route water and suspended solids through a SubRiver. Exposed name: routing
-        procedure(finaliseRoutingSubRiver), deferred :: finaliseRouting ! Finalise the routing by setting temp outflows to actual outflows
+        procedure(updateSubRiver), deferred :: update               ! route water and suspended solids through a SubRiver. Exposed name: routing
+        procedure(finaliseUpdateSubRiver), deferred :: finaliseUpdate ! Finalise the routing by setting temp outflows to actual outflows
         procedure :: getQOut => getQOutSubRiver                     ! Return the outflow Q [m3]
         procedure :: getSpmOut => getSpmOutSubRiver                 ! Return the outflow SPM for all size classes [kg]
         procedure :: getSpmOutBySizeClass => getSpmOutBySizeClassSubRiver ! Return the outflow SPM for an individual size class [kg]
@@ -97,13 +99,13 @@ module spcSubRiver
             class(SubRiver) :: me                                   ! the SubRiver instance
             type(Result) :: r                                       ! the result object
         end function
-        function routingSubRiver(me, t) result(r)                      ! routes inflow(s) through the SubRiver
+        function updateSubRiver(me, t) result(r)                      ! routes inflow(s) through the SubRiver
             import SubRiver, Result
             class(SubRiver) :: me                                   ! the SubRiver instance
             integer :: t                                            ! What time step are we on?
             type(Result) :: r                                       ! the result object
         end function
-        function finaliseRoutingSubRiver(me) result(r)
+        function finaliseUpdateSubRiver(me) result(r)
             import SubRiver, Result
             class(SubRiver) :: me
             type(Result) :: r

@@ -23,15 +23,18 @@ module classBedSediment1                                             ! class def
         ! TODO: everything
     end function
     !> compute resuspension from bed sediment
-    function ResuspendSediment1(Me, M_resusp, FS) result(R)
+    function ResuspendSediment1(Me, M_resusp) result(r)
         class(BedSediment) :: Me                                     !! self-reference
-        type(Result), intent(out) :: R                               !! Result object
-        real(dp), intent(in), allocatable :: M_resusp(:)             !! array of sediment masses to be resuspended [kg m-2]
-        type(FineSedimentElement), intent(out), allocatable :: FS(:) !! array of FineSediment objects returning resuspended material
-        type(FineSedimentElement), allocatable :: G                  !! LOCAL FineSediment object representing material to be resuspended
+        real(dp), intent(inout), allocatable :: M_resusp(:)          !! array of sediment masses to be resuspended [kg m-2]
+        !type(FineSedimentElement), intent(out), allocatable :: FS(::) !! array of FineSediment objects returning resuspended material.
+                                                                     !! Index 1 = size class, Index 2 = layer derived from
+        type(Result2D), intent(out) :: r                             !! returned Result object
+        type(FineSediment1), allocatable :: G                        !! LOCAL FineSediment object representing material to be resuspended
         real(dp) :: V_w_resusp                                       !! LOCAL the volume of water to be resuspended along with the fine sediment
         integer :: S                                                 !! LOCAL loop counter for size classes
         integer :: L                                                 !! LOCAL counter for layers
+        character(len=*) :: tr                                       !! LOCAL name of this procedure, for trace
+        logical :: criterr                                           !! LOCAL .true. if one or more critical errors tripped
         !
         ! Function purpose
         ! -------------------------------------------------------------------------------
@@ -41,65 +44,81 @@ module classBedSediment1                                             ! class def
         ! Function inputs
         ! -------------------------------------------------------------------------------
         ! Function takes as inputs:
-        ! M_resusp (real, dp)      array of fine sediment masses to be resuspended
-        ! FS (FineSedimentElement) array of FineSediment objects representing the
+        ! M_resusp (real, dp)      1D array of fine sediment masses to be resuspended
+        ! FS (FineSedimentElement) 2D array of FineSediment objects representing the
         !                          resuspended fine sediment and water
         !
         ! Function outputs/outcomes
         ! -------------------------------------------------------------------------------
-        ! FS returns the amounts of fine sediment and water resuspended from each size
-        ! class.
+        ! Result object R returns the amounts of fine sediment and water resuspended from each size
+        ! class as a "d array of FineSediment1.
+        ! M_resusp() returns the mass of sediment that could not be resuspended, so if
+        ! M_resusp(S) > 0 then the bed has been stripped of sediment of size class S.
         !
         ! Notes
         ! -------------------------------------------------------------------------------
         ! QUESTION: FS does not bring any inputs into the function. Should it be
-        !           allocated inside or outside the function
+        !           allocated inside or outside the function.
+        ! NOTE:     the 2-dimensional structure of FS is not necessary to consider
+        !           only resuspension of fine sediment and water, but it is implemented
+        !           for use with a chemical vector.
         ! -------------------------------------------------------------------------------
-        ! CRITICAL ERROR if size(M_resusp) <> nSizeClasses
-        ! CRITICAL ERROR if size(FS) <> nSizeClasses assuming FS is already allocated
-        ! WARNING if M_resusp(S) > Mf_sediment(S) for any size class S, i.e. if the
-        !         resuspension strips all fine sediment out
-        ! NOTE    if M_resusp(S) > Mf_sediment(S) then the resuspension and deposition
-        !         timestep must be reduced to prevent this situation. This should
-        !         actually be checked, and the timestep adjusted if necessary, in the
-        !         calling routine
+        if (size(M_resusp) /= nSizeClasses) then                     !! number of size classes must be consistent
+            r%AddError(message = "Number of resuspended sediment &
+                                  classes does not match &
+                                  number of size classes in &
+                                  sediment", &
+                         trace = Me%name // "ResuspendSediment1" &
+                      )                                              !! create error instance
+            return                                                   !! critical error, so exit immediately
+        end if
         allocate(G)                                                  !! set up FineSedimentElement variable G
-        ! QUESTION: is this the correct syntax?
-        do S = 1, Me%nSizeClasses                                    !! loop through all size classes
-            L = 1                                                    !! start with top layer
-            V_w_resusp = M_resusp(S) / O%volSLR                      !! the volume of water to be resuspended along with the fine sediment
-            G%item%SetM(M_resusp(S), V_w_resusp, &
-                O%colFineSediments(S)%item%f_comp)                   !! top layer: set up the temporary object G, with the resuspended mass and the same
+        allocate(FS(1:Me%nSizeClasses,1:Me%nLayers))                 !! allocation of FS (single layer)
+        associate (O => Me%colBedSedimentLayers(L)%item)             !! association for brevity
+            do S = 1, Me%nSizeClasses                                !! loop through all size classes
+                L = 1                                                !! start with top layer
+                V_w_resusp = M_resusp(S) / O%volSLR                  !! the volume of water to be resuspended along with the fine sediment
+                r%addError(.errors. G%item%SetM(M_resusp(S), &
+                           V_w_resusp, &
+                           O%colFineSediments(S)%item%f_comp)        !! top layer: set up the temporary object G, with the resuspended mass and the same
                                                                      !! fractional composition as the layer
-            do while G%item%M_f > 0
-                ! TODO: insert code for condition where whole bed is resuspended
-                associate (O => Me%colBedSedimentLayers(L)%item)     !! association for brevity
+                do while (G%item%M_f > 0 .and. L <= Me%nLayers)
                     if L > 1 then
-                            G%item%SetM &
-                        (f_comp_in=O%colFineSediments(S)%item%f_comp) !! sublayer: set up G with the fractional composition of the layer
+                        r%addError(.errors. G%item%SetM &
+                       (f_comp_in = &
+                        O%colFineSediments(S)%item%f_comp)           !! sublayer: set up G with the fractional composition of the layer
                     end if                                           !! the mass and water to be resuspended are already in the object
-                    O%RemoveSediment(S, G, FS(S)%item)               !! remove the resuspended sediment, put the resuspended sediment into FS(S) and
-                end associate
-                L = L + 1
-            end do                                                   !! the residual resuspended sediment into G. Repeat until all sediment has been
-        end do                                                       !! resuspended
+                    O%RemoveSediment(S, G, FS(S, L)%item)            !! remove the resuspended sediment, put the resuspended sediment into FS(S, L) and
+                    M_resusp(s) = M_resusp(s) - FS(S)%item%M_f       !! keep count of fine sediment that has been resuspended
+                   L = L + 1                                         !! the residual resuspended sediment into G. Repeat until all sediment has been
+                end do                                               !! resuspended, or sediment has been removed from all layers
+            end do
+        end associate
         deallocate(G)                                                !! release memory allocated to G
+        r = Result(data = FS)                                        !! add data output to Result object
     end function
-    !> compute deposition to bed sediment
-    function DepositSediment1(Me, D)
-        ! TODO: replace D with real array to represent SPM *masses* only
+    !> compute deposition to bed sediment, including burial and downward shifting of fine sediment and water
+    function DepositSediment1(Me, D, F_comp_D) result (r)
         class(BedSediment) :: Me                                     !! self-reference
-        type(FineSedimentElement), intent(in), allocatable :: D(:)   !! Depositing sediment by size class
+        real(dp), intent(in), allocatable :: D(:)                    !! Depositing sediment mass by size class
+        real(dp), intent(in), allocatable :: f_comp_D(::)            !! Depositing sediment fractional composition by size class.
+                                                                     !! Index 1 = size class, Index 2 = compositional fraction
+        type(Result) :: r                                            !! returned Result object
+        type(ErrorCriteria) :: er                                    !! LOCAL ErrorCriteria object for error handling.
+        type(FineSedimentElement), allocatable :: DS(:)              !! LOCAL FineSediment objects holding deposited material
         type(FineSedimentElement), allocatable :: Q                  !! LOCAL object to receive sediment being buried
         type(FineSedimentElement), allocatable :: T                  !! LOCAL object to receive sediment being buried
         type(FineSedimentElement), allocatable :: U                  !! LOCAL object to receive sediment that has been buried
         integer :: S                                                 !! LOCAL loop counter for size classes
         integer :: L                                                 !! LOCAL counter for layers
+        integer :: A                                                 !! LOCAL second counter for layers
         real(dp) :: A_f_sed                                          !! LOCAL available fine sediment capacity for size class
         real(dp) :: deltaV_f_temp                                    !! LOCAL volume of fine sediment requiring burial to create space for deposition
         real(dp) :: deltaV_w_temp                                    !! LOCAL volume of water requiring burial to create space for deposition
-        real(dp) :: V_f_b
-        real(dp) :: V_w_b
+        real(dp) :: V_f_b                                            !! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
+        real(dp) :: V_w_b                                            !! LOCAL available water capacity in the receiving layer [m3 m-2]
+        character(len=*) :: tr                                       !! LOCAL name of this procedure, for trace
+        logical :: criterr                                           !! LOCAL .true. if one or more critical errors tripped
         !
         ! Function purpose
         ! -------------------------------------------------------------------------------
@@ -128,14 +147,51 @@ module classBedSediment1                                             ! class def
         ! 2.    The FineSediment objects in D should not contain any water, but if they
         !       do it is not a problem as it will be overwritten.
         ! -------------------------------------------------------------------------------
-        ! CRITICAL ERROR if size(D) <> nSizeClasses
-        do S = 1, nSizeClasses
-            ! CRITICAL ERROR if D(S)%item%M_f < 0
-            D%item%fcomp_audit                                       !! audits the fractional composition of the depositing sediment
+        tr = Me%name // "%DepositSediment1"                          !! object and procedure binding name as trace
+        er = ERROR_HANDLER%notEqual(size(D), nSizeClasses, &         !! CRITICAL ERROR if size(D) <> nSizeClasses
+                                    message = "The number of fine &
+                                               sediment masses does &
+                                               not equal the number &
+                                               of size classes" &
+                                   )                                 !! error if added fine sediment volume is less than zero
+        if (er%GetCode) == 0) then                                   !! note condition here is ==, not /=
+            er%AddToTrace(tr)                                        !! add trace to error
+                    r%AddError(error = er)                           !! add error to result if tripped
+                    criterr = .true.                                 !! critical error
+        end if
+        if (size(f_comp_D, 1) /= nSizeClasses) then                  !! number of size classes must be consistent
+            r%AddError(message = "Input number of fractional &
+                                  compositions does not match &
+                                  number of size classes", &
+                       trace = tr &
+                      )                                              !! create error instance
+            criterr = .true.                                         !! critical error
+        end if
+        if (size(f_comp_D, 2) /= nFComp) then                        !! number of compositional fractions must be consistent
+            r%AddError(message = "Input number of fractional &
+                                  compositions does not match &
+                                  required number", &
+                       trace = tr &
+                      )                                              !! create error instance
+            criterr = .true.                                         !! critical error
+        end if
+        if (criterr == .true). return                                !! exit here if a critical error has been thrown
+        allocate(DS(1:nSizeClasses), stat = Me%allst)                !! allocate space for FineSediment objects
+        do S = 1, nSizeClasses                                       !! compose FineSediment objects from the inputs
+            DS(S)%item%SetM(Mf_in = D(S), &
+                            f_comp_in = f_comp_D(S,))                !! populate each FineSediment object
         end do
-        ! allocate(Q)                                                !! set up Q
-        ! allocate(T)                                                !! set up T
-        allocate(U)                                                  !! set up U
+        do S = 1, nSizeClasses                                       !! CRITICAL ERROR if D(S)%item%M_f < 0
+            er = D%item%fcomp_audit                                  !! audits the fractional composition of the depositing sediment, returns error instance
+            if (er%GetCode) == 0) then                               !! note condition here is ==, not /=
+                er%AddToTrace(tr)                                    !! add trace to error
+                r%AddError(error = er)                               !! add error to result if tripped
+                criterr = .true.                                     !! critical error
+            end if
+        end do
+        allocate(Q, stat = Me%allst)                                 !! set up Q
+        allocate(T, stat = Me%allst)                                 !! set up T
+        allocate(U, stat = Me%allst)                                 !! set up U
         do S = 1, nSizeClasses                                       !! loop through all size classes
             if (int(D(S)%item%V_f/Me%Cf_sediment(S))) then           !! check whether the depositing sediment in each size class exceeds the total
                 do L = 1, nLayers                                    !! capacity in the layer. If so, then remove all fine sediment, water and
@@ -167,8 +223,8 @@ module classBedSediment1                                             ! class def
                 deltaV_f_temp = D(S)%item%V_f - A_f_sed              !! reset the fine sediment burial requirement
                 do while (L > 0 .and. &
                          deltaV_f_temp + deltaV_w_temp > 0)          !! loop through each layer
-                    If deltaV_f_temp > 0 Then &
-                        Me%colBedSedimentLayers(L)%item%RemoveSediment(S, D(S), Q) !! ****
+                    If (deltaV_f_temp > 0) Then &
+        Me%colBedSedimentLayers(L)%item%RemoveSediment(S, D(S), Q)
                                                                      !! remove sediment from this layer into Q
                     L = L - 1                                        !! move up to next layer
                 end do
@@ -187,6 +243,7 @@ module classBedSediment1                                             ! class def
                                     > 0) &
                                     P%RemoveSediment(S, T, U)        !! attempt to remove sediment from layer A. Sediment that cannot be removed
                                                                      !! is returned in T, sediment that is removed is returned in U
+                                    ! TODO: tally up removed sediment from U on each loop
                                 A = A - 1                            !! shift up to next layer
                             end do
                         end associate assoc2
@@ -205,7 +262,7 @@ module classBedSediment1                                             ! class def
                                 O%colFineSediments%item%V_w          !! the volume of water required to maintain the required SLR in the layer
                                                                      !! compute the volume of water that needs to be added to maintain the required SLR
                         D(S)%item%SetV(V_w_in = V_w_b)               !! add this water into the depositing FineSediment object
-                        O%AddSediment(S, D(S))                       !! and add the fine sediment and water in deposition
+                        r%AddError(.errors. O%AddSediment(S, D(S)))  !! and add the fine sediment and water in deposition
                     end if
                 end associate
             end do

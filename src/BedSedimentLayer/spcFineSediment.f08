@@ -25,82 +25,81 @@ module spcFineSediment                                              !! abstract 
         procedure, public, deferred :: V_w => getWVol               !! returns the water volume [kg m-2]
         procedure, public, deferred :: rho_part => pdens            !! returns the fine sediment particle density [kg m-3]
         procedure, public, deferred :: audit_comp => audit_fcomp    !! audits the fractional composition
-        procedure, public, deferred :: IsEmpty => empty             !! check for presence of sediment and water
+        procedure, public, deferred :: IsEmpty => Empty             !! check for presence of sediment and water
         procedure, public, deferred :: Clear => ClearAll            !! clear all fine sediment and water from the object
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
     end type
     abstract interface
-        function createFineSediment(Me) result(r)
+        !> initialise this object
+        function createFineSediment1(Me, n, pd_comp_in(:)) &
+            result(r)
             implicit none
-            class(FineSediment) :: Me                               !! the FineSediment instance
-            type(Result) :: r                                       !! Result object
-                                                                    !! set up internal variables for the FineSediment object
-                                                                    !! these comprise the compositional variables used to compute the particle density
+            class(FineSediment) :: Me                                !! self-reference
+            character(len=256) :: n                                  !! a name for the object
+            real(dp), intent(in), allocatable :: pd_comp_in(:)       !! input array of particle densities for compositional fractions
+            type(Result) :: r                                        !! Result object
         end function
-        function setFSVol(Me, Vf_in, Vw_in, f_comp_in(:)) result(r) !! set the properties, using fine sediment volume [m3 m-2]
+        !> set the properties, using fine sediment volume [m3 m-2]
+        function setFSVol(Me, Vf_in, Vw_in, f_comp_in(:)) result(r)
             implicit none
-            class(FineSediment) :: Me                               !! the FineSediment instance
+            class(FineSediment) :: Me                               !! self-reference
             type(Result) :: r                                       !! Result object
             real(dp), optional :: Vf_in                             !! the fine sediment volume
             real(dp), optional :: Vw_in                             !! the water volume
             real(dp), optional, allocatable :: f_comp_in(:)         !! input fractional composition. Optional; if not present, stored composition is used
-                                                                    !! function to set properties given a fine sediment volume
          end function
-        function setFSMass(Me, Mf_in, Vw_in, f_comp_in(:)) result(r) !! set the properties, using fine sediment mass [kg m-2]
+        !> set the properties, using fine sediment mass [kg m-2]
+        function setFSMass(Me, Mf_in, Vw_in, f_comp_in(:)) result(r)
             implicit none
-            class(FineSediment) :: Me                               !! the FineSediment instance
+            class(FineSediment) :: Me                               !! self-reference
             type(Result) :: r                                       !! Result object
             real(dp), optional :: Mf_in                             !! the fine sediment mass
             real(dp), optional :: Vw_in                             !! the water volume
             real(dp), optional, allocatable :: f_comp_in(:)         !! input fractional composition. Optional; if not present, stored composition is used
-                                                                    !! function to set properties given a fine sediment volume
         end function
-        function getFSVol(Me) result(Vf)                            !! return the fine sediment volume [m3 m-2]
+        !> return the fine sediment volume [m3 m-2]
+        function getFSVol(Me) result(Vf)
             implicit none
-            class(FineSediment) :: Me                               !! the FineSediment instance
+            class(FineSediment) :: Me                               !! self-reference
             real(dp), intent(out) :: Vf                             !! the return value
-                                                                    !! function to return the fine sediment volume [m3 m-2]
-                                                                    !! Output: Vf = Fine sediment volume
         end function
-        function getFSMass(Me) result(Mf)                           !! return the fine sediment mass [kg m-2]
+        !> return the fine sediment mass [kg m-2]
+        function getFSMass(Me) result(Mf)
             implicit none
-            class(FineSediment) :: Me                               !! the FineSediment instance
+            class(FineSediment) :: Me                               !! self-reference
             real(dp), intent(out) :: Mf                             !! the return value
-                                                                    !! function to return the fine sediment mass [kg m-2]
-                                                                    !! Output: Mf = Fine sediment mass
         end function
-        function getWVol(Me) result(Vw)                             !! return the water volume [m3 m-2]
+        !> return the water volume [m3 m-2]
+        function getWVol(Me) result(Vw)
             implicit none
-            class(FineSediment) :: Me                               !! the FineSediment instance
+            class(FineSediment) :: Me                               !! self-reference
             real(dp), intent(out) :: Vw                             !! the return value
-                                                                    !! function to return the water volume [m3 m-2]
-                                                                    !! Output: Vf = water volume
         end function
-        function pdens(Me) result(rp)                               !! return the particle density [kg m-3]
+        !> return the particle density [kg m-3]
+        function pdens(Me) result(rp)
             implicit none
-            class(FineSediment) :: Me                               !! the FineSediment instance
+            class(FineSediment) :: Me                               !! self-reference
             real(dp) :: rp                                          !! return value: the particle density [kg m-3]
         end function
         !> audit the fractional composition
         function Audit_fcomp(Me)
             implicit none
-            class(FineSediment) :: Me                                !! the FineSediment instance
+            class(FineSediment) :: Me                                !! self-reference
             integer :: F                                             !! LOCAL loop counter
             real(dp) :: t_fcomp                                      !! LOCAL sum of fractional compositions
         end function
         !> check whether this object contains any fine sediment or water of the specified size class
         function Empty(Me) result(t)
             implicit none
-            class(FineSediment) :: Me                                !! the FineSediment instance
+            class(FineSediment) :: Me                                !! self-reference
             logical :: t                                             !! return value. True= V_f/M_f = V_w = 0. False= V_f/M_f > 0 .or. V_w > 0
         end function
         !> clear all fine sediment and water from the object
         subroutine ClearAll(Me)
             implicit none
-            class(FineSediment) :: Me                                !! the FineSediment instance
+            class(FineSediment) :: Me                                !! self-reference
             integer :: X                                             !! LOCAL loop counter
         end subroutine
     end interface
-    contains
 end module
 
