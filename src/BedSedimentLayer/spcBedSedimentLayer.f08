@@ -20,7 +20,7 @@ module spcBedSedimentLayer                                           !! abstract
         real(dp) :: V_c                                              !! coarse material volume [m3 m-2]
         real(dp), allocatable :: pd_comp(:)                          !! particle densities of sediment components [kg m-3]
         integer :: nSizeClasses                                      !! number of sediment size classes
-        integer :: nFComp                                            !! number of fractional composition terms for sediment
+        integer :: nfComp                                            !! number of fractional composition terms for sediment
         real(dp), allocatable :: C_f_l(:)                            !! LOCAL capacity for fine sediment [m3 m-2]
         real(dp), allocatable :: C_w_l(:)                            !! LOCAL capacity for water [m3 m-2]
         integer :: allst                                             !! array allocation status

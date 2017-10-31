@@ -1,18 +1,23 @@
-module classFineSediment1                                            !! definition for derived class FineSediment1
+module classFineSediment1                                            !! definition for class FineSediment1. Nonpolymorphic
     implicit none                                                    !! force declaration of all variables
-    type, public, extends(FineSediment) :: FineSediment1             !! type declaration for class
+    type, public :: FineSediment1                                    !! type declaration for class
+        character(len=256) :: name                                   !! a name for the object
+        real(dp) :: M_f_l                                            !! fine sediment mass [kg m-2]
+        real(dp) :: V_w_l                                            !! LOCAL volume of water associated with fine sediment [m3 m-2]
+        real(dp), allocatable :: f_comp(:)                           !! fractional composition [-]
+        real(dp), allocatable :: pd_comp_l(:)                        !! LOCAL storage of fractional particle densities [kg m-3]
+        integer :: NFComp                                            !! LOCAL number of fractional composition terms
     contains
         procedure, public :: create => createFineSediment1           !! sets up by reading variables required for computations
-        procedure, public :: SetV => setFSVol1                       !! set properties, using a fine sediment volume
-        procedure, public :: SetM => setFSMass1                      !! set properties, using a fine sediment mass
+        procedure, public :: setByV => setFSVol1                     !! set properties, using a fine sediment volume
+        procedure, public :: setByM => setFSMass1                    !! set properties, using a fine sediment mass
         procedure, public :: V_f => getFSVol1                        !! returns the fine sediment volume [m3 m-2]
         procedure, public :: M_f => getFSMass1                       !! returns the fine sediment mass [kg m-2]
         procedure, public :: V_w => getWVol1                         !! returns the water volume [kg m-2]
         procedure, public :: rho_part => pdens1                      !! returns the fine sediment particle density [kg m-3]
         procedure, public :: audit_comp => audit_fcomp1              !! check the fractional composition
         procedure, public :: IsEmpty => empty1                       !! check for presence of sediment and water
-        procedure, public, deferred ::
-         => ClearAll1            !! clear all fine sediment and water from the object
+        procedure, public :: ClearAll => ClearAll1                   !! clear all fine sediment and water from the object
     end type
     contains
         !> initialise this object
