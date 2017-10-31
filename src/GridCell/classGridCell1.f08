@@ -60,12 +60,19 @@ module classGridCell1
         type(NcGroup)         :: grp                  !! NetCDF group
         integer               :: s                    !! Iterator for SubRivers
         integer               :: t                    !! Iterator for time series
-        integer               :: rock_usle            !! % rock in top of soil profile, to calculate CFRG_usle param
+        real(dp)              :: usle_C_min(C%nTimeSteps)   !! Minimum cover factor for USLE
+        real(dp)              :: usle_C_av(C%nTimeSteps)    !! Average cover factor for USLE
+        integer               :: usle_rock            !! % rock in top of soil profile, to calculate usle_CFRG param
         character(len=100)    :: subRiverPrefix       !! Prefix for SubRivers ref, e.g. SubRiver_1_1
         real(dp)              :: subRiverLength       !! Length of the SubRivers
         real(dp), allocatable :: subRiverRunoffTimeSeries(:) !! Runoff to each SubRiver
         type(Result)          :: srR                  !! Result object for individual SubRivers
         type(SubRiver1), allocatable :: sr1           !! SubRiver1 object for storing created SubRiver1s in
+
+        ! Allocate the object properties that need to be
+        allocate(me%usle_C(C%nTimeSteps))
+        allocate(me%usle_alpha_half(C%nTimeSteps))
+        allocate(me%rusle2015_erodedSediment(C%nTimeSteps))
 
         ! DATA REQUIREMENTS
         ! number of grid cells
@@ -112,20 +119,129 @@ module classGridCell1
             end if
             allocate(subRiverRunoffTimeSeries(size(me%QrunoffTimeSeries)))
 
-            ! Get USLE params
-            var = grp%getVariable('C_usle')          ! Cover and land management factor [-]
-            call var%getData(me%C_usle)
-            var = grp%getVariable('K_usle')          ! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
-            call var%getData(me%K_usle)
-            var = grp%getVariable('P_usle')          ! Support practice factor [-]
-            call var%getData(me%P_usle)
-            var = grp%getVariable('LS_usle')         ! Topographic factor [-]
-            call var%getData(me%K_usle)
-            var = grp%getVariable('rock_usle')       ! % rock in top of soil profile [-]
-            call var%getData(rock_usle)
-            me%CFRG_usle = exp(-0.052*rock_usle)     ! Coarse fragment factor [-]
-            var = grp%getVariable('erodedSedimentRUSLE')    ! RUSLE2015's calculated eroded sediment
-            call var%getData(me%erodedSedimentRUSLE)
+            !-- SOIL EROSION -------------------------------------------------------------!
+            ! C     Cover and land management factor, defined as the ratio of soil loss
+            !       from land cropped under specified conditions to the corresponding loss
+            !       from clean-tilled, continuous flow. Should be time-dependent (as crop
+            !       cover changes).
+            if (grp%hasVariable('usle_C')) then             ! First, check if time series of C-factors is available
+                var = grp%getVariable('usle_C')
+                call var%getData(me%usle_C)
+            else                                            ! Else, we can estimate C
+                if (grp%hasVariable('usle_C_min')) then     ! Use minimum C to estimate C
+                    var = grp%getVariable('usle_C_min')
+                    call var%getData(usle_C_min)
+                else if (grp%hasVariable('usle_C_av')) then ! Average annual C can be used to estimate minimum C
+                    var = grp%getVariable('usle_C_av')
+                    call var%getData(usle_C_av)
+                    usle_C_min = 1.463*ln(usle_C_av) + 0.1034
+                else                                        ! If neither exist, default C_min to 1 (fallow soil)
+                    call r%addError(ErrorInstance( &
+                        code = 201, &
+                        message = "Values for usle_C_min or usle_C_av not found in input file. " // &
+                                    "usle_C_min defaulting to 1 (fallow soil).", &
+                        isCritical = .false. &
+                    ))
+                    usle_C_min = 1
+                end if
+                if (grp%hasVariable('usle_rsd')) then       ! Residue on surface also needed to esimate C
+                    var = grp%getVariable('usle_rsd')
+                    call var%getData(usle_rsd)
+                else                                        ! Default to zero (no residue = no crops)
+                    call r%addError(ErrorInstance( &
+                        code = 201, &
+                        message = "Value for usle_rsd not found in input file. " // &
+                                    "Defaulting to 0 (no crops).", &
+                        isCritical = .false. &
+                    ))
+                    usle_rsd = 0
+                end if 
+                ! Defaults to 0.8, based on C_min = 1 and rsd = 0.
+                me%usle_C = exp((ln(0.8) - ln(usle_C_min))*exp(-0.00115*usle_rsd) + ln(usle_C_min))
+            end if
+            
+            ! K     Soil erodibility factor, which depends on soil structure and is treated as
+            !       time-independent.
+            if (grp%hasVariable('usle_K')) then
+                var = grp%getVariable('usle_K')
+                call var%getData(me%usle_K)
+            else
+                call r%addError(ErrorInstance( &
+                    code = 201, &
+                    message = "Value for usle_K not found in input file." &
+                ))
+                return              ! We can't carry on without usle_K, so return early
+            end if
+
+            ! P     Support practice factor, the ratio of soil loss with a specific support
+            !       practice to the corresponding loss with up-and-down slope culture. Support
+            !       practices: Contour tillage, strip-cropping, terrace systems.
+            if (grp%hasVariable('usle_P')) then
+                var = grp%getVariable('usle_P')
+                call var%getData(me%usle_P)
+            else
+                call r%addError(ErrorInstance( &
+                    code = 201, &
+                    message = "Value for usle_P not found in input file." // &
+                                "Defaulting to 1 (no support practice).", &
+                    isCritical = .false. &
+                ))
+                me%usle_P = 1
+            end if
+
+            ! LS    Topographic factor, a function of the terrain's topography.
+            if (grp%hasVariable('usle_LS')) then
+                var = grp%getVariable('usle_LS')
+                call var%getData(me%usle_LS)
+            else
+                call r%addError(ErrorInstance( &
+                    code = 201, &
+                    message = "Value for usle_LS not found in input file." &
+                ))
+                return              ! We can't carry on without usle_LS, so return early
+            end if
+
+            ! CFRG  Coase fragment factor, CFRG = exp(0.035 * % rock in first soil layer).
+            if (grp%hasVariable('usle_rock')) then
+                var = grp%getVariable('usle_rock')          ! % rock in top of soil profile [-]
+                call var%getData(usle_rock)
+                me%usle_CFRG = exp(-0.052*rock_usle)        ! Coarse fragment factor [-]
+            else
+                call r%addError(ErrorInstance( &
+                    code = 201, &
+                    message = "Value for usle_rock not found in input file." // &
+                                "Defaulting to 0 (no rock in top soil layer).", &
+                    isCritical = .false. &
+                ))
+                me%usle_CFRG = 1                            ! Default to 1 (rock_usle = 0)
+            end if
+
+            ! Params affecting q_peak
+            ! alpha_half        Fraction of rainfall happening in maximum half hour
+            if (grp%hasVariable('usle_alpha_half')) then
+                var = grp%getVariable('usle_alpha_half')
+                call var%getData(me%usle_alpha_half)
+            else
+                call r%addError(ErrorInstance( &
+                    code = 201, &
+                    message = "Value for usle_alpha_half not found in input file." // &
+                                "Defaulting to 0.33.", &
+                    isCritical = .false. &
+                ))
+                me%usle_alpha_half = 0.33                   ! Default to 0.33
+            end if
+
+            ! Other stuff:
+            ! area_hru
+            ! L_sb, n_sb, slp_sb, area_sb
+            ! slp_ch, L_ch
+
+
+            ! Check if RUSLE2015's eroded sediment data has been provided, for comparison's sake
+            if (grp%hasVariable('rusle2015_erodedSediment')) then
+                var = grp%getVariable('rusle2015_erodedSediment')
+                call var%getData(me%rusle2015_erodedSediment)
+            end if
             
             subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
                                 "_" // trim(str(me%gridY)) // "_"
@@ -233,33 +349,9 @@ module classGridCell1
         ! more logical names, e.g. CONFIG%soilErosion.
         ! TODO: Specify defaults when/where the config file is loaded, we don't
         ! want to be doing this on every time step!
-        if (C%soilErosion /= 'rusle2015' .and. C%soilErosion /= 'musle') then
-            ! Throw a warning if config isn't "data" or "musle"
-            call r%addError(ErrorInstance( &
-                code = 203, &
-                message = "Unknown soil erosion config option (" // &
-                            trim(C%soilErosion) // ") specified in config file. " // &
-                            "Defaulting to MUSLE.", &
-                isCritical = .false. &
-            ))
-            C%soilErosion = 'musle'             ! Default to MUSLE
-        end if
-        ! TODO: Move this to Database object
-        nc = NcDataset(C%inputFile, "r")        ! Open dataset as read-only
-        grp = nc%getGroup("Environment")
-        grp = grp%getGroup(me%ref)              ! Get this GridCell's group
-        ! Are we using MUSLE or data from input?
-        if (C%soilErosion == 'musle') then
-            ! Drive erosion with 10% of quickflow and convert to mm/day
-            Q_surf = ((me%QrunoffTimeSeries(t)*86400e2)/me%area)
-            ! var = grp%getVariable('alpha_half')     ! Fraction of rainfall falling in half-hour of highest intensity
-            ! call var%getData(alpha_half)
-            ! var = grp%getVariable('LS')             ! Topographic factor
-            ! call var%getData(LS)
-        else
-            ! Else, set this timestep's eroded sediment as that from RUSLE2015
-            me%erodedSediment = me%erodedSedimentRUSLE
-        end if
+        
+        Q_surf = ((me%QrunoffTimeSeries(t)*86400e2)/me%area)
+
     end function
 
 end module

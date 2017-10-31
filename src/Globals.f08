@@ -32,9 +32,6 @@ module Globals
         integer :: timeStep                 !! The timestep to run the model on [s].
         integer :: nTimeSteps               !! The number of timesteps.
 
-        ! Alogrithm choices
-        character(len=5) :: soilErosion = 'musle'
-
       contains
         procedure :: rho_w, nu_w
     end type

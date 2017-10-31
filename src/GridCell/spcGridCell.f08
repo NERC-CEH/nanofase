@@ -54,12 +54,13 @@ module spcGridCell
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
     real(dp), allocatable :: QrunoffTimeSeries(:)                    ! Runoff from the hydrological model
     real(dp) :: Qrunoff                                              ! Runoff from the hydrological model
-    real(dp) :: C_usle                                               ! Cover and land management factor [-]
-    real(dp) :: K_usle                                               ! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
-    real(dp) :: LS_usle                                              ! Topographic factor [-]
-    real(dp) :: P_usle                                               ! Support practice factor [-]
-    real(dp) :: CFRG_usle                                            ! Coarse fragment factor [-]
-    real(dp) :: erodedSedimentRUSLE                                  ! RUSLE2015 sediment yield for this GridCell (2010): https://esdac.jrc.ec.europa.eu/content/soil-erosion-water-rusle2015
+    real(dp), allocatable :: usle_C(:)                               ! Cover and land management factor time series [-]
+    real(dp) :: usle_K                                               ! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
+    real(dp) :: usle_LS                                              ! Topographic factor [-]
+    real(dp) :: usle_P                                               ! Support practice factor [-]
+    real(dp) :: usle_CFRG                                            ! Coarse fragment factor [-]
+    real(dp), allocatable :: usle_alpha_half(:)                      ! Fraction of rainfall falling during maximum half hour [-]
+    real(dp), allocatable :: rusle2015_erodedSediment(:)             ! RUSLE2015 sediment yield for this GridCell (2010): https://esdac.jrc.ec.europa.eu/content/soil-erosion-water-rusle2015
     real(dp) :: erodedSediment                                       ! Sediment yield eroded on this timestep [kg/timestep]
     logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS
