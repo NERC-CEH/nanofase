@@ -50,12 +50,12 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
-                        { "name" : "C_usle", "type" : "variable", "datatype" : "f8", "data" : 1 },
+                        { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "K_usle", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "LS_usle", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "P_usle", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "rock_usle", "type" : "variable", "datatype" : "f8", "data" : 1 },
-                        { "name" : "erodedSedimentRUSLE", "type" : "variable", "datatype" : "f8", "data" : 1 },
+                        { "name" : "rusle2015_sed", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         {
                             "name" :  "SubRiver_1_1_1",
                             "type" : "group",

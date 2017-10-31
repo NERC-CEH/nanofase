@@ -10,7 +10,3 @@ A list of the config options available in the config.json file.
 - `run`
     + `timestep` : Length of each timestep [s].
     + `n_timestep` : How many of these timesteps to run the model for [-].
-- `model`:
-    + `soil_erosion` : How should soil erosion be calculated? Defaults to "musle".
-        * "musle" to use MUSLE algorithm (requires relevant parameters in data file).
-        * "data" to get eroded sediment yield from input data. E.g., from ESDAC's RUSLE2015 dataset.
