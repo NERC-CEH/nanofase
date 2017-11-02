@@ -16,18 +16,18 @@ module classBedSediment1                                             ! class def
 !        procedure, public :: StreamPower => calculateStreamPowerBedSediment1
     end type
   contains
-    function createBedSediment1((Me, &
+    function createBedSediment1(Me, &
                                  n, &
-                                 ln(:), &
+                                 ln, &
                                  nsc, &
                                  nl, &
                                  bslType, &
-                                 C_tot(:), &
-                                 f_comp(:::), &
-                                 pd_comp(:), &
-                                 Porosity(:), &
-                                 V_f(::), &
-                                 M_f(::)) result(r)
+                                 C_tot, &
+                                 f_comp, &
+                                 pd_comp, &
+                                 Porosity, &
+                                 V_f, &
+                                 M_f) result(r)
         implicit none
         class(BedSediment) :: Me                                     !! self-reference
         type(Result), intent(out) :: r                               !! returned Result object
@@ -37,15 +37,15 @@ module classBedSediment1                                             ! class def
         integer, intent(in) :: nl                                    !! the number of layers
         integer, intent(in) :: bslType                               !! the type identification number of the BedSedimentLayer(s)
         real(dp), intent(in), allocatable :: C_tot(:)                !! the total volume of each layer. Index = layer
-        real(dp), intent(in), allocatable :: f_comp(:::)             !! set of fractional compositions
+        real(dp), intent(in), allocatable :: f_comp(:,:,:)             !! set of fractional compositions
                                                                      !! Index 1 = size class, Index 2 = compositional fraction, Index 3 = layer
         real(dp), intent(in), allocatable :: pdcomp(:)               !! set of fractional particle densities
                                                                      !! Index 1 = size class
         real(dp), intent(in), optional :: Porosity(:)                !! layer porosity, if being used to define layer
                                                                      !! Index 1 = layer
-        real(dp), intent(in), optional, allocatable :: V_f(::)       !! set of fine sediment volumes, if being used to define layers
+        real(dp), intent(in), optional, allocatable :: V_f(:,:)       !! set of fine sediment volumes, if being used to define layers
                                                                      !! Index 1 = size class, Index 2 = layer
-        real(dp), intent(in), optional, allocatable :: M_f(::)       !! set of fine sediment masses, if being used to define layers
+        real(dp), intent(in), optional, allocatable :: M_f(:,:)       !! set of fine sediment masses, if being used to define layers
                                                                      !! Index 1 = size class, Index 2 = layer
         integer :: L                                                 !! LOCAL loop counter
         type(BedSedimentLayer1) :: bsl1                              !! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
@@ -211,7 +211,7 @@ module classBedSediment1                                             ! class def
         implicit none
         class(BedSediment) :: Me                                     !! self-reference
         real(dp), intent(in), allocatable :: M_resusp(:)             !! array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
-        type(FineSediment1), intent(out), allocatable :: FS(::)      !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
+        type(FineSediment1), intent(out), allocatable :: FS(:,:)      !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
         type(Result), intent(out) :: r                               !! returned Result object
         type(FineSediment1), allocatable :: F                        !! LOCAL FineSediment object representing material that has been resuspended
         type(FineSediment1), allocatable :: G                        !! LOCAL FineSediment object representing material to be resuspended
@@ -235,7 +235,7 @@ module classBedSediment1                                             ! class def
         ! returns a warning if the resuspended mass in a size class exceeds the mass in the
         ! sediment bed
         !
-        ! FS(::) returns resuspended fine sediments, split by size class and layer
+        ! FS(:,:) returns resuspended fine sediments, split by size class and layer
         !
         ! Notes
         ! ----------------------------------------------------------------------------------
@@ -312,7 +312,7 @@ module classBedSediment1                                             ! class def
         implicit none
         class(BedSediment) :: Me                                     !! self-reference
         real(dp), intent(in), allocatable :: M_dep(:)                !! Depositing sediment mass by size class
-        real(dp), intent(in), allocatable :: f_comp_dep(::)          !! Depositing sediment fractional composition by size class
+        real(dp), intent(in), allocatable :: f_comp_dep(:,:)          !! Depositing sediment fractional composition by size class
                                                                      !! Index 1 = size class, Index 2 = compositional fraction
         real(dp), intent(out) :: V_w_tot                             !! water requirement from the water column [m3 m-2]
         type(Result) :: r                                            !! returned Result object
