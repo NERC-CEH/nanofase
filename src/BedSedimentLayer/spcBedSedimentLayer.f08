@@ -4,7 +4,6 @@ module spcBedSedimentLayer                                           !! abstract
     use Globals
     use ResultModule                                                 !! error handling classes, required for
     use ErrorInstanceModule                                          !! generation of trace error messages
-    use spcFineSediment                                              !! USEs FineSediment superclass
     use classBedSedimentLayer1                                       !! USEs all subclasses of FineSediment
     implicit none                                                    !! force declaration of all variables
     type FineSedimentElement

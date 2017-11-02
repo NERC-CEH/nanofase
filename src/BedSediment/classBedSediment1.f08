@@ -16,21 +16,202 @@ module classBedSediment1                                             ! class def
 !        procedure, public :: StreamPower => calculateStreamPowerBedSediment1
     end type
   contains
-    function createBedSediment1
+    function createBedSediment1((Me, &
+                                 n, &
+                                 ln(:), &
+                                 nsc, &
+                                 nl, &
+                                 bslType, &
+                                 C_tot(:), &
+                                 f_comp(:::), &
+                                 pd_comp(:), &
+                                 Porosity(:), &
+                                 V_f(::), &
+                                 M_f(::)) result(r)
+        implicit none
+        class(BedSediment) :: Me                                     !! self-reference
+        type(Result), intent(out) :: r                               !! returned Result object
+        character(len=256), intent(in) :: n                          !! a name for the object
+        character(len=256),  allocatable :: ln                       !! names for the layers. Index = layer
+        integer, intent(in) :: nsc                                   !! the number of particle size classes
+        integer, intent(in) :: nl                                    !! the number of layers
+        integer, intent(in) :: bslType                               !! the type identification number of the BedSedimentLayer(s)
+        real(dp), intent(in), allocatable :: C_tot(:)                !! the total volume of each layer. Index = layer
+        real(dp), intent(in), allocatable :: f_comp(:::)             !! set of fractional compositions
+                                                                     !! Index 1 = size class, Index 2 = compositional fraction, Index 3 = layer
+        real(dp), intent(in), allocatable :: pdcomp(:)               !! set of fractional particle densities
+                                                                     !! Index 1 = size class
+        real(dp), intent(in), optional :: Porosity(:)                !! layer porosity, if being used to define layer
+                                                                     !! Index 1 = layer
+        real(dp), intent(in), optional, allocatable :: V_f(::)       !! set of fine sediment volumes, if being used to define layers
+                                                                     !! Index 1 = size class, Index 2 = layer
+        real(dp), intent(in), optional, allocatable :: M_f(::)       !! set of fine sediment masses, if being used to define layers
+                                                                     !! Index 1 = size class, Index 2 = layer
+        integer :: L                                                 !! LOCAL loop counter
+        type(BedSedimentLayer1) :: bsl1                              !! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
         ! TODO: everything
+        !
+        ! Function purpose
+        ! ----------------------------------------------------------------------------------
+        ! deallocate all allocatable variables and call destroy methods for all
+        ! enclosed objects
+        !
+        ! Function inputs
+        ! ----------------------------------------------------------------------------------
+        ! none
+        !
+        ! Function outputs/outcomes
+        ! ----------------------------------------------------------------------------------
+        !
+        ! returns a warning if any deallocation throws an error
+        !
+        ! Notes
+        ! ----------------------------------------------------------------------------------
+        !
+        ! check n exists (len_trim /= 0)
+        ! check nsc > 0
+        ! check nl > 0
+        ! check all C_tot > 0
+        ! check one of V_f and M_f present
+        !   if both present, use V_f, add warning message
+        ! if V_f input:
+        !    check size consistent with number of size classes
+        !    check size consistent with number of layers
+        !    check all V_f > 0 and (later in code) V_f < C_tot for all layers
+        ! if M_f input:
+        !    check size consistent with number of size classes
+        !    check size consistent with number of layers
+        !    check all M_f > 0 (TODO: must check derived V_f < C_tot for all layers)
+        ! check size of ln consistent with number of layers
+        ! check indices of f_comp correct
+        ! check index of pd_comp consistent with index 2 of f_comp
+        ! check size of Porosity consistent with number of layers
+        ! for each layer in turn, call create method with relevant subarrays:
+        Me%nSizeClasses = nsc                                        !! set number of size classes
+        Me%nfComp = size(pdcomp)                                     !! set number of compositional fractions
+        Me%nLayers = nl                                              !! set number of layers
+        allocate Me%colBedSedimentLayers(1:nl)                       !! create BedSedimentLayer collection
+        do L =1, nLayers
+            associate (O => Me%colBedSedimentLayers(L)%item)         !! association for brevity
+                select case bslType                                  !! loop through possible BedSedimentLayer types
+                    case(1)                                          !! type number 1
+                        allocate (bsl1, stat = Me%allst)             !! allocate empty object of this type
+                        !! TODO: error checking here on stat
+                        if (present(Porosity)) then
+                            if (present(V_f)) then
+                                r%addErrors(.errors &
+                                call bsl1%create(ln(L), &
+                                                nsc, &
+                                                C_tot(L), &
+                                                f_comp(:,:,L), &
+                                                pd_comp, &
+                                                Porosity = Porosity, &
+                                                V_f = V_f(:,L) &
+                                                ) &
+                                           )                         !! if V_f and Porosity as present
+                            else
+                               r%addErrors(.errors &
+                               call bsl1%create(ln(L), &
+                                                nsc, &
+                                                C_tot(L), &
+                                                f_comp(:,:,L), &
+                                                pd_comp, &
+                                                Porosity = Porosity, &
+                                                M_f = M_f(:,L)
+                                                ) &
+                                           )                         !! if M_f and Porosity as present
+                            end if
+                        else
+                            if (present(V_f)) then
+                                r%addErrors(.errors &
+                                call bsl1%create(ln(L), &
+                                                nsc, &
+                                                C_tot(L), &
+                                                f_comp(:,:,L), &
+                                                pd_comp, &
+                                                V_f = V_f(:,L)
+                                                ) &
+                                           )                         !! if V_f is present and Porosity is absent
+                            else
+                                r%addErrors(.errors &
+                                call bsl1%create(ln(L), &
+                                                nsc, &
+                                                C_tot(L), &
+                                                f_comp(:,:,L), &
+                                                pd_comp, &
+                                                M_f = M_f(:,L)
+                                                ) &
+                                           )                         !! if M_f is present and Porosity is absent
+                            end if
+                        end if
+                        call move_alloc(bsl1, O)                     !! move bsl1 object into layers collection
+                    case default                                     !! invalid BedSedimentLayer type specified
+                                            !! CHECK SYNTAX v
+                        call r%AddError(.errors. &
+                                    message = "Invalid &
+                                               FineSediment &
+                                               object type &
+                                               specified" &
+                                       )                             !! add ErrorInstance
+                                            !! CHECK SYNTAX ^
+                        call r%addToTrace(tr)                        !! add trace to Result
+                        return                                       !! critical error, so exit
+                end select
+            end associate
+        end do
+        ! exit
+        ! ----------------------------------------------------------------------------------
     end function
-    function destroyBedSediment1
-        ! TODO: everything
+    !> deallocate all allocatable variables and call destroy methods for all enclosed objects
+    function destroyBedSediment1(Me) result(r)
+        implicit none
+        class(BedSediment) :: Me                                     !! self-reference
+        type(Result), intent(out) :: r                               !! returned Result object
+        type(ErrorCriteria) :: er                                    !! LOCAL ErrorCriteria object for error handling.
+        character(len=*) :: tr                                       !! LOCAL name of this procedure, for trace
+        character(len=18), parameter :: ms = "Deallocation error"    !! LOCAL CONSTANT error message
+        !
+        ! Function purpose
+        ! ----------------------------------------------------------------------------------
+        ! deallocate all allocatable variables and call destroy methods for all
+        ! enclosed objects
+        !
+        ! Function inputs
+        ! ----------------------------------------------------------------------------------
+        ! none
+        !
+        ! Function outputs/outcomes
+        ! ----------------------------------------------------------------------------------
+        !
+        ! returns a warning if any deallocation throws an error
+        !
+        ! Notes
+        ! ----------------------------------------------------------------------------------
+        !
+        ! no notes
+        ! ----------------------------------------------------------------------------------
+        do L = 1, Me%nLayers
+            r%addError(.errors. &
+                Me%colBedSedimentLayers(L)%item%destroy)             !! destroy enclosed BedSedimentLayers
+        end do
+        tr = Me%name // &
+            "%destroyBedSedimentLayer1%colBedSedimentLayers"         !! trace message
+        deallocate(Me%colBedSedimentLayers, stat = Me%allst)         !! deallocate all allocatable variables
+        if (stat /= 0) then
+            er = ERROR_HANDLER%ErrorInstance(666, &
+                                             ms, &
+                                             .false., &
+                                             tr &
+                                            )                        !! create warning if error thrown
+            r%addError(er)                                           !! add to Result
+        end if
     end function
     !> compute resuspension from bed sediment
-    function ResuspendSediment1(Me, M_resusp) result(r)
+    function resuspendSediment1(Me, M_resusp, FS) result(r)
+        implicit none
         class(BedSediment) :: Me                                     !! self-reference
         real(dp), intent(in), allocatable :: M_resusp(:)             !! array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
-        real(dp), intent(inout), allocatable :: FS(::)               !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
-        real(dp), intent(inout), allocatable :: W(::)                !! array returning resuspended water. Index 1 = size class, Index 2 = layer
-        real(dp), intent(inout), allocatable :: C(:::)               !! array returning resuspended fractional composition. Index 1 = size class, Index 2 = layer, Index 3 = fc
-        ! TODO: rework FS(::) as a set of dp arrays, not FineSediment object
-                                                                     !! Index 1 = size class, Index 2 = layer derived from
+        type(FineSediment1), intent(out), allocatable :: FS(::)      !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
         type(Result), intent(out) :: r                               !! returned Result object
         type(FineSediment1), allocatable :: F                        !! LOCAL FineSediment object representing material that has been resuspended
         type(FineSediment1), allocatable :: G                        !! LOCAL FineSediment object representing material to be resuspended
@@ -54,12 +235,7 @@ module classBedSediment1                                             ! class def
         ! returns a warning if the resuspended mass in a size class exceeds the mass in the
         ! sediment bed
         !
-        ! FS(::) returns masses of resuspended fine sediment, split by size class and layer
-        !
-        ! FS(::) returns volumes of resuspended water, split by size class and layer
-        !
-        ! C(:::) returns fractional composition of resuspended fine sediment, split by
-        !        size class, layer and fraction
+        ! FS(::) returns resuspended fine sediments, split by size class and layer
         !
         ! Notes
         ! ----------------------------------------------------------------------------------
@@ -85,7 +261,8 @@ module classBedSediment1                                             ! class def
         allocate(C(1:Me%nSizeClasses,1:Me%nLayers, 1:Me%nFComp), &
                                              stat = Me%allst)        !! allocation of output array C
         do S = 1, Me%nSizeClasses                                    !! loop through all size classes
-            call r%addErrors(.errors. G%setByM(Mf_in = M_resusp(S)) &
+            call r%addErrors(.errors. G%setByM(Mf_in = M_resusp(S) &
+                                              ) &
                             )                                        !! top layer: set up the temporary object G, with the resuspended mass
             if (r%hasCriticalError) then
                 call r%addToTrace(tr)
@@ -103,15 +280,16 @@ module classBedSediment1                                             ! class def
                         return                                       !! exit if a critical error has been thrown
                     end if
                     call r%addErrors(.errors. &
-                                        O%RemoveSediment(S, G, F), &
+                                        O%removeSediment(S, G, F), &
                                     )                                !! remove the resuspended sediment, put the resuspended sediment into F
                     if (r%hasCriticalError) then
                         call r%addToTrace(tr)
                         return                                       !! exit if a critical error has been thrown
                     end if
-                    FS(L, S) = F%M_f                                 !! set fine sediment mass in output array
-                    W(L, S) = F%V_w                                  !! set water volume in output array
-                    C(L, S, :) = F%f_comp                            !! set fractional composition in output array
+
+                    call FS(L, S)%setByM(Mf_in = F%M_f, &
+                                         Vw_in = F%V_w, &
+                                         f_comp_in = F%f_comp)       !! set resuspended fine sediment mass, water volume and fractional composition
                     M_resusp(S) = M_resusp(S) - FS(L, S)             !! keep count of fine sediment that has been resuspended
                     L = L + 1                                        !! the residual resuspended sediment into G. Repeat until all sediment has been
                 end do                                               !! resuspended, or sediment has been removed from all layers
@@ -130,7 +308,8 @@ module classBedSediment1                                             ! class def
         deallocate(G)                                                !! release memory allocated to G
     end function
     !> compute deposition to bed sediment, including burial and downward shifting of fine sediment and water
-    function DepositSediment1(Me, M_dep, f_comp_dep, V_w_tot) result (r)
+    function depositSediment1(Me, M_dep, f_comp_dep, V_w_tot) result (r)
+        implicit none
         class(BedSediment) :: Me                                     !! self-reference
         real(dp), intent(in), allocatable :: M_dep(:)                !! Depositing sediment mass by size class
         real(dp), intent(in), allocatable :: f_comp_dep(::)          !! Depositing sediment fractional composition by size class
@@ -185,12 +364,12 @@ module classBedSediment1                                             ! class def
                                        not equal the number &
                                        of size classes"   &
                            )                                         !! CRITICAL ERROR if size(D) <> nSizeClasses
-        if (size(f_comp_dep, 1) /= nSizeClasses) &                   !! number of size classes must be consistent
+        if (size(f_comp_dep, 1) /= Me%nSizeClasses) &                !! number of size classes must be consistent
             call r%AddError(message = "Input number of fractional &
                                        compositions does not match &
                                        number of size classes", &
                            )
-        if (size(f_comp_dep, 2) /= nFComp) &                         !! number of compositional fractions must be consistent
+        if (size(f_comp_dep, 2) /= Me%nFComp) &                      !! number of compositional fractions must be consistent
             call r%AddError(message = "Input number of fractional &
                                        compositions does not match &
                                        required number", &
@@ -201,9 +380,11 @@ module classBedSediment1                                             ! class def
         end if
         allocate(DS(1:nSizeClasses), stat = Me%allst)                !! allocate space for FineSediment1 objects
         do S = 1, nSizeClasses                                       !! compose FineSediment1 objects from the inputs
-            DS(S)%setByM(Mf_in = M_dep(S), &
-                     f_comp_in = f_comp_dep(S,:) &
-                        )                                            !! populate DS with depositing sediment and its fractional composition
+            call r%AddErrors(.errors. &
+                 DS(S)%setByM(Mf_in = M_dep(S), &
+                          f_comp_in = f_comp_dep(S,:) &
+                             ) &
+                            )                                        !! populate DS with depositing sediment and its fractional composition
         end do
         do S = 1, nSizeClasses
             call r%AddErrors(.errors. DS(S)%fcomp_audit)             !! audits fractional composition of deposition, returns error instance
@@ -218,7 +399,7 @@ module classBedSediment1                                             ! class def
         do S = 1, nSizeClasses                                       !! loop through all size classes
             if (int(DS(S)%V_f / Me%Cf_sediment(S)) > 0) then         !! check whether the depositing sediment in each size class exceeds the total
                 do L = 1, nLayers                                    !! capacity in the layer. If so, then remove all fine sediment, water and
-                    call Me%colBedSedimentLayers(L)%ClearAll         !! fractional compositions from all layers for this size class
+                    call Me%colBedSedimentLayers(L)%clearAll         !! fractional compositions from all layers for this size class
                     ! TODO: tally up the sediment being buried at this point
                 end do
             end if
@@ -226,8 +407,11 @@ module classBedSediment1                                             ! class def
         do S = 1, nSizeClasses
             A_f_sed = Me%Af_sediment(S)                              !! local copy of the capacity for this sediment size class in the whole bed
             if (DS(S)%V_f > A_f_sed) then                            !! do we need to bury sediment to create available capacity for deposition?
-                call T%setByV(Vf_in = DS(S)%V_f - A_f_sed, &
-                              Vw_in = 0)                             !! set up temporary FineSediment object with volume of fine sediment requiring burial
+                call r%addErrors(.errors. &
+                             T%setByV(Vf_in = DS(S)%V_f - A_f_sed, &
+                                      Vw_in = 0 &
+                                     ) &
+                                )                                    !! set up temporary FineSediment object with volume of fine sediment requiring burial
                                                                      !! to compute the volume of water requiring burial, we must loop through layers
                                                                      !! from the top, computing for each layer the volume of fine sediment that must be
                                                                      !!  removed to allow space for deposition, and the volume of water associated with the
@@ -239,29 +423,38 @@ module classBedSediment1                                             ! class def
                                                                      !! after accounting for the capacity in layers above?
                                                                      !! no, so increase water removal requirement by the water capacity of this layer
                                                                      !! and decrease the count of remaining depositing fine sediment by the capacity
-                            call T%setByV(Vf_in = T%V_f - O%C_f(S), &
+                            call r%addErrors(.errors. &
+                                 T%setByV(Vf_in = T%V_f - O%C_f(S), &
                                           Vw_in = T%V_w + O%C_w(S) &
-                                         )
+                                         ) &
+                                            )
                         else                                         !! yes,
                                                                      !! so increase the water burial requirement by the amount required to maintain the SLR in this layer
                                                                      !! and set the count of fine sediment to zero, to jump out of the loop
                             tempV = T%V_f / O%volSLR                 !! temporary variable
-                            T%setByV(Vf_in = 0, &
-                                     Vw_in = T%V_w + tempV &
-                                    )
+                            call r%addErrors(.errors. &
+                                 T%setByV(Vf_in = 0, &
+                                          Vw_in = T%V_w + tempV &
+                                         ) &
+                                            )
                         end if
                     end associate
                     L = L + 1
                 end do
                                                                      !! now to actually bury fine sediment and water
-                call T%setByV(Vf_in = DS(S)%item%V_f - A_f_sed)      !! reset the fine sediment burial requirement, still using temporary object T
+
+                call r%addErrors(.errors. &
+                     T%setByV(Vf_in = DS(S)%item%V_f - A_f_sed &
+                             ) &
+                                )                                    !! reset the fine sediment burial requirement, still using temporary object T
                 L = nLayers                                          !! start with the bottom layer
                 do while (L > 0 .and. T%V_f + T%V_w > 0)             !! loop through each layer, while there is still material to bury
                     if (deltaV_f_temp > 0) Then
                         associate(O => &
                             Me%colBedSedimentLayers(L)%item)         !! association reference to layer L object
                             call r%addErrors(.errors. &
-                                O%RemoveSediment(S, B, T))           !! remove sediment from this layer into B. T returns unburied sediment
+                                O%removeSediment(S, B, T) &
+                                            )                        !! remove sediment from this layer into B. T returns unburied sediment
                         end associate
                         if (r%hasCriticalError) then                 !! if RemoveSediment throws a critical error
                             call r%addToTrace(tr)                    !! add trace to all errors
@@ -277,15 +470,17 @@ module classBedSediment1                                             ! class def
                         A = L - 1                                    !! counter for donating layers - initially the layer above
                         assoc2 : associate &
                             (P => Me%colBedSedimentLayers(A)%item)   !! association to "donating" layer A
-                            call T%setByV(Vf_in = O%A_f(S), &
+                            call r%addErrors(.errors. &
+                                 T%setByV(Vf_in = O%A_f(S), &
                                           Vw_in = O%A_w(S) &
-                                         )                           !! set FineSediment object T to hold sediment requiring removal
+                                         ) &
+                                            )                        !! set FineSediment object T to hold sediment requiring removal
                             do while (A > 0 .or. &
                                       T%IsEmpty .eqv. .false.)       !! loop through "donating" layers, moving upwards
                                 if (P%colFineSediments(S)%V_f > 0) &
                                     then                             !! if there is sediment in the "donating" layer
                                     call r%addErrors(.errors. &
-                                         P%RemoveSediment(S, U, T))  !! remove sediment (T) from the "donating" layer
+                                         P%removeSediment(S, U, T))  !! remove sediment (T) from the "donating" layer
                                                                      !! sediment that cannot be removed is returned in T
                                                                      !! for removal on the next pass through the loop
                                                                      !! sediment that is removed is returned in U
@@ -294,7 +489,7 @@ module classBedSediment1                                             ! class def
                                         return                       !! and exit
                                     end if
                                     call r%addErrors(.errors. &
-                                        O%AddSediment(S, U))         !! add the sediment in U to the "receiving" layer
+                                        O%addSediment(S, U))         !! add the sediment in U to the "receiving" layer
                                     if (r%hasCriticalError) then     !! if AddSediment throws a critical error
                                         call r%addToTrace(tr)        !! add trace to all errors
                                         return                       !! and exit
@@ -316,7 +511,7 @@ module classBedSediment1                                             ! class def
                         V_w_b = DS(S)%V_f / O%volSLR                 !! the volume of water needed to maintain SLR in the "receiving" layer,
                         DS(S)%setByV(Vw_in = V_w_b)                  !! if all deposition fits into this layer
                         call r%addError(.errors. &
-                            O%AddSediment(S, DS(S)))                 !! add the fine sediment in deposition. DS(S) returns volumes
+                            O%addSediment(S, DS(S)))                 !! add the fine sediment in deposition. DS(S) returns volumes
                                                                      !! that could not be added
                         if (r%hasCriticalError) then                 !! if AddSediment throws a critical error
                             call r%addToTrace(tr)                    !! add trace to all errors
