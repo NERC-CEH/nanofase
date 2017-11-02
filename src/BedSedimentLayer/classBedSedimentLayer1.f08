@@ -13,13 +13,9 @@ module classBedSedimentLayer1                                        !! class de
             procedure, public :: &
             destroy => destroyBedSedimentLayer1                      !! finaliser method
             procedure, public :: &
-            AddSediment => AddSedimentToLayer1                       !! add fine sediment to the layer
+            addSediment => addSediment1                              !! add fine sediment to the layer
             procedure, public :: &
-            AddWater => AddWaterToLayer1                             !! add water to layer
-            procedure, public :: &
-            RemoveSediment => RemoveSedimentFromLayer1               !! remove fine sediment from layer
-            procedure, public :: &
-            RemoveWater => RemoveWaterFromLayer1                     !! remove water from layer
+            removeSediment => removeSediment1                        !! remove fine sediment from layer
     end type
     contains
         !> initialise a BedSedimentLayer object
@@ -28,28 +24,27 @@ module classBedSedimentLayer1                                        !! class de
                                          nsc, &
                                          FSType, &
                                          C_tot, &
-                                         V_f(:), &
-                                         M_f(:), &
                                          f_comp(::), &
                                          pd_comp(:), &
-                                         Porosity) result(r)
+                                         Porosity, &
+                                         V_f(:), &
+                                         M_f(:)) result(r)
                                                                      !! sets number of particle size classes
                                                                      !! reads in fixed layer volume
                                                                      !! reads in volumes of fine sediment and water in each size class
                                                                      !! sets volume of coarse material
             implicit none
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
+            type(Result), intent(out) :: r                           !! The Result object.
             character(len=256) :: n                                  !! a name for the object
             integer, intent(in) :: nsc                               !! the number of particle size classes
-            integer, intent(in) :: S                                 !! LOCAL loop counter
             integer, intent(in) :: FSType                            !! the type identification number of the FineSediment(s)
             real(dp), intent(in) :: C_tot                            !! the total volume of the layer
-            real(dp), intent(in), optional, allocatable :: V_f(:)    !! set of fine sediment volumes, if being used to define layer
-            real(dp), intent(in), optional, allocatable :: M_f(:)    !! set of fine sediment masses, if being used to define layer
             real(dp), intent(in), allocatable :: f_comp(::)          !! set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
             real(dp), intent(in), allocatable :: pdcomp(:)           !! set of fractional particle densities
             real(dp), intent(in), optional :: Porosity               !! layer porosity, if being used to define layer
-            type(Result), intent(out) :: r                           !! The Result object.
+            real(dp), intent(in), optional, allocatable :: V_f(:)    !! set of fine sediment volumes, if being used to define layer
+            real(dp), intent(in), optional, allocatable :: M_f(:)    !! set of fine sediment masses, if being used to define layer
             type(ErrorCriteria) :: er                                !! LOCAL ErrorCriteria object for error handling.
             type(FineSediment1) :: fs1                               !! LOCAL object of type FineSediment1, for implementation of polymorphism
             character(len=*) :: tr                                   !! LOCAL name of this procedure, for trace
@@ -159,12 +154,14 @@ module classBedSedimentLayer1                                        !! class de
             allocate(Me%C_f_l(1:nsc, stat=Me%allst))                 !! allocate space for fine sediment capacity
             allocate(Me%C_w_l(1:nsc, stat=Me%allst))                 !! allocate space for water capacity
             allocate(Me%pd_comp(1:size(pd_comp), stat=Me%allst))     !! allocate space for particle densities of components
+            !! TODO: error checking here on stat
             do S = 1, nsc
                 associate (O => Me%colFineSediment(S)%item)          !! association for the FineSediment object we are working with
                                                                      !! this is done to reduce code length and increase readability
                     select case (FSType)                             !! loop through possible FineSediment object types
                         case(1)                                      !! Type FineSediment1
                             allocate (fs1, stat=Me%allst)            !! create FineSediment1 object
+                            !! TODO: error checking here on stat
                             call fs1%create(Me%pd_comp)              !! run constructor for this object
                             call move_alloc(fs1, O)                  !! move the object into the colFineSediment collection; this deallocates fs1
                         case default                                 !! not a recognised FineSediment type
@@ -247,20 +244,64 @@ module classBedSedimentLayer1                                        !! class de
             Me%V_c = C_tot - Me%V_m_layer                            !! set the coarse material volume
         end function
         !> destroy this object
-        subroutine destroyBedSedimentLayer1(Me)
-            deallocate(Me%colFineSediments)                          !! deallocate all allocatable variables
-            deallocate(pd_comp)
-            deallocate(C_f_l)
-            deallocate(C_w_l)
-        end subroutine
+        function destroyBedSedimentLayer1(Me) result(r)
+            class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
+            type(Result), intent(out) :: r                           !! The Result object
+            type(ErrorCriteria) :: er                                !! LOCAL ErrorCriteria object for error handling.
+            character(len=*) :: tr                                   !! LOCAL name of this procedure, for trace
+            character(len=18), parameter :: ms = "Deallocation error" !! LOCAL CONSTANT error message
+            tr = Me%name // &
+                "%destroyBedSedimentLayer1%colFineSediments"         !! trace message
+            deallocate(Me%colFineSediments, stat = Me%allst)         !! deallocate all allocatable variables
+            if (stat /= 0) then
+                er = ERROR_HANDLER%ErrorInstance(666, &
+                                                 ms, &
+                                                 .false., &
+                                                 tr &
+                                                )                    !! create warning if error thrown
+                r%addError(er)                                       !! add to Result
+            end if
+            tr = Me%name // &
+                "%destroyBedSedimentLayer1%pd_comp"                  !! trace message
+            deallocate(Me%pd_comp, stat = Me%allst)
+            if (stat /= 0) then
+                er = ERROR_HANDLER%ErrorInstance(666, &
+                                                 ms, &
+                                                 .false., &
+                                                 tr &
+                                                )                    !! create warning if error thrown
+                r%addError(er)                                       !! add to Result
+            end if
+            tr = Me%name // &
+                "%destroyBedSedimentLayer1%C_f_l"                    !! trace message
+            deallocate(Me%C_f_l, stat = Me%allst)
+            if (stat /= 0) then
+                er = ERROR_HANDLER%ErrorInstance(666, &
+                                                 ms, &
+                                                 .false., &
+                                                 tr &
+                                                )                    !! create warning if error thrown
+                r%addError(er)                                       !! add to Result
+            end if
+            tr = Me%name // &
+                "%destroyBedSedimentLayer1%C_w_l"                    !! trace message
+            deallocate(Me%C_w_l, stat = Me%allst)
+            if (stat /= 0) then
+                er = ERROR_HANDLER%ErrorInstance(666, &
+                                                 ms, &
+                                                 .false., &
+                                                 tr &
+                                                )                    !! create warning if error thrown
+                r%addError(er)                                       !! add to Result
+            end if
+        end function
         !> add sediment and water to this layer
-        function AddSediment1(Me, S, F) result(r)
+        function addSediment1(Me, S, F) result(r)
             implicit none
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             integer, intent(in) :: S                                 !! the particle size class
             type(FineSediment1), intent(inout) :: F                  !! FineSediment - holds material to be added
             type(Result), intent(out) :: r                           !! The Result object
-            type(ErrorCriteria) :: er                                !! LOCAL ErrorCriteria object for error handling.
             real(dp) :: add_M_f                                      !! LOCAL mass of fine sediment being added
             real(dp) :: add_V_f                                      !! LOCAL volume of fine sediment to be added
             real(dp) :: add_V_w                                      !! LOCAL volume of water to be added
@@ -281,8 +322,8 @@ module classBedSedimentLayer1                                        !! class de
             ! Function inputs
             ! -------------------------------------------------------------------------------
             ! Function takes as inputs:
-            ! S (integer)             the size class to which sediment is to be added
-            ! F (FineSedimentElement) object representing the FineSediment to be added
+            ! S (integer)       the size class to which sediment is to be added
+            ! F (FineSediment1) object representing the FineSediment to be added
             !
             ! Function outputs/outcomes
             ! -------------------------------------------------------------------------------
@@ -367,7 +408,7 @@ module classBedSedimentLayer1                                        !! class de
             end if
         end function
         !> remove sediment and water from this layer
-        function RemoveSediment1(Me, S, F, G) result(r)
+        function removeSediment1(Me, S, F, G) result(r)
             implicit none
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             integer, intent(in) :: S                                 !! the particle size class

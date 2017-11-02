@@ -18,7 +18,7 @@ module spcBedSediment                                                !! abstract
                                                                      !! properties
         integer :: nSizeClasses                                      !! number of fine sediment size classes
         integer :: nLayers                                           !! number of layers (BedSedimentLayer objects)
-        integer :: nFComp                                            !! number of fractional composition terms for sediment
+        integer :: nfComp                                            !! number of fractional composition terms for sediment
         integer :: allst                                             !! array allocation status
                                                                      !! any private variable declarations go here
     contains
@@ -41,7 +41,7 @@ module spcBedSediment                                                !! abstract
     end type
     abstract interface
         !> compute deposition to bed sediment, including burial and downward shifting of fine sediment and water
-        function DepositSediment(Me, D) result (r)
+        function depositSediment(Me, D) result (r)
             ! TODO: replace D with real array to represent SPM *masses* only
             class(BedSediment) :: Me                                 !! self-reference
             type(FineSedimentElement), intent(in), allocatable :: D(:) !! Depositing sediment by size class
