@@ -44,7 +44,7 @@ module classRiverReach1
         real(dp), allocatable :: spmDensities(:)                !! Array of sediment particle densities for each size class
 
         ! First, let's set the RiverReach's reference and the length
-        me%ref = trim(ref(x,y,s,r))
+        me%ref = trim(ref("RiverReach", x, y, s, r))
         me%l = l
         ! Allocate the arrays of size classes and set SPM to 0 to begin with
         allocate(me%rho_spm(C%nSizeClassesSpm), &
@@ -61,9 +61,9 @@ module classRiverReach1
         ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")
-        grp = grp%getGroup(trim(ref(x,y)))                      ! Get the GridCell we're in
-        grp = grp%getGroup(trim(ref(x,y,s)))                    ! Get the SubRiver we're in
-        me%ncGroup = grp%getGroup(trim(ref(x,y,s,r)))           ! Finally, get the actual RiverReach group
+        grp = grp%getGroup(trim(ref("GridCell", x, y)))         ! Get the GridCell we're in
+        grp = grp%getGroup(trim(ref("SubRiver", x, y, s)))      ! Get the SubRiver we're in
+        me%ncGroup = grp%getGroup(trim(me%ref))                 ! Finally, get the actual RiverReach group
         var = me%ncGroup%getVariable("slope")                   ! Get the slope
         call var%getData(me%S)
         if (me%ncGroup%hasVariable("f_m")) then                 ! If there is a meandering factor, get that

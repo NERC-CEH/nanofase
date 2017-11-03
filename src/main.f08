@@ -1,7 +1,7 @@
 program main
     use Globals
     use UtilModule
-    use classBedSedimentLayer1
+    use ResultModule
     use classRiverReach1
     use classEnvironment1
     implicit none
@@ -13,6 +13,7 @@ program main
 
     call GLOBALS_INIT()                                                 ! Set up global vars and constants
     open(unit=2,file='output.txt')                                      ! Open the output data file
+    open(unit=3,file='output_erosion.txt')
 
     call cpu_time(start)                                                ! Simulation start time
 
@@ -22,6 +23,7 @@ program main
         do x = 1, size(env%colGridCells, 1)                             ! Loop through the rows
             do y = 1, size(env%colGridCells, 2)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
+                    write(3,*) t, ", ", x, ", ", y, ", ", env%colGridCells(x,y)%item%erodedSediment
                     do s = 1, size(env%colGridCells(x,y)%item%colSubRivers) ! Loop through the SubRivers
                         ! Write to the data file
                         write(2,*) t, ", ", x, &
@@ -31,6 +33,7 @@ program main
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
+
                     end do
                 end if
             end do

@@ -10,7 +10,6 @@ module spcGridCell
                                                                      ! Description
                                                                      ! -----------
   use Globals                                                        ! global declarations
-  use netcdf                                                         ! input/output handling
   use mo_netcdf                                                      ! input/output handling
   use ResultModule                                                   ! error handling classes, required for
   use ErrorInstanceModule                                            ! generation of trace error messages
@@ -18,16 +17,9 @@ module spcGridCell
   use spcSoilProfile
   use classDiffuseSource
   use classPointSource
-  ! DO WE NEED TO USE ALL CONTAINING OBJECT TYPES?
   implicit none                                                      ! force declaration of all variables
-  ! MOVING UDTs TO THEIR RESPECTIVE MODULES AS, E.G., SubRiverElement NOT JUST USED HERE
-  ! BUT ALSO IN spcGridCell.
-  ! type SubRiverElement                                               ! container type for class(SubRiver), the actual type of the SubRiver class
-  !   class(SubRiver), allocatable :: item                             ! a variable of type SubRiver can be of any object type inheriting from the
-  ! end type                                                           ! RiverReach superclass
-  type SoilProfileElement                                            ! container type for class(SoilProfile), the actual type of the SoilProfile class
-    class(SoilProfile), allocatable :: item                          ! a variable of type SoilProfile can be of any object type inheriting from the
-  end type                                                           ! SoilProfile superclass
+
+                                                                    ! SoilProfile superclass
   type PointSourceElement                                            ! container type for class(PointSource), the actual type of the PointSource class
     class(PointSource), allocatable :: item                          ! a variable of type PointSource can be of any object type inheriting from the
   end type                                                           ! PointSource superclass
@@ -37,6 +29,7 @@ module spcGridCell
 
   type, abstract, public :: GridCell                                 ! type declaration for superclass
     character(len=256) :: ref                                        ! a name for the object
+    type(NcGroup) :: ncGroup                                         ! The NetCDF group for this dataset
                                                                      ! PROPERTIES
                                                                      ! Description
                                                                      ! -----------
@@ -54,14 +47,23 @@ module spcGridCell
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
     real(dp), allocatable :: QrunoffTimeSeries(:)                    ! Runoff from the hydrological model
     real(dp) :: Qrunoff                                              ! Runoff from the hydrological model
+    real(dp) :: slope                                                ! The slope of the GridCell
+    real(dp) :: n_river                                              ! Manning's roughness coefficient for the river
     real(dp), allocatable :: usle_C(:)                               ! Cover and land management factor time series [-]
     real(dp) :: usle_K                                               ! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
     real(dp) :: usle_LS                                              ! Topographic factor [-]
     real(dp) :: usle_P                                               ! Support practice factor [-]
     real(dp) :: usle_CFRG                                            ! Coarse fragment factor [-]
     real(dp), allocatable :: usle_alpha_half(:)                      ! Fraction of rainfall falling during maximum half hour [-]
+    real(dp) :: usle_area_hru                                          ! Area of the HRU corresponding to this GridCell
+    real(dp) :: usle_area_sb                                           ! Area of the subbasin corresponding to this GridCell
+    real(dp) :: usle_L_sb                                              ! Hillslope length for the subbasin
+    real(dp) :: usle_n_sb                                              ! Manning's roughness coefficient for the subbasin
+    real(dp) :: usle_slp_sb                                            ! Slope of the subbasin
+    real(dp) :: usle_slp_ch                                            ! Slope of the channel
+    real(dp) :: usle_L_ch                                              ! Hillslope length for the channel
     real(dp), allocatable :: rusle2015_erodedSediment(:)             ! RUSLE2015 sediment yield for this GridCell (2010): https://esdac.jrc.ec.europa.eu/content/soil-erosion-water-rusle2015
-    real(dp) :: erodedSediment                                       ! Sediment yield eroded on this timestep [kg/timestep]
+    real(dp), allocatable :: erodedSediment(:)                       ! Sediment yield eroded on this timestep [kg/timestep]
     logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
@@ -75,6 +77,7 @@ module spcGridCell
     procedure(updateGridCell), deferred :: update                    ! route water and suspended solids through all SubRiver objects. Exposed name: routing
     procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate  
     procedure(erodeSoilGridCell), deferred :: erodeSoil              ! Obtain soil erosion for a given timestep
+    procedure(imposeSizeDistributionGridCell), deferred :: imposeSizeDistribution
   end type
 
   type GridCellElement                                               ! Container type for polymorphic GridCells
@@ -110,6 +113,13 @@ module spcGridCell
       class(GridCell)     :: me               !! This GridCell instance
       integer             :: t                !! The timestep we're on
       type(Result)        :: r                !! The Result object
+    end function
+    function imposeSizeDistributionGridCell(me, mass) result(distribution)
+        use Globals
+        import GridCell
+        class(GridCell) :: me
+        real(dp) :: mass
+        real(dp) :: distribution(C%nSizeClassesSpm)
     end function
   end interface
 end module
