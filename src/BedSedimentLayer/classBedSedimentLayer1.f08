@@ -33,7 +33,6 @@ module classBedSedimentLayer1                                        !! class de
                                                                      !! reads in fixed layer volume
                                                                      !! reads in volumes of fine sediment and water in each size class
                                                                      !! sets volume of coarse material
-            implicit none
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             type(Result) :: r                           !! The Result object.
             character(len=256) :: n                                  !! a name for the object
@@ -171,19 +170,79 @@ module classBedSedimentLayer1                                        !! class de
             Me%nSizeClasses = nsc                                    !! store number of size classes
             Me%nfComp = size(f_comp, 2)                              !! store number of fractional composition terms
             Me%C_total = C_tot                                       !! assign the total volume
+            tr = Me%name // &
+                "%createBedSedimentLayer1%colFineSediment"           !! trace message
             allocate(Me%colFineSediment(1:nsc), stat=Me%allst)       !! set up fine sediment collection
+            if (stat /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error", &
+                                   .false., &
+                                   [tr] &
+                                  )                                  !! create warning if error thrown
+                call r%addError(er)                                  !! add to Result
+            end if
+            tr = Me%name // &
+                "%createBedSedimentLayer1%colFineSedimentResusp"     !! trace message
             allocate(Me%colFineSedimentResusp(1:nsc), stat=Me%allst) !! set up fine sediment collection to hold resuspension
+            if (stat /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error", &
+                                   .false., &
+                                   [tr] &
+                                  )                                  !! create warning if error thrown
+                call r%addError(er)                                  !! add to Result
+            end if
+            tr = Me%name // &
+                "%createBedSedimentLayer1%C_f_l"                     !! trace message
             allocate(Me%C_f_l(1:nsc), stat=Me%allst)                 !! allocate space for fine sediment capacity
+            if (stat /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error", &
+                                   .false., &
+                                   [tr] &
+                                  )                                  !! create warning if error thrown
+                call r%addError(er)                                  !! add to Result
+            end if
+            tr = Me%name // &
+                "%createBedSedimentLayer1%C_w_l"                     !! trace message
             allocate(Me%C_w_l(1:nsc), stat=Me%allst)                 !! allocate space for water capacity
+            if (stat /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error", &
+                                   .false., &
+                                   [tr] &
+                                  )                                  !! create warning if error thrown
+                call r%addError(er)                                  !! add to Result
+            end if
+            tr = Me%name // &
+                "%createBedSedimentLayer1%pd_comp"                   !! trace message
             allocate(Me%pd_comp(1:size(pd_comp)), stat=Me%allst)     !! allocate space for particle densities of components
-            !! TODO: error checking here on stat
+            if (stat /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error", &
+                                   .false., &
+                                   [tr] &
+                                  )                                  !! create warning if error thrown
+                call r%addError(er)                                  !! add to Result
+            end if
+            if (r%isCriticalError) return                            !! exit if allocation has thrown an error
             do S = 1, nsc
                 associate (O => Me%colFineSediment(S)%item)          !! association for the FineSediment object we are working with
                                                                      !! this is done to reduce code length and increase readability
                     select case (FSType)                             !! loop through possible FineSediment object types
                         case(1)                                      !! Type FineSediment1
+            tr = Me%name // &
+                "%createBedSedimentLayer1%pd_comp"                   !! trace message
                             allocate (fs1, stat=Me%allst)            !! create FineSediment1 object
-                            !! TODO: error checking here on stat
+                            if (stat /= 0) then
+                                er = ErrorInstance(1, &
+                                                "Allocation error", &
+                                                .false., &
+                                                [tr] &
+                                                  )                  !! create warning if error thrown
+                                call r%addError(er)                  !! add to Result
+                                if (r%isCriticalError) return        !! exit if allocation has thrown an error
+                            end if
                             call fs1%create(Me%pd_comp)              !! run constructor for this object
                             call move_alloc(fs1, O)                  !! move the object into the colFineSediment collection; this deallocates fs1
                         case default                                 !! not a recognised FineSediment type
@@ -270,12 +329,29 @@ module classBedSedimentLayer1                                        !! class de
         end function
         !> destroy this object
         function destroyBedSedimentLayer1(Me) result(r)
-            class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
+            class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             type(Result) :: r                                        !! The Result object
             type(ErrorCriteria) :: er                                !! LOCAL ErrorCriteria object for error handling.
             character(len=*) :: tr                                   !! LOCAL name of this procedure, for trace
             character(len=18), parameter :: &
                                           ms = "Deallocation error"  !! LOCAL CONSTANT error message
+            !
+            ! Function purpose
+            ! -------------------------------------------------------------------------------
+            ! Deallocate all allocated variables in this object.
+            !
+            ! Function inputs
+            ! -------------------------------------------------------------------------------
+            ! no inputs
+            !
+            ! Function outputs/outcomes
+            ! -------------------------------------------------------------------------------
+            ! F returns the amounts of sediment and water that could not be added
+            !
+            ! Notes
+            ! -------------------------------------------------------------------------------
+            ! No notes.
+            ! -------------------------------------------------------------------------------
             tr = Me%name // &
                 "%destroyBedSedimentLayer1%colFineSediment"          !! trace message
             deallocate(Me%colFineSediment, stat = Me%allst)          !! deallocate all allocatable variables
@@ -395,8 +471,18 @@ module classBedSedimentLayer1                                        !! class de
                 call r%addToTrace(tr)                                !! add trace to all errors
                 return                                               !! and exit
             end if
+            tr = Me%name // &
+                "%createBedSedimentLayer1%t_comp"                    !! trace message
             allocate(t_comp(1:Me%nfComp), stat = Me%allst)           !! for storage of modified fractional composition of modified sediment
-            ! TODO: add error check on stat
+            if (stat /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error", &
+                                   .false., &
+                                   [tr] &
+                                  )                                  !! create warning if error thrown
+                call r%addError(er)                                  !! add to Result
+                return                                               !! critical error, so return
+            end if
             A_f_SC = Me%A_f(S)                                       !! static local copy of fine sediment capacity
             A_w_SC = Me%A_w(S)                                       !! static local copy of water capacity
             associate(O => Me%colFineSediment(S)%item)
@@ -451,7 +537,7 @@ module classBedSedimentLayer1                                        !! class de
             integer, intent(in) :: S                                 !! the particle size class
             type(FineSediment1), intent(out) :: F                    !! returns fine sediment that was removed
             type(FineSediment1), intent(inout) :: G                  !! fine sediment to be removed; returns fine sediment that could not be removed
-            type(Result) :: r                           !! The Result object
+            type(Result), intent(in) :: r                            !! The Result object
             real(dp) :: V_f_SC                                       !! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     !! LOCAL fine sediment volume removed
             real(dp) :: V_w_SC                                       !! LOCAL water volume in layer

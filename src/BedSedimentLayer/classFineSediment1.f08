@@ -8,7 +8,7 @@ module classFineSediment1                                            !! definiti
         real(dp), private :: V_w_l                                   !! LOCAL volume of water associated with fine sediment [m3 m-2]
         real(dp), allocatable :: f_comp(:)                           !! fractional composition [-]
         real(dp), allocatable :: pd_comp_l(:)                        !! LOCAL storage of fractional particle densities [kg m-3]
-        integer :: NFComp                                            !! LOCAL number of fractional composition terms
+        integer :: nfComp                                            !! LOCAL number of fractional composition terms
     contains
         procedure, public :: create => createFineSediment1           !! sets up by reading variables required for computations
         procedure, public :: set => setFS1                           !! set properties, using either fine sediment volume or mass
@@ -114,7 +114,6 @@ module classFineSediment1                                            !! definiti
         function setFS1(Me, Mf_in, Vf_in, Vw_in, f_comp_in) &
             result(r)
             ! QUERY: can this function be pure?
-            implicit none
             type(FineSediment1) :: Me                                !! self-reference
             real(dp), intent(in), optional :: Mf_in                  !! the fine sediment mass
             real(dp), intent(in), optional :: Vf_in                  !! the fine sediment volume
@@ -174,7 +173,6 @@ module classFineSediment1                                            !! definiti
         end function
         !> return the fine sediment volume [m3 m-2]
         pure function getFSVol1(Me) result(Vf)
-            implicit none
             type(FineSediment1), intent(in) :: Me                    !! self-reference
             real(dp) :: Vf                                           !! the return value
                                                                      !! function to return the fine sediment volume [m3 m-2]
@@ -183,7 +181,6 @@ module classFineSediment1                                            !! definiti
         end function
         !> return the fine sediment mass [kg m-2]
         pure function getFSMass1(Me) result(Mf)
-            implicit none
             type(FineSediment), intent(in) :: Me                     !! self-reference
             real(dp) :: Mf                                           !! the return value
                                                                      !! function to return the fine sediment mass [kg m-2]
@@ -192,7 +189,6 @@ module classFineSediment1                                            !! definiti
         end function
         !> return the water volume [m3 m-2]
         pure function getWVol1(Me) result(Vw)
-            implicit none
             type(FineSediment1), intent(in) :: Me                    !! self-reference
             real(dp) :: Vw                                           !! the return value
                                                                      !! function to return the water volume [m3 m-2]
@@ -201,7 +197,6 @@ module classFineSediment1                                            !! definiti
         end function
         !> compute particle density from components and their densities
         pure function pdens1(Me) result(rho_part)
-            implicit none
             type(FineSediment1), intent(in) :: Me                    !! self-reference
             real(dp) :: rho_part                                     !! return value: the particle density [kg m-3]
             integer :: x                                             !! LOCAL loop counter
@@ -211,11 +206,8 @@ module classFineSediment1                                            !! definiti
             end do
         end function
         !> check that the array of fractional compositions sums to unity
-        function audit_fcomp1(Me) result(er)
-            ! QUERY: could this a pure function?
-            ! QUERY: implicit none required or not?
-            implicit none
-            class(FineSediment1), intent(in) :: Me                   !! self-reference
+        pure function audit_fcomp1(Me) result(er)
+            type(FineSediment1), intent(in) :: Me                    !! self-reference
             type(ErrorInstance) :: er                                !! ErrorInstance object, returns error if t_fcomp /= 1
             integer :: F                                             !! LOCAL loop counter
             real(dp) :: t_fcomp                                      !! LOCAL sum of fractional compositions
@@ -232,8 +224,7 @@ module classFineSediment1                                            !! definiti
             end if
         end function
         !> check whether this object contains any fine sediment or water of the specified size class
-        function Empty1(Me) result(t)
-            implicit none
+        pure function Empty1(Me) result(t)
             type(FineSediment1), intent(in) :: Me                    !! self-reference
             logical :: t                                             !! return value. True= V_f/M_f = V_w = 0. False= V_f/M_f > 0 .or. V_w > 0
             t = .false.
@@ -241,12 +232,11 @@ module classFineSediment1                                            !! definiti
         end function
         !> clear all properties
         subroutine ClearAll1(Me)
-            implicit none
-            class(FineSediment1) :: Me                                !! the FineSediment instance
+            class(FineSediment1) :: Me                               !! the FineSediment instance
             integer :: X                                             !! LOCAL loop counter
             Me%M_f_l = 0                                             !! clear fine sediment mass
             Me%V_w_l = 0                                             !! clear water volume
-            do X = 1, C%nSizeClassesSpm                              !! clear fractional composition
+            do X = 1, nfComp                                         !! clear fractional composition
                 Me%f_comp(X) = 0
             end do
         end subroutine
