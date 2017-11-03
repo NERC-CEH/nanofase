@@ -56,11 +56,11 @@ module spcBedSedimentLayer                                           !! abstract
                                         nsc, &
                                         FSType, &
                                         C_tot, &
-                                        V_f, &
-                                        M_f, &
                                         f_comp, &
                                         pd_comp, &
-                                        Porosity) result(r)
+                                        Porosity, &
+                                        V_f, &
+                                        M_f) result(r)
                                                                      !! sets number of particle size classes
                                                                      !! reads in fixed layer volume
                                                                      !! reads in volumes of fine sediment and water in each size class
@@ -72,10 +72,10 @@ module spcBedSedimentLayer                                           !! abstract
             integer, intent(in) :: nsc                               !! the number of particle size classes
             integer, intent(in) :: FSType                            !! the type identification number of the FineSediment(s)
             real(dp), intent(in) :: C_tot                            !! the total volume of the layer
-            real(dp), intent(in), optional, allocatable :: V_f(:)    !! set of fine sediment volumes, if being used to define layer
-            real(dp), intent(in), optional, allocatable :: M_f(:)    !! set of fine sediment masses, if being used to define layer
-            real(dp), intent(in), allocatable :: f_comp(:,:)          !! set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
-            real(dp), intent(in), allocatable :: pd_comp(:)           !! set of fractional particle densities
+            real(dp), intent(in), optional :: V_f(:)                 !! set of fine sediment volumes, if being used to define layer
+            real(dp), intent(in), optional :: M_f(:)                 !! set of fine sediment masses, if being used to define layer
+            real(dp), intent(in) :: f_comp(:,:)                      !! set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
+            real(dp), intent(in), allocatable :: pd_comp(:)          !! set of fractional particle densities
             real(dp), intent(in), optional :: Porosity               !! layer porosity, if being used to define layer
             type(Result) :: r                           !! The Result object.
             type(ErrorInstance) :: er                                !! LOCAL ErrorCriteria object for error handling.
@@ -120,7 +120,8 @@ module spcBedSedimentLayer                                           !! abstract
         !> destroy this object
         function destroyBedSedimentLayer(Me) result (r)
             import BedSedimentLayer, Result
-            class(BedSedimentLayer), intent(in) ::  :: Me
+            class(BedSedimentLayer) :: Me
+            type(Result) :: r
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -142,11 +143,11 @@ module spcBedSedimentLayer                                           !! abstract
         !> add sediment and water to this layer
         function AddSedimentToLayer(Me, S, F) result(r)
             use Globals
-            import BedSedimentLayer, FineSedimentElement, Result
+            import BedSedimentLayer, FineSediment1, Result
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             integer, intent(in) :: S                                 !! the particle size class
-            type(FineSedimentElement), intent(inout) :: F            !! FineSediment - holds material to be added
-            type(Result) :: r                           !! The Result object
+            type(FineSediment1), intent(inout) :: F                  !! FineSediment - holds material to be added
+            type(Result) :: r                                        !! The Result object
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -168,13 +169,13 @@ module spcBedSedimentLayer                                           !! abstract
             ! -------------------------------------------------------------------------------
         end function
         !> remove sediment and water from this layer
-        function RemoveSedimentFromLayer(Me, S, G, F) result(r)
+        function RemoveSedimentFromLayer(Me, S, F, G) result(r)
             use Globals
-            import BedSedimentLayer, FineSedimentElement, Result
+            import BedSedimentLayer, FineSediment1, Result
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             integer, intent(in) :: S                                 !! the particle size class
-            type(FineSedimentElement), intent(inout) :: G            !! fine sediment to be removed; returns fine sediment that could not be removed
-            type(FineSedimentElement), intent(inout) :: F            !! returns fine sediment that was removed
+            type(FineSediment1), intent(inout) :: G            !! fine sediment to be removed; returns fine sediment that could not be removed
+            type(FineSediment1), intent(inout) :: F            !! returns fine sediment that was removed
             type(Result) :: r                                        !! The Result object
             ! Function purpose
             ! -------------------------------------------------------------------------------
