@@ -15,7 +15,8 @@ module spcBedSedimentLayer                                           !! abstract
                                                                      !! properties
         class(FineSedimentElement), public, allocatable :: &
         colFineSediment(:)                                           !! collection of FineSediment objects
-        class(FineSedimentElement), allocatable :: colFineSedimentResusp(:)
+        class(FineSedimentElement), allocatable :: &
+        colFineSedimentResusp(:)
         real(dp) :: C_total                                          !! total capacity [m3 m-2]
         real(dp) :: V_c                                              !! coarse material volume [m3 m-2]
         real(dp), allocatable :: pd_comp(:)                          !! particle densities of sediment components [kg m-3]
@@ -26,27 +27,27 @@ module spcBedSedimentLayer                                           !! abstract
         integer :: allst                                             !! array allocation status
     contains
                                                                      !! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure, public :: A_f => GetAf                              !! available capacity for a fine sediment size fraction
-        procedure, public :: A_w => GetAw                              !! available capacity for water associated with a fine sediment size fraction
-        procedure, public :: C_f => GetCf                              !! return total capacity for a fine sediment size fraction
-        procedure, public :: C_w => GetCw                              !! return total capacity for water associated with a fine sediment size fraction
-        procedure, public :: volSLR => GetvolSLR                       !! return volumetric solid:liquid ratio for this layer; applies to all size classes
-        procedure, public :: C_f_layer => GetCflayer                   !! return total fine sediment capacity in the layer
-        procedure, public :: M_f_layer => GetMflayer                   !! return total fine sediment mass in the layer
-        procedure, public :: V_f_layer => GetVflayer                   !! return total fine sediment volume in the layer
-        procedure, public :: V_w_layer => GetVwlayer                   !! return total water volume in the layer
-        procedure, public :: C_w_layer => GetCwlayer                   !! return total water capacity in the layer
-        procedure, public :: V_m_layer => GetVmlayer                   !! return total fine sediment and water volume in the layer
-        procedure, public :: V_layer => GetVlayer                      !! return sum of fine sediment, water and coarse material volumes in the layer
+        procedure, public :: A_f => GetAf                            !! available capacity for a fine sediment size fraction
+        procedure, public :: A_w => GetAw                            !! available capacity for water associated with a fine sediment size fraction
+        procedure, public :: C_f => GetCf                            !! return total capacity for a fine sediment size fraction
+        procedure, public :: C_w => GetCw                            !! return total capacity for water associated with a fine sediment size fraction
+        procedure, public :: volSLR => GetvolSLR                     !! return volumetric solid:liquid ratio for this layer; applies to all size classes
+        procedure, public :: C_f_layer => GetCflayer                 !! return total fine sediment capacity in the layer
+        procedure, public :: M_f_layer => GetMflayer                 !! return total fine sediment mass in the layer
+        procedure, public :: V_f_layer => GetVflayer                 !! return total fine sediment volume in the layer
+        procedure, public :: V_w_layer => GetVwlayer                 !! return total water volume in the layer
+        procedure, public :: C_w_layer => GetCwlayer                 !! return total water capacity in the layer
+        procedure, public :: V_m_layer => GetVmlayer                 !! return total fine sediment and water volume in the layer
+        procedure, public :: V_layer => GetVlayer                    !! return sum of fine sediment, water and coarse material volumes in the layer
                                                                      !! deferred methods: must be defined in all subclasses
         procedure(createBedSedimentLayer), public, deferred :: &
-        create                                                      !! constructor method
+        create                                                       !! constructor method
         procedure(destroyBedSedimentLayer), public, deferred :: &
-        destroy                                                     !! finaliser method
+        destroy                                                      !! finaliser method
         procedure(AddSedimentToLayer), public, deferred :: &
-        AddSediment                                                 !! add fine sediment to the layer
+        AddSediment                                                  !! add fine sediment to the layer
         procedure(RemoveSedimentFromLayer), public, deferred :: &
-        RemoveSediment                                              !! remove fine sediment from layer
+        RemoveSediment                                               !! remove fine sediment from layer
     end type
     abstract interface
         !> create a BedSedimentLayer object and its incorporated BedSediment objects
