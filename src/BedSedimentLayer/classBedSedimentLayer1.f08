@@ -7,6 +7,8 @@ module classBedSedimentLayer1                                        !! class de
     implicit none                                                    !! force declaration of all variables
     type, public, extends(BedSedimentLayer) :: &
         BedSedimentLayer1                                            !! type declaration for class - extends abstract superclass
+        private real(dp), allocatable :: C_f_l(:)                    !! LOCAL capacity for fine sediment [m3 m-2]
+        private real(dp), allocatable :: C_w_l(:)                    !! LOCAL capacity for water [m3 m-2]
         contains                                                     !! methods deferred from superclass
             procedure, public :: &
             create => createBedSedimentLayer1                        !! constructor method
@@ -182,17 +184,6 @@ module classBedSedimentLayer1                                        !! class de
                 call r%addError(er)                                  !! add to Result
             end if
             tr = Me%name // &
-                "%createBedSedimentLayer1%colFineSedimentResusp"     !! trace message
-            allocate(Me%colFineSedimentResusp(1:nsc), stat=Me%allst) !! set up fine sediment collection to hold resuspension
-            if (stat /= 0) then
-                er = ErrorInstance(1, &
-                                   "Allocation error", &
-                                   .false., &
-                                   [tr] &
-                                  )                                  !! create warning if error thrown
-                call r%addError(er)                                  !! add to Result
-            end if
-            tr = Me%name // &
                 "%createBedSedimentLayer1%C_f_l"                     !! trace message
             allocate(Me%C_f_l(1:nsc), stat=Me%allst)                 !! allocate space for fine sediment capacity
             if (stat /= 0) then
@@ -243,8 +234,9 @@ module classBedSedimentLayer1                                        !! class de
                                 call r%addError(er)                  !! add to Result
                                 if (r%isCriticalError) return        !! exit if allocation has thrown an error
                             end if
-                            call fs1%create(Me%pd_comp)              !! run constructor for this object
-                            call move_alloc(fs1, O)                  !! move the object into the colFineSediment collection; this deallocates fs1
+                            call fs1%create(Me%name, Me%pd_comp)     !! run constructor for this object
+                            call move_alloc(fs1, &
+                                Me%colFineSediment(S)%item)          !! move the object into the colFineSediment collection; this deallocates fs1
                         case default                                 !! not a recognised FineSediment type
                             call r%addError(ErrorInstance( &
                                         code = 1, &
@@ -535,9 +527,9 @@ module classBedSedimentLayer1                                        !! class de
             implicit none
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             integer, intent(in) :: S                                 !! the particle size class
-            type(FineSediment1), intent(out) :: F                    !! returns fine sediment that was removed
-            type(FineSediment1), intent(inout) :: G                  !! fine sediment to be removed; returns fine sediment that could not be removed
-            type(Result), intent(in) :: r                            !! The Result object
+            type(FineSediment1), intent(in) :: G                     !! fine sediment to be removed
+            type(Result2D), allocatable :: r(:)                      !! The Result object. Element 1 = fine sediment that was removed; Element 2 = fine sediment that could not be removed
+            type(FineSediment1) :: F                                 !! LOCAL returns fine sediment that was removed
             real(dp) :: V_f_SC                                       !! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     !! LOCAL fine sediment volume removed
             real(dp) :: V_w_SC                                       !! LOCAL water volume in layer
@@ -555,8 +547,8 @@ module classBedSedimentLayer1                                        !! class de
             !
             ! Function outputs/outcomes
             ! -------------------------------------------------------------------------------
-            ! F returns the sediment that was removed
-            ! G returns the sediment that could not be removed
+            ! r(1) returns the sediment that was removed
+            ! r(2) returns the sediment that could not be removed
             !
             ! Notes
             ! -------------------------------------------------------------------------------
@@ -603,7 +595,16 @@ module classBedSedimentLayer1                                        !! class de
                     call r%addToTrace(tr)                            !! add a trace message to any errors
                     return                                           !! exit here
                 end if
-                r%AddError(.errors. F%item%set( &
+                tr = Me%name // & "%removeSediment1%r"               !! trace message
+                allocate(r(2), stat = Me%allst)                      !! allocate Result object
+                if (stat /= 0) then
+                    r%addError = ErrorInstance(1, &
+                                        "Allocation error", &
+                                        [tr] &
+                                              )                      !! if  allocation error thrown
+                    return                                           !! critical error, so exit
+                end if
+                r%AddError(.errors. r(1)%item%set( &
                                     Vf_in = V_f_SC_r, &
                                     Vw_in = V_w_SC_r, &
                                     f_comp_in = O%f_comp &
@@ -613,15 +614,15 @@ module classBedSedimentLayer1                                        !! class de
                     call r%addToTrace(tr)                            !! add a trace message to any errors
                     return                                           !! exit here
                 end if
-                r%AddError(.errors. G%item%set( &
-                                    Vf_in = G%item%V_f - V_f_SC_r, &
-                                    Vw_in = G%item%V_w - V_w_SC_r &
-                                              ) &
-                          )                                          !! return the volume that could not be removed
-                if (r%hasCriticalError) then                         !! if a critical error has been thrown
-                    call r%addToTrace(tr)                            !! add a trace message to any errors
-                    return                                           !! exit here
-                end if
             end associate
+            r%AddError(.errors. r(2)%item%set( &
+                                Vf_in = G%item%V_f - V_f_SC_r, &
+                                Vw_in = G%item%V_w - V_w_SC_r &
+                                             ) &
+                      )                                              !! return the volume that could not be removed
+            if (r%hasCriticalError) then                             !! if a critical error has been thrown
+                call r%addToTrace(tr)                                !! add a trace message to any errors
+                return                                               !! exit here
+            end if
         end function
 end module
