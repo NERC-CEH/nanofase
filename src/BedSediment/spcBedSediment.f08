@@ -61,7 +61,7 @@ module spcBedSediment                                                !! abstract
             logical :: criterr                                       !! LOCAL .true. if one or more critical errors tripped
             !
             ! Function purpose
-                ! -------------------------------------------------------------------------------
+            ! -------------------------------------------------------------------------------
             ! Deposit specified masses of fine sediment in each size class, and their
             ! associated water. Function buries sediment and shifts remaining sediment down
             ! to make space for deposition, if required
@@ -116,7 +116,6 @@ module spcBedSediment                                                !! abstract
 contains
     !> return available capacity for fine sediment of a specified size class
     pure function Get_Af_sediment(Me, S) result(Af_sediment)
-        implicit none
         class(BedSediment) :: Me                                     !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp), intent(out) :: Af_sediment                         !! return value
@@ -131,7 +130,6 @@ contains
     end function
     !> return capacity for fine sediment of a specified size class
     pure function Get_Cf_sediment(Me, S) result(Cf_sediment)
-        implicit none
         class(BedSediment) :: Me                                     !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp), intent(out) :: Cf_sediment                         !! return value
@@ -146,7 +144,6 @@ contains
     end function
     !> return available capacity for water associated with a specified size class
     pure function Get_Aw_sediment(Me, S) result(Aw_sediment)
-        implicit none
         class(BedSediment) :: Me                                     !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp), intent(out) :: Aw_sediment                         !! return value
@@ -161,7 +158,6 @@ contains
     end function
     !> return capacity for water associated with a specified size class
     pure function Get_Cw_sediment(Me, S) result(Cw_sediment)
-        implicit none
         class(BedSediment) :: Me                                     !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp), intent(out) :: Cw_sediment                         !! return value
@@ -176,7 +172,6 @@ contains
     end function
     !> return fine sediment mass in a specified size class
     pure function Get_Mf_sediment(Me, S) result(Mf_sediment)
-        implicit none
         class(BedSediment) :: Me                                     !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp), intent(out) :: Mf_sediment                         !! return value
@@ -192,7 +187,6 @@ contains
     end function
     !> return fine sediment mass for all size classes
     pure function Get_Mf_sed_all(Me, S) result(Mf_sed_all)
-        implicit none
         class(BedSediment) :: Me                                     !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp), intent(out) :: Mf_sed_all                          !! return value

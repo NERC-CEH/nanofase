@@ -28,24 +28,23 @@ module classBedSediment1                                             ! class def
                                  Porosity, &
                                  V_f, &
                                  M_f) result(r)
-        implicit none
-        class(BedSediment) :: Me                                     !! self-reference
-        type(Result), intent(out) :: r                               !! returned Result object
+        class(BedSediment), intent(in) :: Me                         !! self-reference
+        type(Result) :: r                                            !! returned Result object
         character(len=256), intent(in) :: n                          !! a name for the object
         character(len=256),  allocatable :: ln                       !! names for the layers. Index = layer
         integer, intent(in) :: nsc                                   !! the number of particle size classes
         integer, intent(in) :: nl                                    !! the number of layers
         integer, intent(in) :: bslType                               !! the type identification number of the BedSedimentLayer(s)
         real(dp), intent(in), allocatable :: C_tot(:)                !! the total volume of each layer. Index = layer
-        real(dp), intent(in), allocatable :: f_comp(:,:,:)             !! set of fractional compositions
+        real(dp), intent(in), allocatable :: f_comp(:,:,:)           !! set of fractional compositions
                                                                      !! Index 1 = size class, Index 2 = compositional fraction, Index 3 = layer
         real(dp), intent(in), allocatable :: pdcomp(:)               !! set of fractional particle densities
                                                                      !! Index 1 = size class
         real(dp), intent(in), optional :: Porosity(:)                !! layer porosity, if being used to define layer
                                                                      !! Index 1 = layer
-        real(dp), intent(in), optional, allocatable :: V_f(:,:)       !! set of fine sediment volumes, if being used to define layers
+        real(dp), intent(in), optional, allocatable :: V_f(:,:)      !! set of fine sediment volumes, if being used to define layers
                                                                      !! Index 1 = size class, Index 2 = layer
-        real(dp), intent(in), optional, allocatable :: M_f(:,:)       !! set of fine sediment masses, if being used to define layers
+        real(dp), intent(in), optional, allocatable :: M_f(:,:)      !! set of fine sediment masses, if being used to define layers
                                                                      !! Index 1 = size class, Index 2 = layer
         integer :: L                                                 !! LOCAL loop counter
         type(BedSedimentLayer1) :: bsl1                              !! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
@@ -68,6 +67,7 @@ module classBedSediment1                                             ! class def
         ! Notes
         ! ----------------------------------------------------------------------------------
         !
+        ! TODO:
         ! check n exists (len_trim /= 0)
         ! check nsc > 0
         ! check nl > 0
@@ -164,9 +164,8 @@ module classBedSediment1                                             ! class def
     end function
     !> deallocate all allocatable variables and call destroy methods for all enclosed objects
     function destroyBedSediment1(Me) result(r)
-        implicit none
         class(BedSediment) :: Me                                     !! self-reference
-        type(Result), intent(out) :: r                               !! returned Result object
+        type(Result) :: r                                            !! returned Result object
         type(ErrorCriteria) :: er                                    !! LOCAL ErrorCriteria object for error handling.
         character(len=*) :: tr                                       !! LOCAL name of this procedure, for trace
         character(len=18), parameter :: ms = "Deallocation error"    !! LOCAL CONSTANT error message
@@ -198,21 +197,19 @@ module classBedSediment1                                             ! class def
             "%destroyBedSedimentLayer1%colBedSedimentLayers"         !! trace message
         deallocate(Me%colBedSedimentLayers, stat = Me%allst)         !! deallocate all allocatable variables
         if (stat /= 0) then
-            er = ERROR_HANDLER%ErrorInstance(666, &
-                                             ms, &
-                                             .false., &
-                                             tr &
+            er = ERROR_HANDLER%ErrorInstance(code  1, &
+                                             message = [ms], &
+                                             trace = [tr] &
                                             )                        !! create warning if error thrown
             r%addError(er)                                           !! add to Result
         end if
     end function
     !> compute resuspension from bed sediment
     function resuspendSediment1(Me, M_resusp, FS) result(r)
-        implicit none
         class(BedSediment) :: Me                                     !! self-reference
         real(dp), intent(in), allocatable :: M_resusp(:)             !! array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
-        type(FineSediment1), intent(out), allocatable :: FS(:,:)      !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
-        type(Result), intent(out) :: r                               !! returned Result object
+        type(FineSediment1), intent(out), allocatable :: FS(:,:)     !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
+        type(Result) :: r                                            !! returned Result object
         type(FineSediment1), allocatable :: F                        !! LOCAL FineSediment object representing material that has been resuspended
         type(FineSediment1), allocatable :: G                        !! LOCAL FineSediment object representing material to be resuspended
         integer :: S                                                 !! LOCAL loop counter for size classes
@@ -253,13 +250,26 @@ module classBedSediment1                                             ! class def
             return
         end if                                                       !! exit if a critical error has been thrown
         allocate(F, stat = Me%allst)                                 !! set up FineSediment1 variable F
-        allocate(G, stat = Me%allst)                                 !! set up FineSediment1 variable G
-        allocate(FS(1:Me%nSizeClasses,1:Me%nLayers) &
-                                             stat = Me%allst)        !! allocation of output array FS
-        allocate(W(1:Me%nSizeClasses,1:Me%nLayers), &
-                                             stat = Me%allst)        !! allocation of output array W
-        allocate(C(1:Me%nSizeClasses,1:Me%nLayers, 1:Me%nFComp), &
-                                             stat = Me%allst)        !! allocation of output array C
+        if (stat /= 0) then
+            er = ErrorInstance(1, &
+                               "Allocation error", &
+                               .false., &
+                               Me%name // &
+                                        "%resuspendSediment1%F" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
+        allocate(G, stat = Me%allst)                                 !! set up FineSediment1 variable F
+        if (stat /= 0) then
+            er = ErrorInstance(1, &
+                               "Allocation error", &
+                               .false., &
+                               Me%name // &
+                                        "%resuspendSediment1%G" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
+        if (r%isCriticalError) return                                !! exit if allocation error thrown
         do S = 1, Me%nSizeClasses                                    !! loop through all size classes
             call r%addErrors(.errors. G%set(Mf_in = M_resusp(S) &
                                            ) &
@@ -306,12 +316,27 @@ module classBedSediment1                                             ! class def
                 end if
             end do
         end associate
-        deallocate(F)                                                !! release memory allocated to F
-        deallocate(G)                                                !! release memory allocated to G
+        deallocate(F, stat = Me%allst)                               !! deallocate FineSediment1 variable F
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Deallocation error", &
+                               trace = Me%name // &
+                                        "%resuspendSediment1%F" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
+        deallocate(G, stat = Me%allst)                               !! deallocate FineSediment1 variable G
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Deallocation error", &
+                               trace = Me%name // &
+                                        "%resuspendSediment1%G" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
     end function
     !> compute deposition to bed sediment, including burial and downward shifting of fine sediment and water
     function depositSediment1(Me, M_dep, f_comp_dep, V_w_tot) result (r)
-        implicit none
         class(BedSediment) :: Me                                     !! self-reference
         real(dp), intent(in), allocatable :: M_dep(:)                !! Depositing sediment mass by size class
         real(dp), intent(in), allocatable :: f_comp_dep(:,:)          !! Depositing sediment fractional composition by size class
@@ -381,6 +406,42 @@ module classBedSediment1                                             ! class def
             return                                                   !! and exit
         end if
         allocate(DS(1:nSizeClasses), stat = Me%allst)                !! allocate space for FineSediment1 objects
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Allocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%DS" &
+                              )                                      !! create error
+            call r%addError(er)                                      !! add to Result
+        end if
+        allocate(B, stat = Me%allst)                                 !! set up B
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Allocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%B"  &
+                              )                                      !! create error
+            call r%addError(er)                                      !! add to Result
+        end if
+        allocate(T, stat = Me%allst)                                 !! set up T
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Allocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%T" &
+                              )                                      !! create error
+            call r%addError(er)                                      !! add to Result
+        end if
+        allocate(U, stat = Me%allst)                                 !! set up U
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Allocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%T" &
+                              )                                      !! create error
+            call r%addError(er)                                      !! add to Result
+        end if
+        if (r%isCriticalError) return                                !! exit if allocation error thrown
         do S = 1, nSizeClasses                                       !! compose FineSediment1 objects from the inputs
             call r%AddErrors(.errors. &
                  DS(S)%set(Mf_in = M_dep(S), &
@@ -395,9 +456,6 @@ module classBedSediment1                                             ! class def
                 return                                               !! and exit
             end if
         end do
-        allocate(B, stat = Me%allst)                                 !! set up B
-        allocate(T, stat = Me%allst)                                 !! set up T
-        allocate(U, stat = Me%allst)                                 !! set up U
         do S = 1, nSizeClasses                                       !! loop through all size classes
             if (int(DS(S)%V_f / Me%Cf_sediment(S)) > 0) then         !! check whether the depositing sediment in each size class exceeds the total
                 do L = 1, nLayers                                    !! capacity in the layer. If so, then remove all fine sediment, water and
@@ -525,9 +583,42 @@ module classBedSediment1                                             ! class def
                 end associate
             end do
         end do
-        deallocate(Q)                                                !! deallocate Q
-        deallocate(T)                                                !! deallocate T
-        deallocate(U)                                                !! deallocate U
+        deallocate(DS, stat = Me%allst)                              !! deallocate space for FineSediment1 objects
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Deallocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%DS" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
+        deallocate(B, stat = Me%allst)                               !! deallocate B
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Deallocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%B" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
+        deallocate(T, stat = Me%allst)                               !! deallocate T
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Deallocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%T" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
+        deallocate(U, stat = Me%allst)                               !! deallocate U
+        if (stat /= 0) then
+            er = ErrorInstance(code = 1, &
+                               message = "Deallocation error", &
+                               trace = Me%name // &
+                                        "%depositSediment1%U" &
+                              )                                      !! create warning if error thrown
+            call r%addError(er)                                      !! add to Result
+        end if
     end function
     !> Calculate resuspension from bed sediment using
     !! [Bussi](http://www.sciencedirect.com/science/article/pii/S0022169416305625):
