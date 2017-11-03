@@ -79,47 +79,6 @@ module classFineSediment1                                            !! definiti
             end if
             pd_comp = pd_comp_in                                     !! read in particle densities of compositional fractions
         end function
-        !> set the properties of the sediment, using fine sediment volume
-        !function SetFSVol1(Me, Vf_in, Vw_in, f_comp_in) result(r)
-        !    implicit none                                            !! based on the volume [m3 m-2] and particle density [kg m-3]
-        !    class(FineSediment1) :: Me                                !! self-reference
-        !    type(Result) :: r                                        !! Result object
-        !    type(ErrorInstance) :: er                                !! LOCAL ErrorCriteria object
-        !    real(dp), intent(in), optional :: Vf_in                  !! the fine sediment volume
-        !    real(dp), intent(in), optional :: Vw_in                  !! the water volume
-        !    real(dp), intent(in), optional, allocatable :: &
-        !                                             f_comp_in(:)    !! input fractional composition. Optional; if not present, stored composition is used
-        !                                                             !! function to set properties given a fine sediment volume
-        !                                                             !! Input: Vf_in = the value of the fine sediment volume
-        !                                                             !! Input: f_comp_in(:) [optional] = the composition of the fine sediment,
-        !                                                             !! by mass fraction of each defined component
-        !    if (present(f_comp_in)) then
-        !        er = &
-        !            ERROR_HANDLER%notEqual(Me%NFComp, &
-        !                                   size(f_comp_in), &
-        !                                   message = "Size of &
-        !                                              fractional &
-        !                                              composition &
-        !                                              array &
-        !                                              incorrect", &
-        !                              traceMessage = Me%name // &
-        !                                             "%SetFSVol1")   !! check size of compositional array against stored no. of fraction
-        !        if (er%notError()) then                       !! if no error thrown, then
-        !            Me%f_comp = f_comp_in                            !! store the composition locally
-        !            er = Me%audit_comp()                            !! audit sum (fractional composition) = 1, return error instance
-        !            if (er%isError()) then                   !! if an error was thrown
-        !                call er%addToTrace(Me%name // "%SetFSVol1")       !! add a trace
-        !                call r%addError(er)                               !! add it to the result
-        !                return                                       !! and exit, as this is a critical error
-        !            end if
-        !        else                                                 !! if fractional composition array size threw and error,
-        !            call r%addError(er)                                   !! add it to the result
-        !            return                                           !! and exit, as this is a critical error
-        !        end if
-        !    end if
-        !    if (present(Vf_in)) Me%M_f_l = Vf_in * Me%rho_part()        !! Computation of fine sediment mass from volume and particle density
-        !    if (present(Vw_in))  Me%V_w_l = Vw_in                    !! Volume of water
-        !end function
         !> set the properties of the object
         function setFS1(Me, Mf_in, Vf_in, Vw_in, f_comp_in) &
             result(r)
@@ -298,8 +257,9 @@ module classFineSediment1                                            !! definiti
                 Me%f_comp(X) = 0
             end do
         end subroutine
-        function Mix1(Me, FS) result(r)
-            type(FineSediment1) :: Me                                !! self-reference
+        !> mix two FineSediment objects together
+        pure function Mix1(Me, FS) result(r)
+            type(FineSediment1), intent(in) :: Me                    !! self-reference
             type(FineSediment1), intent(in) :: FS                    !! FineSediment1 to be mixed with this one
             type(Result0D) :: r                                      !! Result object
             type(ErrorInstance) :: er                                !! LOCAL error instance object
@@ -370,7 +330,7 @@ module classFineSediment1                                            !! definiti
                         message = "A mixing particle density is &
                                    invalid" &
                         traceMessage = [Me%name] // "%Mix1"
-                                  )                                  !! compose error
+                                      )                              !! compose error
                     call r%addError(er)                              !! add it to the result
                     return                                           !! and exit
                 end if
