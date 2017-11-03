@@ -31,7 +31,7 @@ module classBedSediment1                                             ! class def
         class(BedSediment), intent(in) :: Me                         !! self-reference
         type(Result) :: r                                            !! returned Result object
         character(len=256), intent(in) :: n                          !! a name for the object
-        character(len=256),  allocatable :: ln                       !! names for the layers. Index = layer
+        character(len=256),  allocatable :: ln(:)                    !! names for the layers. Index = layer
         integer, intent(in) :: nsc                                   !! the number of particle size classes
         integer, intent(in) :: nl                                    !! the number of layers
         integer, intent(in) :: bslType                               !! the type identification number of the BedSedimentLayer(s)
@@ -48,7 +48,9 @@ module classBedSediment1                                             ! class def
                                                                      !! Index 1 = size class, Index 2 = layer
         integer :: L                                                 !! LOCAL loop counter
         type(BedSedimentLayer1) :: bsl1                              !! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
-        ! TODO: everything
+        type(character, len=*) :: tr                                 !! error trace
+        type(character, len=16), parameter &
+                                          :: ms = "Allocation error" !! allocation error message
         !
         ! Function purpose
         ! ----------------------------------------------------------------------------------
@@ -87,77 +89,95 @@ module classBedSediment1                                             ! class def
         ! check index of pd_comp consistent with index 2 of f_comp
         ! check size of Porosity consistent with number of layers
         ! for each layer in turn, call create method with relevant subarrays:
+        tr = Me%name // "createBedSediment1"                         !! procedure name as trace
         Me%nSizeClasses = nsc                                        !! set number of size classes
         Me%nfComp = size(pdcomp)                                     !! set number of compositional fractions
         Me%nLayers = nl                                              !! set number of layers
-        allocate Me%colBedSedimentLayers(1:nl)                       !! create BedSedimentLayer collection
+        allocate Me%colBedSedimentLayers(nl, stat = Me%allst)        !! create BedSedimentLayer collection
+        if (stat /= 0) then
+            er = ERROR_HANDLER%ErrorInstance(code = 1, &
+                                             message = [ms], &
+                                             trace = [tr] &
+                                                        )            !! create warning if error thrown
+            r%addError(er)                                           !! add to Result
+            return                                                   !! critical error, so return
+        end if
         do L =1, nLayers
-            associate (O => Me%colBedSedimentLayers(L)%item)         !! association for brevity
-                select case bslType                                  !! loop through possible BedSedimentLayer types
-                    case(1)                                          !! type number 1
-                        allocate (bsl1, stat = Me%allst)             !! allocate empty object of this type
-                        !! TODO: error checking here on stat
-                        if (present(Porosity)) then
-                            if (present(V_f)) then
-                                r%addErrors(.errors &
-                                call bsl1%create(ln(L), &
-                                                nsc, &
-                                                C_tot(L), &
-                                                f_comp(:,:,L), &
-                                                pd_comp, &
-                                                Porosity = Porosity, &
-                                                V_f = V_f(:,L) &
-                                                ) &
-                                           )                         !! if V_f and Porosity as present
-                            else
-                               r%addErrors(.errors &
-                               call bsl1%create(ln(L), &
-                                                nsc, &
-                                                C_tot(L), &
-                                                f_comp(:,:,L), &
-                                                pd_comp, &
-                                                Porosity = Porosity, &
-                                                M_f = M_f(:,L)
-                                                ) &
-                                           )                         !! if M_f and Porosity as present
-                            end if
+            select case bslType                                      !! loop through possible BedSedimentLayer types
+                case(1)                                              !! type number 1
+                    allocate (bsl1, stat = Me%allst)                 !! allocate empty object of this type
+                    if (stat /= 0) then
+                        er = ERROR_HANDLER%ErrorInstance(code = 1, &
+                                             message = [ms], &
+                                             trace = [tr] &
+                                                        )            !! create warning if error thrown
+                        r%addError(er)                               !! add to Result
+                        return                                       !! critical error, so return
+                    end if
+                    if (present(Porosity)) then
+                        if (present(V_f)) then
+                            r%addErrors(.errors. &
+                                bsl1%create(ln(L), &
+                                            nsc, &
+                                            1, &              ! FSTYPE
+                                            C_tot(L), &
+                                            f_comp(:,:,L), &
+                                            pd_comp, &
+                                            Porosity = Porosity, &
+                                            V_f = V_f(:,L) &
+                                           ) &
+                                       )                             !! if V_f and Porosity as present
                         else
-                            if (present(V_f)) then
-                                r%addErrors(.errors &
-                                call bsl1%create(ln(L), &
-                                                nsc, &
-                                                C_tot(L), &
-                                                f_comp(:,:,L), &
-                                                pd_comp, &
-                                                V_f = V_f(:,L)
-                                                ) &
-                                           )                         !! if V_f is present and Porosity is absent
-                            else
-                                r%addErrors(.errors &
-                                call bsl1%create(ln(L), &
-                                                nsc, &
-                                                C_tot(L), &
-                                                f_comp(:,:,L), &
-                                                pd_comp, &
-                                                M_f = M_f(:,L)
-                                                ) &
-                                           )                         !! if M_f is present and Porosity is absent
-                            end if
+                            r%addErrors(.errors. &
+                                 bsl1%create(ln(L), &
+                                            nsc, &
+                                            1, &              ! FSTYPE
+                                            C_tot(L), &
+                                            f_comp(:,:,L), &
+                                            pd_comp, &
+                                            Porosity = Porosity, &
+                                            M_f = M_f(:,L)
+                                            ) &
+                                        )                             !! if M_f and Porosity as present
                         end if
-                        call move_alloc(bsl1, O)                     !! move bsl1 object into layers collection
-                    case default                                     !! invalid BedSedimentLayer type specified
-                                            !! CHECK SYNTAX v
-                        call r%AddError(.errors. &
-                                    message = "Invalid &
-                                               FineSediment &
-                                               object type &
-                                               specified" &
-                                       )                             !! add ErrorInstance
-                                            !! CHECK SYNTAX ^
-                        call r%addToTrace(tr)                        !! add trace to Result
-                        return                                       !! critical error, so exit
+                    else
+                        if (present(V_f)) then
+                            r%addErrors(.errors. &
+                                 bsl1%create(ln(L), &
+                                            nsc, &
+                                            1, &              ! FSTYPE
+                                            C_tot(L), &
+                                            f_comp(:,:,L), &
+                                            pd_comp, &
+                                            V_f = V_f(:,L)
+                                            ) &
+                                       )                             !! if V_f is present and Porosity is absent
+                        else
+                            r%addErrors(.errors. &
+                                 bsl1%create(ln(L), &
+                                            nsc, &
+                                            1, &              ! FSTYPE
+                                            C_tot(L), &
+                                            f_comp(:,:,L), &
+                                            pd_comp, &
+                                            M_f = M_f(:,L)
+                                            ) &
+                                       )                             !! if M_f is present and Porosity is absent
+                        end if
+                    end if
+                    call move_alloc(bsl1, &
+                        Me%colBedSedimentLayers(L)%item)             !! move bsl1 object into layers collection
+                case default                                         !! invalid BedSedimentLayer type specified
+                    call r%AddError(.errors. &
+                         ErrorInstance(message = "Invalid &
+                                                  FineSediment &
+                                                  object type &
+                                                  specified" &
+                                      ) &
+                                   )                                 !! add ErrorInstance
+                    call r%addToTrace(tr)                            !! add trace to Result
+                    return                                           !! critical error, so exit
                 end select
-            end associate
         end do
         ! exit
         ! ----------------------------------------------------------------------------------
@@ -297,12 +317,17 @@ module classBedSediment1                                             ! class def
                         call r%addToTrace(tr)
                         return                                       !! exit if a critical error has been thrown
                     end if
-
-                    call FS(L, S)%set(Mf_in = F%M_f, &
+                    call r%AddErrors(.errors. &
+                         FS(L, S)%set(Mf_in = F%M_f, &
                                       Vw_in = F%V_w, &
                                       f_comp_in = F%f_comp &
-                                     )                               !! set resuspended fine sediment mass, water volume and fractional composition
-                    M_resusp(S) = M_resusp(S) - FS(L, S)             !! keep count of fine sediment that has been resuspended
+                                     ) &
+                                    )                                !! set resuspended fine sediment mass, water volume and fractional composition
+                    if (r%hasCriticalError) then
+                        call r%addToTrace(tr)
+                        return                                       !! exit if a critical error has been thrown
+                    end if
+                    M_resusp(S) = M_resusp(S) - FS(L, S)%M_f         !! keep count of fine sediment that has been resuspended
                     L = L + 1                                        !! the residual resuspended sediment into G. Repeat until all sediment has been
                 end do                                               !! resuspended, or sediment has been removed from all layers
                 if (M_resusp(S) > 0) then
@@ -502,14 +527,14 @@ module classBedSediment1                                             ! class def
                     L = L + 1
                 end do
                                                                      !! now to actually bury fine sediment and water
-
                 call r%addErrors(.errors. &
                      T%setByV(Vf_in = DS(S)%item%V_f - A_f_sed &
                              ) &
                                 )                                    !! reset the fine sediment burial requirement, still using temporary object T
+                if (r%hasCriticalError) return                       !! return if critical error thrown
                 L = nLayers                                          !! start with the bottom layer
                 do while (L > 0 .and. T%V_f + T%V_w > 0)             !! loop through each layer, while there is still material to bury
-                    if (deltaV_f_temp > 0) Then
+                    if (T%V_f > 0) Then
                         associate(O => &
                             Me%colBedSedimentLayers(L)%item)         !! association reference to layer L object
                             call r%addErrors(.errors. &
@@ -537,7 +562,7 @@ module classBedSediment1                                             ! class def
                                             )                        !! set FineSediment object T to hold sediment requiring removal
                             do while (A > 0 .or. &
                                       T%IsEmpty .eqv. .false.)       !! loop through "donating" layers, moving upwards
-                                if (P%colFineSediments(S)%V_f > 0) &
+                                if (P%colFineSediments(S)%V_f > 0.0) &
                                     then                             !! if there is sediment in the "donating" layer
                                     call r%addErrors(.errors. &
                                          P%removeSediment(S, U, T))  !! remove sediment (T) from the "donating" layer
