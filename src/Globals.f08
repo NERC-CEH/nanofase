@@ -18,10 +18,14 @@ module Globals
         ! Data input
         real(dp) :: T = 15.0_dp             !! Temperature [C]
         character(len=12) :: inputFile = 'data/data.nc'   !! Name of the data input file. TODO: Get this from config file.
-        real(dp), allocatable :: d_spm(:)   !! Suspended particulate matter size class diameters [m]
-        real(dp), allocatable :: d_np(:)    !! Nanoparticle size class diameters [m]
-        integer :: nSizeClassesSpm          !! Number of sediment particle size classes
-        integer :: nSizeClassesNP           !! Number of nanoparticle size classes
+
+        ! Size class distributions
+        real(dp), allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
+        real(dp), allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
+        integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
+        integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
+        integer, allocatable :: defaultDistributionSpm(:)  !! Default imposed size distribution for SPM
+        integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
         ! Limits
         integer :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
@@ -65,7 +69,8 @@ module Globals
             ErrorInstance(code=401, message="Invalid SubRiver inflow reference. Inflow must be from a neighbouring SubRiver."), &
             ! River routing
             ErrorInstance(code=500, message="All SPM advected from RiverReach.", isCritical=.false.), &
-            ! Object type errors
+            ErrorInstance(code=501, message="No input data provided for required SubRiver - check nSubRivers is correct."), &
+            ! General
             ErrorInstance(code=901, message="Invalid RiverReach type index provided."), &
             ErrorInstance(code=902, message="Invalid Biota index provided."), &
             ErrorInstance(code=903, message="Invalid Reactor index provided."), &
@@ -98,6 +103,10 @@ module Globals
         var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
         call var%getData(npSizeClasses)                     ! Get the variable's data
         allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
+        var = grp%getVariable("defaultDistributionSpm")     ! Get the default sediment size classes distribution
+        call var%getData(C%defaultDistributionSpm)          ! Get the variable's data
+        var = grp%getVariable("defaultDistributionNP")      ! Get the sediment size classes variable
+        call var%getData(C%defaultDistributionNP)           ! Get the variable's data
         var = grp%getVariable("gridCellSize")               ! Get the size of a grid cell [m]
         call var%getData(C%gridCellSize)
         var = grp%getVariable("timeStep")                   ! Get the timestep to run the model on [s]
@@ -105,7 +114,7 @@ module Globals
         var = grp%getVariable("nTimeSteps")                 ! Get the number of time steps [s]
         call var%getData(C%nTimeSteps)
         ! Set the number of size classes
-        C%nSizeClassesSPM = size(C%d_spm)
+        C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
     end subroutine
 

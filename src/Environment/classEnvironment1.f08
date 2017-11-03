@@ -95,7 +95,7 @@ module classEnvironment1
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
                     do s = 1, size(me%colGridCells(x,y)%item%colSubRivers)                  ! Loop through the SubRivers
                         associate(subRiver => me%colGridCells(x,y)%item%colSubRivers(s)%item)
-                            do i =1, subRiver%nInflows                                      ! Loop through the inflows
+                            do i = 1, subRiver%nInflows                                      ! Loop through the inflows
                                 ! Get the inflow coordinates
                                 iX = subRiver%inflowRefs(i)%gridX
                                 iY = subRiver%inflowRefs(i)%gridY

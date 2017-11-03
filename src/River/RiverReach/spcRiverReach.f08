@@ -12,11 +12,11 @@ module spcRiverReach
     use mo_netcdf                                                   ! input/output handling
     use ResultModule                                                ! error handling classes, required for
     use ErrorInstanceModule                                         ! generation of trace error messages
-    use spcBedSediment
+    ! use spcBedSediment
     implicit none                                                   ! force declaration of all variables
-    type BedSedimentElement                                         ! container type for class(BedSediment), the actual type of the bed sediment superclass
-        class(BedSediment), private, allocatable :: item
-    end type
+    ! type BedSedimentElement                                         ! container type for class(BedSediment), the actual type of the bed sediment superclass
+    !     class(BedSediment), private, allocatable :: item
+    ! end type
     type, abstract, public :: RiverReach                            ! type declaration for superclass
         character(len=256) :: ref                                   ! Reference for this object, of the form RiverReach_x_y_s_r
                                                                     ! PROPERTIES
@@ -46,7 +46,7 @@ module spcRiverReach
                                                                     ! CONTAINED OBJECTS
                                                                     ! Description
                                                                     ! -----------
-        type(BedSedimentElement) :: objBedSediment                  ! contained BedSediment object
+        ! type(BedSedimentElement) :: objBedSediment                  ! contained BedSediment object
         type(NcGroup) :: ncGroup                                    ! The NETCDF group for this RiverReach
       contains
                                                                     ! METHODS

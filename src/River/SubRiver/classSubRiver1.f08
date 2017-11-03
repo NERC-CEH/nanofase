@@ -92,7 +92,7 @@ module classSubRiver1
             me%tmpm_spm(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
             stat=me%allst)             
-        me%ref = trim(ref(x, y, s))                                 ! Create SubRiver reference name, SubRiver_x_y_s
+        me%ref = trim(ref("SubRiver", x, y, s))                     ! Create SubRiver reference name, SubRiver_x_y_s
         me%length = length                                          ! Set the length
         allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! Set the runoff
         me%spmOut = 0                                               ! Initialise SPM to zero
@@ -195,11 +195,11 @@ module classSubRiver1
                     call r%addError(ErrorInstance( &
                         code = 901, &
                         message = "Invalid RiverReach type index (" // trim(str(me%reachTypes(i))) // ") provided.", &
-                        trace = ["Creating " // trim(ref(x,y,s,i))] &
+                        trace = ["Creating " // trim(ref("RiverReach", x, y, s, i))] &
                     ))
             end select
         end do
-        call r%addToTrace("Creating " // me%ref)
+        call r%addToTrace("Creating " // trim(me%ref))
     end function
     
     function destroySubRiver1(me) result(r)

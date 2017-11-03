@@ -12,6 +12,7 @@ makefile
 
 # FORD compiled documentation (run `ford ford.md` to compile, if FORD installed)
 doc/dist/
+doc/graph/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
