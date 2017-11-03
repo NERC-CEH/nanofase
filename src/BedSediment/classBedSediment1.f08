@@ -261,8 +261,8 @@ module classBedSediment1                                             ! class def
         allocate(C(1:Me%nSizeClasses,1:Me%nLayers, 1:Me%nFComp), &
                                              stat = Me%allst)        !! allocation of output array C
         do S = 1, Me%nSizeClasses                                    !! loop through all size classes
-            call r%addErrors(.errors. G%setByM(Mf_in = M_resusp(S) &
-                                              ) &
+            call r%addErrors(.errors. G%set(Mf_in = M_resusp(S) &
+                                           ) &
                             )                                        !! top layer: set up the temporary object G, with the resuspended mass
             if (r%hasCriticalError) then
                 call r%addToTrace(tr)
@@ -272,7 +272,8 @@ module classBedSediment1                                             ! class def
             associate(O => Me%colBedSedimentLayers(L))               !! association for brevity
                 do while (M_resusp(S) > 0 .and. L <= Me%nLayers)     !! loop through layers until all sediment resuspended or all layers considered
                     call r%addErrors(.errors. &
-                         G%setByM(Vw_in = M_resusp(S) / O%volSLR), &
+                         G%set(Vw_in = M_resusp(S) / O%volSLR &
+                              ), &
                                     )                                !! add the water content to G
                                                                      !! and the volume of water to be resuspended along with the fine sediment
                     if (r%hasCriticalError) then
@@ -287,14 +288,15 @@ module classBedSediment1                                             ! class def
                         return                                       !! exit if a critical error has been thrown
                     end if
 
-                    call FS(L, S)%setByM(Mf_in = F%M_f, &
-                                         Vw_in = F%V_w, &
-                                         f_comp_in = F%f_comp)       !! set resuspended fine sediment mass, water volume and fractional composition
+                    call FS(L, S)%set(Mf_in = F%M_f, &
+                                      Vw_in = F%V_w, &
+                                      f_comp_in = F%f_comp &
+                                     )                               !! set resuspended fine sediment mass, water volume and fractional composition
                     M_resusp(S) = M_resusp(S) - FS(L, S)             !! keep count of fine sediment that has been resuspended
                     L = L + 1                                        !! the residual resuspended sediment into G. Repeat until all sediment has been
                 end do                                               !! resuspended, or sediment has been removed from all layers
                 if (M_resusp(S) > 0) then
-                    er = ErrorInstance(666, &
+                    er = ErrorInstance(1, &
                                        "All sediment of size class " &
                                        // S // " resuspended", &
                                        .false., &
@@ -381,9 +383,9 @@ module classBedSediment1                                             ! class def
         allocate(DS(1:nSizeClasses), stat = Me%allst)                !! allocate space for FineSediment1 objects
         do S = 1, nSizeClasses                                       !! compose FineSediment1 objects from the inputs
             call r%AddErrors(.errors. &
-                 DS(S)%setByM(Mf_in = M_dep(S), &
-                          f_comp_in = f_comp_dep(S,:) &
-                             ) &
+                 DS(S)%set(Mf_in = M_dep(S), &
+                       f_comp_in = f_comp_dep(S,:) &
+                          ) &
                             )                                        !! populate DS with depositing sediment and its fractional composition
         end do
         do S = 1, nSizeClasses
