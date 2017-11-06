@@ -34,6 +34,7 @@ module classFineSediment1                                            !! definiti
             real(dp), intent(in), allocatable :: pd_comp_in(:)       !! input array of particle densities for compositional fractions
             real(dp), allocatable :: pd_comp(:)
             type(Result) :: r                                        !! Result object
+            type(ErrorInstance) :: er                                !! To store errors in
             character(len=256) :: tr                                 !! LOCAL name of this procedure, for trace
             !
             ! Function purpose
@@ -59,8 +60,8 @@ module classFineSediment1                                            !! definiti
             ! -------------------------------------------------------------------------------
             if (len_trim(n) == 0) then
                 call r%addError(ErrorInstance( &
-                    code = 1, &
-                    message = "An object name has not been &
+                             code = 1, &
+                             message = "An object name has not been &
                                       provided", &
                              trace = ["classFineSediment1%create"])) !! error if name is not provided
                 return                                               !! critical error, so exit here
@@ -68,10 +69,10 @@ module classFineSediment1                                            !! definiti
             Me%name = n                                              !! set object name
             Me%NFComp = size(pd_comp_in)                             !! set number of compositional fractions
             allocate(pd_comp(Me%nfComp), stat = Me%allst)            !! allocate space for particle densities of compositional fractions
-            if (stat /= 0) then
+            if (Me%allst /= 0) then
                 er = ErrorInstance(1, &
                                    "Allocation error", &
-                                    [Me%name // &
+                                    trace = [Me%name // &
                 "%createBedSedimentLayer1%colFineSediment"] &
                                   )                                  !! create error
                 call r%addError(er)                                  !! add to Result
@@ -128,40 +129,43 @@ module classFineSediment1                                            !! definiti
                     code = 1, &
                     message = "Sediment mass and volume both &
                                specified", &
-                    trace = [Me%name] 
+                    trace = [Me%name] &
                                   )                                  !! compose error
                 call r%addError(er)                                  !! add it to the result
                 return                                               !! and exit
             end if
             if (present(Mf_in)) then
-                if (Mf_in) <= 0 then                                 !! Mf_in is invalid
+                if (Mf_in <= 0) then                                 !! Mf_in is invalid
                     er = ErrorInstance( &
                         code = 103, &
                         message = "Sediment mass is out of range", &
-                        traceMessage = [Me%name] &
+                        trace = [Me%name] &
                                       )                              !! compose error
                     call r%addError(er)                              !! add it to the result
                     return                                           !! and exit
+                end if
             end if
             if (present(Vf_in)) then
-                if (Vf_in) <= 0 then                                 !! Vf_in is invalid
+                if (Vf_in <= 0) then                                 !! Vf_in is invalid
                     er = ErrorInstance( &
                         code = 103, &
                         message = "Sediment volume is out of range", &
-                        traceMessage = [Me%name] &
+                        trace = [Me%name] &
                                       )                              !! compose error
                     call r%addError(er)                              !! add it to the result
                     return                                           !! and exit
+                end if
             end if
             if (present(Vw_in)) then
-                if (Vw_in) <= 0 then                                 !! Vw_in is invalid
+                if (Vw_in <= 0) then                                 !! Vw_in is invalid
                     er = ErrorInstance( &
                         code = 103, &
                         message = "Water volume is out of range", &
-                        traceMessage = [Me%name] &
+                        trace = [Me%name] &
                                       )                              !! compose error
                     call r%addError(er)                              !! add it to the result
                     return                                           !! and exit
+                end if
             end if
             if (present(f_comp_in)) then
                 if (size(f_comp_in) /= Me%NFComp) then
@@ -169,16 +173,15 @@ module classFineSediment1                                            !! definiti
                         code = 106, &
                         message = "Size of fractional composition &
                                    array incorrect", &
-                        trace = [Me%name // "%SetFS1"])              !! check size of compositional array against stored no. of fraction
+                        trace = [Me%name // "%SetFS1"] &             !! check size of compositional array against stored no. of fraction
                                       )
-
-                call r%addError(er)                                  !! add it to the result
-                return                                               !! and exit, as this is a critical error
+                    call r%addError(er)                              !! add it to the result
+                    return                                           !! and exit, as this is a critical error
                 else                                                 !! if no error thrown, then
                     Me%f_comp = f_comp_in                            !! store the composition locally
                     er = Me%audit_comp()                             !! audit sum (fractional composition) = 1, return error instance 
                     if (er%isError()) then                           !! if an error was thrown
-                        call er%addToTrace([Me%name // "%SetFS1"])   !! add a trace
+                        call er%addToTrace(Me%name // "%SetFS1")     !! add a trace
                         call r%addError(er)                          !! add it to the result
                         return                                       !! and exit, as this is a critical error
                     end if
@@ -258,15 +261,15 @@ module classFineSediment1                                            !! definiti
             end do
         end subroutine
         !> mix two FineSediment objects together
-        pure function Mix1(Me, FS) result(r)
-            type(FineSediment1), intent(in) :: Me                    !! self-reference
+        function Mix1(Me, FS) result(r)
+            class(FineSediment1) :: Me                               !! self-reference
             type(FineSediment1), intent(in) :: FS                    !! FineSediment1 to be mixed with this one
             type(Result0D) :: r                                      !! Result object
             type(ErrorInstance) :: er                                !! LOCAL error instance object
             integer :: x                                             !! LOCAL loop counter
             real(dp) :: M_f_mix                                      !! LOCAL mixed sediment mass
             real(dp) :: V_w_mix                                      !! LOCAL mixed water volume
-            real(dp) :: f_comp_mix(:)                                !! LOCAL mixed fractional composition
+            real(dp), allocatable :: f_comp_mix(:)                   !! LOCAL mixed fractional composition
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -292,19 +295,19 @@ module classFineSediment1                                            !! definiti
             ! -------------------------------------------------------------------------------
             ! No notes.
             ! -------------------------------------------------------------------------------
-            if (FS%M_f <= 0) then                                    !! mixing sediment mass is invalid
+            if (FS%M_f() <= 0) then                                  !! mixing sediment mass is invalid
                 er = ErrorInstance( &
                     code = 103, &
-                    message = "Mixing sediment mass is invalid" &
-                    traceMessage = [Me%name] // "%Mix1"
+                    message = "Mixing sediment mass is invalid", &
+                    trace = [Me%name // "%Mix1"] &
                                   )                                  !! compose error
                 call r%addError(er)                                  !! add it to the result
             end if                                                   !! note that V_f does not need to be checked
-            if (FS%V_w < 0) then                                     !! mixing water volume is invalid - note procedure does accept that volume can be zero
+            if (FS%V_w() < 0) then                                   !! mixing water volume is invalid - note procedure does accept that volume can be zero
                 er = ErrorInstance( &
                     code = 103, &
-                    message = "Mixing water volume is invalid" &
-                    traceMessage = [Me%name] // "%Mix1"
+                    message = "Mixing water volume is invalid", &
+                    trace = [Me%name // "%Mix1"] &
                                   )                                  !! compose error
                 call r%addError(er)                                  !! add it to the result
             end if
@@ -313,50 +316,50 @@ module classFineSediment1                                            !! definiti
                     code = 106, &
                     message = "Inconsistent numbers of compositional &
                                fractions", &
-                    traceMessage = [Me%name] // "%Mix1"
+                    trace = [Me%name // "%Mix1"] &
                                   )                                  !! compose error
                 call r%addError(er)                                  !! add it to the result
             end if
-            er = FS%audit_comp1()                                    !! audit sum (fractional composition) = 1, return error instance
+            er = FS%audit_comp()                                     !! audit sum (fractional composition) = 1, return error instance
             if (er%isError()) then                                   !! if an error was thrown
-                call er%addToTrace([Me%name // "%Mix1"])             !! add a trace
+                call er%addToTrace(Me%name // "%Mix1")               !! add a trace
                 call r%addError(er)                                  !! add it to the result
             end if
-            if (r%hasCriticalError) return                           !! exit if a critical error has been thrown
+            if (r%hasCriticalError()) return                         !! exit if a critical error has been thrown
             do x = 1, FS%nfComp
                 if (FS%pd_comp_l(x) <= 0) then                       !! check all particle densities are valid
                     er = ErrorInstance( &
                         code = 103, &
                         message = "A mixing particle density is &
-                                   invalid" &
-                        traceMessage = [Me%name] // "%Mix1"
+                                   invalid", &
+                        trace = [Me%name // "%Mix1"] &
                                       )                              !! compose error
                     call r%addError(er)                              !! add it to the result
                     return                                           !! and exit
                 end if
             end do
-            allocate(f_comp_mix(Me%nfComp, stat = Me%allst))         !! allocate f_comp_mix
-            if (stat /= 0) then
+            allocate(f_comp_mix(Me%nfComp), stat = Me%allst)         !! allocate f_comp_mix
+            if (Me%allst /= 0) then
                 er = ErrorInstance(1, &
                             message = "Allocation error", &
-                            traceMessage = [Me%name] // "%Mix1"] &
+                            trace = [Me%name // "%Mix1"] &
                                   )                                  !! create error
                 call r%addError(er)                                  !! add to Result
                 return                                               !! critical error, so exit
             end if
             do x = 1, Me%nfComp
-                f_comp_mix(x) = (Me%M_f * Me%f_comp(x) + &
-                                 FS%M_f * FS%f_comp(x)) / &
-                                (Me%M_f + FS%M_f)                    !! mass-weighted fractional composition of mixed sediment
+                f_comp_mix(x) = (Me%M_f() * Me%f_comp(x) + &
+                                 FS%M_f() * FS%f_comp(x)) / &
+                                (Me%M_f() + FS%M_f())                !! mass-weighted fractional composition of mixed sediment
             end do
-            M_f_mix = Me%M_f + FS%M_f                                !! mixed sediment mass
-            V_w_mix = Me%V_w + FS%V_w                                !! mixed water volume
-            r%addErrors(.errors. FS%set(Mf_in = M_f_mix, &
+            M_f_mix = Me%M_f() + FS%M_f()                            !! mixed sediment mass
+            V_w_mix = Me%V_w() + FS%V_w()                            !! mixed water volume
+            call r%addErrors(.errors. FS%set(Mf_in = M_f_mix, &
                                         Vw_in = V_w_mix, &
                                         f_comp_in = f_comp_mix &
                                        ) &
                        )                                             !! set the properties of the returned FineSediment object
-            if (r%hasCriticalError) return                           !! exit if critical error thrown
+            if (r%hasCriticalError()) return                         !! exit if critical error thrown
             r = Result(data = FS)                                    !! feed FineSediment object into Result
        end function
 end module
