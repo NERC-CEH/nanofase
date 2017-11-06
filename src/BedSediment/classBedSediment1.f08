@@ -49,7 +49,8 @@ module classBedSediment1                                             ! class def
                                                                      !! Index 1 = size class, Index 2 = layer
         integer :: L                                                 !! LOCAL loop counter
         type(BedSedimentLayer1), allocatable :: bsl1                 !! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
-        character(len=*) :: tr                                       !! error trace
+        type(ErrorInstance) :: er                                    !! To store errors in
+        character(len=256) :: tr                                     !! error trace
         character(len=16), parameter :: ms = "Allocation error"      !! allocation error message
         !
         ! Function purpose
@@ -102,7 +103,7 @@ module classBedSediment1                                             ! class def
             call r%addError(er)                                      !! add to Result
             return                                                   !! critical error, so return
         end if
-        do L =1, nLayers
+        do L = 1, Me%nLayers
             select case (bslType)                                    !! loop through possible BedSedimentLayer types
                 case(1)                                              !! type number 1
                     allocate(bsl1, stat = Me%allst)                  !! allocate empty object of this type
@@ -136,7 +137,7 @@ module classBedSediment1                                             ! class def
                                             f_comp(:,:,L), &
                                             pd_comp, &
                                             Porosity = Porosity(L), &
-                                            M_f = M_f(:,L)
+                                            M_f = M_f(:,L) &
                                             ) &
                                         )                             !! if M_f and Porosity as present
                         end if
@@ -149,7 +150,7 @@ module classBedSediment1                                             ! class def
                                             C_tot(L), &
                                             f_comp(:,:,L), &
                                             pd_comp, &
-                                            V_f = V_f(:,L)
+                                            V_f = V_f(:,L) &
                                             ) &
                                        )                             !! if V_f is present and Porosity is absent
                         else
@@ -160,7 +161,7 @@ module classBedSediment1                                             ! class def
                                             C_tot(L), &
                                             f_comp(:,:,L), &
                                             pd_comp, &
-                                            M_f = M_f(:,L)
+                                            M_f = M_f(:,L) &
                                             ) &
                                        )                             !! if M_f is present and Porosity is absent
                         end if
@@ -542,8 +543,8 @@ module classBedSediment1                                             ! class def
                              ) &
                                 )                                    !! reset the fine sediment burial requirement, still using temporary object T
                 if (r%hasCriticalError()) return                     !! return if critical error thrown
-                L = nLayers                                          !! start with the bottom layer
-                do while (L > 0 .and. T%V_f + T%V_w > 0)             !! loop through each layer, while there is still material to bury
+                L = Me%nLayers                                       !! start with the bottom layer
+                do while (L > 0 .and. T%V_f() + T%V_w() > 0)         !! loop through each layer, while there is still material to bury
                     if (T%V_f() > 0) Then
                         associate(O => &
                             Me%colBedSedimentLayers(L)%item)         !! association reference to layer L object

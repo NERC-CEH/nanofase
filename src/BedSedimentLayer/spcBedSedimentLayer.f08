@@ -13,6 +13,8 @@ module spcBedSedimentLayer                                           !! abstract
         character(len=256) :: name                                   !! a name for the object
                                                                      !! define variables for 'has a' objects: Biota and Reactor
                                                                      !! properties
+        real(dp), allocatable :: C_f_l(:)                            !! capacity for fine sediment [m3 m-2]
+        real(dp), allocatable :: C_w_l(:)                            !! capacity for water [m3 m-2]
         class(FineSedimentElement), allocatable :: &
         colFineSediment(:)                                           !! collection of FineSediment objects
         real(dp) :: C_total                                          !! total capacity [m3 m-2]
@@ -165,14 +167,13 @@ module spcBedSedimentLayer                                           !! abstract
             ! -------------------------------------------------------------------------------
         end function
         !> remove sediment and water from this layer
-        function RemoveSedimentFromLayer(Me, S, F, G) result(r)
+        function RemoveSedimentFromLayer(Me, S, G) result(r)
             use Globals
-            import BedSedimentLayer, FineSediment1, Result
-            class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
-            integer, intent(in) :: S                                 !! the particle size class
-            type(FineSediment1), intent(inout) :: G            !! fine sediment to be removed; returns fine sediment that could not be removed
-            type(FineSediment1), intent(inout) :: F            !! returns fine sediment that was removed
-            type(Result) :: r                                        !! The Result object
+            import BedSedimentLayer, FineSediment1, Result1D
+            class(BedSedimentLayer) :: Me                                   !! the BedSedimentLayer instance
+            integer, intent(in) :: S                                        !! the particle size class
+            type(FineSediment1), intent(in) :: G                            !! fine sediment to be removed; returns fine sediment that could not be removed
+            type(Result1D) :: r                                             !! The Result object. Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
             ! Function purpose
             ! -------------------------------------------------------------------------------
             ! Removes fine sediment and associated water from this layer.
