@@ -13,17 +13,13 @@ module spcBedSedimentLayer                                           !! abstract
         character(len=256) :: name                                   !! a name for the object
                                                                      !! define variables for 'has a' objects: Biota and Reactor
                                                                      !! properties
-        class(FineSedimentElement), public, allocatable :: &
-        colFineSediment(:)                                           !! collection of FineSediment objects
         class(FineSedimentElement), allocatable :: &
-        colFineSedimentResusp(:)
+        colFineSediment(:)                                           !! collection of FineSediment objects
         real(dp) :: C_total                                          !! total capacity [m3 m-2]
         real(dp) :: V_c                                              !! coarse material volume [m3 m-2]
         real(dp), allocatable :: pd_comp(:)                          !! particle densities of sediment components [kg m-3]
         integer :: nSizeClasses                                      !! number of sediment size classes
         integer :: nfComp                                            !! number of fractional composition terms for sediment
-        real(dp), allocatable :: C_f_l(:)                            !! LOCAL capacity for fine sediment [m3 m-2]
-        real(dp), allocatable :: C_w_l(:)                            !! LOCAL capacity for water [m3 m-2]
         integer :: allst                                             !! array allocation status
     contains
                                                                      !! non-deferred methods: defined here. Can be overwritten in subclasses
@@ -141,7 +137,7 @@ module spcBedSedimentLayer                                           !! abstract
             ! -------------------------------------------------------------------------------
         end function
         !> add sediment and water to this layer
-        function AddSedimentToLayer(Me, S, F) result(r)
+        function addSedimentToLayer(Me, S, F) result(r)
             use Globals
             import BedSedimentLayer, FineSediment1, Result
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
