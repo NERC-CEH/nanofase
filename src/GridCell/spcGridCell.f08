@@ -49,21 +49,7 @@ module spcGridCell
     real(dp) :: Qrunoff                                              ! Runoff from the hydrological model
     real(dp) :: slope                                                ! The slope of the GridCell
     real(dp) :: n_river                                              ! Manning's roughness coefficient for the river
-    real(dp), allocatable :: usle_C(:)                               ! Cover and land management factor time series [-]
-    real(dp) :: usle_K                                               ! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
-    real(dp) :: usle_LS                                              ! Topographic factor [-]
-    real(dp) :: usle_P                                               ! Support practice factor [-]
-    real(dp) :: usle_CFRG                                            ! Coarse fragment factor [-]
-    real(dp), allocatable :: usle_alpha_half(:)                      ! Fraction of rainfall falling during maximum half hour [-]
-    real(dp) :: usle_area_hru                                          ! Area of the HRU corresponding to this GridCell
-    real(dp) :: usle_area_sb                                           ! Area of the subbasin corresponding to this GridCell
-    real(dp) :: usle_L_sb                                              ! Hillslope length for the subbasin
-    real(dp) :: usle_n_sb                                              ! Manning's roughness coefficient for the subbasin
-    real(dp) :: usle_slp_sb                                            ! Slope of the subbasin
-    real(dp) :: usle_slp_ch                                            ! Slope of the channel
-    real(dp) :: usle_L_ch                                              ! Hillslope length for the channel
-    real(dp), allocatable :: rusle2015_erodedSediment(:)             ! RUSLE2015 sediment yield for this GridCell (2010): https://esdac.jrc.ec.europa.eu/content/soil-erosion-water-rusle2015
-    real(dp), allocatable :: erodedSediment(:)                       ! Sediment yield eroded on this timestep [kg/timestep]
+    real(dp), allocatable :: erodedSediment(:)                       ! Sediment yield eroded on this timestep [kg/timestep], simulated by SoilProfile(s)
     logical :: isEmpty = .false.                                     ! Is there anything going on in the GridCell or should we skip over when simulating?
                                                                      ! CONTAINED OBJECTS
                                                                      ! Description
@@ -76,8 +62,6 @@ module spcGridCell
     procedure(destroyGridCell), deferred :: destroy                  ! remove the GridCell object and all contained objects. Exposed name: destroy
     procedure(updateGridCell), deferred :: update                    ! route water and suspended solids through all SubRiver objects. Exposed name: routing
     procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate  
-    procedure(erodeSoilGridCell), deferred :: erodeSoil              ! Obtain soil erosion for a given timestep
-    procedure(imposeSizeDistributionGridCell), deferred :: imposeSizeDistribution
   end type
 
   type GridCellElement                                               ! Container type for polymorphic GridCells
@@ -107,19 +91,6 @@ module spcGridCell
       import GridCell, Result
       class(GridCell) :: me
       type(Result) :: r
-    end function
-    function erodeSoilGridCell(me, t) result(r)
-      import GridCell, Result
-      class(GridCell)     :: me               !! This GridCell instance
-      integer             :: t                !! The timestep we're on
-      type(Result)        :: r                !! The Result object
-    end function
-    function imposeSizeDistributionGridCell(me, mass) result(distribution)
-        use Globals
-        import GridCell
-        class(GridCell) :: me
-        real(dp) :: mass
-        real(dp) :: distribution(C%nSizeClassesSpm)
     end function
   end interface
 end module

@@ -14,17 +14,16 @@ module spcSoilProfile
                                                                     ! SoilLayer superclass
     type, abstract, public :: SoilProfile                           ! type declaration for superclass
         character(len=256) :: ref                                   ! A reference name for the object
-                                                                    ! PROPERTIES
-                                                                    ! Description
-                                                                    ! -----------
         integer :: x                                                ! GridCell x reference
         integer :: y                                                ! GridCell y reference
         integer :: p                                                ! SoilProfile reference (not needed currently as only one SoilProfile per GridCell)
+        type(NcGroup) :: ncGroup                                    ! The NetCDF group for this object
         type(SoilLayerElement), allocatable :: colSoilLayers(:)     ! array of SoilLayerElement objects to hold the soil layers
         type(integer) :: nSoilLayers                                ! Number of contained soil layers
-        real(dp) :: Qrunoff                                         ! Runoff from the hydrological model
+        real(dp) :: Qrunoff                                         ! Runoff from the hydrological model for this timestep
         real(dp) :: slope                                           ! The slope of the containing GridCell
         real(dp) :: n_river                                         ! Manning's roughness coefficient for the river
+        real(dp) :: area                                            ! The surface area of the SoilProfile
         real(dp), allocatable :: usle_C(:)                          ! Cover and land management factor time series [-]
         real(dp) :: usle_K                                          ! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
         real(dp) :: usle_LS                                         ! Topographic factor [-]
@@ -40,16 +39,15 @@ module spcSoilProfile
         real(dp) :: usle_L_ch                                       ! Hillslope length for the channel
         real(dp), allocatable :: rusle2015_erodedSediment(:)        ! RUSLE2015 sediment yield for this GridCell (2010): https://esdac.jrc.ec.europa.eu/content/soil-erosion-water-rusle2015
         real(dp), allocatable :: erodedSediment(:)                  ! Sediment yield eroded on this timestep [kg/timestep]
-                                                                    ! CONTAINED OBJECTS
-                                                                    ! Description
-                                                                    ! -----------
+        integer, allocatable :: distributionSediment(:)             ! Distribution to split sediment into
+
       contains
-                                                                    ! METHODS
-                                                                    ! Description
-                                                                    ! -----------
         procedure(createSoilProfile), deferred :: create            ! create the SoilProfile object. Exposed name: create
         procedure(destroySoilProfile), deferred :: destroy          ! remove the SoilProfile object and all contained objects. Exposed name: destroy
         procedure(updateSoilProfile), deferred :: update            ! Update on every timestep (e.g., perform routing of water through soil)
+        procedure(erodeSoilProfile), deferred :: erode              ! Erode soil on a particular timestep
+        procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
+        procedure(parseInputDataSoilProfile), deferred :: parseInputData ! Parse the data from the input file and store in object properties
     end type
 
     type SoilProfileElement                                         ! container type for class(SoilProfile), the actual type of the SoilProfile class
@@ -60,29 +58,60 @@ module spcSoilProfile
         !> Creating the SoilProfile parses input data and fills
         !! the corresponding object properties, as well as setting
         !! up the contained SoilLayers.
-        function createSoilProfile(me, x, y, p, slope, n_river) result(r)
+        function createSoilProfile(me, x, y, p, slope, n_river, area) result(r)
             use Globals
             import SoilProfile, Result
-            class(SoilProfile) :: me           !! The SoilProfile instance.
-            integer :: x                        !! Containing GridCell x position
-            integer :: y                        !! Containing GridCell y position
-            integer :: p                        !! SoilProfile reference
-            real(dp) :: slope                   !! Slope of the containing GridCell [m/m]
-            real(dp) :: n_river                 !! Manning's roughness coefficient for the GridCell's rivers [-]
-            type(Result) :: r                   !! The Result object
+            class(SoilProfile)  :: me                           !! The SoilProfile instance.
+            integer             :: x                            !! Containing GridCell x position
+            integer             :: y                            !! Containing GridCell y position
+            integer             :: p                            !! SoilProfile reference
+            real(dp)            :: slope                        !! Slope of the containing GridCell [m/m]
+            real(dp)            :: n_river                      !! Manning's roughness coefficient for the GridCell's rivers [-]
+            real(dp)            :: area                         !! The area of the SoilProfile's surface
+            type(Result)        :: r                            !! Result object to return
         end function
 
         function destroySoilProfile(me) result(r)
             import SoilProfile, Result
-            class(SoilProfile) :: me                                ! The SoilProfile instance.
-            type(Result) :: r
+            class(SoilProfile) :: me                            !! The SoilProfile instance
+            type(Result) :: r                                   !! Result object to return
         end function
 
-        function updateSoilProfile(me) result(r)
+        !> Perform the SoilProfile's simulation for one timestep
+        function updateSoilProfile(me, t, Qrunoff) result(r)
+            use Globals
             import SoilProfile, Result
-            class(SoilProfile) :: me                                ! The SoilProfile instance.
-            type(Result) :: r
+            class(SoilProfile) :: me                            !! This SoilProfile instance
+            integer :: t                                        !! The current timestep
+            real(dp) :: Qrunoff                                 !! Runoff generated on this timestep
+            type(Result) :: r                                   !! Result object to return
             ! NEEDS QRUNOFF
+        end function
+
+        !> Erode soil for the current timestep
+        function erodeSoilProfile(me, t) result(r)
+            import SoilProfile, Result
+            class(SoilProfile) :: me                            !! This SoilProfile instance
+            integer :: t                                        !! The current timestep
+            type(Result) :: r                                   !! Result object to return
+        end function
+
+        !> Impose a size class distribution on a total mass to split it up
+        !! into separate size classes. If a size distribution has been specified
+        !! for this SoilProfile, use that, otherwise, use the global size distribution.
+        function imposeSizeDistributionSoilProfile(me, mass) result(distribution)
+            use Globals
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: mass
+            real(dp) :: distribution(C%nSizeClassesSpm)
+        end function
+
+        !> Parses the input data for the SoilProfile from the data file
+        function parseInputDataSoilProfile(me) result(r)
+            import SoilProfile, Result
+            class(SoilProfile) :: me                            !! This SoilProfile instance
+            type(Result) :: r                                   !! Result object to return
         end function
     end interface
 end module

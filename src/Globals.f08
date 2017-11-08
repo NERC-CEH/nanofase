@@ -24,7 +24,7 @@ module Globals
         real(dp), allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
         integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
         integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
-        integer, allocatable :: defaultDistributionSpm(:)  !! Default imposed size distribution for SPM
+        integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
         ! Limits
@@ -103,8 +103,9 @@ module Globals
         var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
         call var%getData(npSizeClasses)                     ! Get the variable's data
         allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
-        var = grp%getVariable("defaultDistributionSpm")     ! Get the default sediment size classes distribution
-        call var%getData(C%defaultDistributionSpm)          ! Get the variable's data
+        var = grp%getVariable("defaultDistributionSediment")! Get the default sediment size classes distribution
+        call var%getData(C%defaultDistributionSediment)     ! Get the variable's data
+        ! TODO: Check the distribution adds up to 100%
         var = grp%getVariable("defaultDistributionNP")      ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
         var = grp%getVariable("gridCellSize")               ! Get the size of a grid cell [m]
