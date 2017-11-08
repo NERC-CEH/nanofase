@@ -24,17 +24,17 @@
                     "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
                 },
                 {
-                    "name" : "defaultDistributionSpm",
+                    "name" : "defaultDistributionSediment",
                     "type" : "variable",
                     "dimensions" : [ "nSizeClassesSpm" ],
-                    "datatype" : "f8",
+                    "datatype" : "i4",
                     "data" : [ 50, 30, 10, 7, 3 ]
                 },
                 {
                     "name" : "defaultDistributionNP",
                     "type" : "variable",
                     "dimensions" : [ "nSizeClassesNP" ],
-                    "datatype" : "f8",
+                    "datatype" : "i4",
                     "data" : [ 50, 30, 10, 7, 3 ]
                 },
                 { "name" : "gridCellSize", "type" : "variable", "datatype" : "f8", "data" : 1000 },
@@ -65,11 +65,7 @@
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                         { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
-                        { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
-                        { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
-                        { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
-                        { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
-                        { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_1_1_1", "json" : "soil-profile.json" },
                         {
                             "name" :  "SubRiver_1_1_1",
                             "type" : "group",
@@ -133,6 +129,7 @@
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
                         { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_1_2_1", "json" : "soil-profile.json" },
                         {
                             "name" :  "SubRiver_1_2_1",
                             "type" : "group",
@@ -184,6 +181,7 @@
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
                         { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_2_2_1", "json" : "soil-profile.json" },
                         {
                             "name" :  "SubRiver_2_2_1",
                             "type" : "group",
@@ -318,6 +316,7 @@
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
                         { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_2_3_1", "json" : "soil-profile.json" },
                         {
                             "name" : "runoff",
                             "type" : "variable",
@@ -381,6 +380,7 @@
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
                         { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
                         { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_3_2_1", "json" : "soil-profile.json" },
                         {
                             "name" :  "SubRiver_3_2_1",
                             "type" : "group",

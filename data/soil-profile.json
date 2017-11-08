@@ -1,0 +1,18 @@
+{
+    "name" : "SoilProfile",
+    "type" : "group",
+    "data" : [
+        { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
+        { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
+        { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
+        { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
+        { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+        {
+            "name" : "distributionSediment",
+            "type" : "variable",
+            "datatype" : "i4",
+            "dimensions" : [ "nSizeClassesSpm" ],
+            "data" : [ 50, 30, 10, 7, 3 ]
+        }
+    ]
+}

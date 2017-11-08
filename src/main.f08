@@ -23,7 +23,8 @@ program main
         do x = 1, size(env%colGridCells, 1)                             ! Loop through the rows
             do y = 1, size(env%colGridCells, 2)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
-                    write(3,*) t, ", ", x, ", ", y, ", ", env%colGridCells(x,y)%item%erodedSediment
+                    write(3,*) t, ", ", x, ", ", y, ", ", &
+                        env%colGridCells(x,y)%item%erodedSediment
                     do s = 1, size(env%colGridCells(x,y)%item%colSubRivers) ! Loop through the SubRivers
                         ! Write to the data file
                         write(2,*) t, ", ", x, &

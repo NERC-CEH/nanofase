@@ -10,9 +10,10 @@ makefile
 # Compilation files
 *.stackdump
 
-# FORD compiled documentation (run `ford ford.md` to compile, if FORD installed)
+# Compiled documentation
 doc/dist/
 doc/graph/
+doxygen/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
