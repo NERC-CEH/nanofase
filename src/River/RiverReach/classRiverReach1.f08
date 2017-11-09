@@ -244,12 +244,14 @@ module classRiverReach1
         real(dp) :: d_max                       ! Maximum resuspendable grain size [m]
         real(dp) :: d_low                       ! Lowest value in size class's distribution [m]
         real(dp) :: d_upp                       ! Upper value in size class's distribution [m]
-        real(dp) :: M_prop                      ! Proportion of a size class that can be resuspended
+        real(dp) :: M_prop(C%nSizeClassesSpm)   ! Proportion of a size class that can be resuspended
         real(dp) :: omega                       ! Stream power per unit bed area [W m-2]
+        real(dp) :: f_fr                        ! Friction factor [-]
         real(dp) :: j_res(C%nSizeClassesSpm)    ! The calculated resuspension fluxes for each size class [kg s-1]
         integer :: n                            ! Iterator for size classes
 
-        d_max = 9.9941(sqrt(me%alpha_res*C%g*me%D*me%S))**2.5208
+        d_max = 9.9941(sqrt(me%alpha_res*C%g*me%D*me%S))**2.5208    ! Maximum resuspendable particle size
+        ! Calculate proportion of each size class for each size class separately
         do n = 1, C%nSizeClassesSpm
             ! Set the upper and lower limit of the size class's distributions
             if (n == 1) then
@@ -259,27 +261,28 @@ module classRiverReach1
                 d_low = d_spm(n) - (d_spm(n)-d_spm(n-1))/2      ! Halfway between d_n-1 and d_n
                 d_upp = 2*d_spm(n) - d_low                      ! Halfway between d_n and d_n+1
             end if
-            ! Calculate the proportion of size class that can be resuspended, based on this
+            ! Calculate the proportion of size class that can be resuspended
             if (d_max < d_low) then
-                M_prop = 0                                      ! None can be resuspended
+                M_prop(n) = 0                                   ! None can be resuspended
             else if (d_max > d_upp) then
-                M_prop = 1                                      ! All can be resuspended
+                M_prop(n) = 1                                   ! All can be resuspended
             else
-                M_prop = (d_max - d_low)/(d_upp - d_low)        ! Only some can be resuspended
+                M_prop(n) = (d_max - d_low)/(d_upp - d_low)     ! Only some can be resuspended
             end if
-            ! Calculate the stream power per unit bed area
-            omega = C%rho_w(C%T)*C%g*me%Qin
-
-            j_res(n) = me%calculateResuspension( &
-                beta = me%beta_res, &
-                L = me%l*me%f_m, &
-                W = me%W,
-                m_bed = 1.0_dp, &
-                M_prop = M_prop, &
-                omega = 1.0_dp, &
-                f = 1.0_dp &
-            )
         end do
+        ! Calculate the stream power per unit bed area
+        omega = C%rho_w(C%T)*C%g*(me%Qin/C%timeStep)*me%S/me%W
+        f_fr = 4*me%D/(me%W+2*me%D)
+        ! Calculate the resuspension
+        j_res = me%calculateResuspension( &
+            beta = me%beta_res, &
+            L = me%l*me%f_m, &
+            W = me%W,
+            m_bed = 1.0_dp, &
+            M_prop = M_prop, &
+            omega = omega, &
+            f_fr = f_fr &
+        )
 
     end function
 
@@ -420,15 +423,15 @@ module classRiverReach1
     !! $$
     !!      j_{\text{res}} = \beta L W m_{\text{bed}} M_{\text{prop}} \omega f
     !! $$
-    pure function calculateResuspension1(me, beta, L, W, m_bed, M_prop, omega, f) result(j_res)
+    pure function calculateResuspension1(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
         class(RiverReach1), intent(in)  :: me           !! This RiverReach1 instance
         real(dp), intent(in)            :: beta         !! Calibration parameter \( \beta \) [s2 kg-1]
         real(dp), intent(in)            :: L            !! Reach length \( L = lf_{\text{m}} \) [m]
         real(dp), intent(in)            :: W            !! Reach width \( W \) [m]
         real(dp), intent(in)            :: m_bed        !! BedSediment mass per unit area \( m_{\text{bed}} \) [kg m-2]
-        real(dp), intent(in)            :: M_prop       !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
+        real(dp), intent(in)            :: M_prop(C%nTimeSteps) !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
         real(dp), intent(in)            :: omega        !! Stream power per unit bed area \( \omega \) [kg m-2]
-        real(dp), intent(in)            :: f            !! Friction factor \( f \) [-]
+        real(dp), intent(in)            :: f_fr         !! Friction factor \( f \) [-]
         real(dp)                        :: j_res        !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
         j_res = beta*L*W*m_bed*M_prop*omega*f
     end function
