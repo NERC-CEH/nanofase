@@ -1,12 +1,13 @@
-module spcFineSediment                                              !! abstract superclass definition for FineSediment
-                                                                    !! defines the properties and methods shared by all BedSedimentLayer objects
-                                                                    !! objects of this class cannot be instantiated, only objects of its subclasses
+!> abstract superclass definition for FineSediment
+!! defines the properties and methods shared by all BedSedimentLayer objects
+!! objects of this class cannot be instantiated, only objects of its subclasses
+module spcFineSediment
     use Globals
-    use netcdf                                                      !! input/output handling
-    use mo_netcdf                                                   !! input/output handling
-    use ResultModule                                                !! error handling classes, required for
-    use ErrorInstanceModule                                         !! generation of trace error messages
-    implicit none                                                   !! force declaration of all variables
+    use netcdf                                                      ! input/output handling
+    use mo_netcdf                                                   ! input/output handling
+    use ResultModule                                                ! error handling classes, required for
+    use ErrorInstanceModule                                         ! generation of trace error messages
+    implicit none                                                   ! force declaration of all variables
     type, abstract, public :: FineSediment                          !! type declaration for superclass
         character(len=256) :: name                                  !! a name for the object
         real(dp) :: M_f_l                                           !! fine sediment mass [kg m-2]
@@ -17,16 +18,16 @@ module spcFineSediment                                              !! abstract 
 
       contains
                                                                     ! deferred methods: must be defined in all subclasses
-        procedure(createFineSediment), deferred :: create !! sets up by reading variables required for computations
-        procedure(setFSVol), deferred :: SetV             !! set properties by assigning a fine sediment volume
-        procedure(setFSMass), deferred :: SetM            !! set properties by assigning a fine sediment mass
-        procedure(getFSVol), deferred :: V_f              !! returns the fine sediment volume [m3 m-2]
-        procedure(getFSMass), deferred :: M_f             !! returns the fine sediment mass [kg m-2]
-        procedure(getWVol), deferred :: V_w               !! returns the water volume [kg m-2]
-        procedure(pdens), deferred :: rho_part            !! returns the fine sediment particle density [kg m-3]
-        procedure(audit_fcomp), deferred :: audit_comp    !! audits the fractional composition
-        procedure(Empty), deferred :: IsEmpty             !! check for presence of sediment and water
-        procedure(ClearAll), deferred :: Clear            !! clear all fine sediment and water from the object
+        procedure(createFineSediment), deferred :: create           ! sets up by reading variables required for computations
+        procedure(setFSVol), deferred :: SetV                       ! set properties by assigning a fine sediment volume
+        procedure(setFSMass), deferred :: SetM                      ! set properties by assigning a fine sediment mass
+        procedure(getFSVol), deferred :: V_f                        ! returns the fine sediment volume [m3 m-2]
+        procedure(getFSMass), deferred :: M_f                       ! returns the fine sediment mass [kg m-2]
+        procedure(getWVol), deferred :: V_w                         ! returns the water volume [kg m-2]
+        procedure(pdens), deferred :: rho_part                      ! returns the fine sediment particle density [kg m-3]
+        procedure(audit_fcomp), deferred :: audit_comp              ! audits the fractional composition
+        procedure(Empty), deferred :: IsEmpty                       ! check for presence of sediment and water
+        procedure(ClearAll), deferred :: Clear                      ! clear all fine sediment and water from the object
                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
     end type
     abstract interface
@@ -65,21 +66,21 @@ module spcFineSediment                                              !! abstract 
             use Globals
             import FineSediment
             class(FineSediment) :: Me                               !! self-reference
-            real(dp) :: Vf                             !! the return value
+            real(dp) :: Vf                                          !! the return value
         end function
         !> return the fine sediment mass [kg m-2]
         function getFSMass(Me) result(Mf)
             use Globals
             import FineSediment
             class(FineSediment) :: Me                               !! self-reference
-            real(dp) :: Mf                             !! the return value
+            real(dp) :: Mf                                          !! the return value
         end function
         !> return the water volume [m3 m-2]
         function getWVol(Me) result(Vw)
             use Globals
             import FineSediment
             class(FineSediment) :: Me                               !! self-reference
-            real(dp) :: Vw                             !! the return value
+            real(dp) :: Vw                                          !! the return value
         end function
         !> return the particle density [kg m-3]
         function pdens(Me) result(rp)
@@ -93,20 +94,20 @@ module spcFineSediment                                              !! abstract 
             use Globals
             import FineSediment
             class(FineSediment) :: Me                                !! self-reference
-            integer :: F                                             !! LOCAL loop counter
-            real(dp) :: t_fcomp                                      !! LOCAL sum of fractional compositions
+            integer :: F                                             ! LOCAL loop counter
+            real(dp) :: t_fcomp                                      ! LOCAL sum of fractional compositions
         end function
         !> check whether this object contains any fine sediment or water of the specified size class
         function Empty(Me) result(t)
             import FineSediment
             class(FineSediment) :: Me                                !! self-reference
-            logical :: t                                             !! return value. True= V_f/M_f = V_w = 0. False= V_f/M_f > 0 .or. V_w > 0
+            logical :: t                                             ! return value. True= V_f/M_f = V_w = 0. False= V_f/M_f > 0 .or. V_w > 0
         end function
         !> clear all fine sediment and water from the object
         subroutine ClearAll(Me)
             import FineSediment
             class(FineSediment) :: Me                                !! self-reference
-            integer :: X                                             !! LOCAL loop counter
+            integer :: X                                             ! LOCAL loop counter
         end subroutine
     end interface
 end module

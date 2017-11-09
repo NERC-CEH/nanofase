@@ -83,6 +83,7 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         {
                                             "name" : "spm",
                                             "type" : "variable",
@@ -97,6 +98,7 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         {
                                             "name" : "spm",
                                             "type" : "variable",
@@ -155,14 +157,16 @@
                                     "name" : "RiverReach_1_2_1_1",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 },
                                 {
                                     "name" : "RiverReach_1_2_1_2",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 }
                             ]
@@ -207,14 +211,16 @@
                                     "name" : "RiverReach_2_2_1_1",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 },
                                 {
                                     "name" : "RiverReach_2_2_1_2",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 }
                             ]
@@ -244,14 +250,16 @@
                                     "name" : "RiverReach_2_2_2_1",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 },
                                 {
                                     "name" : "RiverReach_2_2_2_2",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 }
                             ]
@@ -290,14 +298,16 @@
                                     "name" : "RiverReach_2_2_3_1",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 },
                                 {
                                     "name" : "RiverReach_2_2_3_2",
                                     "type" : "group",
                                     "data" : [
-                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 }
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 }
                             ]
@@ -341,6 +351,7 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         {
                                             "name" : "spm",
                                             "type" : "variable",
@@ -355,6 +366,7 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         {
                                             "name" : "spm",
                                             "type" : "variable",
@@ -407,7 +419,8 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 }
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 },
                                 {
@@ -415,7 +428,8 @@
                                     "type" : "group",
                                     "data" : [
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 }
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 }
                                     ]
                                 }
                             ]

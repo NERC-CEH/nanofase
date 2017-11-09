@@ -1,6 +1,6 @@
-module spcBiota                                                     ! superclass definition for Biota
+module spcBiota                                                     !! superclass definition for Biota
     implicit none                                                   ! force declaration of all variables
-    type, abstract, public :: Biota                                 ! type declaration for class
+    type, abstract, public :: Biota                                 !! type declaration for class
                                                                     ! class properties
         character(len=256) :: name                                  ! a name for the object
         contains                                                    ! METHODS - all declared deferred

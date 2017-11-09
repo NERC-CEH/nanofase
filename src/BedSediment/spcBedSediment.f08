@@ -1,44 +1,46 @@
-module spcBedSediment                                                !! abstract superclass definition for BedSediment
-                                                                     !! defines the properties and methods shared by all BedSediment objects
-                                                                     !! objects of this class cannot be instantiated, only objects of its subclasses
+!> abstract superclass definition for BedSediment
+!! defines the properties and methods shared by all BedSediment objects
+!! objects of this class cannot be instantiated, only objects of its subclasses
+module spcBedSediment                                                          
     use Globals
-    use ResultModule                                                 !! Error handling
-    use spcBedSedimentLayer                                          !! uses the spcBedSedimentLayer superclass and subclasses
+    use ResultModule                                                 ! Error handling
+    use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
     use classFineSediment1
-    implicit none                                                    !! force declaration of all variables
+    implicit none                                                    ! force declaration of all variables
     type BedSedimentLayerElement
-        class(BedSedimentLayer), allocatable :: item                 !! Storing polymorphic class(BedSedimentLayer) in derived type so that a collection of
-    end type                                                         !! different extended types of BedSedimentLayer can be stored in an array.
-    type, abstract, public :: BedSediment                            !! type declaration for superclass
-        character(len=256) :: name                                   !! a name for the object
-                                                                     !! define variables for 'has a' objects: BedSedimentLayer
+        class(BedSedimentLayer), allocatable :: item                 ! Storing polymorphic class(BedSedimentLayer) in derived type so that a collection of
+    end type                                                         ! different extended types of BedSedimentLayer can be stored in an array.
+    type, abstract, public :: BedSediment                            ! type declaration for superclass
+        character(len=256) :: name                                   ! a name for the object
+                                                                     ! define variables for 'has a' objects: BedSedimentLayer
         class(BedSedimentLayerElement), allocatable :: &
-        colBedSedimentLayers(:)                                      !! collection of BedSedimentLayer objects
-                                                                     !! properties
-        integer :: nSizeClasses                                      !! number of fine sediment size classes
-        integer :: nLayers                                           !! number of layers (BedSedimentLayer objects)
-        integer :: nfComp                                            !! number of fractional composition terms for sediment
-        integer :: allst                                             !! array allocation status
-                                                                     !! any private variable declarations go here
+        colBedSedimentLayers(:)                                      ! collection of BedSedimentLayer objects
+                                                                     ! properties
+        integer :: nSizeClasses                                      ! number of fine sediment size classes
+        integer :: nLayers                                           ! number of layers (BedSedimentLayer objects)
+        integer :: nfComp                                            ! number of fractional composition terms for sediment
+        integer :: allst                                             ! array allocation status
+                                                                     ! any private variable declarations go here
     contains
-                                                                     !! deferred methods: must be defined in all subclasses
+                                                                     ! deferred methods: must be defined in all subclasses
         procedure(createBedSediment), public, deferred :: &
-            create                                                   !! constructor method
+            create                                                   ! constructor method
         procedure(destroyBedSediment), public, deferred :: &
-            destroy                                                  !! finaliser method
+            destroy                                                  ! finaliser method
         procedure(DepositSediment), public, deferred :: &
-            deposit                                                  !! deposit sediment from water column
+            deposit                                                  ! deposit sediment from water column
         procedure(ResuspendSediment), public, deferred :: &
-            resuspend                                                !! resuspend sediment to water column
-                                                                     !! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure, public :: Af_sediment => Get_Af_sediment          !! fine sediment available capacity for size class
-        procedure, public :: Cf_sediment => Get_Cf_sediment          !! fine sediment capacity for size class
-        procedure, public :: Aw_sediment => Get_Aw_sediment          !! water available capacity for size class
-        procedure, public :: Cw_sediment => Get_Cw_sediment          !! water capacity for size class
-        procedure, public :: Mf_sediment => Get_Mf_sediment          !! fine sediment mass for size class
-        procedure, public :: Mf_sed_all => Get_Mf_sed_all            !! fine sediment mass in all size classes
+            resuspend                                                ! resuspend sediment to water column
+                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
+        procedure, public :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
+        procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
+        procedure, public :: Aw_sediment => Get_Aw_sediment          ! water available capacity for size class
+        procedure, public :: Cw_sediment => Get_Cw_sediment          ! water capacity for size class
+        procedure, public :: Mf_sediment => Get_Mf_sediment          ! fine sediment mass for size class
+        procedure, public :: Mf_sed_all => Get_Mf_sed_all            ! fine sediment mass in all size classes
     end type
     abstract interface
+        !> Create a BedSediment object.
         function createBedSediment(Me, &
                                     n, &
                                     ln, &
@@ -63,7 +65,7 @@ module spcBedSediment                                                !! abstract
             real(dp), intent(in), allocatable :: C_tot(:)                !! the total volume of each layer. Index = layer
             real(dp), intent(in), allocatable :: f_comp(:,:,:)           !! set of fractional compositions
                                                                          !! Index 1 = size class, Index 2 = compositional fraction, Index 3 = layer
-            real(dp), intent(in), allocatable :: pd_comp(:)               !! set of fractional particle densities
+            real(dp), intent(in), allocatable :: pd_comp(:)              !! set of fractional particle densities
                                                                          !! Index 1 = size class
             real(dp), intent(in), optional :: Porosity(:)                !! layer porosity, if being used to define layer
                                                                          !! Index 1 = layer
@@ -87,20 +89,20 @@ module spcBedSediment                                                !! abstract
             real(dp), intent(in), allocatable :: f_comp_dep(:,:)     !! Depositing sediment fractional composition by size class
                                                                      !! Index 1 = size class, Index 2 = compositional fraction
             real(dp), intent(out) :: V_w_tot                         !! water requirement from the water column [m3 m-2]
-            type(Result) :: r                                        !! returned Result object                                       !! returned Result object
-            type(FineSedimentElement), allocatable :: Q              !! LOCAL object to receive sediment being buried
-            type(FineSedimentElement), allocatable :: T              !! LOCAL object to receive sediment being buried
-            type(FineSedimentElement), allocatable :: U              !! LOCAL object to receive sediment that has been buried
-            integer :: S                                             !! LOCAL loop counter for size classes
-            integer :: L                                             !! LOCAL counter for layers
-            integer :: A                                             !! LOCAL second counter for layers
-            real(dp) :: A_f_sed                                      !! LOCAL available fine sediment capacity for size class
-            real(dp) :: deltaV_f_temp                                !! LOCAL volume of fine sediment requiring burial to create space for deposition
-            real(dp) :: deltaV_w_temp                                !! LOCAL volume of water requiring burial to create space for deposition
-            real(dp) :: V_f_b                                        !! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
-            real(dp) :: V_w_b                                        !! LOCAL available water capacity in the receiving layer [m3 m-2]
-            character(len=256) :: tr                                   !! LOCAL name of this procedure, for trace
-            logical :: criterr                                       !! LOCAL .true. if one or more critical errors tripped
+            type(Result) :: r                                        !! returned Result object                                       ! returned Result object
+            type(FineSedimentElement), allocatable :: Q              ! LOCAL object to receive sediment being buried
+            type(FineSedimentElement), allocatable :: T              ! LOCAL object to receive sediment being buried
+            type(FineSedimentElement), allocatable :: U              ! LOCAL object to receive sediment that has been buried
+            integer :: S                                             ! LOCAL loop counter for size classes
+            integer :: L                                             ! LOCAL counter for layers
+            integer :: A                                             ! LOCAL second counter for layers
+            real(dp) :: A_f_sed                                      ! LOCAL available fine sediment capacity for size class
+            real(dp) :: deltaV_f_temp                                ! LOCAL volume of fine sediment requiring burial to create space for deposition
+            real(dp) :: deltaV_w_temp                                ! LOCAL volume of water requiring burial to create space for deposition
+            real(dp) :: V_f_b                                        ! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
+            real(dp) :: V_w_b                                        ! LOCAL available water capacity in the receiving layer [m3 m-2]
+            character(len=256) :: tr                                   ! LOCAL name of this procedure, for trace
+            logical :: criterr                                       ! LOCAL .true. if one or more critical errors tripped
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -143,12 +145,12 @@ module spcBedSediment                                                !! abstract
 !            use Globals
 !            import BedSediment, Result0D
 !            class(BedSediment) :: me
-!            real(dp) :: a                                   !! Calibration factor [s2/kg]
-!            real(dp) :: m_bed                               !! Bed mass per unit area [kg/m2]
-!            real(dp) :: alpha                               !! Proportion of size class that can be resuspended [-]
-!            real(dp) :: omega                               !! Stream power per unit area of stream bed [J/s/m2]
-!            real(dp) :: R_h                                 !! Actual hydraulic radius [m]
-!            real(dp) :: R_hmax                              !! Maximum hydraulic radius [m]
+!            real(dp) :: a                                   ! Calibration factor [s2/kg]
+!            real(dp) :: m_bed                               ! Bed mass per unit area [kg/m2]
+!            real(dp) :: alpha                               ! Proportion of size class that can be resuspended [-]
+!            real(dp) :: omega                               ! Stream power per unit area of stream bed [J/s/m2]
+!            real(dp) :: R_h                                 ! Actual hydraulic radius [m]
+!            real(dp) :: R_hmax                              ! Maximum hydraulic radius [m]
 !            type(Result0D) :: r
 !        end function
 !
@@ -156,11 +158,11 @@ module spcBedSediment                                                !! abstract
 !            use Globals
 !            import BedSediment, Result0D
 !            class(BedSediment) :: me
-!            real(dp) :: rho_water                           !! Density of water [kg/m3]
-!            real(dp) :: g                                   !! Gravitational acceleration [m/s]
-!            real(dp) :: Q                                   !! Discharge [m3/s]
-!            real(dp) :: W                                   !! River width [m]
-!            real(dp) :: S                                   !! River slope [m/m]
+!            real(dp) :: rho_water                           ! Density of water [kg/m3]
+!            real(dp) :: g                                   ! Gravitational acceleration [m/s]
+!            real(dp) :: Q                                   ! Discharge [m3/s]
+!            real(dp) :: W                                   ! River width [m]
+!            real(dp) :: S                                   ! River slope [m/m]
 !            type(Result0D) :: r
 !        end function
     end interface
@@ -170,13 +172,13 @@ contains
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp) :: Af_sediment                                      !! return value
-        integer :: L                                                 !! LOCAL loop counter
+        integer :: L                                                 ! LOCAL loop counter
         ! CRITICAL ERROR if S < 0
         ! CRITICAL ERROR if S > nSizeClasses
         Af_sediment = 0
-        do L = 1, Me%nLayers                                         !! loop through each layer
+        do L = 1, Me%nLayers                                         ! loop through each layer
             Af_sediment = Af_sediment + &
-                Me%colBedSedimentLayers(L)%item%A_f(S)               !! sum capacities for all layers
+                Me%colBedSedimentLayers(L)%item%A_f(S)               ! sum capacities for all layers
         end do
     end function
     !> return capacity for fine sediment of a specified size class
@@ -184,13 +186,13 @@ contains
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp) :: Cf_sediment                                      !! return value
-        integer :: L                                                 !! LOCAL loop counter
+        integer :: L                                                 ! LOCAL loop counter
         ! CRITICAL ERROR if S < 0
         ! CRITICAL ERROR if S > nSizeClasses
         Cf_sediment = 0
-        do L = 1, Me%nLayers                                         !! loop through each layer
+        do L = 1, Me%nLayers                                         ! loop through each layer
             Cf_sediment = Cf_sediment + &
-                Me%colBedSedimentLayers(L)%item%C_f(S)               !! sum capacities for all layers
+                Me%colBedSedimentLayers(L)%item%C_f(S)               ! sum capacities for all layers
         end do
     end function
     !> return available capacity for water associated with a specified size class
@@ -198,13 +200,13 @@ contains
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp) :: Aw_sediment                                      !! return value
-        integer :: L                                                 !! LOCAL loop counter
+        integer :: L                                                 ! LOCAL loop counter
         ! CRITICAL ERROR if S < 0
         ! CRITICAL ERROR if S > nSizeClasses
         Aw_sediment = 0
-        do L = 1, Me%nLayers                                         !! loop through each layer
+        do L = 1, Me%nLayers                                         ! loop through each layer
             Aw_sediment = Aw_sediment + &
-                Me%colBedSedimentLayers(L)%item%A_w(S)               !! sum capacities for all layers
+                Me%colBedSedimentLayers(L)%item%A_w(S)               ! sum capacities for all layers
         end do
     end function
     !> return capacity for water associated with a specified size class
@@ -212,13 +214,13 @@ contains
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp) :: Cw_sediment                                      !! return value
-        integer :: L                                                 !! LOCAL loop counter
+        integer :: L                                                 ! LOCAL loop counter
         ! CRITICAL ERROR if S < 0
         ! CRITICAL ERROR if S > nSizeClasses
         Cw_sediment = 0
-        do L = 1, Me%nLayers                                         !! loop through each layer
+        do L = 1, Me%nLayers                                         ! loop through each layer
             Cw_sediment = Cw_sediment + &
-                Me%colBedSedimentLayers(L)%item%C_w(S)               !! sum capacities for all layers
+                Me%colBedSedimentLayers(L)%item%C_w(S)               ! sum capacities for all layers
         end do
     end function
     !> return fine sediment mass in a specified size class
@@ -226,14 +228,14 @@ contains
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp) :: Mf_sediment                                      !! return value
-        integer :: L                                                 !! LOCAL loop counter
+        integer :: L                                                 ! LOCAL loop counter
         ! CRITICAL ERROR if S < 0
         ! CRITICAL ERROR if S > nSizeClasses
         Mf_sediment = 0
-        do L = 1, Me%nLayers                                         !! loop through each layer
+        do L = 1, Me%nLayers                                         ! loop through each layer
             Mf_sediment = Mf_sediment + &
                 Me%colBedSedimentLayers(L)%item%colFineSediment(S)%item%M_f()
-                                                                     !! sum masses for all layers. Not very elegant
+                                                                     ! sum masses for all layers. Not very elegant
         end do
     end function
     !> return fine sediment mass for all size classes
@@ -241,13 +243,13 @@ contains
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp) :: Mf_sed_all                                       !! return value
-        integer :: L                                                 !! LOCAL loop counter
+        integer :: L                                                 ! LOCAL loop counter
         ! CRITICAL ERROR if S < 0
         ! CRITICAL ERROR if S > nSizeClasses
         Mf_sed_all = 0
-        do L = 1, Me%nLayers                                         !! loop through each layer
+        do L = 1, Me%nLayers                                         ! loop through each layer
             Mf_sed_all = Mf_sed_all + &
-                Me%colBedSedimentLayers(L)%item%M_f_layer()          !! sum masses for all layers
+                Me%colBedSedimentLayers(L)%item%M_f_layer()          ! sum masses for all layers
         end do
     end function
 !    subroutine createBedSediment(Me, &
