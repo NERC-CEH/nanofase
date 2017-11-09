@@ -1,3 +1,4 @@
+!> Module responsible for the RiverReach1 object
 module classRiverReach1
     use mo_netcdf
     use Globals
@@ -5,6 +6,7 @@ module classRiverReach1
     use ResultModule
     use ErrorInstanceModule
     use spcRiverReach
+    ! use classBedSediment1
     implicit none
     private
 
@@ -13,15 +15,17 @@ module classRiverReach1
     type, public, extends(RiverReach) :: RiverReach1
 
       contains
-        procedure, public :: create => createRiverReach1
-        procedure, public :: destroy => destroyRiverReach1
-        procedure, public :: update => update1
-        procedure :: calculateWidth => calculateWidth1
-        procedure :: calculateDepth => calculateDepth1
-        procedure :: calculateVelocity => calculateVelocity1
-        procedure :: calculateSettlingVelocity => calculateSettlingVelocity1
-        procedure :: calculateArea => calculateArea1
-        procedure :: calculateVolume => calculateVolume1
+        procedure :: create => createRiverReach1
+        procedure :: destroy => destroyRiverReach1
+        procedure :: update => updateRiverReach1
+        procedure :: resuspension => resuspensionRiverReach1
+        procedure, private :: calculateWidth => calculateWidth1
+        procedure, private :: calculateDepth => calculateDepth1
+        procedure, private :: calculateVelocity => calculateVelocity1
+        procedure, private :: calculateSettlingVelocity => calculateSettlingVelocity1
+        procedure, private :: calculateResuspension => calculateResuspension1
+        procedure, private :: calculateArea => calculateArea1
+        procedure, private :: calculateVolume => calculateVolume1
     end type
 
   contains
@@ -29,19 +33,23 @@ module classRiverReach1
     !> Create a RiverReach with x, y, s, r coordinates from the datafile.
     function createRiverReach1(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
         class(RiverReach1) :: me                                !! The RiverReach1 instance.
-        integer :: x, y, s, r                                   !! Grid, SubRiver and RiverReach references.
+        integer :: x                                            !! Containing GridCell x-position index.
+        integer :: y                                            !! Containing GridCell y-position index.
+        integer :: s                                            !! Containing SubRiver index.
+        integer :: r                                            !! RiverReach index.
         real(dp) :: l                                           !! Length of the RiverReach (without meandering).
         real(dp), allocatable :: QrunoffTimeSeries(:)           !! Any GridCell runoff (that has already been split to the correct RiverReach size)
         type(Result0D) :: D                                     !! Depth [m].
         type(Result0D) :: v                                     !! River velocity [m/s].
         type(Result0D) :: W                                     !! River width [m].
-        integer :: i                                            !! Loop iterator.
+        integer :: i                                            ! Loop iterator.
+        integer :: allst                                        ! Allocation status
         type(Result) :: res                                     !! The Result object.
-        type(NcDataset) :: NC                                   !! NetCDF dataset
-        type(NcVariable) :: var                                 !! NetCDF variable
-        type(NcGroup) :: grp                                    !! NetCDF group
-        type(ErrorInstance) :: error                            !! To return errors
-        real(dp), allocatable :: spmDensities(:)                !! Array of sediment particle densities for each size class
+        type(NcDataset) :: NC                                   ! NetCDF dataset
+        type(NcVariable) :: var                                 ! NetCDF variable
+        type(NcGroup) :: grp                                    ! NetCDF group
+        type(ErrorInstance) :: error                            ! To return errors
+        real(dp), allocatable :: spmDensities(:)                ! Array of sediment particle densities for each size class
 
         ! First, let's set the RiverReach's reference and the length
         me%ref = trim(ref("RiverReach", x, y, s, r))
@@ -51,7 +59,7 @@ module classRiverReach1
             me%spmIn(C%nSizeClassesSpm), &
             me%spmOut(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
-            stat=me%allst) 
+            stat=allst) 
         me%rho_spm = 0                  ! Set SPM density and mass to 0 to begin with
         me%m_spm = 0
         allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! This reach's runoff
@@ -70,6 +78,8 @@ module classRiverReach1
             var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering).
             call var%getData(me%f_m)
         end if
+        var = me%ncGroup%getVariable("beta_res")                ! Get the beta_res calibration factor for resuspension
+        call var%getData(me%beta_res)
 
         ! Get the time series of SPM inflows
         allocate(me%m_spmTimeSeries(C%nTimeSteps,C%nSizeClassesSpm))
@@ -84,31 +94,59 @@ module classRiverReach1
 
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%n = C%n_river
+
+        ! Create the BedSediment for this RiverReach. Hard coded as type 1 for the moment
+        ! and filled with dummy parameters
+        ! allocate(type(BedSediment1)::me%bedSediment)
+        ! res = me%bedSediment%create( &
+        !     n = ref('BedSediment',x,y,s,r,1), &
+        !     ln = ["BSL1","BSL2","BSL3","BSL4","BSL5"], &
+        !     nsc = C%nSizeClassesSpm, &
+        !     nl = 5, &
+        !     bslType = 1, &
+        !     C_tot = [ &
+        !         me%bsArea*0.1, &
+        !         me%bsArea*0.1, &
+        !         me%bsArea*0.1, &
+        !         me%bsArea*0.1, &
+        !         me%bsArea*0.1 &
+        !     ], &
+        !     f_comp = [ &
+        !         [ &
+        !             [0.1],[0.1],[0.1],[0.1],[0.1] &
+        !         ], &
+        !         [ &
+        !             [0.1],[0.1],[0.1],[0.1],[0.1] &
+        !         ], &
+        !     ], &
+        !     pd_comp = [0.01,0.01,0.01,0.01,0.01], &
+        !     M_f = [1,1,1,1,1])
+        ! call res%addToTrace('Creating ' // trim(me%ref))
     end function
 
     !> Destroy this RiverReach1
     function destroyRiverReach1(me) result(r)
-        class(RiverReach1) :: me
-        type(Result) :: r
+        class(RiverReach1) :: me                            !! This RiverReach1 instance
+        type(Result) :: r                                   !! The Result object
         ! TODO: Write some destroy logic
     end function
 
-    !> Update the RiverReach based on the inflow Q and SPM provided
-    function update1(me, Qin, spmIn, t) result(r)
+    !> Update the RiverReach on this timestep t, based on the inflow Q and SPM provided
+    function updateRiverReach1(me, Qin, spmIn, t) result(r)
         class(RiverReach1) :: me                            !! This RiverReach1 instance
         real(dp) :: Qin                                     !! Inflow to this reach
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
         integer :: t                                        !! What time step are we on?
         type(Result) :: r                                   !! Result object to return
-        type(Result0D) :: D                                 !! Result objects for depth
-        integer :: n                                        !! Size class loop it  erator
-        integer :: nDisp                                    !! Number of displacements to split reach into
-        integer :: i                                        !! Iterator for displacements
-        real(dp) :: dQin                                    !! Qin for each displacement
-        real(dp) :: dSpmIn(C%nSizeClassesSpm)               !! spmIn for each displacement
-        real(dp) :: settlingVelocity(C%nSizeClassesSpm)     !! Settling velocity for each size class
-        real(dp) :: k_settle(C%nSizeClassesSpm)             !! Settling constant for each size class
-        real(dp) :: dSpmOut(C%nSizeClassesSpm)              !! SPM outflow for the displacement
+        type(Result0D) :: D                                 ! Result objects for depth
+        integer :: n                                        ! Size class loop it  erator
+        integer :: nDisp                                    ! Number of displacements to split reach into
+        integer :: i                                        ! Iterator for displacements
+        real(dp) :: dQin                                    ! Qin for each displacement
+        real(dp) :: dSpmIn(C%nSizeClassesSpm)               ! spmIn for each displacement
+        real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
+        real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
+        real(dp) :: dSpmOut(C%nSizeClassesSpm)              ! SPM outflow for the displacement
 
         me%Qrunoff = me%QrunoffTimeSeries(t)                ! Get the runoff for this time step.
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
@@ -122,7 +160,8 @@ module classRiverReach1
         me%D = .dp. D                                       ! Get real(dp) data from Result object
         call r%addError(.error. D)                          ! Add any error that occurred
         me%v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
-        me%area = me%calculateArea(me%D, me%W)
+        me%xsArea = me%calculateArea(me%D, me%W)            ! Calculate the cross-sectional area of the reach
+        me%bsArea = me%W*me%l*me%f_m                        ! Calculate the BedSediment area
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
 
         ! If Qin for this timestep is bigger than the reach volume, then we need to
@@ -198,17 +237,62 @@ module classRiverReach1
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
 
+    !> Perform the resuspension simulation for a time step
+    function resuspensionRiverReach1(me) result(r)
+        class(RiverReach1) :: me                !! This RiverReach1 instance
+        type(Result) :: r                       !! The Result object to return
+        real(dp) :: d_max                       ! Maximum resuspendable grain size [m]
+        real(dp) :: d_low                       ! Lowest value in size class's distribution [m]
+        real(dp) :: d_upp                       ! Upper value in size class's distribution [m]
+        real(dp) :: M_prop                      ! Proportion of a size class that can be resuspended
+        real(dp) :: omega                       ! Stream power per unit bed area [W m-2]
+        real(dp) :: j_res(C%nSizeClassesSpm)    ! The calculated resuspension fluxes for each size class [kg s-1]
+        integer :: n                            ! Iterator for size classes
+
+        d_max = 9.9941(sqrt(me%alpha_res*C%g*me%D*me%S))**2.5208
+        do n = 1, C%nSizeClassesSpm
+            ! Set the upper and lower limit of the size class's distributions
+            if (n == 1) then
+                d_low = 0                                       ! Particles can be any size below d_upp,1
+                d_upp = d_spm(n+1) - (d_spm(n+1)-d_spm(n))/2    ! Halfway between d_1 and d_2
+            else
+                d_low = d_spm(n) - (d_spm(n)-d_spm(n-1))/2      ! Halfway between d_n-1 and d_n
+                d_upp = 2*d_spm(n) - d_low                      ! Halfway between d_n and d_n+1
+            end if
+            ! Calculate the proportion of size class that can be resuspended, based on this
+            if (d_max < d_low) then
+                M_prop = 0                                      ! None can be resuspended
+            else if (d_max > d_upp) then
+                M_prop = 1                                      ! All can be resuspended
+            else
+                M_prop = (d_max - d_low)/(d_upp - d_low)        ! Only some can be resuspended
+            end if
+            ! Calculate the stream power per unit bed area
+            omega = C%rho_w(C%T)*C%g*me%Qin
+
+            j_res(n) = me%calculateResuspension( &
+                beta = me%beta_res, &
+                L = me%l*me%f_m, &
+                W = me%W,
+                m_bed = 1.0_dp, &
+                M_prop = M_prop, &
+                omega = 1.0_dp, &
+                f = 1.0_dp &
+            )
+        end do
+
+    end function
+
     !> Calculate the width \( W \) of the river based on the discharge:
     !! $$
-    !!      W = 1.22Q^0.557
+    !!      W = 1.22Q^{0.557}
     !! $$
     !! References:
-    !!  - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
-    !!  - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
+    !! - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
+    !! - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
     pure function calculateWidth1(me, Q) result(W)
-        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance
+        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance
         real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s]
-        type(ErrorInstance) :: error            !! Variable to store error in
         real(dp) :: W                           !! The calculated width \( W \) [m]
         W = 1.22*Q**0.557                       ! Calculate the width
     end function
@@ -220,29 +304,29 @@ module classRiverReach1
     !! $$
     !! where
     !! $$
-    !!      f(D) = WD \left( \frac{WD}{W+2D} \right)**{2/3} \frac{\sqrt{S}}{n} - Q = 0
+    !!      f(D) = WD \left( \frac{WD}{W+2D} \right)^{2/3} \frac{\sqrt{S}}{n} - Q = 0
     !! $$
     !! and
     !! $$
     !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
     !! $$
     pure function calculateDepth1(me, W, S, Q) result(r)
-        class(RiverReach1), intent(in) :: me     !! The RiverReach1 instance.
+        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance.
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
-        real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s].
-        real(dp) :: D_i                         !! The iterative river depth \( D_i \) [m].
-        real(dp) :: f                           !! The function to find roots for \( f(D) \).
-        real(dp) :: df                          !! The derivative of \( f(D) \) with respect to \( D \).
-        real(dp) :: alpha                       !! Constant extracted from f and df
-        integer :: i                            !! Loop iterator to make sure loop isn't endless.
-        integer :: iMax                         !! Maximum number of iterations before error.
-        real(dp) :: epsilon                     !! Proximity to zero allowed.
-        type(ErrorInstance) :: error            !! Variable to store error in.
-        character(len=100) :: iChar             !! Loop iterator as character (for error message).
-        character(len=100) :: fChar             !! f(D) value as character (for error message).
-        character(len=100) :: epsilonChar       !! Proximity of f(D) to zero as character (for error message).
-        type(Result0D) :: r                     !! The result object.
+        real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m3/s].
+        real(dp) :: D_i                         ! The iterative river depth \( D_i \) [m].
+        real(dp) :: f                           ! The function to find roots for \( f(D) \).
+        real(dp) :: df                          ! The derivative of \( f(D) \) with respect to \( D \).
+        real(dp) :: alpha                       ! Constant extracted from f and df
+        integer :: i                            ! Loop iterator to make sure loop isn't endless.
+        integer :: iMax                         ! Maximum number of iterations before error.
+        real(dp) :: epsilon                     ! Proximity to zero allowed.
+        type(ErrorInstance) :: error            ! Variable to store error in.
+        character(len=100) :: iChar             ! Loop iterator as character (for error message).
+        character(len=100) :: fChar             ! f(D) value as character (for error message).
+        character(len=100) :: epsilonChar       ! Proximity of f(D) to zero as character (for error message).
+        type(Result0D) :: r                     !! The Result object.
 
         ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
         D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
@@ -292,18 +376,18 @@ module classRiverReach1
     !!      v = \frac{Q}{WD}
     !! $$
     pure function calculateVelocity1(me, D, Q, W) result(v)
-        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance
+        class(RiverReach1), intent(in) :: me    !! This RiverReach1 instance
         real(dp), intent(in) :: D               !! River depth \( D \) [m]
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]
-        real(dp) :: v                    !! The calculated velocity \( v \) [m/s]
+        real(dp) :: v                           !! The calculated velocity \( v \) [m/s]
         v = Q/(W*D)
     end function
 
     !> Calculate the settling velocity of sediment particles for an individual
     !! size class:
     !! $$
-    !!      W_spm = \frac{\nu}{d} d_{*}^3 (38.1 + 0.93 d_{*}^{12/7})^{-7/8}
+    !!      W_{\text{spm}} = \frac{\nu}{d} d_{*}^3 (38.1 + 0.93 d_{*}^{12/7})^{-7/8}
     !! $$
     !! where
     !! $$
@@ -311,15 +395,15 @@ module classRiverReach1
     !! $$
     !! and
     !! $$
-    !!      \Delta = \frac{\rho_spm}{\rho} - 1
+    !!      \Delta = \frac{\rho_{\text{spm}}}{\rho} - 1
     !! $$
-    !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X)
+    !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
     function calculateSettlingVelocity1(me, d, rho_spm, T) result(W_spm)
         class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
         real(dp), intent(in) :: rho_spm             !! Sediment particle density [kg/m**3].
         real(dp), intent(in) :: T                   !! Temperature [C].
-        real(dp) :: dStar                           !! Dimensionless particle diameter.
+        real(dp) :: dStar                           ! Dimensionless particle diameter.
         real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
         ! Settling only occurs if density of SPM is greater than density of water
         if (rho_spm > C%rho_w(T)) then
@@ -329,6 +413,24 @@ module classRiverReach1
         else
             W_spm = 0.0_dp
         end if
+    end function
+
+    !> Calculate the resuspension flux [kg/s] for particles of a particular size
+    !! class from the BedSediment:
+    !! $$
+    !!      j_{\text{res}} = \beta L W m_{\text{bed}} M_{\text{prop}} \omega f
+    !! $$
+    pure function calculateResuspension1(me, beta, L, W, m_bed, M_prop, omega, f) result(j_res)
+        class(RiverReach1), intent(in)  :: me           !! This RiverReach1 instance
+        real(dp), intent(in)            :: beta         !! Calibration parameter \( \beta \) [s2 kg-1]
+        real(dp), intent(in)            :: L            !! Reach length \( L = lf_{\text{m}} \) [m]
+        real(dp), intent(in)            :: W            !! Reach width \( W \) [m]
+        real(dp), intent(in)            :: m_bed        !! BedSediment mass per unit area \( m_{\text{bed}} \) [kg m-2]
+        real(dp), intent(in)            :: M_prop       !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
+        real(dp), intent(in)            :: omega        !! Stream power per unit bed area \( \omega \) [kg m-2]
+        real(dp), intent(in)            :: f            !! Friction factor \( f \) [-]
+        real(dp)                        :: j_res        !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
+        j_res = beta*L*W*m_bed*M_prop*omega*f
     end function
 
     !> Calculate the volume of a RiverReach, assuming a rectangular profile:

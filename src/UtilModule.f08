@@ -14,6 +14,7 @@ module UtilModule
         module procedure ref2
         module procedure ref3
         module procedure ref4
+        module procedure ref5
     end interface
 
   contains
@@ -74,5 +75,18 @@ module UtilModule
             character(len=256) :: ref4
             ref4 = trim(prefix) // "_" // trim(str(a)) // "_" // trim(str(b)) // &
                     "_" // trim(str(c)) // "_" // trim(str(d))
+        end function
+
+        !> Generate an object reference from a prefix and five integers
+        pure function ref5(prefix, a, b, c, d, e)
+            character(len=*), intent(in) :: prefix
+            integer, intent(in) :: a
+            integer, intent(in) :: b
+            integer, intent(in) :: c
+            integer, intent(in) :: d
+            integer, intent(in) :: e
+            character(len=256) :: ref5
+            ref5 = trim(prefix) // "_" // trim(str(a)) // "_" // trim(str(b)) // &
+                    "_" // trim(str(c)) // "_" // trim(str(d)) // "_" // trim(str(e))
         end function
 end module

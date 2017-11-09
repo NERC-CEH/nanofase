@@ -1,18 +1,19 @@
-module spcBedSedimentLayer                                           !! abstract superclass definition for BedSedimentLayer
-                                                                     !! defines the properties and methods shared by all BedSedimentLayer objects
-                                                                     !! objects of this class cannot be instantiated, only objects of its subclasses
+!> abstract superclass definition for BedSedimentLayer
+!! defines the properties and methods shared by all BedSedimentLayer objects
+!! objects of this class cannot be instantiated, only objects of its subclasses
+module spcBedSedimentLayer
     use Globals
-    use ResultModule                                                 !! error handling classes, required for
-    use ErrorInstanceModule                                          !! generation of trace error messages
-    use classFineSediment1                                           !! USEs all subclasses of FineSediment
-    implicit none                                                    !! force declaration of all variables
+    use ResultModule                                                 ! error handling classes, required for
+    use ErrorInstanceModule                                          ! generation of trace error messages
+    use classFineSediment1                                           ! USEs all subclasses of FineSediment
+    implicit none                                                    ! force declaration of all variables
     type FineSedimentElement
         class(FineSediment1), allocatable :: item                    !! Storing polymorphic class(FineSediment) in derived type so that a set of
-    end type                                                         !! different extended types of FineSediment can be stored in an array.
+    end type                                                         ! different extended types of FineSediment can be stored in an array.
     type, abstract, public :: BedSedimentLayer                       !! type declaration for superclass
         character(len=256) :: name                                   !! a name for the object
-                                                                     !! define variables for 'has a' objects: Biota and Reactor
-                                                                     !! properties
+                                                                     ! define variables for 'has a' objects: Biota and Reactor
+                                                                     ! properties
         real(dp), allocatable :: C_f_l(:)                            !! capacity for fine sediment [m3 m-2]
         real(dp), allocatable :: C_w_l(:)                            !! capacity for water [m3 m-2]
         class(FineSedimentElement), allocatable :: &
@@ -24,31 +25,35 @@ module spcBedSedimentLayer                                           !! abstract
         integer :: nfComp                                            !! number of fractional composition terms for sediment
         integer :: allst                                             !! array allocation status
     contains
-                                                                     !! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure, public :: A_f => GetAf                            !! available capacity for a fine sediment size fraction
-        procedure, public :: A_w => GetAw                            !! available capacity for water associated with a fine sediment size fraction
-        procedure, public :: C_f => GetCf                            !! return total capacity for a fine sediment size fraction
-        procedure, public :: C_w => GetCw                            !! return total capacity for water associated with a fine sediment size fraction
-        procedure, public :: volSLR => GetvolSLR                     !! return volumetric solid:liquid ratio for this layer; applies to all size classes
-        procedure, public :: C_f_layer => GetCflayer                 !! return total fine sediment capacity in the layer
-        procedure, public :: M_f_layer => GetMflayer                 !! return total fine sediment mass in the layer
-        procedure, public :: V_f_layer => GetVflayer                 !! return total fine sediment volume in the layer
-        procedure, public :: V_w_layer => GetVwlayer                 !! return total water volume in the layer
-        procedure, public :: C_w_layer => GetCwlayer                 !! return total water capacity in the layer
-        procedure, public :: V_m_layer => GetVmlayer                 !! return total fine sediment and water volume in the layer
-        procedure, public :: V_layer => GetVlayer                    !! return sum of fine sediment, water and coarse material volumes in the layer
-                                                                     !! deferred methods: must be defined in all subclasses
+                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
+        procedure, public :: A_f => GetAf                            ! available capacity for a fine sediment size fraction
+        procedure, public :: A_w => GetAw                            ! available capacity for water associated with a fine sediment size fraction
+        procedure, public :: C_f => GetCf                            ! return total capacity for a fine sediment size fraction
+        procedure, public :: C_w => GetCw                            ! return total capacity for water associated with a fine sediment size fraction
+        procedure, public :: volSLR => GetvolSLR                     ! return volumetric solid:liquid ratio for this layer; applies to all size classes
+        procedure, public :: C_f_layer => GetCflayer                 ! return total fine sediment capacity in the layer
+        procedure, public :: M_f_layer => GetMflayer                 ! return total fine sediment mass in the layer
+        procedure, public :: V_f_layer => GetVflayer                 ! return total fine sediment volume in the layer
+        procedure, public :: V_w_layer => GetVwlayer                 ! return total water volume in the layer
+        procedure, public :: C_w_layer => GetCwlayer                 ! return total water capacity in the layer
+        procedure, public :: V_m_layer => GetVmlayer                 ! return total fine sediment and water volume in the layer
+        procedure, public :: V_layer => GetVlayer                    ! return sum of fine sediment, water and coarse material volumes in the layer
+                                                                     ! deferred methods: must be defined in all subclasses
         procedure(createBedSedimentLayer), public, deferred :: &
-        create                                                       !! constructor method
+        create                                                       ! constructor method
         procedure(destroyBedSedimentLayer), public, deferred :: &
-        destroy                                                      !! finaliser method
+        destroy                                                      ! finaliser method
         procedure(AddSedimentToLayer), public, deferred :: &
-        AddSediment                                                  !! add fine sediment to the layer
+        AddSediment                                                  ! add fine sediment to the layer
         procedure(RemoveSedimentFromLayer), public, deferred :: &
-        RemoveSediment                                               !! remove fine sediment from layer
+        RemoveSediment                                               ! remove fine sediment from layer
     end type
     abstract interface
-        !> create a BedSedimentLayer object and its incorporated BedSediment objects
+        !> create a BedSedimentLayer object and its incorporated BedSediment objects:
+        !!  - sets number of particle size classes
+        !!  - reads in fixed layer volume
+        !!  - reads in volumes of fine sediment and water in each size class
+        !!  - sets volume of coarse material
         function createBedSedimentLayer(Me, &
                                         n, &
                                         nsc, &
@@ -59,10 +64,7 @@ module spcBedSedimentLayer                                           !! abstract
                                         Porosity, &
                                         V_f, &
                                         M_f) result(r)
-                                                                     !! sets number of particle size classes
-                                                                     !! reads in fixed layer volume
-                                                                     !! reads in volumes of fine sediment and water in each size class
-                                                                     !! sets volume of coarse material
+                                                                     
             use Globals
             import BedSedimentLayer, ErrorInstance, FineSediment1, Result
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
@@ -75,12 +77,12 @@ module spcBedSedimentLayer                                           !! abstract
             real(dp), intent(in) :: f_comp(:,:)                      !! set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
             real(dp), intent(in), allocatable :: pd_comp(:)          !! set of fractional particle densities
             real(dp), intent(in), optional :: Porosity               !! layer porosity, if being used to define layer
-            type(Result) :: r                           !! The Result object.
-            type(ErrorInstance) :: er                                !! LOCAL ErrorCriteria object for error handling.
-            type(FineSediment1) :: fs1                               !! LOCAL object of type FineSediment1, for implementation of polymorphism
-            real(dp) :: slr                                          !! LOCAL volumetric solid:liquid ratio
-            character(len=256) :: tr                                 !! LOCAL name of this procedure, for trace
-            logical :: criterr                                       !! LOCAL .true. if one or more critical errors tripped
+            type(Result) :: r                                        !! The Result object.
+            type(ErrorInstance) :: er                                ! LOCAL ErrorCriteria object for error handling.
+            type(FineSediment1) :: fs1                               ! LOCAL object of type FineSediment1, for implementation of polymorphism
+            real(dp) :: slr                                          ! LOCAL volumetric solid:liquid ratio
+            character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
+            logical :: criterr                                       ! LOCAL .true. if one or more critical errors tripped
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -232,77 +234,77 @@ module spcBedSedimentLayer                                           !! abstract
         pure function GetvolSLR(Me) result(volSLR)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: volSLR                                       !! return value
-            volSLR = Me%C_f_l(1) / Me%C_w_l(1)                       !! compute ratio
+            volSLR = Me%C_f_l(1) / Me%C_w_l(1)                       ! compute ratio
         end function
         !> return the sediment mass in the layer across all size fractions
         pure function GetMflayer(Me) result (Mf_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: Mf_layer                                     !! return value
-            integer :: x                                             !! LOCAL loop counter
+            integer :: x                                             ! LOCAL loop counter
             do x = 1, Me%nSizeClasses
                 Mf_layer = Mf_layer + &
-                            Me%colFineSediment(x)%item%M_f()         !! sum across all size classes
+                            Me%colFineSediment(x)%item%M_f()         ! sum across all size classes
             end do
         end function
         !> return the sediment capacity in the layer across all size fractions
         pure function GetCflayer(Me) result (Cf_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: Cf_layer                                     !! return value
-            integer :: s                                             !! loop counter
+            integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
-                Cf_layer = Cf_layer +  Me%C_f(s)                     !! sum across all size classes
+                Cf_layer = Cf_layer +  Me%C_f(s)                     ! sum across all size classes
             end do
         end function
         !> return the sediment volume in the layer across all size fractions
         pure function GetVflayer(Me) result (Vf_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: Vf_layer                                     !! return value
-            integer :: s                                             !! loop counter
+            integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
                 Vf_layer = Vf_layer + &
-                            Me%colFineSediment(s)%item%V_f()         !! sum across all size classes
+                            Me%colFineSediment(s)%item%V_f()         ! sum across all size classes
             end do
         end function
         !> return the water volume in the layer across all sediment size fractions
         pure function GetVwlayer(Me) result (Vw_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: Vw_layer                                     !! return value
-            integer :: s                                             !! loop counter
+            integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
                 Vw_layer = Vw_layer + &
-                            Me%colFineSediment(s)%item%V_w()         !! sum across all size classes
+                            Me%colFineSediment(s)%item%V_w()         ! sum across all size classes
             end do
         end function
         !> return the water capacity in the layer across all sediment size fractions
         pure function GetCwlayer(Me) result (Cw_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: Cw_layer                                     !! return value
-            integer :: s                                             !! loop counter
+            integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
-                Cw_layer = Cw_layer + Me%C_w_l(s)                    !! sum across all size classes
+                Cw_layer = Cw_layer + Me%C_w_l(s)                    ! sum across all size classes
             end do
         end function
         !> return the fine sediment & water volume in the layer across all size fractions
         pure function GetVmlayer(Me) result (Vm_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: Vm_layer                                     !! return value
-            integer :: s                                             !! loop counter
+            integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
                 Vm_layer = Vm_layer + &
                            Me%colFineSediment(s)%item%V_f() + &
-                           Me%colFineSediment(s)%item%V_w()          !! sum across all size classes
+                           Me%colFineSediment(s)%item%V_w()          ! sum across all size classes
             end do
         end function
         !> return the total volume of the layer
         pure function GetVlayer(Me) result (V_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             real(dp) :: V_layer                                      !! return value
-            integer :: s                                             !! loop counter
-            V_layer = Me%V_c                                         !! start by adding coarse material volume
+            integer :: s                                             ! loop counter
+            V_layer = Me%V_c                                         ! start by adding coarse material volume
             do s = 1, Me%nSizeClasses
                 V_layer = V_layer + &
                           Me%colFineSediment(s)%item%V_f() + &
-                          Me%colFineSediment(s)%item%V_w()           !! sum across all size classes
+                          Me%colFineSediment(s)%item%V_w()           ! sum across all size classes
             end do
         end function
 end module
