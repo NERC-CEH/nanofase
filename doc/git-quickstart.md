@@ -88,3 +88,9 @@ If your branch has unmerged changes (changes that haven't been merged into anoth
 ```bash
 git branch -D <branch-name>
 ```
+
+To delete a remote branch that has been deleted locally, push that branch with a colon in front of its name. The following will delete `<branch-name>` on the origin remote:
+
+```bash
+git push origin :<branch-name>
+```

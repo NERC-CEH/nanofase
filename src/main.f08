@@ -34,7 +34,8 @@ program main
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
-
+                        print *, t, ", ", x, ", ", y, ", ", s, ", ", &
+                            env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(1)%item%j_spm_res(1)
                     end do
                 end if
             end do
