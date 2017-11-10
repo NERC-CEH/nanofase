@@ -83,6 +83,7 @@ module classRiverReach1
         call var%getData(me%alpha_res)
         var = me%ncGroup%getVariable("beta_res")                ! Get the beta_res calibration factor for resuspension
         call var%getData(me%beta_res)
+        ! TODO: Add checks for the above
 
         ! Get the time series of SPM inflows
         allocate(me%m_spmTimeSeries(C%nTimeSteps,C%nSizeClassesSpm))
@@ -135,11 +136,13 @@ module classRiverReach1
     end function
 
     !> Update the RiverReach on this timestep t, based on the inflow Q and SPM provided:
-    !!  - Masses/volumes updated according to inflows
-    !!  - Reach dimensions updated according to inflows
-    !!  - Resuspension from BedSediment added
-    !!  - Deposition to BedSediment removed
-    !!  - Water and SPM advected from the reach
+    !! <ul>
+    !!  <li>Masses/volumes updated according to inflows</li>
+    !!  <li>Reach dimensions updated according to inflows</li>
+    !!  <li>Resuspension from BedSediment added</li>
+    !!  <li>Deposition to BedSediment removed</li>
+    !!  <li>Water and SPM advected from the reach</li>
+    !! </ul>
     function updateRiverReach1(me, Qin, spmIn, t) result(r)
         class(RiverReach1) :: me                            !! This RiverReach1 instance
         real(dp) :: Qin                                     !! Inflow to this reach
@@ -312,8 +315,10 @@ module classRiverReach1
     !!      W = 1.22Q^{0.557}
     !! $$
     !! References:
-    !! - [Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)
-    !! - [Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)
+    !! <ul>
+    !!  <li>[Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)</li>
+    !!  <li>[Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)</li>
+    !! </ul>
     pure function calculateWidth1(me, Q) result(W)
         class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance
         real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s]
