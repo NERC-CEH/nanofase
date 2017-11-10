@@ -21,6 +21,8 @@ module Globals
 
         ! Size class distributions
         real(dp), allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
+        real(dp), allocatable :: d_spm_low(:)       !! Lower bound when treating each size class as distribution [m]
+        real(dp), allocatable :: d_spm_upp(:)       !! Upper bound when treating each size class as distribution [m]
         real(dp), allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
         integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
         integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
@@ -55,6 +57,7 @@ module Globals
         logical :: jsonVarFound                             !! Was the JSON variable found?
         real(dp), allocatable :: spmSizeClasses(:)          !! Array of sediment particle sizes
         real(dp), allocatable :: npSizeClasses(:)           !! Array of nanoparticle particle sizes
+        integer :: n                                        !! Iterator for size classes
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=[ &
@@ -117,6 +120,19 @@ module Globals
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
+        allocate(C%d_spm_low(C%nSizeClassesSpm))
+        allocate(C%d_spm_upp(C%nSizeClassesSpm))
+        ! Set the upper and lower bounds of each size class, if treated as a distribution
+        do n = 1, C%nSizeClassesSpm
+            ! Set the upper and lower limit of the size class's distributions
+            if (n == 1) then
+                C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
+                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
+            else
+                C%d_spm_low(n) = C%d_spm(n) - (C%d_spm(n)-C%d_spm(n-1))/2       ! Halfway between d_n-1 and d_n
+                C%d_spm_upp(n) = 2*C%d_spm(n) - C%d_spm_low(n)                  ! Halfway between d_n and d_n+1
+            end if
+        end do
     end subroutine
 
     !> Calculate the density of water at a given temperature \( T \):
