@@ -1,0 +1,6 @@
+@media print {
+    a:link:after, a:visited:after {  
+      display: none;
+      content: "";    
+    }
+}

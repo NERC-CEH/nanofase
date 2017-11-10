@@ -33,12 +33,14 @@ module spcRiverReach
         real(dp) :: v                                               !! Water velocity [m/s]
         real(dp) :: l                                               !! Length of the river, without meandering factor [m]
         real(dp) :: f_m = 1                                         !! Meandering factor used for calculating river volume. Default to 1 (no meandering).
-        real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
         real(dp) :: xsArea                                          !! The cross-sectional area of water in the reach [m2]
         real(dp) :: bsArea                                          !! The bed sediment area in the reach [m2]
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
         real(dp), allocatable :: rho_spm(:)                         !! Sediment particle densities [kg/m3]
-        real(dp) :: n                                               !! Manning's roughness coefficient
+        real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux on a given timestep [kg/s]
+        real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
+        real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
+        real(dp) :: n                                               !! Manning's roughness coefficient [-]
         ! class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
@@ -146,20 +148,19 @@ module spcRiverReach
             real(dp), intent(in) :: T                                   !! Temperature [C]
             real(dp) :: W_spm                                           !! Calculated settling velocity [m/s]
         end function
-        !> Calculate the resuspension flux of sediment particles for an individual
-        !! size class
-        pure function calculateResuspension(me, beta, L, W, m_bed, M_prop, omega, f) result(j_res)
+        !> Calculate the resuspension flux of sediment particles
+        pure function calculateResuspension(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
             use Globals
             import RiverReach
-            class(RiverReach), intent(in)   :: me                       !! This RiverReach1 instance
-            real(dp), intent(in)            :: beta                     !! Calibration parameter \( \beta \) [s2 kg-1]
-            real(dp), intent(in)            :: L                        !! Reach length \( L = lf_{\text{m}} \) [m]
-            real(dp), intent(in)            :: W                        !! Reach width \( W \) [m]
-            real(dp), intent(in)            :: m_bed                    !! BedSediment mass per unit area \( m_{\text{bed}} \) [kg m-2]
-            real(dp), intent(in)            :: M_prop                   !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
-            real(dp), intent(in)            :: omega                    !! Stream power per unit bed area \( \omega \) [kg m-2]
-            real(dp), intent(in)            :: f                        !! Friction factor \( f \) [-]
-            real(dp)                        :: j_res                    !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
+            class(RiverReach), intent(in) :: me             !! This RiverReach instance
+            real(dp), intent(in) :: beta                    !! Calibration parameter \( \beta \) [s2 kg-1]
+            real(dp), intent(in) :: L                       !! Reach length \( L = lf_{\text{m}} \) [m]
+            real(dp), intent(in) :: W                       !! Reach width \( W \) [m]
+            real(dp), intent(in) :: m_bed                   !! BedSediment mass per unit area \( m_{\text{bed}} \) [kg m-2]
+            real(dp), intent(in) :: M_prop(C%nTimeSteps)    !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
+            real(dp), intent(in) :: omega                   !! Stream power per unit bed area \( \omega \) [kg m-2]
+            real(dp), intent(in) :: f_fr                    !! Friction factor \( f \) [-]
+            real(dp) :: j_res(C%nTimeSteps)                 !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
         end function
     end interface
 
