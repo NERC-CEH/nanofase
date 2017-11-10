@@ -14,8 +14,6 @@ module classFineSediment1
     contains
         procedure, public :: create => createFineSediment1           ! sets up by reading variables required for computations
         procedure, public :: set => setFS1                           ! set properties, using either fine sediment volume or mass
-!        procedure, public :: setByV => setFSVol1                     ! set properties, using a fine sediment volume
-!        procedure, public :: setByM => setFSMass1                    ! set properties, using a fine sediment mass
         procedure, public :: V_f => getFSVol1                        ! returns the fine sediment volume [m3 m-2]
         procedure, public :: M_f => getFSMass1                       ! returns the fine sediment mass [kg m-2]
         procedure, public :: V_w => getWVol1                         ! returns the water volume [kg m-2]
@@ -180,7 +178,7 @@ module classFineSediment1
                     return                                           ! and exit, as this is a critical error
                 else                                                 ! if no error thrown, then
                     Me%f_comp = f_comp_in                            ! store the composition locally
-                    er = Me%audit_comp()                             ! audit sum (fractional composition) = 1, return error instance 
+                    er = Me%audit_comp()                             ! audit sum (fractional composition) = 1, return error instance
                     if (er%isError()) then                           ! if an error was thrown
                         call er%addToTrace(Me%name // "%SetFS1")     ! add a trace
                         call r%addError(er)                          ! add it to the result

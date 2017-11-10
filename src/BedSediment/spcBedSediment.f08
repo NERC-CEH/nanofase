@@ -1,7 +1,7 @@
 !> abstract superclass definition for BedSediment
 !! defines the properties and methods shared by all BedSediment objects
 !! objects of this class cannot be instantiated, only objects of its subclasses
-module spcBedSediment                                                          
+module spcBedSediment
     use Globals
     use ResultModule                                                 ! Error handling
     use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
@@ -19,7 +19,6 @@ module spcBedSediment
         integer :: nSizeClasses                                      ! number of fine sediment size classes
         integer :: nLayers                                           ! number of layers (BedSedimentLayer objects)
         integer :: nfComp                                            ! number of fractional composition terms for sediment
-        integer :: allst                                             ! array allocation status
                                                                      ! any private variable declarations go here
     contains
                                                                      ! deferred methods: must be defined in all subclasses
