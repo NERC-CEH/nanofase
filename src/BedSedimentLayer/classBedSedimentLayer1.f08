@@ -27,52 +27,35 @@ module classBedSedimentLayer1
         !! FineSediment objects
         !!  - sets number of particle size classes
         !!  - reads in fixed layer volume
-        !!  - reads in volumes of fine sediment and water in each size class
+        !!  - reads in masses of fine sediment in each size class
+        !!  - sets associated water volume for each size class
         !!  - sets volume of coarse material
         !!
         !! Function inputs
         !! -------------------------------------------------------------------------------
         !!
-        !! n (character)          a name unambiguously identifying the object
-        !! nsc (integer)          the number of size classes of sediment
-        !! FStype (integer)       the subtype of the spcFineSediment Superclass to use
-        !!                        to create fine sediment objects
-        !! C_tot (real, dp)       The total volume of the layer [m3 m-2]
-        !! V_f(:) (real, dp)      [OPTIONAL] array of initial fine sediment volumes [m3 m-2]
-        !! M_f(:) (real, dp)      [OPTIONAL] array of initial fine sediment masses [kg m-2]
-        !! F_comp(:,:) (real, dp) array of fractional compositions for each size class
-        !! Porosity (real, dp)    [OPTIONAL] sediment porosity
+        !! layerGroup (NcGroup)   reference to the group holding this layer's data in the
+        !!                        netCDF input file
         !!
         !! Function outputs/outcomes
         !! -------------------------------------------------------------------------------
         !! No specific outputs: results are initialisation of variables and objects
         !!
         !! -------------------------------------------------------------------------------
-        function createBedSedimentLayer1(Me, &
-                                         n, &
-                                         nsc, &
-                                         FSType, &
-                                         C_tot, &
-                                         f_comp, &
-                                         pd_comp, &
-                                         Porosity, &
-                                         V_f, &
-                                         M_f) result(r)
-
+        function createBedSedimentLayer1(Me, Parent, layerGroup) result(r)
             class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
+            character(len=*) :: Parent                               !! name of parent object
+            type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
             type(Result) :: r                                        !! The Result object.
-            character(len=256) :: n                                  !! a name for the object
-            integer, intent(in) :: nsc                               !! the number of particle size classes
-            integer, intent(in) :: FSType                            !! the type identification number of the FineSediment(s)
-            real(dp), intent(in) :: C_tot                            !! the total volume of the layer
-            real(dp), intent(in) :: f_comp(:,:)                      !! set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
-            real(dp), intent(in), allocatable :: pd_comp(:)          !! set of fractional particle densities
-            real(dp), intent(in), optional :: Porosity               !! layer porosity, if being used to define layer
-            real(dp), intent(in), optional :: V_f(:)                 !! set of fine sediment volumes, if being used to define layer
-            real(dp), intent(in), optional :: M_f(:)                 !! set of fine sediment masses, if being used to define layer
+            type(NcGroup) :: grp                                     ! LOCAL NetCDF group referring to the fractional compositions
+            real(dp) :: Porosity                                     ! LOCAL layer porosity
+            real(dp), allocatable :: M_f(:)                          ! LOCAL set of fine sediment masses, index = size class
+            real(dp), allocatable :: f_comp(:,:)                     ! LOCAL set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
+            type(NcVariable) :: var                                  ! LOCAL NetCDF variable
             type(ErrorInstance) :: er                                ! LOCAL ErrorCriteria object for error handling.
-            type(FineSediment1), allocatable :: fs1                  ! LOCAL object of type FineSediment1, for implementation of polymorphism
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
+            character(len=16), parameter :: ms = &
+                                            "Allocation error"       ! LOCAL allocation error message
             real(dp) :: fwr                                          ! LOCAL fine sediment to water ratio
             integer :: S                                             ! LOCAL loop counter
             integer :: allst                                         ! LOCAL array allocation status
@@ -81,213 +64,130 @@ module classBedSedimentLayer1
             ! -------------------------------------------------------------------------------
             ! This function fills all available space in the layer with fine sediment,
             ! water and coarse material. There are two calling conventions:
-            ! 1.    Specify V_f(:) or M_f(:) and porosity. Water volumes are computed from
+            ! 1.    Specify M_f(:) and porosity. Water volumes are computed from
             !       porosity. Any remaining capacity is filled by coarse material.
-            ! 2.    Specify V_f(:) or M_f(:) only. Space not occupied by fine sediment is
+            ! 2.    Specify M_f(:) only. Space not occupied by fine sediment is
             !       occupied by water.
-            ! If both V_f and M_f are specified then V_f will be used.
             ! -------------------------------------------------------------------------------
-            if (len_trim(n) == 0) then
+            Me%nSizeClasses = C%nSizeClassesSpm                      ! set number of size classes from global value
+            Me%nfComp = C%nFracCompsSpm                              ! set number of fractional compositions from global value
+            Me%name = trim(ref(Parent, layerGroup%getName))          ! this object's name = the netCDF group name
+            tr = Me%name // "%create"                                ! add name to trace string
+            if (len_trim(Me%name) == 0) then
                 call r%addError(ErrorInstance( &
                             code = 1, &
                             message = "An object name has not &
                                            been provided", &
-                            trace = ["classBedSedimentLayer1%create"] &
+                            trace = [tr] &
                                              ) &
                                )                                     ! error if name is not provided
                 return                                               ! critical error, so exit here
             end if
-            Me%name = n
-            if (nsc <= 0) then                                       ! CRITICAL ERROR HERE: nsc <= 0
+            var = layerGroup%getVariable("Capacity")                 ! Get the layer capacity [m3 m-2]
+            call var%getData(Me%C_total)                             ! retrieve into C_total variable
+            if (C_total == 0) then                                   ! CRITICAL ERROR HERE: C_total == 0
                 call r%addError(ErrorInstance( &
                             code = 1, &
-                            message = "Invalid number of particle &
-                                      size classes" &
-                                             ) &
-                               )
-            end if
-            if (C_tot == 0) then                                     ! CRITICAL ERROR HERE: C_tot = 0
-                call r%addError(ErrorInstance( &
-                            code = 1, &
-                            message = "Layer volume is zero" &
-                                             ) &
-                               )
-            end if
-            if ((.not. present(V_f)) .and. (.not. present(M_f))) then
-                call r%addError(ErrorInstance( &
-                            code = 1, &
-                            message = "One of fine sediment volume &
-                                           and mass must be specified" &
-                                             ) &
-                               )                                     ! create error instance
-            end if
-            if (present(V_f)) then
-                if (size(V_f) /= nsc) then                           ! array of fine sediment masses must have correct size
-                    call r%addError(ErrorInstance( &
-                                code = 1, &
-                                message = "Array of fine sediment &
-                                               volumes is the wrong &
-                                               size" &
-                                                 ) &
-                                   )                                 ! create error instance
-                end if
-            end if
-            if (present(M_f)) then
-                if (size(M_f) /= nsc) then                           ! array of fine sediment masses must have correct size
-                    call r%AddError(ErrorInstance( &
-                                code = 1, &
-                                message = "Array of fine sediment &
-                                               masses is the wrong &
-                                               size" &
-                                                 ) &
-                                   )                                 ! create error instance
-                end if
-            end if
-            if (size(f_comp, 1) /= nsc) then                         ! number of size classes must be consistent
-               call r%AddError(ErrorInstance( &
-                          code = 1, &
-                          message = "Array of fractional &
-                                          compositions is the wrong &
-                                          size" &
+                            message = "Layer capacity is zero" &
+                            trace = [tr] &
                                             ) &
-                              )                                      ! create error instance
+                               )
             end if
-            if (size(f_comp, 2) /= size(pd_comp)) then               ! number of compositional fractions must be consistent
+            var = layerGroup%getVariable("InitialMass")              ! Get the sediment initial masses
+            call var%getData(M_f)                                    ! Put initial masses into local variable
+            if (size(M_f) /= Me%nSizeClasses) then                   ! array of fine sediment masses must have correct size
                 call r%AddError(ErrorInstance( &
-                                code = 1, &
-                                message = "Arrays of fractional &
-                                           compositions and particle &
-                                           densities have different &
-                                           sizes" &
+                            code = 1, &
+                            message = "Array of fine sediment &
+                                       masses is the wrong size" &
+                            trace = [tr] &
                                              ) &
                                )                                     ! create error instance
             end if
-            if (present(Porosity)) then
-                if (Porosity <= 0 .or. Porosity >= 1) then
-                call r%AddError(ErrorInstance( &
-                                code = 1, &
-                                message = "Porosity is out of range" &
-                                             ) &
-                               )                                     ! create error instance
-                end if
+            var = layerGroup%getVariable("Porosity")                 ! Get the porosity
+            call var%getData(Porosity)                               ! Put porosity into local variable
+            if (Porosity <= 0 .or. Porosity >= 1) then
+            call r%AddError(ErrorInstance( &
+                            code = 1, &
+                            message = "Porosity is out of range" &
+                            trace = [tr] &
+                                         ) &
+                           )                                         ! create error instance
             end if
-            tr = Me%name // "%create"                                ! add name to trace string
-            if (r%hasCriticalError()) then                           ! if a critical error has been thrown
-                call r%addToTrace(tr)                                ! add trace to Result
-                return                                               ! exit, as a critical error has occurred
-            end if
-            Me%nSizeClasses = nsc                                    ! store number of size classes
-            Me%nfComp = size(f_comp, 2)                              ! store number of fractional composition terms
-            Me%C_total = C_tot                                       ! assign the total volume
+            if (r%hasCriticalError()) return                         ! exit if a critical error has occurred
+            allocate(f_comp(Me%nSizeClasses, Me%nfComp))             ! allocate space for fractional compositions
+            grp = layerGroup%getGroup("fractionalCompositions")      ! get fractional composition group
+            do S = 1, Me%nSizeClasses                                ! loop through size classes
+                var = grp%getVariable(trim(ref("f", "s", S)))        ! get the fractional composition data for each size class, variable name f_s_1, f_s_2 etc.
+                call var%getData(f_comp(S,:))                        ! put the data into the relevant size class of f_comp(:,:)
+            end do
             tr = Me%name // &
                 "%createBedSedimentLayer1%colFineSediment"           ! trace message
-            allocate(Me%colFineSediment(1:nsc), stat = allst)        ! set up fine sediment collection
+            allocate(Me%colFineSediment(Me%nSizeClasses), &
+                stat = allst)                                        ! set up fine sediment collection
             if (allst /= 0) then
-                er = ErrorInstance(1, &
-                                   "Allocation error", &
-                                   .false., &
-                                   [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+                call r%addError(ErrorInstance( &
+                                      code = 1, &
+                                   message = [ms], &
+                                     trace = [tr] &
+                                             ) &
+                               )                                     ! add to Result
             end if
             tr = Me%name // &
                 "%createBedSedimentLayer1%C_f_l"                     ! trace message
-            allocate(Me%C_f_l(1:nsc), stat = allst)                  ! allocate space for fine sediment capacity
-            if (allst /= 0) then
-                er = ErrorInstance(1, &
-                                   "Allocation error", &
-                                   .false., &
-                                   [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+            allocate(Me%C_f_l(Me%nSizeClasses), stat = allst)        ! allocate space for fine sediment capacity
+                call r%addError(ErrorInstance( &
+                                      code = 1, &
+                                   message = [ms], &
+                                     trace = [tr] &
+                                             ) &
+                               )                                     ! add to Result
             end if
             tr = Me%name // &
                 "%createBedSedimentLayer1%C_w_l"                     ! trace message
-            allocate(Me%C_w_l(1:nsc), stat = allst)                  ! allocate space for water capacity
+            allocate(Me%C_w_l(Me%nSizeClasses), stat = allst)        ! allocate space for water capacity
             if (allst /= 0) then
-                er = ErrorInstance(1, &
-                                   "Allocation error", &
-                                   .false., &
-                                   [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+                call r%addError(ErrorInstance( &
+                                      code = 1, &
+                                   message = [ms], &
+                                     trace = [tr] &
+                                             ) &
+                               )                                     ! add to Result
             end if
             tr = Me%name // &
                 "%createBedSedimentLayer1%pd_comp"                   ! trace message
-            allocate(Me%pd_comp(1:size(pd_comp)), stat = allst)      ! allocate space for particle densities of components
+            allocate(Me%pd_comp(Me%nfComp), stat = allst)            ! allocate space for particle densities of components
             if (allst /= 0) then
-                er = ErrorInstance(1, &
-                                   "Allocation error", &
-                                   .false., &
-                                   [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+                call r%addError(ErrorInstance( &
+                                      code = 1, &
+                                   message = [ms], &
+                                     trace = [tr] &
+                                             ) &
+                               )                                     ! add to Result
             end if
-            if (r%hasCriticalError()) return                            ! exit if allocation has thrown an error
-            do S = 1, nsc
-                associate (O => Me%colFineSediment(S)%item)          ! association for the FineSediment object we are working with
-                                                                     ! this is done to reduce code length and increase readability
-                    select case (FSType)                             ! loop through possible FineSediment object types
-                        case(1)                                      ! Type FineSediment1
-            tr = Me%name // &
-                "%createBedSedimentLayer1%pd_comp"                   ! trace message
-                            allocate (fs1, stat = allst)             ! create FineSediment1 object
-                            if (allst /= 0) then
-                                er = ErrorInstance(1, &
-                                                "Allocation error", &
-                                                .false., &
-                                                [tr] &
-                                                  )                  ! create warning if error thrown
-                                call r%addError(er)                  ! add to Result
-                                if (r%hasCriticalError()) return     ! exit if allocation has thrown an error
-                            end if
-                            call r%addErrors( &
-                                .errors. fs1%create( &               ! run constructor for this object
-                                    Me%name, &
-                                    Me%pd_comp &
-                                ) &
-                            )
-                            call move_alloc(fs1, &
-                              Me%colFineSediment(S)%item)            ! move the object into the colFineSediment collection; this deallocates fs1
-                        case default                                 ! not a recognised FineSediment type
-                            call r%addError(ErrorInstance( &
-                                        code = 1, &
-                                        message = "Invalid &
-                                                   FineSediment &
-                                                   object type &
-                                                   specified" &
-                                                         ) &
-                                           )                         ! add ErrorInstance
-                            call r%addToTrace(tr)                    ! add trace to Result
-                            return                                   ! critical error, so exit
-                    end select
-                    if (present(V_f)) then
-                        call r%addErrors(.errors. &
-                                    O%set(Vf_in = V_f(S), &
-                                         f_comp_in = f_comp(S,:) &
-                                         ) &
-                                        )                            ! if V_f values are defined, set up FineSediment using V_f
-                        if (r%hasCriticalError()) then               ! if a critical error has been thrown
-                            call r%addToTrace(tr)                    ! add trace to Result
-                            return                                   ! exit, as a critical error has occurred
-                        end if
-                    elseif (present(M_f)) then
-                        ! QUERY: can we return from Set_M into an ErrorCriteria instance and then test for criticality
-                        !        in order to determine whether to exit immediately?
-                        call r%addErrors(.errors. &
-                                    O%set(Mf_in = M_f(S), &
-                                         f_comp_in = f_comp(S,:) &
-                                         ) &
-                                        )                            ! otherwise if M_f values are defined, set up FineSediment using M_f
-                        if (r%hasCriticalError()) then               ! if a critical error has been thrown
-                            call r%addToTrace(tr)                    ! add trace to Result
-                            return                                   ! exit, as a critical error has occurred
-                        end if
+            if (r%hasCriticalError()) return                         ! exit if allocation has thrown an error
+            do S = 1 , Me%nSizeClasses
+                associate (O => Me%colFineSediment(S))               ! association for the FineSediment object we are working with
+                    call r%addErrors(.errors. &
+                                O%create(trim(ref(Me%name, "s", S)) &
+                                    )                                ! set up FineSediment1 objects with name: layer name & _s_1, _s_2 etc
+                    if (r%hasCriticalError()) then                   ! if a critical error has been thrown
+                        call r%addToTrace(tr)                        ! add trace to Result
+                        return                                       ! exit, as a critical error has occurred
                     end if
+                    call r%addErrors(.errors. &
+                                O%set(Mf_in = M_f(S), &
+                                      f_comp_in = f_comp(S,:) &
+                                     ) &
+                                    )                                ! set up FineSediment
+                    if (r%hasCriticalError()) then                   ! if a critical error has been thrown
+                        call r%addToTrace(tr)                        ! add trace to Result
+                        return                                       ! exit, as a critical error has occurred
+                    end if
+                    Me%C_f_l(S) = O%V_f()                            ! set the sediment capacities to the volumes
                 end associate
-                Me%C_f_l(S) = V_f(S)                                 ! set the sediment capacities, using the local value
             end do
-            if (Me%V_f_layer() > C_tot) then                         ! CRITICAL ERROR HERE: if Me%V_f_layer > C_tot
+            if (Me%V_f_layer() > C_total) then                       ! CRITICAL ERROR HERE: if layer volume exceeds capacity
                 call r%addError(ErrorInstance( &
                                   code = 1, &
                                   message = "Fine sediment volume &
@@ -305,8 +205,8 @@ module classBedSedimentLayer1
             else                                                     !
                 fwr = (Me%C_total - Me%C_f_layer()) / Me%C_f_layer() ! no, so use C_total and C_f_layer to compute factor for
             end if                                                   ! sediment:water ratio
-            do S = 1, nsc                                            ! compute V_w for each size fraction using the sediment:water ratio
-                associate (O => Me%colFineSediment(S)%item)          ! association for the FineSediment object we are working with
+            do S = 1, Me%nSizeClasses                                ! compute V_w for each size fraction using the sediment:water ratio
+                associate (O => Me%colFineSediment(S))               ! association for the FineSediment object we are working with
                     call r%addErrors(.errors. &
                         O%set(Vw_in = O%V_f() * fwr))                ! is used to compute the volume of associated water
                         if (r%hasCriticalError()) then               ! if a critical error has been thrown
@@ -315,10 +215,10 @@ module classBedSedimentLayer1
                         end if
                 end associate
             end do
-            do S = 1, nsc                                            ! loop through all size fractions
-                Me%C_w_l(S) = Me%colFineSediment(S)%item%V_w()       ! set the water capacities, using the local variable
+            do S = 1, Me%nSizeClasses                                ! loop through all size fractions
+                Me%C_w_l(S) = Me%colFineSediment(S)%V_w()            ! set the water capacities, using the local variable
             end do
-            if (Me%V_m_layer() > C_tot) then                         ! CRITICAL ERROR HERE: if Me%V_m_layer > C_tot
+            if (Me%V_m_layer() > C_total) then                       ! CRITICAL ERROR HERE: if Me%V_m_layer > C_tot
                 call r%addError(ErrorInstance( &
                                     code = 1, &
                                      message = "Fine sediment & &
@@ -329,7 +229,7 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                                ! add trace to Result
                 return                                               ! critical error, so exit
             end if
-            Me%V_c = C_tot - Me%V_m_layer()                          ! set the coarse material volume
+            Me%V_c = Me%C_total - Me%V_m_layer()                     ! set the coarse material volume
         end function
         !>Function purpose
         !! -------------------------------------------------------------------------------
@@ -347,7 +247,6 @@ module classBedSedimentLayer1
         function destroyBedSedimentLayer1(Me) result(r)
             class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
             type(Result) :: r                                        !! The Result object
-            type(ErrorInstance) :: er                                ! LOCAL ErrorCriteria object for error handling.
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL array allocation status
             character(len=18), parameter :: &
@@ -359,46 +258,46 @@ module classBedSedimentLayer1
             tr = Me%name // &
                 "%destroyBedSedimentLayer1%colFineSediment"          ! trace message
             deallocate(Me%colFineSediment, stat = allst)          ! deallocate all allocatable variables
-            if (llst /= 0) then
-                er = ErrorInstance(1, &
+            if (allst /= 0) then
+                call r%addError(ErrorInstance(1, &
                                    ms, &
                                    .false., &
                                    [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+                                             ) &
+                               )                                     ! add to Result
             end if
             tr = Me%name // &
                 "%destroyBedSedimentLayer1%pd_comp"                  ! trace message
             deallocate(Me%pd_comp, stat = allst)
             if (allst /= 0) then
-                er = ErrorInstance(1, &
+                call r%addError(ErrorInstance(1, &
                                    ms, &
                                    .false., &
                                    [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+                                             ) &
+                               )                                     ! add to Result
             end if
             tr = Me%name // &
                 "%destroyBedSedimentLayer1%C_f_l"                    ! trace message
             deallocate(Me%C_f_l, stat = allst)
             if (allst /= 0) then
-                er = ErrorInstance(1, &
+                call r%addError(ErrorInstance(1, &
                                    ms, &
                                    .false., &
                                    [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+                                             ) &
+                               )                                     ! add to Result
             end if
             tr = Me%name // &
                 "%destroyBedSedimentLayer1%C_w_l"                    ! trace message
             deallocate(Me%C_w_l, stat = allst)
             if (allst /= 0) then
-                er = ErrorInstance(1, &
+                call r%addError(ErrorInstance(1, &
                                    ms, &
                                    .false., &
                                    [tr] &
-                                  )                                  ! create warning if error thrown
-                call r%addError(er)                                  ! add to Result
+                                             ) &
+                               )                                     ! add to Result
             end if
         end function
         !> Function purpose

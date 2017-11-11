@@ -7,16 +7,13 @@ module spcBedSedimentLayer
     use ErrorInstanceModule                                          ! generation of trace error messages
     use classFineSediment1                                           ! USEs all subclasses of FineSediment
     implicit none                                                    ! force declaration of all variables
-    type FineSedimentElement
-        class(FineSediment1), allocatable :: item                    !! Storing polymorphic class(FineSediment) in derived type so that a set of
-    end type                                                         ! different extended types of FineSediment can be stored in an array.
     type, abstract, public :: BedSedimentLayer                       !! type declaration for superclass
         character(len=256) :: name                                   !! a name for the object
                                                                      ! define variables for 'has a' objects: Biota and Reactor
                                                                      ! properties
         real(dp), allocatable :: C_f_l(:)                            !! capacity for fine sediment [m3 m-2]
         real(dp), allocatable :: C_w_l(:)                            !! capacity for water [m3 m-2]
-        class(FineSedimentElement), allocatable :: &
+        class(FineSediment1), allocatable :: &
         colFineSediment(:)                                           !! collection of FineSediment objects
         real(dp) :: C_total                                          !! total capacity [m3 m-2]
         real(dp) :: V_c                                              !! coarse material volume [m3 m-2]
@@ -54,61 +51,40 @@ module spcBedSedimentLayer
         !! FineSediment objects
         !!  - sets number of particle size classes
         !!  - reads in fixed layer volume
-        !!  - reads in volumes of fine sediment and water in each size class
+        !!  - reads in masses of fine sediment in each size class
+        !!  - sets associated water volume for each size class
         !!  - sets volume of coarse material
         !!
         !! Function inputs
         !! -------------------------------------------------------------------------------
         !!
-        !! n (character)          a name unambiguously identifying the object
-        !! nsc (integer)          the number of size classes of sediment
-        !! FStype (integer)       the subtype of the spcFineSediment Superclass to use
-        !!                        to create fine sediment objects
-        !! C_tot (real, dp)       The total volume of the layer [m3 m-2]
-        !! V_f(:) (real, dp)      [OPTIONAL] array of initial fine sediment volumes [m3 m-2]
-        !! M_f(:) (real, dp)      [OPTIONAL] array of initial fine sediment masses [kg m-2]
-        !! F_comp(:,:) (real, dp) array of fractional compositions for each size class
-        !! Porosity (real, dp)    [OPTIONAL] sediment porosity
+        !! layerGroup (NcGroup)   reference to the group holding this layer's data in the
+        !!                        netCDF input file
         !!
         !! Function outputs/outcomes
         !! -------------------------------------------------------------------------------
         !! No specific outputs: results are initialisation of variables and objects
         !!
         !! -------------------------------------------------------------------------------
-        function createBedSedimentLayer1(Me, &
-                                         n, &
-                                         nsc, &
-                                         FSType, &
-                                         C_tot, &
-                                         f_comp, &
-                                         pd_comp, &
-                                         Porosity, &
-                                         V_f, &
-                                         M_f) result(r)
-
-            use Globals
+        function createBedSedimentLayer1(Me, Parent, layerGroup) result(r)
+            use Globals                                              !! global declarations
+            use mo_netcdf                                            !! input/output handling
+            use ResultModule                                         !! error handling classes, required for
+            use ErrorInstanceModule                                  !! generation of trace error messages
             import BedSedimentLayer, ErrorInstance, FineSediment1, Result
             class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
+            character(len=*) :: Parent                               !! name of parent object
+            type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
             type(Result) :: r                                        !! The Result object.
-            character(len=256) :: n                                  !! a name for the object
-            integer, intent(in) :: nsc                               !! the number of particle size classes
-            integer, intent(in) :: FSType                            !! the type identification number of the FineSediment(s)
-            real(dp), intent(in) :: C_tot                            !! the total volume of the layer
-            real(dp), intent(in) :: f_comp(:,:)                      !! set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
-            real(dp), intent(in), allocatable :: pd_comp(:)          !! set of fractional particle densities
-            real(dp), intent(in), optional :: Porosity               !! layer porosity, if being used to define layer
-            real(dp), intent(in), optional :: V_f(:)                 !! set of fine sediment volumes, if being used to define layer
-            real(dp), intent(in), optional :: M_f(:)                 !! set of fine sediment masses, if being used to define layer
             !
             ! Notes
             ! -------------------------------------------------------------------------------
             ! This function fills all available space in the layer with fine sediment,
             ! water and coarse material. There are two calling conventions:
-            ! 1.    Specify V_f(:) or M_f(:) and porosity. Water volumes are computed from
+            ! 1.    Specify M_f(:) and porosity. Water volumes are computed from
             !       porosity. Any remaining capacity is filled by coarse material.
-            ! 2.    Specify V_f(:) or M_f(:) only. Space not occupied by fine sediment is
+            ! 2.    Specify M_f(:) only. Space not occupied by fine sediment is
             !       occupied by water.
-            ! If both V_f and M_f are specified then V_f will be used.
             ! -------------------------------------------------------------------------------
         end function
         !>Function purpose

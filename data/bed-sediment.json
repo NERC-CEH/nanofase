@@ -1,51 +1,320 @@
 {
-    "name" : "RiverBedSediment",
+    "name" : "BedSediment",
     "type" : "group",
     "dimensions" : [
         { "name" : "nLayers", "size" : 5 }
-    ],
+                   ],
     "data" : [
-      {
-          "name" : "layerTypes",
-          "type" : "variable",
-          "datatype" : "i4",
-          "dimensions" : [ "nLayers" ],
-          "data" : [ 1, 1, 1, 1, 1 ]
+      { "name" : "sedimentType",
+        "type" : "variable",
+        "datatype" : "i4",
+        "data" : 1
+      }
+      { "name" : "layerType",
+        "type" : "variable",
+        "dimensions" : "nLayers",
+        "datatype" : "i4",
+        "data" : [ 1, 1, 1, 1, 1 ]
       },
-      {
-          "name" : "layerCapacity",
-          // needs to be defined by size class as well as layer
-          // how to define a two-dimensional array in JSON?
-          "type" : "variable",
-          "datatype" : "f8",
-          "dimensions" : [ "nLayers" ],
-          "data" : [ 0.002, 0.002, 0.002, 0.002, 0.002 ]
+      { "name" : "Layer_1",
+        "type" : "group",
+        "data" : [
+            { "name" : "Capacity", "type" : "variable", "datatype" : "f8", "data" : 0.01 },
+            {
+                "name" : "InitialMass",
+                "type" : "variable",
+                "dimensions" : [ "nSizeClassesSpm"],
+                "datatype" : "f8",
+                "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
+            },
+            {
+                "name" : "Porosity",
+                "type" : "variable",
+                "datatype" : "f8",
+                "data" : 0.8
+            },
+            {
+                "name" : "fractionalCompositions",
+                "type" : "group",
+                "data" : [
+                    {
+                      "name" : "f_s_1",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_2",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_3",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_4",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_5",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    }
+                 ]
+            }
+        ]
+      },
+      { "name" : "Layer_2",
+        "type" : "group",
+        "data" : [
+            { "name" : "Capacity", "type" : "variable", "datatype" : "f8", "data" : 0.01 },
+            {
+                "name" : "InitialMass",
+                "type" : "variable",
+                "dimensions" : [ "nSizeClassesSpm"],
+                "datatype" : "f8",
+                "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
+            },
+            {
+                "name" : "Porosity",
+                "type" : "variable",
+                "datatype" : "f8",
+                "data" : 0.6
+            },
+            {
+                "name" : "fractionalCompositions",
+                "type" : "group",
+                "data" : [
+                    {
+                      "name" : "f_s_1",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_2",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_3",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_4",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_5",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    }
+                 ]
+            }
+        ]
+      },
+      { "name" : "Layer_3",
+        "type" : "group",
+        "data" : [
+            { "name" : "Capacity", "type" : "variable", "datatype" : "f8", "data" : 0.01 },
+            {
+                "name" : "InitialMass",
+                "type" : "variable",
+                "dimensions" : [ "nSizeClassesSpm"],
+                "datatype" : "f8",
+                "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
+            },
+            {
+                "name" : "Porosity",
+                "type" : "variable",
+                "datatype" : "f8",
+                "data" : 0.4
+            },
+            {
+                "name" : "fractionalCompositions",
+                "type" : "group",
+                "data" : [
+                    {
+                      "name" : "f_s_1",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_2",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_3",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_4",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_5",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    }
+                 ]
+            }
+        ]
+      },
+      { "name" : "Layer_4",
+        "type" : "group",
+        "data" : [
+            { "name" : "Capacity", "type" : "variable", "datatype" : "f8", "data" : 0.01 },
+            {
+                "name" : "InitialMass",
+                "type" : "variable",
+                "dimensions" : [ "nSizeClassesSpm"],
+                "datatype" : "f8",
+                "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
+            },
+            {
+                "name" : "Porosity",
+                "type" : "variable",
+                "datatype" : "f8",
+                "data" : 0.2
+            },
+            {
+                "name" : "fractionalCompositions",
+                "type" : "group",
+                "data" : [
+                    {
+                      "name" : "f_s_1",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_2",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_3",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_4",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_5",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    }
+                 ]
+            }
+        ]
+      },
+      { "name" : "Layer_5",
+        "type" : "group",
+        "data" : [
+            { "name" : "Capacity", "type" : "variable", "datatype" : "f8", "data" : 0.01 },
+            {
+                "name" : "InitialMass",
+                "type" : "variable",
+                "dimensions" : [ "nSizeClassesSpm"],
+                "datatype" : "f8",
+                "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
+            },
+            {
+                "name" : "Porosity",
+                "type" : "variable",
+                "datatype" : "f8",
+                "data" : 0.1
+            },
+            {
+                "name" : "fractionalCompositions",
+                "type" : "group",
+                "data" : [
+                    {
+                      "name" : "f_s_1",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_2",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_3",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_4",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    },
+                    {
+                      "name" : "f_s_5",
+                      "type" : "variable",
+                      "dimensions" : [ "nFractionalCompositions" ],
+                      "datatype" : "f8",
+                      "data" : [ 0.3, 0.3, 0.3, 0.1 ]
+                    }
+                 ]
+            }
+        ]
       }
-      {
-          "name" : "fineSedimentMass",
-          // needs to be defined by size class as well as layer
-          // how to define a two-dimensional array in JSON?
-          "type" : "variable",
-          "datatype" : "f8",
-          "dimensions" : [ "nLayers" ],
-          "data" : [ 0.1, 0.1, 0.1, 0.1, 0.1 ]
-      }
-      {
-          "name" : "Porosity",
-          "type" : "variable",
-          "datatype" : "f8",
-          "dimensions" : [ "nLayers" ],
-          "data" : [ 0.8, 0.8, 0.6, 0.6, 0.4 ]
-      }
-      {
-          "name" : "fractionalCompositions",
-          // needs to be defined by size class as well as layer
-          // how to define a two-dimensional array in JSON?
-          "type" : "variable",
-          "datatype" : "f8",
-          "dimensions" : [ "nFractionalCompositions" ],
-          "data" : [ 0.1, 0.3, 0.3, 0.3 ]
-      }
-    ]
-
+   ]
 }

@@ -8,11 +8,11 @@ module classFineSediment1
         real(dp), private :: M_f_l                                   !! LOCAL fine sediment mass [kg m-2]
         real(dp), private :: V_w_l                                   !! LOCAL volume of water associated with fine sediment [m3 m-2]
         real(dp), allocatable :: f_comp(:)                           !! fractional composition [-]
-        real(dp), allocatable :: pd_comp_l(:)                        !! LOCAL storage of fractional particle densities [kg m-3]
+        real(dp), allocatable :: pd_comp(:)                          !! LOCAL storage of fractional particle densities [kg m-3]
         integer :: nfComp                                            !! LOCAL number of fractional composition terms
-        integer :: allst                                             !! array allocation status
     contains
         procedure, public :: create => createFineSediment1           ! sets up by reading variables required for computations
+        procedure, public :: destroy => destroyFineSediment1         ! finalises by doing all necessary deallocations
         procedure, public :: set => setFS1                           ! set properties, using either fine sediment volume or mass
         procedure, public :: V_f => getFSVol1                        ! returns the fine sediment volume [m3 m-2]
         procedure, public :: M_f => getFSMass1                       ! returns the fine sediment mass [kg m-2]
@@ -24,51 +24,46 @@ module classFineSediment1
         procedure, public :: mix => Mix1                             ! mix this sediment into another
     end type
     contains
-        !> initialise this object
-        function createFineSediment1(Me, n, pd_comp_in) &
-            result(r)
-            implicit none
+        !> Function purpose
+        !! -------------------------------------------------------------------------------
+        !! initialise a FineSediment object. Set the object name, number of compositional
+        !! fractions, and particle density for each compositional fraction.
+        !!
+        !! Function inputs
+        !! -------------------------------------------------------------------------------
+        !! n (character)            a name unambiguously identifying the object
+        !!
+        !! Function outputs/outcomes
+        !! -------------------------------------------------------------------------------
+        !!
+        !! initialised FineSediment1 object. Returns Result object containing
+        !! ErrorInstance if no object name has been provided.
+        !!
+        !! -------------------------------------------------------------------------------
+        function createFineSediment1(Me, n) result(r)
             class(FineSediment1) :: Me                               !! self-reference
             character(len=256) :: n                                  !! a name identifier for the object; identifies this object uniquely
-            real(dp), intent(in), allocatable :: pd_comp_in(:)       !! input array of particle densities for compositional fractions
-            real(dp), allocatable :: pd_comp(:)
             type(Result) :: r                                        !! Result object
-            type(ErrorInstance) :: er                                ! To store errors in
+            type(ErrorInstance) :: er                                ! LOCAL to store errors in
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
-            !
-            ! Function purpose
-            ! -------------------------------------------------------------------------------
-            ! initialise a FineSediment object. Set the object name, number of compositional
-            ! fractions, and particle density for each compositional fraction.
-            !
-            ! Function inputs
-            ! -------------------------------------------------------------------------------
-            ! n (character)            a name unambiguously identifying the object
-            ! nsc (integer)            the number of size classes of sediment
-            ! pd_comp_in(:) (real, dp) 1D array of particle density [kg m-3] for
-            !                          compositional fractions
-            !
-            ! Function outputs/outcomes
-            ! -------------------------------------------------------------------------------
-            ! initialised FineSediment1 object. Returns Result object containing
-            ! ErrorInstance if no object name has been provided.
-            !
-            ! Notes
-            ! -------------------------------------------------------------------------------
-            ! No notes.
-            ! -------------------------------------------------------------------------------
+            integer :: allst                                         ! LOCAL array allocation status
+        !
+        ! Notes
+        ! -------------------------------------------------------------------------------
+        ! No notes.
+        ! -------------------------------------------------------------------------------
             if (len_trim(n) == 0) then
                 call r%addError(ErrorInstance( &
                              code = 1, &
                              message = "An object name has not been &
-                                      provided", &
+                                        provided", &
                              trace = ["classFineSediment1%create"])) ! error if name is not provided
                 return                                               ! critical error, so exit here
             end if
             Me%name = n                                              ! set object name
-            Me%NFComp = size(pd_comp_in)                             ! set number of compositional fractions
-            allocate(pd_comp(Me%nfComp), stat = Me%allst)            ! allocate space for particle densities of compositional fractions
-            if (Me%allst /= 0) then
+            Me%nfComp = C%nFracCompsSpm                              ! set number of compositional fractions from Global
+            allocate(Me%pd_comp(Me%nfComp), stat = allst)            ! allocate space for particle densities of compositional fractions
+            if (allst /= 0) then
                 er = ErrorInstance(1, &
                                    "Allocation error", &
                                     trace = [Me%name // &
@@ -77,7 +72,65 @@ module classFineSediment1
                 call r%addError(er)                                  ! add to Result
                 return                                               ! critical error, so exit
             end if
-            pd_comp = pd_comp_in                                     ! read in particle densities of compositional fractions
+            pd_comp = C%d_pd                                         ! particle densities of compositional fractions from Global
+            allocate(Me%f_comp(Me%nfComp), stat = allst)             ! allocate space for compositional fractions
+            if (allst /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error", &
+                                    trace = [Me%name // &
+                "%createBedSedimentLayer1%colFineSediment"] &
+                                  )                                  ! create error
+                call r%addError(er)                                  ! add to Result
+                return                                               ! critical error, so exit
+            end if
+        end function
+        !> Function purpose
+        !! -------------------------------------------------------------------------------
+        !! finalise a FineSediment object. Deallocate all class-level allocated variables
+        !!
+        !! Function inputs
+        !! -------------------------------------------------------------------------------
+        !! none
+        !!
+        !! Function outputs/outcomes
+        !! -------------------------------------------------------------------------------
+        !!
+        !! finalised FineSediment1 object. Returns Result object containing
+        !! ErrorInstance if deallocation causes error(s).
+        !!
+        !! -------------------------------------------------------------------------------
+        function destroyFineSediment1(Me) result (r)
+            class(FineSediment1) :: Me                               !! self-reference
+            type(Result) :: r                                        !! Result object
+            character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
+            character(len=18), parameter :: &
+                                          ms = "Deallocation error"  ! LOCAL CONSTANT error message
+            integer :: allst                                         ! LOCAL array allocation status
+            !
+            ! Notes
+            ! -------------------------------------------------------------------------------
+            ! No notes.
+            ! -------------------------------------------------------------------------------
+            tr = Me%name // &
+                "%destroyFineSediment1"                              ! trace message
+            deallocate(Me%f_comp, stat = allst)                      ! deallocate f_comp
+            if (allst /= 0) then
+                er = ErrorInstance(1, &
+                                   ms, &
+                                   .false., &
+                                   [tr] &
+                                  )                                  ! create warning if error thrown
+                call r%addError(er)                                  ! add to Result
+            end if
+            deallocate(Me%pd_comp, stat = allst)                     ! deallocate pd_comp
+            if (allst /= 0) then
+                er = ErrorInstance(1, &
+                                   ms, &
+                                   .false., &
+                                   [tr] &
+                                  )                                  ! create warning if error thrown
+                call r%addError(er)                                  ! add to Result
+            end if
         end function
         !> set the properties of the object
         function setFS1(Me, Mf_in, Vf_in, Vw_in, f_comp_in) &
@@ -221,7 +274,7 @@ module classFineSediment1
             integer :: x                                             ! LOCAL loop counter
             rho_part = 0                                             ! initialise output variable
             do x = 1, Me%NFComp
-                rho_part = rho_part + Me%f_comp(x) * Me%pd_comp_l(x) ! summing contributions to particle density
+                rho_part = rho_part + Me%f_comp(x) * Me%pd_comp(x)   ! summing contributions to particle density
             end do
         end function
         !> check that the array of fractional compositions sums to unity
@@ -326,7 +379,7 @@ module classFineSediment1
             end if
             if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
             do x = 1, FS%nfComp
-                if (FS%pd_comp_l(x) <= 0) then                       ! check all particle densities are valid
+                if (FS%pd_comp(x) <= 0) then                         ! check all particle densities are valid
                     er = ErrorInstance( &
                         code = 103, &
                         message = "A mixing particle density is &

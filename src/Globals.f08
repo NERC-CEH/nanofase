@@ -24,8 +24,10 @@ module Globals
         real(dp), allocatable :: d_spm_low(:)       !! Lower bound when treating each size class as distribution [m]
         real(dp), allocatable :: d_spm_upp(:)       !! Upper bound when treating each size class as distribution [m]
         real(dp), allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
+        real(dp), allocatable :: d_pd(:)            !! sediment particle densities [kg m-3]
         integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
         integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
+        integer :: nFracCompsSpm                    !! Number of sediment fractional compositions
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
@@ -56,6 +58,7 @@ module Globals
         type(json_file) :: config                           !! JSON config file
         logical :: jsonVarFound                             !! Was the JSON variable found?
         real(dp), allocatable :: spmSizeClasses(:)          !! Array of sediment particle sizes
+        real(dp), allocatable :: spmFracComps(:)            !! Array of sediment fractional composition
         real(dp), allocatable :: npSizeClasses(:)           !! Array of nanoparticle particle sizes
         integer :: n                                        !! Iterator for size classes
 
@@ -106,6 +109,9 @@ module Globals
         var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
         call var%getData(npSizeClasses)                     ! Get the variable's data
         allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
+        var = grp%getVariable("spm_particle_densities")     ! Get the sediment particle density variable
+        call var%getData(spmFracComps)                      ! Get the variable's data
+        allocate(C%d_pd, source=spmFracComps)               ! Allocate to class variable
         var = grp%getVariable("defaultDistributionSediment")! Get the default sediment size classes distribution
         call var%getData(C%defaultDistributionSediment)     ! Get the variable's data
         ! TODO: Check the distribution adds up to 100%
@@ -120,6 +126,7 @@ module Globals
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
+        C%nFracCompsSpm = size(C%d_pd)
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))
         ! Set the upper and lower bounds of each size class, if treated as a distribution
