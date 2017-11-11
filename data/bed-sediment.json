@@ -1,0 +1,51 @@
+{
+    "name" : "RiverBedSediment",
+    "type" : "group",
+    "dimensions" : [
+        { "name" : "nLayers", "size" : 5 }
+    ],
+    "data" : [
+      {
+          "name" : "layerTypes",
+          "type" : "variable",
+          "datatype" : "i4",
+          "dimensions" : [ "nLayers" ],
+          "data" : [ 1, 1, 1, 1, 1 ]
+      },
+      {
+          "name" : "layerCapacity",
+          // needs to be defined by size class as well as layer
+          // how to define a two-dimensional array in JSON?
+          "type" : "variable",
+          "datatype" : "f8",
+          "dimensions" : [ "nLayers" ],
+          "data" : [ 0.002, 0.002, 0.002, 0.002, 0.002 ]
+      }
+      {
+          "name" : "fineSedimentMass",
+          // needs to be defined by size class as well as layer
+          // how to define a two-dimensional array in JSON?
+          "type" : "variable",
+          "datatype" : "f8",
+          "dimensions" : [ "nLayers" ],
+          "data" : [ 0.1, 0.1, 0.1, 0.1, 0.1 ]
+      }
+      {
+          "name" : "Porosity",
+          "type" : "variable",
+          "datatype" : "f8",
+          "dimensions" : [ "nLayers" ],
+          "data" : [ 0.8, 0.8, 0.6, 0.6, 0.4 ]
+      }
+      {
+          "name" : "fractionalCompositions",
+          // needs to be defined by size class as well as layer
+          // how to define a two-dimensional array in JSON?
+          "type" : "variable",
+          "datatype" : "f8",
+          "dimensions" : [ "nFractionalCompositions" ],
+          "data" : [ 0.1, 0.3, 0.3, 0.3 ]
+      }
+    ]
+
+}

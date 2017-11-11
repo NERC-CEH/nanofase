@@ -1,0 +1,468 @@
+{
+    "dimensions" : [
+        { "name" : "nTimeSteps", "size" : 365 },
+        { "name" : "nSizeClassesSpm", "size" : 5 },
+        { "name" : "nSizeClassesNP", "size" : 5 }
+        //
+        { "name" : "nFractionalCompositions", "size" : 4 }
+        //
+    ],
+    "data" : [
+        {
+            "name" : "global",
+            "type" : "group",
+            "data" : [
+                {
+                    "name" : "spm_size_classes",
+                    "type" : "variable",
+                    "dimensions" : [ "nSizeClassesSpm" ],
+                    "datatype" : "f8",
+                    "data" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ]
+                },
+                {
+                    "name" : "np_size_classes",
+                    "type" : "variable",
+                    "dimensions" : [ "nSizeClassesNP" ],
+                    "datatype" : "f8",
+                    "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
+                },
+                //
+                {
+                    "name" : "spm_particle_densities",
+                    "type" : "variable",
+                    "dimensions" : [ "nFractionalCompositions" ],
+                    "datatype" : "f8",
+                    "data" : [ 1500, 2600, 2600, 2600]
+                },
+                //
+                {
+                    "name" : "defaultDistributionSediment",
+                    "type" : "variable",
+                    "dimensions" : [ "nSizeClassesSpm" ],
+                    "datatype" : "i4",
+                    "data" : [ 50, 30, 10, 7, 3 ]
+                },
+                {
+                    "name" : "defaultDistributionNP",
+                    "type" : "variable",
+                    "dimensions" : [ "nSizeClassesNP" ],
+                    "datatype" : "i4",
+                    "data" : [ 50, 30, 10, 7, 3 ]
+                },
+                { "name" : "gridCellSize", "type" : "variable", "datatype" : "f8", "data" : 1000 },
+                { "name" : "timeStep", "type" : "variable", "datatype" : "f8", "data" : 86400 },
+                { "name" : "nTimeSteps", "type" : "variable", "datatype" : "f8", "data" : 365 },
+                { "name" : "temperature", "type" : "variable", "datatype" : "f8", "data" : 15 }
+            ]
+        },
+        {
+            "name" : "Environment",
+            "type" : "group",
+            "dimensions" : [
+                { "name" : "nReaches", "size" : 2 },
+                { "name" : "gridSize", "size" : 2 }
+            ],
+            "data" : [
+                {
+                    "name" : "gridSize",
+                    "type" : "variable",
+                    "datatype" : "i4",
+                    "dimensions" : [ "gridSize" ],
+                    "data" : [3,3]
+                },
+                {
+                    "name" : "GridCell_1_1",
+                    "type" : "group",
+                    "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "SoilProfile_1_1_1", "json" : "soil-profile.json" },
+                        {
+                            "name" :  "SubRiver_1_1_1",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 0 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_1_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
+                                        {
+                                            "name" : "spm",
+                                            "type" : "variable",
+                                            "datatype" : "f8",
+                                            "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
+                                            "data" : "spm.json"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_1_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
+                                        {
+                                            "name" : "spm",
+                                            "type" : "variable",
+                                            "datatype" : "f8",
+                                            "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
+                                            "data" : "spm.json"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name" : "runoff",
+                            "type" : "variable",
+                            "datatype" : "f8",
+                            "dimensions" : [ "nTimeSteps" ],
+                            "data" : "runoff.json"
+                        }
+                    ]
+                },
+                {
+                    "name" : "GridCell_1_2",
+                    "type" : "group",
+                    "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
+                        { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
+                        { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
+                        { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
+                        { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_1_2_1", "json" : "soil-profile.json" },
+                        {
+                            "name" :  "SubRiver_1_2_1",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "inflow_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_2_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_1_2_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name" : "GridCell_2_2",
+                    "type" : "group",
+                    "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 3 },
+                        { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
+                        { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
+                        { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
+                        { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
+                        { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_2_2_1", "json" : "soil-profile.json" },
+                        {
+                            "name" :  "SubRiver_2_2_1",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "inflow_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name" :  "SubRiver_2_2_2",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "inflow_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 3 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_2_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_2_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "name" :  "SubRiver_2_2_3",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "inflow_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 1 }
+                                    ]
+                                },
+                                {
+                                    "name" : "inflow_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 2 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_3_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_2_3_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name" : "GridCell_2_3",
+                    "type" : "group",
+                    "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
+                        { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
+                        { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
+                        { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
+                        { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_2_3_1", "json" : "soil-profile.json" },
+                        {
+                            "name" : "runoff",
+                            "type" : "variable",
+                            "datatype" : "f8",
+                            "dimensions" : [ "nTimeSteps" ],
+                            "data" : "runoff.json"
+                        },
+                        {
+                            "name" :  "SubRiver_2_3_1",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 0 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_3_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
+                                        {
+                                            "name" : "spm",
+                                            "type" : "variable",
+                                            "datatype" : "f8",
+                                            "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
+                                            "data" : "spm.json"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_2_3_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
+                                        {
+                                            "name" : "spm",
+                                            "type" : "variable",
+                                            "datatype" : "f8",
+                                            "dimensions" : [ "nSizeClassesSpm", "nTimeSteps" ],
+                                            "data" : "spm.json"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "name" : "GridCell_3_2",
+                    "type" : "group",
+                    "data" : [
+                        { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
+                        { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
+                        { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
+                        { "name" : "usle_area_hru", "type" : "variable", "datatype" : "f8", "data" : 0.1 },
+                        { "name" : "usle_L_ch", "type" : "variable", "datatype" : "f8", "data" : 500 },
+                        { "name" : "SoilProfile_3_2_1", "json" : "soil-profile.json" },
+                        {
+                            "name" :  "SubRiver_3_2_1",
+                            "type" : "group",
+                            "data" : [
+                                { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                                {
+                                    "name" : "reachTypes",
+                                    "type" : "variable",
+                                    "datatype" : "i4",
+                                    "dimensions" : [ "nReaches" ],
+                                    "data" : [ 1, 1 ]
+                                },
+                                {
+                                    "name" : "inflow_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "gridX", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "gridY", "type" : "variable", "datatype" : "i4", "data" : 2 },
+                                        { "name" : "subRiver", "type" : "variable", "datatype" : "i4", "data" : 3 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_3_2_1_1",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                },
+                                {
+                                    "name" : "RiverReach_3_2_1_2",
+                                    "type" : "group",
+                                    "data" : [
+                                        { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
+                                        { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 },
+                                        { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
+                                        { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
