@@ -2,8 +2,10 @@
 !! defines the properties and methods shared by all BedSediment objects
 !! objects of this class cannot be instantiated, only objects of its subclasses
 module spcBedSediment
-    use Globals
-    use ResultModule                                                 ! Error handling
+    use Globals                                                      !  global declarations
+    use mo_netcdf                                                    ! input/output handling
+    use ResultModule                                                 ! error handling classes, required for
+    use ErrorInstanceModule                                          ! generation of trace error messages
     use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
     use classFineSediment1
     implicit none                                                    ! force declaration of all variables
@@ -11,7 +13,7 @@ module spcBedSediment
         class(BedSedimentLayer), allocatable :: item                 ! Storing polymorphic class(BedSedimentLayer) in derived type so that a collection of
     end type                                                         ! different extended types of BedSedimentLayer can be stored in an array.
     type, abstract, public :: BedSediment                            ! type declaration for superclass
-        character(len=256) :: name                                   ! a name for the object
+        character(len=256) :: name                                   ! Name for this object, of the form BedSediment_x_y_s_r
                                                                      ! define variables for 'has a' objects: BedSedimentLayer
         class(BedSedimentLayerElement), allocatable :: &
         colBedSedimentLayers(:)                                      ! collection of BedSedimentLayer objects
@@ -19,7 +21,7 @@ module spcBedSediment
         integer :: nSizeClasses                                      ! number of fine sediment size classes
         integer :: nLayers                                           ! number of layers (BedSedimentLayer objects)
         integer :: nfComp                                            ! number of fractional composition terms for sediment
-                                                                     ! any private variable declarations go here
+        type(NcGroup) :: ncGroup                                     !! The NETCDF group for this BedSediment
     contains
                                                                      ! deferred methods: must be defined in all subclasses
         procedure(createBedSediment), public, deferred :: &
@@ -40,38 +42,15 @@ module spcBedSediment
     end type
     abstract interface
         !> Create a BedSediment object.
-        function createBedSediment(Me, &
-                                    n, &
-                                    ln, &
-                                    nsc, &
-                                    nl, &
-                                    bslType, &
-                                    C_tot, &
-                                    f_comp, &
-                                    pd_comp, &
-                                    Porosity, &
-                                    V_f, &
-                                    M_f) result(r)
-            use Globals
-            import BedSediment, Result
-            class(BedSediment) :: Me                                     !! self-reference
-            type(Result) :: r                                            !! returned Result object
-            character(len=256), intent(in) :: n                          !! a name for the object
-            character(len=256), allocatable :: ln(:)                     !! names for the layers. Index = layer
-            integer, intent(in) :: nsc                                   !! the number of particle size classes
-            integer, intent(in) :: nl                                    !! the number of layers
-            integer, intent(in) :: bslType                               !! the type identification number of the BedSedimentLayer(s)
-            real(dp), intent(in), allocatable :: C_tot(:)                !! the total volume of each layer. Index = layer
-            real(dp), intent(in), allocatable :: f_comp(:,:,:)           !! set of fractional compositions
-                                                                         !! Index 1 = size class, Index 2 = compositional fraction, Index 3 = layer
-            real(dp), intent(in), allocatable :: pd_comp(:)              !! set of fractional particle densities
-                                                                         !! Index 1 = size class
-            real(dp), intent(in), optional :: Porosity(:)                !! layer porosity, if being used to define layer
-                                                                         !! Index 1 = layer
-            real(dp), intent(in), optional, allocatable :: V_f(:,:)      !! set of fine sediment volumes, if being used to define layers
-                                                                         !! Index 1 = size class, Index 2 = layer
-            real(dp), intent(in), optional, allocatable :: M_f(:,:)      !! set of fine sediment masses, if being used to define layers
-                                                                         !! Index 1 = size class, Index 2 = layer
+        function createBedSediment1(Me, riverReachGroup) result(r)
+            use Globals                                              !! global declarations
+            use mo_netcdf                                            !! input/output handling
+            use ResultModule                                         !! error handling classes, required for
+            use ErrorInstanceModule                                  !! generation of trace error messages
+            import BedSediment, ErrorInstance, Result
+            class(BedSediment1) :: Me                                !! self-reference
+            type(NcGroup), intent(in) :: riverReachGroup             !! NetCDF group reference to the RiverReach containing this object
+            type(Result) :: r                                        !! returned Result object
         end function
         function destroyBedSediment(Me) result(r)
             import BedSediment, Result
@@ -140,30 +119,6 @@ module spcBedSediment
             type(FineSediment1), intent(out), allocatable :: FS(:,:)     !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
             type(Result) :: r                                            !! returned Result object
         end function
-!        function ResuspensionBedSediment(me, a, m_bed, alpha, omega, R_h, R_hmax) result(r)
-!            use Globals
-!            import BedSediment, Result0D
-!            class(BedSediment) :: me
-!            real(dp) :: a                                   ! Calibration factor [s2/kg]
-!            real(dp) :: m_bed                               ! Bed mass per unit area [kg/m2]
-!            real(dp) :: alpha                               ! Proportion of size class that can be resuspended [-]
-!            real(dp) :: omega                               ! Stream power per unit area of stream bed [J/s/m2]
-!            real(dp) :: R_h                                 ! Actual hydraulic radius [m]
-!            real(dp) :: R_hmax                              ! Maximum hydraulic radius [m]
-!            type(Result0D) :: r
-!        end function
-!
-!        function StreamPowerBedSediment(me, rho_water, g, Q, W, S) result(r)
-!            use Globals
-!            import BedSediment, Result0D
-!            class(BedSediment) :: me
-!            real(dp) :: rho_water                           ! Density of water [kg/m3]
-!            real(dp) :: g                                   ! Gravitational acceleration [m/s]
-!            real(dp) :: Q                                   ! Discharge [m3/s]
-!            real(dp) :: W                                   ! River width [m]
-!            real(dp) :: S                                   ! River slope [m/m]
-!            type(Result0D) :: r
-!        end function
     end interface
 contains
     !> return available capacity for fine sediment of a specified size class
@@ -251,76 +206,4 @@ contains
                 Me%colBedSedimentLayers(L)%item%M_f_layer()          ! sum masses for all layers
         end do
     end function
-!    subroutine createBedSediment(Me, &
-!                      lname, &
-!                      ltBSL)                                        ! constructor method
-!                                                                    ! dummy variables
-!        class(BedSediment) :: Me                                    ! reference to this object, using the type of the abstract superclass
-!        character(len=256) :: lname                                   ! the name of this object
-!                                                                    ! SH: Changed to assumed-length character string create() procedure
-!                                                                    ! will accept character strings less than 256.
-!        type(integer) :: ltBSL(:)                                   ! array of integers representing BedSedimentLayer types to create
-!                                                                    ! internal variables
-!        type(integer) :: x                                          ! loop counter
-!        type(objBedSedimentLayer1), allocatable :: BSL1             ! object of type BedSedimentLayer1
-!        ! type(objBedSedimentLayer2), allocatable :: BSL2             ! object of type BedSedimentLayer2
-
-!        Me%name = lname                                             ! the name of this object
-!        Me%nLayers = size(ltBSL)                                    ! number of BedSedimentLayer objects to create
-        ! The next block of code creates the required number of BedSedimentLayer objects
-        ! and stores them in the colBedSedimentLayer collection
-        ! the collections are allocatable arrays of user-defined types BedSedimentLayerElement
-        ! SH: the best method to do this is to store the class(BedSedimentLayer) in a derived type (BedSedimentLayerElement) and
-        ! then have an array of that derived type as the colBedSedimentLayer property. That way,
-        ! Fortran won't complain that elements of the array are of different types, which
-        ! is why allocating individual array elements of the class(BedSedimentLayer) array won't work.
-        ! implemented here and seems to be working okay.
-        ! Reference:
-        ! https://stackoverflow.com/questions/31106539/polymorphism-in-an-array-of-elements.
-!        if (Me%nLayers > 0) then
-!            allocate(Me%colBedSedimentLayer(Me%nLayers), &
-!                stat=Me%allst)                                      ! Set colBedSedimentLayer size to number of layers
-!            do x = 1, Me%nLayers
-!                select case (ltBSL(x))
-!                    case (1)
-!                        allocate (BSL1, stat=Me%allst)              ! objBedSedimentLayer1 type - create the object
-!                                                                    ! SH: create() filled with arbitrary values for the moment
-!                        call BSL1%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
-!                        call move_alloc(BSL1, &
-!                           Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of the BedSedimentLayer collection
-                   ! case (2)
-                    !     allocate (BSL2, stat=Me%allst)              ! objBedSedimentLayer2 type - create the object
-                    !     call BSL2%create('name',1.0,1.0,1.0,[1],[1])! call the object constructor
-                    !     call move_alloc(BSL2, &
-                    !         Me%colBedSedimentLayer(x)%item)         ! move the object to the xth element of colBiota
-!                    case default
-!                        call ERROR_HANDLER%trigger(997)             ! error - ltBSL(y) points to an invalid number. Need to abort and report.
-!                end select
-!            end do
-!        else
-!            call ERROR_HANDLER%trigger(996)                         ! If no BSLs have been provided (can't be negative as nLayer deduced from array size)
-!        end if
-!    end subroutine
-
-!    subroutine destroyBedSediment(Me)                               ! finaliser method
-!        class(BedSediment)  :: Me                                   ! reference to this object, using the type of the abstract superclass
-!        integer :: x                                                ! loop counter
-!        do x = 1, Me%nLayers
-!            call Me%colBedSedimentLayer(x)%item%destroy()           ! do any cleanup required in BedSedimentLayer objects
-!        end do
-!    end subroutine
-
-!    integer function getNLayers(Me) result(nLayers)                 ! property function, returns number of BedSedimentLayer objects
-!        class(BedSediment) :: Me
-!       nLayers = size(Me%colBedSedimentLayer)
-!    end function
-
-!   real function Depth(Me)                                         ! property function, returns total depth of sediment
-!        class(BedSediment) :: Me
-!        type(integer) :: x                                          ! loop counter
-!        Depth = 0                                                   ! initialise the function return value
-!        do x = 1, Me%nLayers                                        ! loop through all the layers
-!            Depth = Depth + Me%colBedSedimentLayer(x)%item%Depth    ! adding up the depth of each layer
-!        end do                                                      ! to return the total sediment depth
-!    end function
 end module
