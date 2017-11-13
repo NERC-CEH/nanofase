@@ -9,10 +9,10 @@
         "type" : "variable",
         "datatype" : "i4",
         "data" : 1
-      }
+      },
       { "name" : "layerType",
         "type" : "variable",
-        "dimensions" : "nLayers",
+        "dimensions" : [ "nLayers" ],
         "datatype" : "i4",
         "data" : [ 1, 1, 1, 1, 1 ]
       },
@@ -23,7 +23,7 @@
             {
                 "name" : "InitialMass",
                 "type" : "variable",
-                "dimensions" : [ "nSizeClassesSpm"],
+                "dimensions" : [ "nSizeClassesSpm" ],
                 "datatype" : "f8",
                 "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
             },
@@ -83,7 +83,7 @@
             {
                 "name" : "InitialMass",
                 "type" : "variable",
-                "dimensions" : [ "nSizeClassesSpm"],
+                "dimensions" : [ "nSizeClassesSpm" ],
                 "datatype" : "f8",
                 "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
             },
@@ -143,7 +143,7 @@
             {
                 "name" : "InitialMass",
                 "type" : "variable",
-                "dimensions" : [ "nSizeClassesSpm"],
+                "dimensions" : [ "nSizeClassesSpm" ],
                 "datatype" : "f8",
                 "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
             },
@@ -203,7 +203,7 @@
             {
                 "name" : "InitialMass",
                 "type" : "variable",
-                "dimensions" : [ "nSizeClassesSpm"],
+                "dimensions" : [ "nSizeClassesSpm" ],
                 "datatype" : "f8",
                 "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
             },
@@ -263,7 +263,7 @@
             {
                 "name" : "InitialMass",
                 "type" : "variable",
-                "dimensions" : [ "nSizeClassesSpm"],
+                "dimensions" : [ "nSizeClassesSpm" ],
                 "datatype" : "f8",
                 "data" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ]
             },

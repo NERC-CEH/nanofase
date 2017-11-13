@@ -8,7 +8,7 @@ program main
 
     real :: start, finish                                               ! Simulation start and finish times
     type(Result) :: r                                                   ! Result object
-    integer :: x,y,s,t,i                                                ! Loop iterator
+    integer :: x,y,s,t                                                  ! Loop iterator
     type(Environment1) :: env                                           ! Environment object
 
     call GLOBALS_INIT()                                                 ! Set up global vars and constants
@@ -34,8 +34,6 @@ program main
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
                             , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
-                        print *, t, ", ", x, ", ", y, ", ", s, ", ", &
-                            env%colGridCells(x,y)%item%colSubRivers(s)%item%colReaches(1)%item%j_spm_res(1)
                     end do
                 end if
             end do

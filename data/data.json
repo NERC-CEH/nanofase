@@ -2,7 +2,8 @@
     "dimensions" : [
         { "name" : "nTimeSteps", "size" : 365 },
         { "name" : "nSizeClassesSpm", "size" : 5 },
-        { "name" : "nSizeClassesNP", "size" : 5 }
+        { "name" : "nSizeClassesNP", "size" : 5 },
+        { "name" : "nFractionalCompositions", "size" : 4 }
     ],
     "data" : [
         {
@@ -22,6 +23,13 @@
                     "dimensions" : [ "nSizeClassesNP" ],
                     "datatype" : "f8",
                     "data" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ]
+                },
+                {
+                    "name" : "spm_particle_densities",
+                    "type" : "variable",
+                    "dimensions" : [ "nFractionalCompositions" ],
+                    "datatype" : "f8",
+                    "data" : [ 1500, 2600, 2600, 2600 ]
                 },
                 {
                     "name" : "defaultDistributionSediment",
@@ -82,6 +90,7 @@
                                     "name" : "RiverReach_1_1_1_1",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_1_1_1_1", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
@@ -98,6 +107,7 @@
                                     "name" : "RiverReach_1_1_1_2",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_1_1_1_2", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
@@ -159,6 +169,7 @@
                                     "name" : "RiverReach_1_2_1_1",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_1_2_1_1", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -168,6 +179,7 @@
                                     "name" : "RiverReach_1_2_1_2",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_1_2_1_2", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -215,6 +227,7 @@
                                     "name" : "RiverReach_2_2_1_1",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_2_1_1", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -224,6 +237,7 @@
                                     "name" : "RiverReach_2_2_1_2",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_2_1_2", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -256,6 +270,7 @@
                                     "name" : "RiverReach_2_2_2_1",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_2_2_1", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -265,6 +280,7 @@
                                     "name" : "RiverReach_2_2_2_2",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_2_2_2", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -306,6 +322,7 @@
                                     "name" : "RiverReach_2_2_3_1",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_2_3_1", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -315,6 +332,7 @@
                                     "name" : "RiverReach_2_2_3_2",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_2_3_2", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 }
@@ -360,6 +378,7 @@
                                     "name" : "RiverReach_2_3_1_1",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_3_1_1", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
@@ -376,6 +395,7 @@
                                     "name" : "RiverReach_2_3_1_2",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_2_3_1_2", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
                                         { "name" : "alpha_res", "type" : "variable", "datatype" : "f8", "data" : 0.001 },
@@ -430,6 +450,7 @@
                                     "name" : "RiverReach_3_2_1_1",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_3_2_1_1", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
@@ -440,6 +461,7 @@
                                     "name" : "RiverReach_3_2_1_2",
                                     "type" : "group",
                                     "data" : [
+                                        { "name" : "BedSediment_3_2_1_2", "json" : "bed-sediment.json"},
                                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
                                         { "name" : "f_m", "type" : "variable", "datatype" : "f8", "data" : 1.0 },
                                         { "name" : "beta_res", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },

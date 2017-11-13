@@ -11,6 +11,8 @@ module UtilModule
     end interface
 
     interface ref
+        module procedure ref1
+        module procedure ref2p1
         module procedure ref2
         module procedure ref3
         module procedure ref4
@@ -40,6 +42,25 @@ module UtilModule
             character(len=256) :: str       !! The string to return
             write(str, *)r
             str = trim(adjustl(str))
+        end function
+
+        !> Generate an object reference from a prefix (e.g., "GridCell")
+        !! and one integers
+        pure function ref1(prefix, a)
+            character(len=*), intent(in) :: prefix
+            integer, intent(in) :: a
+            character(len=256) :: ref1
+            ref1 = trim(prefix) // "_" // trim(str(a))
+        end function
+
+        !> Generate an object reference from two character prefixes and
+        !! one integer
+        pure function ref2p1(prefix1, prefix2, a)
+            character(len=*), intent(in) :: prefix1
+            character(len=*), intent(in) :: prefix2
+            integer, intent(in) :: a
+            character(len=256) :: ref2p1
+            ref2p1 = trim(prefix1) // "_" // trim(prefix2) // "_" // trim(str(a))
         end function
 
         !> Generate an object reference from a prefix (e.g., "GridCell")
