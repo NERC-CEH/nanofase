@@ -72,7 +72,7 @@ module classFineSediment1
                 call r%addError(er)                                  ! add to Result
                 return                                               ! critical error, so exit
             end if
-            pd_comp = C%d_pd                                         ! particle densities of compositional fractions from Global
+            Me%pd_comp = C%d_pd                                         ! particle densities of compositional fractions from Global
             allocate(Me%f_comp(Me%nfComp), stat = allst)             ! allocate space for compositional fractions
             if (allst /= 0) then
                 er = ErrorInstance(1, &
@@ -105,6 +105,7 @@ module classFineSediment1
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             character(len=18), parameter :: &
                                           ms = "Deallocation error"  ! LOCAL CONSTANT error message
+            type(ErrorInstance) :: er                                ! LOCAL Object to store ErrorInstances in
             integer :: allst                                         ! LOCAL array allocation status
             !
             ! Notes
@@ -322,6 +323,7 @@ module classFineSediment1
             real(dp) :: M_f_mix                                      ! LOCAL mixed sediment mass
             real(dp) :: V_w_mix                                      ! LOCAL mixed water volume
             real(dp), allocatable :: f_comp_mix(:)                   ! LOCAL mixed fractional composition
+            integer :: allst                                         ! LOCAL allocation status
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -390,8 +392,8 @@ module classFineSediment1
                     return                                           ! and exit
                 end if
             end do
-            allocate(f_comp_mix(Me%nfComp), stat = Me%allst)         ! allocate f_comp_mix
-            if (Me%allst /= 0) then
+            allocate(f_comp_mix(Me%nfComp), stat = allst)         ! allocate f_comp_mix
+            if (allst /= 0) then
                 er = ErrorInstance(1, &
                             message = "Allocation error", &
                             trace = [Me%name // "%Mix1"] &

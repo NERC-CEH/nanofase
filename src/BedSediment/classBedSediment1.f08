@@ -32,15 +32,17 @@ module classBedSediment1                                             ! class def
     !! objects
     !!
     !! ----------------------------------------------------------------------------------
-    function createBedSediment1(Me, riverReachGroup) result(r)
+    function createBedSediment1(Me, x, y, s, b, riverReachGroup) result(r)
         class(BedSediment1) :: Me                                    !! self-reference
+        integer :: x, y, s, b                                        !! References to containing GridCell, SubRiver and RiverReaches
         type(NcGroup), intent(in) :: riverReachGroup                 !! NetCDF group reference to the RiverReach containing this object
         type(Result) :: r                                            !! returned Result object
         type(NcGroup) :: grp                                         ! LOCAL NetCDF group reference
-        integer, intent(in), allocatable :: bslType(:)               ! LOCAL the type identification number of the BedSedimentLayer(s)
+        integer, allocatable :: bslType(:)                           ! LOCAL the type identification number of the BedSedimentLayer(s)
         type(BedSedimentLayer1), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
         integer :: L                                                 ! LOCAL loop counter
         integer :: allst                                             ! LOCAL array allocation status
+        type(NcVariable) :: var                                      ! LOCAL variable to retrieve NetCDF data from
         character(len=256) :: tr                                     ! LOCAL error trace
         character(len=16), parameter :: ms = "Allocation error"      ! LOCAL allocation error message
         !
@@ -48,16 +50,18 @@ module classBedSediment1                                             ! class def
         ! ----------------------------------------------------------------------------------
         ! no notes
         ! ----------------------------------------------------------------------------------
-        Me%name = trim(ref(riverReachGroup%getName, "BedSediment")   ! object name
-        Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group
+        ! Me%name = trim(ref(riverReachGroup%getName, "BedSediment")   ! object name
+        ! Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group
+        Me%name = trim(ref("BedSediment", x, y, s, b))               ! object name
+        Me%ncGroup = riverReachGroup%getGroup(trim(Me%name))         ! get the BedSediment_x_y_s_r group
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
         tr = Me%name // "%createBedSediment1"                        ! procedure name as trace
         var = Me%ncGroup%getVariable("nLayers")                      ! Get the number of BedSedimentLayers
         call var%getData(Me%nLayers)                                 ! retrieve into nLayers variable
-        r%addErrors(.errors. Me%setLayers(Me%nLayers))               ! set number of layers and allocate layer collection
+        ! call r%addErrors(.errors. Me%setLayers(Me%nLayers))          ! set number of layers and allocate layer collection
         if (Me%nLayers <= 0) then                                    ! invalid number of layers
-            call r%addError(ErrorInstance(code = 1,
+            call r%addError(ErrorInstance(code = 1, &
                                message = "Invalid number of &
                                           BedSedimentLayers", &
                                  trace = [tr] &
@@ -68,7 +72,7 @@ module classBedSediment1                                             ! class def
         allocate(Me%colBedSedimentLayers(Me%nLayers), stat = allst)  ! create BedSedimentLayer collection
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
-                                          message = [ms], &
+                                          message = ms, &
                                           trace = [tr] &
                                          ) &
                            )                                         ! add to Result
@@ -77,7 +81,7 @@ module classBedSediment1                                             ! class def
         allocate(bslType(Me%nLayers), stat = allst)                  ! create bslType collection
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
-                                          message = [ms], &
+                                          message = ms, &
                                           trace = [tr] &
                                          ) &
                            )                                         ! add to Result
@@ -93,15 +97,16 @@ module classBedSediment1                                             ! class def
                         if (allst /= 0) then
                             call r%addError(ErrorInstance( &
                                                code = 1, &
-                                            message = [ms], &
-                                              trace = [tr] &)        ! add to Result
+                                            message = ms, &
+                                              trace = [tr]))         ! add to Result
                             return                                   ! critical error, so return
                         end if
                         if (r%hasCriticalError()) then               ! if a critical error has been thrown
                             call r%addToTrace(tr)                    ! add trace to Result
                             return                                   ! exit, as a critical error has occurred
                         end if
-                        call move_alloc(bsl1, O)                     ! move bsl1 object into layers collection
+                        call move_alloc(bsl1, &
+                            Me%colBedSedimentLayers(L)%item)         ! move bsl1 object into layers collection
                     case default                                     ! invalid BedSedimentLayer type specified
                         call r%addError(ErrorInstance(code = 1, &
                                     message = "Invalid &
@@ -187,7 +192,7 @@ module classBedSediment1                                             ! class def
     !! ----------------------------------------------------------------------------------
     function resuspendSediment1(Me, M_resusp) result(r)
         class(BedSediment1) :: Me                                    !! self-reference
-        real(dp), intent(in), allocatable :: M_resusp(:)             !! sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+        real(dp), allocatable :: M_resusp(:)                         !! sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
         type(Result2D) :: r                                          !! returned Result object. Type = FineSediment
         type(FineSediment1), allocatable :: FS(:,:)                  ! LOCAL resuspended fine sediment. Index 1 = size class, Index 2 = layer
         type(FineSediment1), allocatable :: F                        ! LOCAL FineSediment object representing material that has been resuspended
@@ -197,6 +202,8 @@ module classBedSediment1                                             ! class def
         integer :: L                                                 ! LOCAL counter for layers
         integer :: allst                                             ! LOCAL array allocation status
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
+        type(Result1D) :: r1D                                        ! LOCAL temporary variable for storing Result with 1D data in
+        class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
         !
         ! Notes
         ! -----------------------------------------------------------------------------------------
@@ -266,13 +273,18 @@ module classBedSediment1                                             ! class def
                         call r%addToTrace(tr)
                         return                                       ! exit if a critical error has been thrown
                     end if
-                    call r%addErrors(.errors. &
-                                        O%removeSediment(S, G, F) &
-                                    )                                ! remove the resuspended sediment, put the resuspended sediment into F
+                    r1D = O%removeSediment(S, G)                     ! remove the resuspended sediment
+                    call r%addErrors(.errors. r1D)                   ! add any errors
                     if (r%hasCriticalError()) then
                         call r%addToTrace(tr)
                         return                                       ! exit if a critical error has been thrown
                     end if
+                    allocate(data1D, source=r1D%getData())           ! Get the data from r0D to retrieve in select type
+                    select type (data => data1D(1))                  ! Put the resuspended sediment into F
+                        type is (FineSediment1)
+                            F = data
+                        class default
+                    end select
                     call r%addErrors(.errors. &
                          FS(L, S)%set(Mf_in = F%M_f(), &
                                       Vw_in = F%V_w(), &
@@ -338,10 +350,10 @@ module classBedSediment1                                             ! class def
     !! -------------------------------------------------------------------------------
     function depositSediment1(Me, FS_dep) result (r)
         class(BedSediment1) :: Me                                    !! self-reference
-        type(FineSediment1), intent(in), allocatable :: FS_dep(:)    !! Depositing sediment by size class
-        type(Result1D) :: r                                          !! Result object. Returns water requirement from the water column [m3 m-2], real(dp)
+        type(FineSediment1), allocatable :: FS_dep(:)                !! Depositing sediment by size class
+        type(Result0D) :: r                                          !! Result object. Returns water requirement from the water column [m3 m-2], real(dp)
         real(dp) :: V_w_tot                                          ! LOCAL water requirement from the water column [m3 m-2]
-        type(Result1D) :: r0D                                        ! LOCAL Result0D object to return data from addSediment method
+        type(Result0D) :: r0D                                        ! LOCAL Result0D object to return data from addSediment method
         type(Result1D) :: r1D                                        ! LOCAL Result1D object to return data from removeSediment method
         type(ErrorInstance) :: er                                    ! LOCAL ErrorInstance object for error handling
         type(FineSediment1), allocatable :: DS(:)                    ! LOCAL FineSediment objects holding deposited material
@@ -356,6 +368,7 @@ module classBedSediment1                                             ! class def
         real(dp) :: V_f_b                                            ! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
         real(dp) :: V_w_b                                            ! LOCAL available water capacity in the receiving layer [m3 m-2]
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
+        class(*), allocatable :: data1D(:)                           ! LOCAL temporary polymorphic data variable
         ! -------------------------------------------------------------------------------
         !
         ! Notes
@@ -370,7 +383,7 @@ module classBedSediment1                                             ! class def
         ! 2.    The FineSediment objects in FS_dep should not contain any water, but if they
         !       do it is not a problem as it will be overwritten.
         ! -------------------------------------------------------------------------------
-        tr = [Me%name] // "%DepositSediment1"                        ! object and procedure binding name as trace
+        tr = trim(Me%name) // "%DepositSediment1"                    ! object and procedure binding name as trace
         if (size(FS_dep) /= Me%nSizeClasses) &
             call r%addError(ErrorInstance( &
                             code = 1, &
@@ -378,7 +391,7 @@ module classBedSediment1                                             ! class def
                                        sediment masses does &
                                        not equal the number &
                                        of size classes", &
-                              trace = tr, &
+                              trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if size(FS_dep) <> nSizeClasses
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
@@ -430,7 +443,7 @@ module classBedSediment1                                             ! class def
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
             if (int(FS_dep(S)%V_f() / Me%Cf_sediment(S)) > 0) then   ! check whether the depositing sediment in each size class exceeds the total
                 do L = 1, Me%nLayers                                 ! capacity in the layer. If so, then remove all fine sediment, water and
-                    call Me%colBedSedimentLayers(L)%clearAll         ! fractional compositions from all layers for this size class
+                    call Me%colBedSedimentLayers(L)%item%clearAll()  ! fractional compositions from all layers for this size class
                     ! TODO: tally up the sediment being buried at this point
                 end do
             end if
@@ -441,7 +454,7 @@ module classBedSediment1                                             ! class def
                 call r%addErrors(.errors. &
                              T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed, &
                                    Vw_in = 0.0_dp, &
-                                   f_comp_in = FS_dep(S)%f_comp()
+                                   f_comp_in = FS_dep(S)%f_comp &
                                   ) &
                                 )                                    ! set up temporary FineSediment object with volume of fine sediment requiring burial
                                                                      ! to compute the volume of water requiring burial, we must loop through layers
@@ -490,11 +503,11 @@ module classBedSediment1                                             ! class def
                                 call r%addToTrace(tr)                ! add trace to all errors
                                 return                               ! and exit
                             end if
-                            select type (r1D%getData(2))             ! select type construct needed to get around casting constraints
+                            allocate(data1D, source=r1D%getData())   ! getData(array_index) doesn't work, so must store data in another var before using select type
+                            select type (data => data1D(2))          ! select type construct needed to get around casting constraints
                                 type is (FineSediment1)
-                                    T = r1D%getData(2)               ! return sediment that could not be removed
-                                type default                         ! no need to check for default, as type can only be FineSediment1
-                                end type
+                                    T = data                         ! return sediment that could not be removed
+                                class default                        ! no need to check for default, as type can only be FineSediment1
                             end select
                         end associate
                     end If
@@ -514,7 +527,7 @@ module classBedSediment1                                             ! class def
                                     T%IsEmpty() .eqv. .false.)     ! loop through "donating" layers, moving upwards
                             assoc2 : associate (P => &
                             Me%colBedSedimentLayers(A)%item)     ! association to "donating" layer A
-                            if (P%colFineSediment(S)%item%V_f() > 0) &
+                            if (P%colFineSediment(S)%V_f() > 0) &
                                 then                             ! if there is sediment in the "donating" layer
                                 r1D = O%RemoveSediment(S, T)     ! remove the sediment, return amounts removed and not removed, and any errors thrown
                                 call r%addErrors(.errors. r1D)   ! retrieve errors into main Result object
@@ -522,14 +535,21 @@ module classBedSediment1                                             ! class def
                                     call r%addToTrace(tr)        ! add trace to all errors
                                     return                       ! and exit
                                 end if
-                                select type (r1D%getData())      ! select type construct needed to get around casting constraints
+                                ! SH: Couldn't get these select types working to be able to select
+                                ! specific array elements in the `type is` section, so had to split to
+                                ! do each array element separately.
+                                allocate(data1D, source=r1D%getData())
+                                select type (data => data1D(1))  ! select type construct needed to get around casting constraints
                                     type is (FineSediment1)
-                                        U = r1D%getData(1)       ! sediment removed - to be added to Layer L
-                                        T = r1D%getData(2)       ! sediment not removed
-                                    type default                 ! no need to check for default as type can only be FineSediment1
-                                    end type
+                                        U = data                 ! sediment removed - to be added to Layer L
+                                    class default                ! no need to check for default as type can only be FineSediment1
                                 end select
-                                r0D = O%addSediments(S, U)       ! add the sediment in U to the "receiving" layer
+                                select type (data => data1D(2))  ! select type construct needed to get around casting constraints
+                                    type is (FineSediment1)
+                                        T = data                 ! sediment not removed
+                                    class default                ! no need to check for default as type can only be FineSediment1
+                                end select
+                                r0D = O%addSediment(S, U)        ! add the sediment in U to the "receiving" layer
                                 call r%addErrors(.errors. r0D)   ! retrieve errors into main Result object
                                 if (r%hasCriticalError()) then   ! if RemoveSediment throws a critical error
                                     call r%addToTrace(tr)        ! add trace to all errors
@@ -550,18 +570,18 @@ module classBedSediment1                                             ! class def
                 associate(O => Me%colBedSedimentLayers(L)%item)      ! size class S in Layer L
                     if (O%A_f(S) > 0 .or. O%A_w(S) > 0) then         ! if there is available capacity in this layer, add deposition here
                         V_w_b = FS_dep(S)%V_f() / O%volSLR()         ! the volume of water needed to maintain SLR in the "receiving" layer,
-                        r = FS_dep(S)%set(Vw_in = V_w_b)             ! if all deposition fits into this layer
-                        r0D = O%addSediments(S, FS_dep(S))           ! add the fine sediment in deposition. r0D returns volumes that could not be added
+                        call r%addErrors(.errors. &
+                            FS_dep(S)%set(Vw_in = V_w_b))            ! if all deposition fits into this layer
+                        r0D = O%addSediment(S, FS_dep(S))            ! add the fine sediment in deposition. r0D returns volumes that could not be added
                         call r%addErrors(.errors. r0D)               ! retrieve errors into main Result object
                             if (r%hasCriticalError()) then           ! if addSediment throws a critical error
                                 call r%addToTrace(tr)                ! add trace to all errors
                                 return                               ! and exit
                             end if
-                        select type (r0D%getData())                  ! select type construct needed to get around casting constraints
+                        select type (data => r0D%getData())          ! select type construct needed to get around casting constraints
                             type is (FineSediment1)
-                                FS_dep(S) = r0D%getData()            ! sediment not added
-                            type default                             ! no need to check for default as type can only be FineSediment1
-                            end type
+                                FS_dep(S) = data                     ! sediment not added
+                            class default                            ! no need to check for default as type can only be FineSediment1
                         end select
                     end if
                     V_w_tot = V_w_tot + V_w_b - FS_dep(S)%V_w()      ! tally up V_w_b to compute water requirement to take from the water column

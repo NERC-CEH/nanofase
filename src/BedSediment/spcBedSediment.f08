@@ -42,13 +42,10 @@ module spcBedSediment
     end type
     abstract interface
         !> Create a BedSediment object.
-        function createBedSediment1(Me, riverReachGroup) result(r)
-            use Globals                                              !! global declarations
-            use mo_netcdf                                            !! input/output handling
-            use ResultModule                                         !! error handling classes, required for
-            use ErrorInstanceModule                                  !! generation of trace error messages
-            import BedSediment, ErrorInstance, Result
-            class(BedSediment1) :: Me                                !! self-reference
+        function createBedSediment(Me, x, y, s, b, riverReachGroup) result(r)
+            import BedSediment, Result, NcGroup
+            class(BedSediment) :: Me                                 !! self-reference
+            integer :: x, y, s, b                                    !! References to containing GridCell, SubRiver and RiverReaches
             type(NcGroup), intent(in) :: riverReachGroup             !! NetCDF group reference to the RiverReach containing this object
             type(Result) :: r                                        !! returned Result object
         end function
@@ -58,29 +55,13 @@ module spcBedSediment
             type(Result) :: r                                            !! returned Result object
         end function
         !> compute deposition to bed sediment, including burial and downward shifting of fine sediment and water
-        function depositSediment(Me, M_dep, f_comp_dep, V_w_tot) result (r)
+        function depositSediment(Me, FS_dep) result (r)
             use Globals
-            import BedSediment, Result, FineSedimentElement
+            import BedSediment, Result0D, FineSediment1
             ! TODO: replace D with real array to represent SPM *masses* only
             class(BedSediment) :: Me                                 !! self-reference
-            real(dp), intent(in), allocatable :: M_dep(:)            !! Depositing sediment mass by size class
-            real(dp), intent(in), allocatable :: f_comp_dep(:,:)     !! Depositing sediment fractional composition by size class
-                                                                     !! Index 1 = size class, Index 2 = compositional fraction
-            real(dp), intent(out) :: V_w_tot                         !! water requirement from the water column [m3 m-2]
-            type(Result) :: r                                        !! returned Result object                                       ! returned Result object
-            type(FineSedimentElement), allocatable :: Q              ! LOCAL object to receive sediment being buried
-            type(FineSedimentElement), allocatable :: T              ! LOCAL object to receive sediment being buried
-            type(FineSedimentElement), allocatable :: U              ! LOCAL object to receive sediment that has been buried
-            integer :: S                                             ! LOCAL loop counter for size classes
-            integer :: L                                             ! LOCAL counter for layers
-            integer :: A                                             ! LOCAL second counter for layers
-            real(dp) :: A_f_sed                                      ! LOCAL available fine sediment capacity for size class
-            real(dp) :: deltaV_f_temp                                ! LOCAL volume of fine sediment requiring burial to create space for deposition
-            real(dp) :: deltaV_w_temp                                ! LOCAL volume of water requiring burial to create space for deposition
-            real(dp) :: V_f_b                                        ! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
-            real(dp) :: V_w_b                                        ! LOCAL available water capacity in the receiving layer [m3 m-2]
-            character(len=256) :: tr                                   ! LOCAL name of this procedure, for trace
-            logical :: criterr                                       ! LOCAL .true. if one or more critical errors tripped
+            type(FineSediment1), allocatable :: FS_dep(:)            !! Depositing sediment by size class
+            type(Result0D) :: r                                      !! returned Result object
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -111,13 +92,12 @@ module spcBedSediment
             ! -------------------------------------------------------------------------------
         end function
         !> compute resuspension from bed sediment
-        function resuspendSediment(Me, M_resusp, FS) result(r)
+        function resuspendSediment(Me, M_resusp) result(r)
             use Globals
-            import Result, BedSediment, FineSediment1
+            import Result2D, BedSediment
             class(BedSediment) :: Me                                     !! self-reference
-            real(dp), intent(in), allocatable :: M_resusp(:)             !! array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
-            type(FineSediment1), intent(out), allocatable :: FS(:,:)     !! array returning resuspended fine sediment. Index 1 = size class, Index 2 = layer
-            type(Result) :: r                                            !! returned Result object
+            real(dp), allocatable :: M_resusp(:)                         !! array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+            type(Result2D) :: r                                          !! returned Result object
         end function
     end interface
 contains
@@ -188,7 +168,7 @@ contains
         Mf_sediment = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
             Mf_sediment = Mf_sediment + &
-                Me%colBedSedimentLayers(L)%item%colFineSediment(S)%item%M_f()
+                Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
                                                                      ! sum masses for all layers. Not very elegant
         end do
     end function

@@ -43,6 +43,8 @@ module spcBedSedimentLayer
         AddSediment                                                  ! add fine sediment to the layer
         procedure(RemoveSedimentFromLayer), public, deferred :: &
         RemoveSediment                                               ! remove fine sediment from layer
+        procedure(clearAllBedSedimentLayer), public, deferred :: &
+        clearAll
     end type
     abstract interface
         !> Function purpose
@@ -66,13 +68,9 @@ module spcBedSedimentLayer
         !! No specific outputs: results are initialisation of variables and objects
         !!
         !! -------------------------------------------------------------------------------
-        function createBedSedimentLayer1(Me, Parent, layerGroup) result(r)
-            use Globals                                              !! global declarations
-            use mo_netcdf                                            !! input/output handling
-            use ResultModule                                         !! error handling classes, required for
-            use ErrorInstanceModule                                  !! generation of trace error messages
-            import BedSedimentLayer, ErrorInstance, FineSediment1, Result
-            class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
+        function createBedSedimentLayer(Me, Parent, layerGroup) result(r)
+            import BedSedimentLayer, Result, NcGroup
+            class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             character(len=*) :: Parent                               !! name of parent object
             type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
             type(Result) :: r                                        !! The Result object.
@@ -126,8 +124,7 @@ module spcBedSedimentLayer
         ! r (FineSediment1) returns the amounts of sediment and water that could not be added
         ! -----------------------------------------------------------------------------------
         function addSedimentToLayer(Me, S, F) result(r)
-            use Globals
-            import BedSedimentLayer, FineSediment1, Result
+            import BedSedimentLayer, FineSediment1, Result0D
             class(BedSedimentLayer) :: Me                            !! the BedSedimentLayer instance
             integer, intent(in) :: S                                 !! the particle size class
             type(FineSediment1), intent(in) :: F                     !! FineSediment - holds material to be added
@@ -155,7 +152,6 @@ module spcBedSedimentLayer
         !! r(2) (FineSediment1) returns the sediment that could not be removed
         !! -------------------------------------------------------------------------------
         function RemoveSedimentFromLayer(Me, S, G) result(r)
-            use Globals
             import BedSedimentLayer, FineSediment1, Result1D
             class(BedSedimentLayer) :: Me                                   !! the BedSedimentLayer instance
             integer, intent(in) :: S                                        !! the particle size class
@@ -183,6 +179,12 @@ module spcBedSedimentLayer
             ! No notes.
             ! -------------------------------------------------------------------------------
         end function
+        !> Clear all FineSediment from the layer
+        subroutine clearAllBedSedimentLayer(Me)
+            import BedSedimentLayer, Result
+            class(BedSedimentLayer) :: Me
+            type(Result) :: r
+        end subroutine
     end interface
   contains
         !> return the available capacity for fine sediment of a specified size class
@@ -190,7 +192,7 @@ module spcBedSedimentLayer
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             integer, intent(in) :: s                                 !! size class for which to retrieve available capacity
             real(dp) :: A_f                                          !! return value
-            A_f = Me%C_f_l(s) - Me%colFineSediment(s)%item%V_f()     !! compute capacity
+            A_f = Me%C_f_l(s) - Me%colFineSediment(s)%V_f()          !! compute capacity
             ! CRITICAL ERROR if A_f < 0
         end function
         !> return the available capacity for water associated with fine sediment of a specified size class
@@ -198,7 +200,7 @@ module spcBedSedimentLayer
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             integer, intent(in) :: s                                 !! size class for which to retrieve available capacity
             real(dp) :: A_w                                          !! return value
-            A_w = Me%C_w_l(s) - Me%colFineSediment(s)%item%V_w()     !! compute capacity
+            A_w = Me%C_w_l(s) - Me%colFineSediment(s)%V_w()          !! compute capacity
             ! CRITICAL ERROR if A_w < 0
         end function
         !> return the total capacity for fine sediment of a specified size class
@@ -228,7 +230,7 @@ module spcBedSedimentLayer
             integer :: x                                             ! LOCAL loop counter
             do x = 1, Me%nSizeClasses
                 Mf_layer = Mf_layer + &
-                            Me%colFineSediment(x)%item%M_f()         ! sum across all size classes
+                            Me%colFineSediment(x)%M_f()              ! sum across all size classes
             end do
         end function
         !> return the sediment capacity in the layer across all size fractions
@@ -247,7 +249,7 @@ module spcBedSedimentLayer
             integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
                 Vf_layer = Vf_layer + &
-                            Me%colFineSediment(s)%item%V_f()         ! sum across all size classes
+                            Me%colFineSediment(s)%V_f()              ! sum across all size classes
             end do
         end function
         !> return the water volume in the layer across all sediment size fractions
@@ -257,7 +259,7 @@ module spcBedSedimentLayer
             integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
                 Vw_layer = Vw_layer + &
-                            Me%colFineSediment(s)%item%V_w()         ! sum across all size classes
+                            Me%colFineSediment(s)%V_w()              ! sum across all size classes
             end do
         end function
         !> return the water capacity in the layer across all sediment size fractions
@@ -276,8 +278,8 @@ module spcBedSedimentLayer
             integer :: s                                             ! loop counter
             do s = 1, Me%nSizeClasses
                 Vm_layer = Vm_layer + &
-                           Me%colFineSediment(s)%item%V_f() + &
-                           Me%colFineSediment(s)%item%V_w()          ! sum across all size classes
+                           Me%colFineSediment(s)%V_f() + &
+                           Me%colFineSediment(s)%V_w()                ! sum across all size classes
             end do
         end function
         !> return the total volume of the layer
@@ -288,8 +290,8 @@ module spcBedSedimentLayer
             V_layer = Me%V_c                                         ! start by adding coarse material volume
             do s = 1, Me%nSizeClasses
                 V_layer = V_layer + &
-                          Me%colFineSediment(s)%item%V_f() + &
-                          Me%colFineSediment(s)%item%V_w()           ! sum across all size classes
+                          Me%colFineSediment(s)%V_f() + &
+                          Me%colFineSediment(s)%V_w()                ! sum across all size classes
             end do
         end function
 end module
