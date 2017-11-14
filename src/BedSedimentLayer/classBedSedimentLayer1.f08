@@ -122,11 +122,11 @@ module classBedSedimentLayer1
             grp = layerGroup%getGroup("fractionalCompositions")      ! get fractional composition group
             ! SH: The fractional comps could be stored as 2D arrays in the NetCDF/JSON file
             ! to simplify this a bit
+            allocate(f_comp_sc(size(f_comp(S,:))))
             do S = 1, Me%nSizeClasses                                ! loop through size classes
                 var = grp%getVariable(trim(ref("f", "s", S)))        ! get the fractional composition data for each size class, variable name f_s_1, f_s_2 etc.
                 ! NetCDF doesn't like array slices in getData(), so we have to store them in
                 ! another allocatable variable, f_comp_sc, before retrieving them
-                allocate(f_comp_sc(size(f_comp(S,:))))
                 f_comp_sc = f_comp(S,:)
                 call var%getData(f_comp_sc)                          ! put the data into the relevant size class of f_comp(:,:)
                 f_comp(S,:) = f_comp_sc

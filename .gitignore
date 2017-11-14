@@ -1,19 +1,15 @@
 # Custom makefiles
 makefile
 
-# Sublime Text and Visual Studio project files
-*.sublime-project
-*.sublime-workspace
-.vs/
-.project
-
 # Compilation files
 *.stackdump
 
-# Compiled documentation
+# Compilation directories
 doc/dist/
 doc/graph/
 doxygen/
+bin/
+obj/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
@@ -52,14 +48,14 @@ output*.*
 *.out
 *.app
 
-# Code::Blocks
+# IDEs
 *.cbp
 *.depend
 *.layout
-bin/
-obj/
-doxygen/
-dockerfile
+*.sublime-project
+*.sublime-workspace
+.vs/
+.project
 
 # Temp files
 ~$*.docx

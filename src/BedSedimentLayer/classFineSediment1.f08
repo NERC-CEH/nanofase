@@ -2,6 +2,7 @@
 module classFineSediment1
     use Globals
     use ResultModule
+    use UtilModule
     implicit none                                                    ! force declaration of all variables
     type, public :: FineSediment1                                    ! type declaration for class
         character(len=256) :: name                                   !! a name for the object
@@ -42,7 +43,7 @@ module classFineSediment1
         !! -------------------------------------------------------------------------------
         function createFineSediment1(Me, n) result(r)
             class(FineSediment1) :: Me                               !! self-reference
-            character(len=256) :: n                                  !! a name identifier for the object; identifies this object uniquely
+            character(len=*) :: n                                    !! a name identifier for the object; identifies this object uniquely
             type(Result) :: r                                        !! Result object
             type(ErrorInstance) :: er                                ! LOCAL to store errors in
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
@@ -234,7 +235,7 @@ module classFineSediment1
                     Me%f_comp = f_comp_in                            ! store the composition locally
                     er = Me%audit_comp()                             ! audit sum (fractional composition) = 1, return error instance
                     if (er%isError()) then                           ! if an error was thrown
-                        call er%addToTrace(Me%name // "%SetFS1")     ! add a trace
+                        call er%addToTrace(trim(Me%name) // "%SetFS1") ! add a trace
                         call r%addError(er)                          ! add it to the result
                         return                                       ! and exit, as this is a critical error
                     end if
@@ -284,16 +285,18 @@ module classFineSediment1
             type(ErrorInstance) :: er                                !! ErrorInstance object, returns error if t_fcomp /= 1
             integer :: F                                             ! LOCAL loop counter
             real(dp) :: t_fcomp                                      ! LOCAL sum of fractional compositions
+            t_fcomp = 0                                              ! Initialise to zero
             do F = 1, Me%NFComp
                 t_fcomp = t_fcomp + Me%f_comp(F)                     ! summing fractional compositions
             end do
-            if (t_fcomp /= 1) then
+            if (t_fcomp < (1.0_dp-1.0d-10) .or. t_fcomp > (1.0_dp+1.0d-10)) then
                 er = ErrorInstance( &
                     code = 106, &
                     message = "Fractional composition does &
-                               not sum to unity.", &
-                    trace = [trim(Me%name)] &
+                               not sum to unity. Value: " // trim(str(t_fcomp)) // "." &
                 )                                                    ! check t_fcomp = 1
+            else
+                er = ErrorInstance(0)                                ! Else, no error
             end if
         end function
         !> check whether this object contains any fine sediment or water of the specified size class

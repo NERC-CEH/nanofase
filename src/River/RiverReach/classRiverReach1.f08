@@ -6,7 +6,7 @@ module classRiverReach1
     use ResultModule
     use ErrorInstanceModule
     use spcRiverReach
-    ! use classBedSediment1
+    use classBedSediment1
     implicit none
     private
 
@@ -50,6 +50,7 @@ module classRiverReach1
         type(NcGroup) :: grp                                    ! NetCDF group
         type(ErrorInstance) :: error                            ! To return errors
         real(dp), allocatable :: spmDensities(:)                ! Array of sediment particle densities for each size class
+        type(BedSediment1), allocatable :: bs1                  ! BedSediment1 object to temporarily store me%bedSediment in
 
         ! First, let's set the RiverReach's reference and the length
         me%ref = trim(ref("RiverReach", x, y, s, r))
@@ -99,33 +100,12 @@ module classRiverReach1
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%n = C%n_river
 
-        ! Create the BedSediment for this RiverReach. Hard coded as type 1 for the moment
-        ! and filled with dummy parameters
-        ! allocate(type(BedSediment1)::me%bedSediment)
-        ! res = me%bedSediment%create( &
-        !     n = ref('BedSediment',x,y,s,r,1), &
-        !     ln = ["BSL1","BSL2","BSL3","BSL4","BSL5"], &
-        !     nsc = C%nSizeClassesSpm, &
-        !     nl = 5, &
-        !     bslType = 1, &
-        !     C_tot = [ &
-        !         me%bsArea*0.1, &
-        !         me%bsArea*0.1, &
-        !         me%bsArea*0.1, &
-        !         me%bsArea*0.1, &
-        !         me%bsArea*0.1 &
-        !     ], &
-        !     f_comp = [ &
-        !         [ &
-        !             [0.1],[0.1],[0.1],[0.1],[0.1] &
-        !         ], &
-        !         [ &
-        !             [0.1],[0.1],[0.1],[0.1],[0.1] &
-        !         ], &
-        !     ], &
-        !     pd_comp = [0.01,0.01,0.01,0.01,0.01], &
-        !     M_f = [1,1,1,1,1])
-        ! call res%addToTrace('Creating ' // trim(me%ref))
+        ! Create the BedSediment for this RiverReach
+        ! TODO: Get the type of BedSediment from the data file, and check for allst
+        allocate(bs1)
+        res = bs1%create(x, y, s, r, me%ncGroup)
+        call move_alloc(bs1, me%bedSediment)
+        call res%addToTrace('Creating ' // trim(me%ref))
     end function
 
     !> Destroy this RiverReach1
