@@ -11,7 +11,7 @@ module spcRiverReach
     use mo_netcdf                                                   ! input/output handling
     use ResultModule                                                ! error handling classes, required for
     use ErrorInstanceModule                                         ! generation of trace error messages
-    ! use spcBedSediment
+    use spcBedSediment
     implicit none                                                   ! force declaration of all variables
 
     type, abstract, public :: RiverReach                            ! type declaration for superclass
@@ -41,7 +41,7 @@ module spcRiverReach
         real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
         real(dp) :: n                                               !! Manning's roughness coefficient [-]
-        ! class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
+        class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
                                                                     ! METHODS

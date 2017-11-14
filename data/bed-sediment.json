@@ -5,6 +5,7 @@
         { "name" : "nLayers", "size" : 5 }
                    ],
     "data" : [
+      { "name" : "nLayers", "type" : "variable", "datatype" : "i4", "data" : 5 },
       { "name" : "sedimentType",
         "type" : "variable",
         "datatype" : "i4",
