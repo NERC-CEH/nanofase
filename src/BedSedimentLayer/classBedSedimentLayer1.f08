@@ -389,17 +389,27 @@ module classBedSedimentLayer1
             end if
             tr = Me%name // &
                 "%createBedSedimentLayer1%t_comp"                    ! trace message
-            allocate(t_comp(1:Me%nfComp), stat = allst)           ! for storage of modified fractional composition of modified sediment
+            allocate(t_comp(1:Me%nfComp), stat = allst)              ! for storage of modified fractional composition of modified sediment
             if (allst /= 0) then
-                call r%addError(ErrorInstance(1, &
-                                   "Allocation error", &
-                                   .false., &
-                                   [tr] &
-                                  ))                                 ! create warning if error thrown
+                call r%addError(ErrorInstance(code = 1, &
+                                   message = "Allocation error", &
+                                   trace = [tr] &
+                                             ) &
+                               )                                     ! error thrown
                 return                                               ! critical error, so return
             end if
-            A_f_SC = Me%A_f(S)                                       ! static local copy of fine sediment capacity
-            A_w_SC = Me%A_w(S)                                       ! static local copy of water capacity
+            r = Me%A_f(S)
+            if (r%hasCriticalError()) then                           ! if call throws a critical error
+                call r%addToTrace(tr)                                ! add trace to all errors
+                return                                               ! and exit
+            end if
+            A_f_SC = .real. r                                        ! static local copy of fine sediment capacity
+            r = Me%A_w(S)
+            if (r%hasCriticalError()) then                           ! if call throws a critical error
+                call r%addToTrace(tr)                                ! add trace to all errors
+                return                                               ! and exit
+            end if
+            A_w_SC = .real. r                                        ! static local copy of water capacity
             associate(O => Me%colFineSediment(S))
                 M_f_SC = O%M_f()                                     ! fine sediment mass in layer
                 V_f_SC = O%V_f()                                     ! fine sediment volume in layer
@@ -429,8 +439,8 @@ module classBedSedimentLayer1
                 call r%addErrors(.errors. O%set(Vf_in = V_f_SC, &
                                                Vw_in = V_w_SC, &
                                            f_comp_in = t_comp &
-                                              ) &
-                               )                                     ! copy modified properties to fine sediment, add any error to Result object
+                                               ) &
+                                )                                    ! copy modified properties to fine sediment, add any error to Result object
                 if (r%hasCriticalError()) then                       ! if a critical error has been thrown
                     call r%addToTrace(tr)                            ! add trace to all errors
                     return                                           ! and exit
@@ -466,7 +476,7 @@ module classBedSedimentLayer1
             class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
             integer, intent(in) :: S                                 !! the particle size class
             type(FineSediment1), intent(in) :: G                     !! fine sediment to be removed
-            type(Result1D) :: r                                      !! The Result object. Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
+            type(ResultFineSediment1D) :: r                          !! The Result object. Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
             type(FineSediment1) :: F                                 ! LOCAL returns fine sediment that was removed
             real(dp) :: V_f_SC                                       ! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     ! LOCAL fine sediment volume removed
@@ -548,7 +558,22 @@ module classBedSedimentLayer1
             end if
             r = Result(data = [F,G])                                 ! Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
         end function
-        !> Clear all FineSediment from the layer
+        !> Subroutine purpose
+        !! -------------------------------------------------------------------------------
+        !! remove sediment of a specified size fraction, and associated water,
+        !! from a bed sediment layer
+        !!
+        !! Subroutine inputs
+        !! -------------------------------------------------------------------------------
+        !!
+        !! S (integer)       the size class from which sediment is to be removed
+        !! G (FineSediment1) sediment to be removed
+        !!
+        !! Subroutine outcomes
+        !! -------------------------------------------------------------------------------
+        !! Values of sediment mass, water volume and fractional composition set to zero
+        !! for all sediments in this layer
+        !! -------------------------------------------------------------------------------
         subroutine clearAllSediment1(Me)
             class(BedSedimentLayer1) :: Me                           ! This BedSedimentLayer1 object
             integer :: i                                             ! Loop iterator for FineSediment objects
