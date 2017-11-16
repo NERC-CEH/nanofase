@@ -5,6 +5,7 @@ module spcBedSediment
     use Globals                                                      !  global declarations
     use mo_netcdf                                                    ! input/output handling
     use ResultModule                                                 ! error handling classes, required for
+    use ResultFineSedimentModule
     use ErrorInstanceModule                                          ! generation of trace error messages
     use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
     use classFineSediment1
@@ -94,7 +95,7 @@ module spcBedSediment
         !> compute resuspension from bed sediment
         function resuspendSediment(Me, M_resusp) result(r)
             use Globals
-            import Result2D, BedSediment
+            import ResultFineSediment2D, BedSediment
             class(BedSediment) :: Me                                     !! self-reference
             real(dp), allocatable :: M_resusp(:)                         !! array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
             type(Result2D) :: r                                          !! returned Result object
