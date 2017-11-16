@@ -14,8 +14,6 @@ module classBedSediment1                                             ! class def
         procedure, public :: destroy => destroyBedSediment1          ! finaliser method
         procedure, public :: deposit => DepositSediment1             ! deposit sediment from water column
         procedure, public :: resuspend => ResuspendSediment1         ! resuspend sediment to water column
-!        procedure, public :: Resuspension => calculateResuspensionBedSediment1
-!        procedure, public :: StreamPower => calculateStreamPowerBedSediment1
     end type
   contains
     !> Function purpose
@@ -33,9 +31,10 @@ module classBedSediment1                                             ! class def
     !! objects
     !!
     !! ----------------------------------------------------------------------------------
-    function createBedSediment1(Me, x, y, s, b, riverReachGroup) result(r)
+    ! function createBedSediment1(Me, x, y, s, b, riverReachGroup) result(r)
+    function createBedSediment1(Me, riverReachGroup) result(r)
         class(BedSediment1) :: Me                                    !! self-reference
-        integer :: x, y, s, b                                        !! References to containing GridCell, SubRiver and RiverReaches
+!        integer :: x, y, s, b                                        !! References to containing GridCell, SubRiver and RiverReaches
         type(NcGroup), intent(in) :: riverReachGroup                 !! NetCDF group reference to the RiverReach containing this object
         type(Result) :: r                                            !! returned Result object
         type(NcGroup) :: grp                                         ! LOCAL NetCDF group reference
@@ -51,10 +50,10 @@ module classBedSediment1                                             ! class def
         ! ----------------------------------------------------------------------------------
         ! no notes
         ! ----------------------------------------------------------------------------------
-        ! Me%name = trim(ref(riverReachGroup%getName, "BedSediment")   ! object name
-        ! Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group
-        Me%name = trim(ref("BedSediment", x, y, s, b))               ! object name
-        Me%ncGroup = riverReachGroup%getGroup(trim(Me%name))         ! get the BedSediment_x_y_s_r group
+        Me%name = trim(ref(riverReachGroup%getName, "BedSediment")   ! object name: RiverReach_x_y_s_r_BedSediment
+        Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
+!        Me%name = trim(ref("BedSediment", x, y, s, b))               ! object name
+!        Me%ncGroup = riverReachGroup%getGroup(trim(Me%name))         ! get the BedSediment_x_y_s_r group
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
         tr = Me%name // "%createBedSediment1"                        ! procedure name as trace
@@ -189,7 +188,6 @@ module classBedSediment1                                             ! class def
     !!
     !! r returns resuspended fine sediments as type ResultFineSediment2D
     !!
-    !!
     !! ----------------------------------------------------------------------------------
     function resuspendSediment1(Me, M_resusp) result(r)
         class(BedSediment1) :: Me                                    !! self-reference
@@ -203,8 +201,8 @@ module classBedSediment1                                             ! class def
         integer :: L                                                 ! LOCAL counter for layers
         integer :: allst                                             ! LOCAL array allocation status
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
-        type(Result1D) :: r1D                                        ! LOCAL temporary variable for storing Result with 1D data in
-!        class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
+        type(ResultFineSediment1D1D) :: r1D                          ! LOCAL temporary variable for storing Result with 1D data in
+!       class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
         !
         ! Notes
         ! -----------------------------------------------------------------------------------------
@@ -274,16 +272,7 @@ module classBedSediment1                                             ! class def
                         call r%addToTrace(tr)
                         return                                       ! exit if a critical error has been thrown
                     end if
-                    allocate(FS(L, S), source = .finesediment. r1D, &
-                        stat = allst)                                ! retrieve FineSediment object from result, contains sediment that was resuspended
-                    if (allst /= 0) then
-                        r%AddError(ErrorInstance(code = 1, &
-                                message = "Allocation error", &
-                                trace = [Me%name // &
-                                "%resuspendSediment1%FS(L, S)"] &
-                                                ) &
-                                  )                                  ! create  if error thrown
-                    end if
+                    FS(L, S) = .finesediment. r1D                    ! retrieve FineSediment object from result, contains sediment that was resuspended
 !                    allocate(data1D, source=r1D%getData())           ! Get the data from r0D to retrieve in select type
 !                    select type (data => data1D(1))                  ! Put the resuspended sediment into F
 !                        type is (FineSediment1)
@@ -314,6 +303,7 @@ module classBedSediment1                                             ! class def
                 end if
             end associate
         end do
+        ! SL: these lines not needed as local variables automatically deallocated on exit?
 !        deallocate(F, stat = allst)                                  ! deallocate FineSediment1 variable F
 !        if ( allst /= 0) then
 !            er = ErrorInstance(code = 1, &
@@ -345,8 +335,8 @@ module classBedSediment1                                             ! class def
     !! Function inputs
     !! -------------------------------------------------------------------------------
     !! Function takes as inputs:
-    !! FS_dep (FineSediment1)   FineSediment1 object containing the depositing fine
-    !!                          sediment
+    !! FS_dep (FineSediment1)   1D array of FineSediment1 objects containing the
+    !! depositing fine sediment per size class
     !!
     !! Function outputs/outcomes
     !! -------------------------------------------------------------------------------
@@ -358,7 +348,7 @@ module classBedSediment1                                             ! class def
         type(FineSediment1), allocatable :: FS_dep(:)                !! Depositing sediment by size class
         type(Result0D) :: r                                          !! Result object. Returns water requirement from the water column [m3 m-2], real(dp)
         real(dp) :: V_w_tot                                          ! LOCAL water requirement from the water column [m3 m-2]
-        type(Result0D) :: r0D                                        ! LOCAL Result0D object to return data from addSediment method
+        type(ResultFineSediment0D) :: r0D                            ! LOCAL Result0D object to return data from addSediment method
         type(ResultFineSediment1D) :: r1D                            ! LOCAL ResultFineSediment1D object to return data from removeSediment method
         type(ErrorInstance) :: er                                    ! LOCAL ErrorInstance object for error handling
         type(FineSediment1), allocatable :: DS(:)                    ! LOCAL FineSediment objects holding deposited material
@@ -508,7 +498,7 @@ module classBedSediment1                                             ! class def
                                 call r%addToTrace(tr)                ! add trace to all errors
                                 return                               ! and exit
                             end if
-                            allocate(T, source=.finesediment.r1D)
+                            T = .finesediment. r1D                   ! assign T to return value from removeSediment
 !                            allocate(data1D, source=r1D%getData())   ! getData(array_index) doesn't work, so must store data in another var before using select type
 !                            select type (data => data1D(2))          ! select type construct needed to get around casting constraints
 !                                type is (FineSediment1)
@@ -541,14 +531,10 @@ module classBedSediment1                                             ! class def
                                     call r%addToTrace(tr)            ! add trace to all errors
                                     return                           ! and exit
                                 end if
-                                ! SL: trying to be concise with the next three commands,
+                                ! SL: trying to be concise with the next two commands,
                                 !     but unsure whether they will work
-                                allocate(data1D, &
-                                source=r1D%getData())
-                                allocate(U, &
-                                source = .finesediment. data1D(1))   ! sediment removed - to be added to Layer L
-                                allocate(T, &
-                                source = .finesediment. data1D(2))   ! sediment not removed - *** should be none ***
+                                U = .finesediment. r1D(1)            ! sediment removed - to be added to Layer L
+                                T = .finesediment. r1D(2)            ! sediment not removed - *** should be none ***
                                 ! SH: Couldn't get these select types working to be able to select
                                 ! specific array elements in the `type is` section, so had to split to
                                 ! do each array element separately.
