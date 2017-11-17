@@ -31,10 +31,8 @@ module classBedSediment1                                             ! class def
     !! objects
     !!
     !! ----------------------------------------------------------------------------------
-    ! function createBedSediment1(Me, x, y, s, b, riverReachGroup) result(r)
     function createBedSediment1(Me, riverReachGroup) result(r)
         class(BedSediment1) :: Me                                    !! self-reference
-!        integer :: x, y, s, b                                        !! References to containing GridCell, SubRiver and RiverReaches
         type(NcGroup), intent(in) :: riverReachGroup                 !! NetCDF group reference to the RiverReach containing this object
         type(Result) :: r                                            !! returned Result object
         type(NcGroup) :: grp                                         ! LOCAL NetCDF group reference
@@ -52,8 +50,6 @@ module classBedSediment1                                             ! class def
         ! ----------------------------------------------------------------------------------
         Me%name = trim(ref(riverReachGroup%getName, "BedSediment")   ! object name: RiverReach_x_y_s_r_BedSediment
         Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
-!        Me%name = trim(ref("BedSediment", x, y, s, b))               ! object name
-!        Me%ncGroup = riverReachGroup%getGroup(trim(Me%name))         ! get the BedSediment_x_y_s_r group
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
         tr = Me%name // "%createBedSediment1"                        ! procedure name as trace

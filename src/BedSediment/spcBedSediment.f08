@@ -58,10 +58,8 @@ module spcBedSediment
         !!
         !! ----------------------------------------------------------------------------------
         function createBedSediment(Me, riverReachGroup) result(r)
-!        function createBedSediment(Me, x, y, s, b, riverReachGroup) result(r)
             import BedSediment, Result, NcGroup
             class(BedSediment) :: Me                                 !! self-reference
-!            integer :: x, y, s, b                                    !! References to containing GridCell, SubRiver and RiverReaches
             type(NcGroup), intent(in) :: riverReachGroup             !! NetCDF group reference to the RiverReach containing this object
             type(Result) :: r                                        !! returned Result object
         end function
@@ -241,7 +239,7 @@ contains
         integer :: L                                                 ! LOCAL loop counter
         character(len=14), parameter :: tr = &
             trim(Me%name // "Get_Cf_sediment")                       ! LOCAL error trace
-        if (S < 0) then &
+        if (S < 0) &
             call r%addError(ErrorInstance( &
                             code = 103, &
                             message = "The size class is invalid", &
@@ -292,7 +290,7 @@ contains
         integer :: L                                                 ! LOCAL loop counter
         character(len=14), parameter :: tr = &
             trim(Me%name // "Get_Aw_sediment")                       ! LOCAL error trace
-        if (S < 0) then &
+        if (S < 0)  &
             call r%addError(ErrorInstance( &
                             code = 103, &
                             message = "The size class is invalid", &
@@ -303,7 +301,7 @@ contains
             call r%addToTrace(tr)                                    ! add trace to Result
             return                                                   ! and exit
         end if
-        if (S > Me%nSizeClasses) then &
+        if (S > Me%nSizeClasses) &
             call r%addError(ErrorInstance( &
                             code = 104, &
                             message = "The size class is invalid", &
