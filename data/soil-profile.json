@@ -2,6 +2,7 @@
     "name" : "SoilProfile",
     "type" : "group",
     "data" : [
+        { "name" : "nSoilLayers", "type" : "variable", "datatype" : "i4", "data" : 4 },
         { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
         { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
@@ -13,6 +14,8 @@
             "datatype" : "i4",
             "dimensions" : [ "nSizeClassesSpm" ],
             "data" : [ 50, 30, 10, 7, 3 ]
-        }
+        },
+        { "name" : "Q_precip", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps"], "data" : "precip.json" },
+        { "name" : "Q_evap", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps"], "data" : "evap.json" }
     ]
 }
