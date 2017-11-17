@@ -31,6 +31,9 @@ module Globals
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
+        ! SoilProfile
+        real(dp) :: defaultSoilLayerDepth = 0.1_dp  !! Default SoilLayer depth of 10 cm
+
         ! Limits
         integer :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
                                             !! TODO: Would be good if this was from config file

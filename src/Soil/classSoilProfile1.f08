@@ -1,16 +1,17 @@
-!> A SoilProfile class acts as a container for a collection of
-!! SoilLayer objects, which collectively define the layout of
-!! the SoilProfile.
+!> Module containing the SoilProfile1 class definition.
 module classSoilProfile1
     use Globals                                                 ! global declarations
     use UtilModule                                              ! Useful functions
     use mo_netcdf                                               ! input/output handling
     use ResultModule                                            ! error handling classes, required for
     use spcSoilProfile                                          ! use containing object type
+    use classSoilLayer1
     implicit none                                               ! force declaration of all variables
 
+    !> A SoilProfile class acts as a container for a collection of
+    !! SoilLayer objects, which collectively define the layout of
+    !! the SoilProfile.
     type, public, extends(SoilProfile) :: SoilProfile1
-
       contains
         procedure :: create => createSoilProfile1               ! Create the SoilProfile object. Exposed name: create
         procedure :: destroy => destroySoilProfile1             ! Remove the SoilProfile object and all contained objects. Exposed name: destroy
@@ -26,13 +27,15 @@ module classSoilProfile1
     !! up the contained SoilLayers.
     function createSoilProfile1(me, x, y, p, slope, n_river, area) result(r)
         class(SoilProfile1) :: me                           !! The SoilProfile instance.
-        integer             :: x                            !! Containing GridCell x position
-        integer             :: y                            !! Containing GridCell y position
+        integer             :: x                            !! Containing GridCell x index
+        integer             :: y                            !! Containing GridCell y index
         integer             :: p                            !! SoilProfile reference (redundant for now as only one SoilProfile per GridCell)
         real(dp)            :: slope                        !! Slope of the containing GridCell [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the GridCell's rivers [-]
         real(dp)            :: area                         !! The surface area of the SoilProfile [m3]
         type(Result)        :: r                            !! The Result object
+        integer             :: l                            ! Soil layer iterator
+        type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
 
         ! Allocate the object properties that need to be
         allocate(me%usle_C(C%nTimeSteps))
@@ -40,17 +43,30 @@ module classSoilProfile1
         allocate(me%rusle2015_erodedSediment(C%nTimeSteps))
         allocate(me%erodedSediment(C%nTimeSteps))
         allocate(me%distributionSediment(C%nSizeClassesSpm))
+        allocate(me%Q_precip_timeSeries(C%nTimeSteps))
+        allocate(me%Q_evap_timeSeries(C%nTimeSteps))
 
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
         me%p = p                                            ! SoilProfile index within the GridCell
-        me%ref = trim(ref("SoilProfile", x, y, p))          ! Generate the reference name for the SoilProfile
+        me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
         me%slope = slope
         me%n_river = n_river
         me%area = area
         
         ! Parse and store input data in this object
-        r = me%parseInputData()                             
+        r = me%parseInputData()
+
+        ! Set up the SoilLayers
+        ! TODO: Different types of SoilLayer
+        do l = 1, me%nSoilLayers
+            ! Create the SoilLayer and add any errors to Result object
+            call r%addErrors(.errors. &
+                sl%create(me%x, me%y, me%p, l &
+            ))
+            call move_alloc(sl, me%colSoilLayers(l)%item)
+        end do
+
         call r%addToTrace("Creating " // trim(me%ref))
     end function
 
@@ -59,13 +75,33 @@ module classSoilProfile1
         type(Result) :: r                                       !! Result object to return
     end function
 
-    function updateSoilProfile1(me, t, Qrunoff) result(r)
+    !> Perform the simulation of the SoilProfile for the current time step:
+    !! <ul>
+    !!  <li>Erode sediment</li>
+    !!  <li>Percolate soil through all SoilLayers</li>
+    !! </ul>
+    function updateSoilProfile1(me, t, Q_runoff) result(r)
         class(SoilProfile1) :: me                               !! This SoilProfile instance
         integer :: t                                            !! The current timestep
-        real(dp) :: Qrunoff                                     !! Runoff generated on this timestep
+        real(dp) :: Q_runoff                                    !! Runoff (quickflow) generated on this timestep
+        integer :: l                                            ! Loop iterator for SoilLayers
         type(Result) :: r                                       !! Result object to return
-        me%Qrunoff = Qrunoff                                    ! Set the runoff for this timestep
-        r = me%erode(t)                                         ! Erode soil on this timestep
+        
+        ! Set the timestep-specific object properties
+        me%Q_runoff = Q_runoff                                  ! Set the runoff (quickflow) for this timestep
+        me%Q_precip = me%Q_precip_timeSeries(t)                 ! Get the relevant time step's precip
+        me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evap
+        me%Q_in = me%Q_precip - me%Q_evap                       ! Infiltration = precip - evap. This is supplied to SoilLayer_1
+        
+        ! Erode soil on this timestep
+        r = me%erode(t)
+
+        ! Percolation
+        do l = 1, me%nSoilLayers
+            ! TODO: PERCOLATION CODE
+        end do
+
+        ! Add trace to the Result object that is returned                               
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
 
@@ -77,21 +113,20 @@ module classSoilProfile1
         type(NcDataset)     :: nc               !! NetCDF dataset
         type(NcVariable)    :: var              !! NetCDF variable
         type(NcGroup)       :: grp              !! NetCDF group
-        real(dp)            :: Q_surf           !! Surface runoff \( Q_{\text{surf}} \)
         real(dp)            :: t_conc           !! Time of concentration \( t_{\text{tc}} \)
         real(dp)            :: q_peak           !! Peak rainfall \( q_{\text{peak}} \)
         real(dp)            :: S_tot            !! Total eroded sediment
         type(Result)        :: r                !! The Result object
-        ! Change units of Q_surf from HMF from m3/s for the GridCell, to m3/day for the HRU,
+        ! Change units of quickflow from HMF, Q_runoff from m3/s for the GridCell, to m3/day for the HRU,
         ! and only use 10% of it to drive soil erosion        
-        Q_surf = ((me%Qrunoff*me%usle_area_hru*8640/me%area))      ! [m3/day]
+        me%Q_surf = ((me%Q_runoff*me%usle_area_hru*8640/me%area))      ! [m3/day]
         ! Estimate the time of concentration
         t_conc = (me%usle_L_sb**0.6 * me%usle_n_sb**0.6)/(18 * me%usle_slp_sb) &
                 + (0.62 * me%usle_L_ch * me%n_river**0.75)/(me%usle_area_sb**0.125 * me%usle_slp_ch**0.375)
         ! Estimate the peak flow
-        q_peak = me%usle_alpha_half(t)*Q_surf*me%usle_area_sb/(3.6*t_conc)
+        q_peak = me%usle_alpha_half(t)*me%Q_surf*me%usle_area_sb/(3.6*t_conc)
         ! Bring this all together to calculate eroded sediment, converted to kg/timestep (from metric ton/day)
-        S_tot = (118*C%timeStep/864) * (Q_surf * q_peak * me%usle_area_hru)**0.56 &
+        S_tot = (118*C%timeStep/864) * (me%Q_surf * q_peak * me%usle_area_hru)**0.56 &
                 * me%usle_K * me%usle_C(t) * me%usle_P * me%usle_LS * me%usle_CFRG
         ! TODO: Need to convert sediment yield for the HRU to sediment yield for the grid cell.
         ! Simply scaling linearly from HRU area to grid cell area like below isn't realistic
@@ -120,13 +155,13 @@ module classSoilProfile1
     !! input data
     function parseInputDataSoilProfile1(me) result(r)
         class(SoilProfile1)     :: me                       !! This SoilProfile instance
-        type(NcDataset)         :: nc                       !! NetCDF dataset
-        type(NcVariable)        :: var                      !! NetCDF variable
-        type(NcGroup)           :: grp                      !! NetCDF group
-        real(dp), allocatable   :: usle_C_min(:)            !! Minimum cover factor for USLE
-        real(dp), allocatable   :: usle_C_av(:)             !! Average cover factor for USLE
-        integer                 :: usle_rock                !! % rock in top of soil profile, to calculate usle_CFRG param
-        real(dp), allocatable   :: usle_rsd(:)              !! Residue on soil surface [kg/ha]
+        type(NcDataset)         :: nc                       ! NetCDF dataset
+        type(NcVariable)        :: var                      ! NetCDF variable
+        type(NcGroup)           :: grp                      ! NetCDF group
+        real(dp), allocatable   :: usle_C_min(:)            ! Minimum cover factor for USLE
+        real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
+        integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param
+        real(dp), allocatable   :: usle_rsd(:)              ! Residue on soil surface [kg/ha]
         type(Result)            :: r                        !! Result object to return
 
         ! Allocate the data which are time series. These must be allocatable (as opposed to
@@ -140,6 +175,46 @@ module classSoilProfile1
         grp = nc%getGroup("Environment")                        ! Get the Environment group
         grp = grp%getGroup(ref("GridCell",me%x,me%y))           ! Get the containing GridCell's group
         me%ncGroup = grp%getGroup(me%ref)                       ! Get this SoilProfile's group
+
+        ! How many soil layers? Allocate colSoilLayers accordingly
+        if (me%ncGroup%hasVariable('nSoilLayers')) then
+            var = me%ncGroup%getVariable('nSoilLayers')
+            call var%getData(me%nSoilLayers)
+            allocate(me%colSoilLayers(me%nSoilLayers))
+        else
+            call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Value for nSoilLayers not found in input file." &
+            ))
+        end if
+
+        ! Precipitation time series
+        if (me%ncGroup%hasVariable('Q_precip')) then
+            var = me%ncGroup%getVariable('Q_precip')
+            call var%getData(me%Q_precip_timeSeries)
+        else
+            call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Values for Q_precip not found in input file. " // &
+                            "Defaulting to 0 for all time steps.", &
+                isCritical = .false. &
+            ))
+            me%Q_precip_timeSeries = 0
+        end if
+
+        ! Evapotranspiration time series
+        if (me%ncGroup%hasVariable('Q_evap')) then
+            var = me%ncGroup%getVariable('Q_evap')
+            call var%getData(me%Q_evap_timeSeries)
+        else
+            call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Values for Q_evap not found in input file. " // &
+                            "Defaulting to 0 for all time steps.", &
+                isCritical = .false. &
+            ))
+            me%Q_evap_timeSeries = 0
+        end if
 
         ! Distribution used to split sediment mass into size classes
         if (me%ncGroup%hasVariable('distributionSediment')) then

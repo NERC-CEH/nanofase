@@ -6,7 +6,7 @@ module classRiverReach1
     use ResultModule
     use ErrorInstanceModule
     use spcRiverReach
-    use classBedSediment1
+    ! use classBedSediment1
     implicit none
     private
 
@@ -50,7 +50,7 @@ module classRiverReach1
         type(NcGroup) :: grp                                    ! NetCDF group
         type(ErrorInstance) :: error                            ! To return errors
         real(dp), allocatable :: spmDensities(:)                ! Array of sediment particle densities for each size class
-        type(BedSediment1), allocatable :: bs1                  ! BedSediment1 object to temporarily store me%bedSediment in
+        ! type(BedSediment1), allocatable :: bs1                  ! BedSediment1 object to temporarily store me%bedSediment in
 
         ! First, let's set the RiverReach's reference and the length
         me%ref = trim(ref("RiverReach", x, y, s, r))
@@ -102,10 +102,10 @@ module classRiverReach1
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        allocate(bs1)
-        res = bs1%create(x, y, s, r, me%ncGroup)
-        call move_alloc(bs1, me%bedSediment)
-        call res%addToTrace('Creating ' // trim(me%ref))
+        ! allocate(bs1)
+        ! res = bs1%create(x, y, s, r, me%ncGroup)
+        ! call move_alloc(bs1, me%bedSediment)
+        ! call res%addToTrace('Creating ' // trim(me%ref))
     end function
 
     !> Destroy this RiverReach1
