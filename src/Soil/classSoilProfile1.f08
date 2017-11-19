@@ -54,15 +54,19 @@ module classSoilProfile1
         me%n_river = n_river
         me%area = area
         
-        ! Parse and store input data in this object
+        ! Parse and store input data in this object's properties
         r = me%parseInputData()
+        if (r%hasErrors()) then                             ! Return early if there are errors
+            call r%addToTrace("Creating " // trim(me%ref))
+            return                           
+        end if
 
         ! Set up the SoilLayers
         ! TODO: Different types of SoilLayer
         do l = 1, me%nSoilLayers
             ! Create the SoilLayer and add any errors to Result object
             call r%addErrors(.errors. &
-                sl%create(me%x, me%y, me%p, l &
+                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC &
             ))
             call move_alloc(sl, me%colSoilLayers(l)%item)
         end do
@@ -96,9 +100,13 @@ module classSoilProfile1
         ! Erode soil on this timestep
         r = me%erode(t)
 
-        ! Percolation
+        ! Percolation. Firstly, precip - ET goes into top layer
+        call r%addErrors( &
+            me%colSoilLayers(1)%update(t, me%Q_in) &
+        )
+        ! TODO: Think about when to get pooling. Q_in = Q_perc + Q_pool
         do l = 1, me%nSoilLayers
-            ! TODO: PERCOLATION CODE
+            ! PERCOLATION
         end do
 
         ! Add trace to the Result object that is returned                               
@@ -214,6 +222,42 @@ module classSoilProfile1
                 isCritical = .false. &
             ))
             me%Q_evap_timeSeries = 0
+        end if
+
+        ! Water content at saturation [m3/m3]
+        if (me%ncGroup%hasVariable('WC_sat')) then
+            var = me%ncGroup%getVariable('WC_sat')
+            call var%getData(me%WC_sat)
+        else
+             call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Value for WC_sat (water content at saturation) not " //
+                            " found in input file. " // &
+            ))
+        end if
+
+        ! Water content at field capacity [m3/m3]
+        if (me%ncGroup%hasVariable('WC_FC')) then
+            var = me%ncGroup%getVariable('WC_FC')
+            call var%getData(me%WC_sat)
+        else
+             call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Value for WC_FC (water content at field capacity) not " //
+                            " found in input file. " // &
+            ))
+        end if
+
+        ! Saturated hydraulic conductivity [m/s]
+        if (me%ncGroup%hasVariable('K_s')) then
+            var = me%ncGroup%getVariable('K_s')
+            call var%getData(me%K_s)
+        else
+             call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Value for K_s (saturated hydraulic conductivity) not " //
+                            " found in input file. " // &
+            ))
         end if
 
         ! Distribution used to split sediment mass into size classes

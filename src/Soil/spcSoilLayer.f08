@@ -27,6 +27,8 @@ module spcSoilLayer
         ! Hydrology
         real(dp) :: Q_in                                            !! Inflow to this SoilLayer [m3 m-2 s-1]
         real(dp) :: Q_perc                                          !! Percolotated outflow from this SoilLayer [m3 m-2 s-1]
+        real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
+        real(dp) :: V_pool                                          !! Volume of water above V_sat to be pooled into layer above [m3 m-2]
         real(dp) :: V_sat                                           !! Water content at saturation [m3 m-2]
         real(dp) :: V_FC                                            !! Water content at field capacity [m3 m-2]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
@@ -45,13 +47,16 @@ module spcSoilLayer
 
     abstract interface
         !> Create this SoilLayer
-        function createSoilLayer(me, x, y, p, l) result(r)
+        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s) result(r)
             import SoilLayer, Result
             class(SoilLayer) :: me                          !! This SoilLayer instance
             integer, intent(in) :: x                        !! Containing GridCell x index
             integer, intent(in) :: y                        !! Containing GridCell y index
             integer, intent(in) :: p                        !! Containing SoilProfile index
             integer, intent(in) :: l                        !! Layer index
+            real(dp), intent(in) :: WC_sat                  !! Water content at saturation [m3/m3]
+            real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
+            real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
             type(Result) :: r                               !! The Result object to return
         end function
 
@@ -62,11 +67,12 @@ module spcSoilLayer
             type(Result) :: r                               !! The Result object to return
         end function
 
-        !> Update the SoilLayer on a given timestep \( t \)
-        function updateSoilLayer(me, t) result(r)
+        !> Update the SoilLayer on a given timestep
+        function updateSoilLayer(me, t, Q_in) result(r)
             import SoilLayer, Result
             class(SoilLayer) :: me                          !! This SoilLayer1 instance
-            integer :: t                                    !! The current timestep \( t \)
+            integer :: t                                    !! The current timestep
+            real(dp) :: Q_in                                !! Water into the layer on this time step [m3/s]
             type(Result) :: r                               !! The Result object to return
         end function
 

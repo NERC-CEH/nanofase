@@ -15,7 +15,7 @@ module spcRiverReach
     implicit none                                                   ! force declaration of all variables
 
     type, abstract, public :: RiverReach                            ! type declaration for superclass
-        character(len=256) :: ref                                   ! Reference for this object, of the form RiverReach_x_y_s_r
+        character(len=100) :: ref                                   ! Reference for this object, of the form RiverReach_x_y_s_r
                                                                     ! PROPERTIES
                                                                     ! Description
                                                                     ! -----------
