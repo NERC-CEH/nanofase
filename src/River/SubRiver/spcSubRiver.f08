@@ -56,10 +56,6 @@ module spcSubRiver
         real(dp), allocatable :: tmpSpmOut(:)                       ! Temporary outflow SPM masses (see tmpQout description)
         real(dp), allocatable :: m_spm(:)                           ! Mass of SPM currently in SubRiver [kg], per size class
         real(dp), allocatable :: tmpm_spm(:)                        ! Temporary SPM mass [kg]
-        ! need a function somewhere (probably in RiverReach) to convert SPM mass in a size class to particle number
-        ! this is needed *** for settling rates *** and for heteroaggregation with nanoparticles
-
-        integer :: allst                                            ! array allocation status, must be public to be accessible by subclasses
                                                                     ! CONTAINED OBJECTS
                                                                     ! Description
                                                                     ! -----------
