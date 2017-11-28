@@ -65,17 +65,17 @@ module classSoilLayer1
         if (me%V_w + Q_in*C%timeStep < me%V_sat) then           ! If water volume below V_sat after inflow
             me%V_pool = 0                                       ! No pooled water
             me%V_w = me%V_w + Q_in*C%timeStep                   ! Update the volume based on inflow
-            me%V_excess = max(me%V_w - me%V_FC, 0)              ! Volume of water above V_FC
-        else (me%V_w + Q_in*C%timeStep > me%V_sat)              ! Else, water pooled above V_sat
+            me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)         ! Volume of water above V_FC
+        else if (me%V_w + Q_in*C%timeStep > me%V_sat) then      ! Else, water pooled above V_sat
             me%V_pool = me%V_w + Q_in*C%timeStep - me%V_sat     ! Water pooled above V_sat
             me%V_w = me%V_sat                                   ! Volume of water must be V_sat
             me%V_excess = me%V_w - me%V_FC                      ! Volume must be above FC and so there is excess
         end if
-
-        me%V_perc = min(me%V_excess * &                             ! Calculate volume percolated on this timestep [m3 m-2 s-1]
+        ! Calculate volume percolated on this timestep [m3 m-2]
+        me%V_perc = min(me%V_excess * &                          
                         (1-exp(-C%timeStep*me%K_s/(me%V_sat-me%V_FC))), &   ! up to a maximum of V_w
                         me%V_w)
-        me%V_w = me%V_w - me%V_perc                                 ! Get rid of the percolated water
+        me%V_w = me%V_w - me%V_perc                              ! Get rid of the percolated water
 
     end function
 

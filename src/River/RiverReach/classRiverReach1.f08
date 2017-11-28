@@ -56,13 +56,13 @@ module classRiverReach1
         me%ref = trim(ref("RiverReach", x, y, s, r))
         me%l = l
         ! Allocate the arrays of size classes and set SPM to 0 to begin with
-        allocate(me%rho_spm(C%nSizeClassesSpm), &
-            me%spmIn(C%nSizeClassesSpm), &
+        allocate(me%spmIn(C%nSizeClassesSpm), &
             me%spmOut(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
             me%j_spm_res(C%nSizeClassesSpm), &
-            stat=allst) 
-        me%rho_spm = 0                  ! Set SPM density and mass to 0 to begin with
+            me%C_spm(C%nSizeClassesSpm), &
+            stat=allst)
+        me%C_spm = 0                    ! Set SPM concentration and mass to 0 to begin with
         me%m_spm = 0
         allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! This reach's runoff
 
@@ -174,31 +174,38 @@ module classRiverReach1
         ! Loop through the displacements
         do i = 1, nDisp
             ! Update SPM according to inflow for this displacement, then calculate
-            ! new SPM density based on this and the dimensions
+            ! new SPM concentration based on this and the dimensions
             me%m_spm = me%m_spm + dSpmIn                    ! Add inflow SPM to SPM already in reach
-            me%rho_spm = me%m_spm/me%volume                 ! Update the SPM density
+            me%C_spm = me%m_spm/me%volume                   ! Update the SPM density
 
             ! TODO: Resuspended SPM must be taken from BedSediment
             ! Resuspend SPM for this displacment, based on resuspension flux previously calculated
             me%m_spm = me%m_spm + me%j_spm_res*dt         ! SPM resuspended is resuspension flux * displacement length
-            me%rho_spm = me%m_spm/me%volume                 ! Update the SPM density
+            me%C_spm = me%m_spm/me%volume                 ! Update the SPM concentration
 
             ! Calculate the settling velocity and rate for each SPM size class. Must be
             ! done for each displacement as it depends on rho_spm
+            ! ########### This doesn't need to be done on each displacement as rho_spm won't change
+            ! TODO: This should be done for each fractional comp - change
             do n = 1, C%nSizeClassesSpm
-                settlingVelocity(n) = me%calculateSettlingVelocity(C%d_spm(n), me%rho_spm(n), C%T)
+                settlingVelocity(n) = me%calculateSettlingVelocity( &
+                    C%d_spm(n), &
+                    sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps.
+                    C%T &
+                )
                 k_settle(n) = settlingVelocity(n)/me%D
             end do
 
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             me%m_spm = me%m_spm - (k_settle*dt)*me%m_spm
-            me%rho_spm = me%m_spm/me%volume                     ! Recalculate the density
+            me%C_spm = me%m_spm/me%volume                       ! Recalculate the density
 
             ! If we've removed all of the SPM, set to 0
+            ! TODO: Simplify this in max() function
             do n = 1, C%nSizeClassesSpm
                 if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
                     me%m_spm(n) = 0
-                    me%rho_spm(n) = 0
+                    me%C_spm(n) = 0
                 end if
             end do
 
@@ -206,18 +213,18 @@ module classRiverReach1
 
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
             ! TODO: Set dQout different to dQin based on abstraction etc.
-            dSpmOut = dQin*me%rho_spm
+            dSpmOut = dQin*me%C_spm
             do n = 1, C%nSizeClassesSpm
                 if (dSpmOut(n) .le. me%m_spm(n)) then
-                    ! Update the SPM mass and density after it has been advected
+                    ! Update the SPM mass and concentration after it has been advected
                     me%m_spm(n) = me%m_spm(n) - dSpmOut(n)
-                    me%rho_spm(n) = me%m_spm(n)/me%volume
+                    me%C_spm(n) = me%m_spm(n)/me%volume
                 else
                     ! If dSpmOut > current SPM mass, then actual spmOut must equal the SPM mass,
                     ! i.e., all of the remaining SPM has been advected out of the reach 
                     dSpmOut(n) = me%m_spm(n)
-                    me%m_spm(n) = 0                       ! SPM mass and density must now be zero
-                    me%rho_spm(n) = 0
+                    me%m_spm(n) = 0                       ! SPM mass and concentration must now be zero
+                    me%C_spm(n) = 0
                 end if
             end do
 
@@ -238,8 +245,8 @@ module classRiverReach1
             end if 
         end do
         
-        ! Set the final SPM density
-        me%rho_spm = me%m_spm/me%volume
+        ! Set the final SPM concentration
+        me%C_spm = me%m_spm/me%volume
         ! Add what we're doing here to the error trace
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function

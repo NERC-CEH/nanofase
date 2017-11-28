@@ -24,7 +24,9 @@ module Globals
         real(dp), allocatable :: d_spm_low(:)       !! Lower bound when treating each size class as distribution [m]
         real(dp), allocatable :: d_spm_upp(:)       !! Upper bound when treating each size class as distribution [m]
         real(dp), allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
-        real(dp), allocatable :: d_pd(:)            !! sediment particle densities [kg m-3]
+        ! TODO: Get rid of d_pd (probably references to it in BedSediment). Analagous to rho_spm.
+        real(dp), allocatable :: d_pd(:)            !! Sediment particle densities [kg m-3]
+        real(dp), allocatable :: rho_spm(:)         !! Sediment particle densities [kg m-3]
         integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
         integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
         integer :: nFracCompsSpm                    !! Number of sediment fractional compositions
@@ -115,6 +117,7 @@ module Globals
         var = grp%getVariable("spm_particle_densities")     ! Get the sediment particle density variable
         call var%getData(spmFracComps)                      ! Get the variable's data
         allocate(C%d_pd, source=spmFracComps)               ! Allocate to class variable
+        allocate(C%rho_spm, source=spmFracComps)
         var = grp%getVariable("defaultDistributionSediment")! Get the default sediment size classes distribution
         call var%getData(C%defaultDistributionSediment)     ! Get the variable's data
         ! TODO: Check the distribution adds up to 100%
@@ -129,7 +132,7 @@ module Globals
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
-        C%nFracCompsSpm = size(C%d_pd)
+        C%nFracCompsSpm = size(C%rho_spm)
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))
         ! Set the upper and lower bounds of each size class, if treated as a distribution

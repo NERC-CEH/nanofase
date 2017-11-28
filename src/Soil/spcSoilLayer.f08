@@ -26,9 +26,10 @@ module spcSoilLayer
         real(dp) :: SOM                                             !! Soil organic matter content [% w/w]
         ! Hydrology
         real(dp) :: Q_in                                            !! Inflow to this SoilLayer [m3 m-2 s-1]
-        real(dp) :: Q_perc                                          !! Percolotated outflow from this SoilLayer [m3 m-2 s-1]
         real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
         real(dp) :: V_pool                                          !! Volume of water above V_sat to be pooled into layer above [m3 m-2]
+        real(dp) :: V_excess                                        !! Volume of water above V_FC that can percolate to the next layer [m3 m-2]
+        real(dp) :: V_perc                                          !! Volume of water percolating to next layer on a given time step [m3 m-2]
         real(dp) :: V_sat                                           !! Water content at saturation [m3 m-2]
         real(dp) :: V_FC                                            !! Water content at field capacity [m3 m-2]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
@@ -48,6 +49,7 @@ module spcSoilLayer
     abstract interface
         !> Create this SoilLayer
         function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s) result(r)
+            use Globals
             import SoilLayer, Result
             class(SoilLayer) :: me                          !! This SoilLayer instance
             integer, intent(in) :: x                        !! Containing GridCell x index
@@ -69,6 +71,7 @@ module spcSoilLayer
 
         !> Update the SoilLayer on a given timestep
         function updateSoilLayer(me, t, Q_in) result(r)
+            use Globals
             import SoilLayer, Result
             class(SoilLayer) :: me                          !! This SoilLayer1 instance
             integer :: t                                    !! The current timestep

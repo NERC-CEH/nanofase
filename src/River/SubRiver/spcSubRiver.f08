@@ -61,6 +61,7 @@ module spcSubRiver
                                                                     ! -----------
         type(RiverReachElement), allocatable :: colReaches(:)       ! array of RiverReachElement objects
         type(SubRiverPointer), allocatable :: inflows(:)            ! array of pointers to inflows
+        integer :: allst
       contains
                                                                     ! METHODS
                                                                     ! Description
