@@ -56,7 +56,7 @@ module classSoilProfile1
         
         ! Parse and store input data in this object's properties
         r = me%parseInputData()
-        if (r%hasErrors()) then                             ! Return early if there are errors
+        if (r%hasError()) then                              ! Return early if there are errors
             call r%addToTrace("Creating " // trim(me%ref))
             return                           
         end if
@@ -66,8 +66,8 @@ module classSoilProfile1
         do l = 1, me%nSoilLayers
             ! Create the SoilLayer and add any errors to Result object
             call r%addErrors(.errors. &
-                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC &
-            ))
+                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s) &
+            )
             call move_alloc(sl, me%colSoilLayers(l)%item)
         end do
 
@@ -101,8 +101,8 @@ module classSoilProfile1
         r = me%erode(t)
 
         ! Percolation. Firstly, precip - ET goes into top layer
-        call r%addErrors( &
-            me%colSoilLayers(1)%update(t, me%Q_in) &
+        call r%addErrors(.errors. &
+            me%colSoilLayers(1)%item%update(t, me%Q_in) &
         )
         ! TODO: Think about when to get pooling. Q_in = Q_perc + Q_pool
         do l = 1, me%nSoilLayers
@@ -231,8 +231,8 @@ module classSoilProfile1
         else
              call r%addError(ErrorInstance( &
                 code = 201, &
-                message = "Value for WC_sat (water content at saturation) not " //
-                            " found in input file. " // &
+                message = "Value for WC_sat (water content at saturation) not " // &
+                            "found in input file. " &
             ))
         end if
 
@@ -243,8 +243,8 @@ module classSoilProfile1
         else
              call r%addError(ErrorInstance( &
                 code = 201, &
-                message = "Value for WC_FC (water content at field capacity) not " //
-                            " found in input file. " // &
+                message = "Value for WC_FC (water content at field capacity) not " // &
+                            "found in input file. " &
             ))
         end if
 
@@ -255,8 +255,8 @@ module classSoilProfile1
         else
              call r%addError(ErrorInstance( &
                 code = 201, &
-                message = "Value for K_s (saturated hydraulic conductivity) not " //
-                            " found in input file. " // &
+                message = "Value for K_s (saturated hydraulic conductivity) not " // &
+                            "found in input file. " &
             ))
         end if
 

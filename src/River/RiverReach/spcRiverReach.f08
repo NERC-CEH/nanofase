@@ -36,7 +36,7 @@ module spcRiverReach
         real(dp) :: xsArea                                          !! The cross-sectional area of water in the reach [m2]
         real(dp) :: bsArea                                          !! The bed sediment area in the reach [m2]
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
-        real(dp), allocatable :: rho_spm(:)                         !! Sediment particle densities [kg/m3]
+        real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
         real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux on a given timestep [kg/s]
         real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
@@ -144,7 +144,7 @@ module spcRiverReach
             import RiverReach
             class(RiverReach), intent(in) :: me                         !! The RiverReach instance
             real(dp), intent(in) :: d                                   !! Sediment particle diameter [m]
-            real(dp), intent(in) :: rho_spm                             !! Sediment particle density [kg/m3]
+            real(dp), intent(in) :: rho_spm                             !! Sediment particulate density [kg/m3]
             real(dp), intent(in) :: T                                   !! Temperature [C]
             real(dp) :: W_spm                                           !! Calculated settling velocity [m/s]
         end function
