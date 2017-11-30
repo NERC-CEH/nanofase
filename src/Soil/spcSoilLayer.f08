@@ -37,7 +37,10 @@ module spcSoilLayer
         procedure(createSoilLayer), deferred :: create              ! Create the SoilLayer object
         procedure(destroySoilLayer), deferred :: destroy            ! Remove the SoilLayer object and all contained objects
         procedure(updateSoilLayer), deferred :: update              ! Update on every timestep (e.g., perform soil percolation)
+        procedure(addPooledWaterSoilLayer), deferred :: addPooledWater  ! Add pooled water to this layer
         procedure(parseInputDataSoilLayer), deferred :: parseInputData ! Parse data from the input file for this SoilLayer
+        ! Non-deferred procedures
+        procedure :: setV_pool
     end type
 
     !> Container type for class(SoilLayer) such that a polymorphic
@@ -65,7 +68,7 @@ module spcSoilLayer
         !> Destroy this SoilLayer
         function destroySoilLayer(me) result(r)
             import SoilLayer, Result
-            class(SoilLayer) :: me                          !! This SoilLayer1 instance
+            class(SoilLayer) :: me                          !! This SoilLayer instance
             type(Result) :: r                               !! The Result object to return
         end function
 
@@ -73,18 +76,33 @@ module spcSoilLayer
         function updateSoilLayer(me, t, Q_in) result(r)
             use Globals
             import SoilLayer, Result
-            class(SoilLayer) :: me                          !! This SoilLayer1 instance
+            class(SoilLayer) :: me                          !! This SoilLayer instance
             integer :: t                                    !! The current timestep
             real(dp) :: Q_in                                !! Water into the layer on this time step [m3/s]
             type(Result) :: r                               !! The Result object to return
         end function
 
+        function addPooledWaterSoilLayer(me, V_pool) result(r)
+            use Globals
+            import SoilLayer, Result
+            real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
+            type(Result) :: r                               !! The Result object to return, with no data
+        end function
+
         !> Parse the data input for this SoilLayer
         function parseInputDataSoilLayer(me) result(r)
             import SoilLayer, Result
-            class(SoilLayer) :: me                          !! This SoilLayer1 instance
+            class(SoilLayer) :: me                          !! This SoilLayer instance
             type(Result) :: r
                 !! The Result object to return any errors relating to the input data file
         end function
     end interface
+
+  contains
+    !> Set the volume of pooled water, \( V_{\text{pool}} \)
+    subroutine setV_pool(me, V_pool)
+        class(SoilLayer) :: me                              !! This SoilLayer instance
+        real(dp) :: V_pool                                  !! The pooled water \( V_{\text{pool}} \) [m3/m2]
+        me%V_pool = V_pool
+    end subroutine
 end module

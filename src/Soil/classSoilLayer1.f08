@@ -12,6 +12,7 @@ module classSoilLayer1
         procedure :: create => createSoilLayer1
         procedure :: destroy => destroySoilLayer1
         procedure :: update => updateSoilLayer1
+        procedure :: addPooledWater => addPooledWaterSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
     end type
 
@@ -77,6 +78,21 @@ module classSoilLayer1
                         me%V_w)
         me%V_w = me%V_w - me%V_perc                              ! Get rid of the percolated water
 
+    end function
+
+    !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
+    !! No percolation occurs as pooled water never really leaves the SoilLayer.
+    function addPooledWaterSoilLayer1(me, V_pool) result(r)
+        class(SoilLayer1) :: me                         !! This SoilLayer1 instance
+        real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
+        type(Result) :: r                               !! The Result object to return, with no data
+        if (me%V_w + V_pool < me%V_sat) then            ! If the pooled water doesn't push volume above saturation, just add it
+            me%V_w = me%V_w + V_pool
+            me%V_pool = 0
+        else                                            ! Else, add as much as possible and then pool the rest
+            me%V_w = me%V_sat                           ! Volume of water must be at saturation
+            me%V_pool = me%V_w + V_pool - V%sat         ! Add pooled water
+        end if
     end function
 
     !> Get the data from the input file and set object properties
