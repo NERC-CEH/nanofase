@@ -1,4 +1,4 @@
-!> Module responsible for the RiverReach1 object
+!> Module containing the `RiverReach1` class definition
 module classRiverReach1
     use mo_netcdf
     use Globals
@@ -8,7 +8,6 @@ module classRiverReach1
     use spcRiverReach
     ! use classBedSediment1
     implicit none
-    private
 
     !> RiverReach1 object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
@@ -30,21 +29,21 @@ module classRiverReach1
 
   contains
 
-    !> Create a RiverReach with x, y, s, r coordinates from the datafile.
+    !> Create this `RiverReach1`, parse input data and set up contained `BedSediment`
     function createRiverReach1(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
-        class(RiverReach1) :: me                                !! The RiverReach1 instance.
-        integer :: x                                            !! Containing GridCell x-position index.
-        integer :: y                                            !! Containing GridCell y-position index.
-        integer :: s                                            !! Containing SubRiver index.
-        integer :: r                                            !! RiverReach index.
-        real(dp) :: l                                           !! Length of the RiverReach (without meandering).
-        real(dp), allocatable :: QrunoffTimeSeries(:)           !! Any GridCell runoff (that has already been split to the correct RiverReach size)
+        class(RiverReach1) :: me                                !! The `RiverReach1` instance.
+        integer :: x                                            !! Containing `GridCell` x-position index.
+        integer :: y                                            !! Containing `GridCell` y-position index.
+        integer :: s                                            !! Containing `SubRiver` index.
+        integer :: r                                            !! `RiverReach` index.
+        real(dp) :: l                                           !! Length of the `RiverReach` (without meandering).
+        real(dp), allocatable :: QrunoffTimeSeries(:)           !! Any `GridCell` runoff (that has already been split to the correct `RiverReach` size)
+        type(Result) :: res                                     !! The Result object
         type(Result0D) :: D                                     ! Depth [m]
         type(Result0D) :: v                                     ! River velocity [m/s]
         type(Result0D) :: W                                     ! River width [m]
         integer :: n                                            ! Loop iterator for SPM size classes
         integer :: allst                                        ! Allocation status
-        type(Result) :: res                                     !! The Result object
         type(NcDataset) :: NC                                   ! NetCDF dataset
         type(NcVariable) :: var                                 ! NetCDF variable
         type(NcGroup) :: grp                                    ! NetCDF group
@@ -107,14 +106,14 @@ module classRiverReach1
         ! call res%addToTrace('Creating ' // trim(me%ref))
     end function
 
-    !> Destroy this RiverReach1
+    !> Destroy this `RiverReach1`
     function destroyRiverReach1(me) result(r)
-        class(RiverReach1) :: me                            !! This RiverReach1 instance
-        type(Result) :: r                                   !! The Result object
+        class(RiverReach1) :: me                            !! This `RiverReach1` instance
+        type(Result) :: r                                   !! The `Result` object
         ! TODO: Write some destroy logic
     end function
 
-    !> Update the RiverReach on this timestep t, based on the inflow Q and SPM provided:
+    !> Update the RiverReach on this time step t, based on the inflow Q and SPM provided:
     !! <ul>
     !!  <li>Masses/volumes updated according to inflows</li>
     !!  <li>Reach dimensions updated according to inflows</li>
@@ -123,12 +122,12 @@ module classRiverReach1
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
     function updateRiverReach1(me, Qin, spmIn, t) result(r)
-        class(RiverReach1) :: me                            !! This RiverReach1 instance
+        class(RiverReach1) :: me                            !! This `RiverReach1` instance
         real(dp) :: Qin                                     !! Inflow to this reach
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
-        integer :: t                                        !! What time step are we on?
-        type(Result) :: r                                   !! Result object to return
-        type(Result0D) :: D                                 ! Result objects for depth
+        integer :: t                                        !! Current time step [s]
+        type(Result) :: r                                   !! `Result` object to return
+        type(Result0D) :: D                                 ! Result object for depth
         integer :: n                                        ! Size class loop it  erator
         integer :: nDisp                                    ! Number of displacements to split reach into
         real(dp) :: dt                                      ! Length of each displacement [s]
@@ -236,10 +235,10 @@ module classRiverReach1
         do n = 1, C%nSizeClassesSpm
             if (me%m_spm(n) == 0 .and. me%spmIn(n) /= 0) then
                 call r%addError(ErrorInstance( &
-                    code=500, &
-                    message="All SPM in size class " // trim(str(n)) // " (" // trim(str(C%d_spm(n)*1e6)) // &
+                    code = 500, &
+                    message = "All SPM in size class " // trim(str(n)) // " (" // trim(str(C%d_spm(n)*1e6)) // &
                             " um) advected from RiverReach.", &
-                    isCritical=.false.) &
+                    isCritical = .false.) &
                 )
             end if 
         end do
@@ -247,7 +246,7 @@ module classRiverReach1
         ! Set the final SPM concentration
         me%C_spm = me%m_spm/me%volume
         ! Add what we're doing here to the error trace
-        call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
+        call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
     end function
 
     !> Perform the resuspension simulation for a time step
@@ -293,7 +292,7 @@ module classRiverReach1
         else
             me%j_spm_res = 0                                ! If there's no inflow
         end if
-        call r%addToTrace('Calculating resuspension for' // trim(me%ref))
+        call r%addToTrace('Calculating resuspension')
     end function
 
     !> Calculate the width \( W \) of the river based on the discharge:

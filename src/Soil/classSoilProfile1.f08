@@ -1,6 +1,6 @@
-!> Module containing the SoilProfile1 class definition.
+!> Module containing the `SoilProfile1` class definition.
 module classSoilProfile1
-    use Globals
+    use Globals                                                 ! Global definitions and constants
     use UtilModule                                              ! Useful functions
     use mo_netcdf                                               ! Input/output handling
     use ResultModule                                            ! Error handling classes
@@ -13,12 +13,13 @@ module classSoilProfile1
     !! the SoilProfile.
     type, public, extends(SoilProfile) :: SoilProfile1
       contains
-        procedure :: create => createSoilProfile1               ! Create the SoilProfile object. Exposed name: create
-        procedure :: destroy => destroySoilProfile1             ! Remove the SoilProfile object and all contained objects. Exposed name: destroy
-        procedure :: update => updateSoilProfile1               ! Update on every timestep (e.g., perform routing of water through soil)
-        procedure :: erode => erodeSoilProfile1                 ! Erode soil for a given timestep
-        procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
-        procedure :: parseInputData => parseInputDataSoilProfile1 ! Parse the data from the input file and store in object properties
+        procedure :: create => createSoilProfile1                   ! Create the SoilProfile object
+        procedure :: destroy => destroySoilProfile1                 ! Remove the SoilProfile object and all contained objects
+        procedure :: update => updateSoilProfile1                   ! Update on every timestep (e.g., perform routing of water through soil)
+        procedure, private :: percolate => percolateSoilProfile1    ! Percolate soil on a given time step
+        procedure, private :: erode => erodeSoilProfile1            ! Erode soil on a given time step
+        procedure, private :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
+        procedure, private :: parseInputData => parseInputDataSoilProfile1 ! Parse the data from the input file and store in object properties
     end type
 
   contains
@@ -52,7 +53,8 @@ module classSoilProfile1
         me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
         me%slope = slope
         me%n_river = n_river
-        me%area = area
+        me%area = area                                      ! Surface area
+        me%V_buried = 0                                     ! Volume of water "lost" from the bottom of SoilProfile
         
         ! Parse and store input data in this object's properties
         r = me%parseInputData()
@@ -90,8 +92,6 @@ module classSoilProfile1
         integer :: t                                            !! The current timestep
         real(dp) :: Q_runoff                                    !! Runoff (quickflow) generated on this timestep
         type(Result) :: r                                       !! Result object to return
-        integer :: l, i                                         ! Loop iterator for SoilLayers
-        real(dp) :: Q_l_in                                      ! Temporary inflow for a particular SoilLayer
         
         ! Set the timestep-specific object properties
         me%Q_runoff = Q_runoff                                  ! Set the runoff (quickflow) for this timestep
@@ -99,6 +99,29 @@ module classSoilProfile1
         me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evaporation
         me%Q_in = me%Q_precip - me%Q_evap                       ! Infiltration = precip - evap. This is supplied to SoilLayer_1
         
+        ! Perform percolation and erosion simluation, at the same
+        ! time adding any errors to the Result object
+        call r%addErrors(.errors. [ &
+                me%percolate(t), &
+                me%erode(t) &
+            ] &
+        )
+        ! Add this procedure to the Result object's trace                               
+        call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
+    end function
+
+    !> Percolate water through the `SoilProfile`, by looping through `SoilLayer`s
+    !! and running their individual percolation procedures, and then passing
+    !! percolated and pooled flows between `SoilLayer`s. Pooled water from top
+    !! `SoilLayer` forms surface runoff, and "lost" water from bottom `SoilLayer`
+    !! is kept track of in `me%V_buried`
+    function percolateSoilProfile1(me, t) result(r)
+        class(SoilProfile1) :: me                               !! This `SoilProfile1` instance
+        integer             :: t                                !! The current time step
+        type(Result)        :: r                                !! The `Result` object to return
+        integer             :: l, i                             ! Loop iterator for SoilLayers
+        real(dp)            :: Q_l_in                           ! Temporary inflow for a particular SoilLayer
+
         ! Loop through SoilLayers and remove 
         do l = 1, me%nSoilLayers
             if (l=1) then                           ! If it's the first SoilLayer, Q_in will be from precip - ET
@@ -134,18 +157,20 @@ module classSoilProfile1
             end do
         end do
 
-        ! Erode soil on this timestep
-        r = me%erode(t)
+        ! Add the amount of water percolating out of the final layer to V_buried
+        ! to keep track of "lost" water
+        me%V_buried = me%V_buried + me%colSoilLayers(me%nSoilLayers)%item%V_perc
 
-        ! Add trace to the Result object that is returned                               
-        call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
+        ! Add this procedure to the Result object's trace
+        call r%addToTrace("Percolating water on time step #" // trim(str(t)))
     end function
 
     !> Calculates soil erosion for this timestep, Updates this `GridCell`'s
     !! state variable `erodedSediment` accordingly.
     function erodeSoilProfile1(me, t) result(r)
         class(SoilProfile1) :: me               !! This `SoilProfile` instance
-        integer             :: t                !! The timestep we're on
+        integer             :: t                !! The current time step
+        type(Result)        :: r                !! The `Result` object to return
         type(NcDataset)     :: nc               ! NetCDF dataset
         type(NcVariable)    :: var              ! NetCDF variable
         type(NcGroup)       :: grp              ! NetCDF group
@@ -153,7 +178,6 @@ module classSoilProfile1
         real(dp)            :: q_peak           ! Peak rainfall \( q_{\text{peak}} \)
         real(dp)            :: Q_surf_hru       ! Surface runoff for the whole HRU per day [m3/day]
         real(dp)            :: S_tot            ! Total eroded sediment
-        type(Result)        :: r                ! The Result object
 
         ! Change units of surface runoff from m/s for the GridCell, to m3/day for the HRU
         Q_surf_hru = me%Q_surf*me%usle_area_hru*86400       ! [m3/day]
@@ -170,7 +194,7 @@ module classSoilProfile1
         ! (not everywhere in the grid cell is going to be contributing as much as whatever
         ! HRU we're doing the calculation for).
         me%erodedSediment = me%imposeSizeDistribution(S_tot*me%area/me%usle_area_hru)
-        call r%addToTrace("Eroding soil on timestep #" // trim(str(t)))
+        call r%addToTrace("Eroding soil on time step #" // trim(str(t)))
     end function
 
     !> Impose a size class distribution on a total mass to split it up
