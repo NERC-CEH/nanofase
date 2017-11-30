@@ -49,7 +49,6 @@ module classRiverReach1
         type(NcVariable) :: var                                 ! NetCDF variable
         type(NcGroup) :: grp                                    ! NetCDF group
         type(ErrorInstance) :: error                            ! To return errors
-        real(dp), allocatable :: spmDensities(:)                ! Array of sediment particle densities for each size class
         ! type(BedSediment1), allocatable :: bs1                  ! BedSediment1 object to temporarily store me%bedSediment in
 
         ! First, let's set the RiverReach's reference and the length
@@ -176,7 +175,7 @@ module classRiverReach1
             ! Update SPM according to inflow for this displacement, then calculate
             ! new SPM concentration based on this and the dimensions
             me%m_spm = me%m_spm + dSpmIn                    ! Add inflow SPM to SPM already in reach
-            me%C_spm = me%m_spm/me%volume                   ! Update the SPM density
+            me%C_spm = me%m_spm/me%volume                   ! Update the SPM concentration
 
             ! TODO: Resuspended SPM must be taken from BedSediment
             ! Resuspend SPM for this displacment, based on resuspension flux previously calculated
@@ -198,7 +197,7 @@ module classRiverReach1
 
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             me%m_spm = me%m_spm - (k_settle*dt)*me%m_spm
-            me%C_spm = me%m_spm/me%volume                       ! Recalculate the density
+            me%C_spm = me%m_spm/me%volume                       ! Recalculate the concentration
 
             ! If we've removed all of the SPM, set to 0
             ! TODO: Simplify this in max() function
@@ -421,7 +420,7 @@ module classRiverReach1
         real(dp), intent(in) :: T                   !! Temperature [C].
         real(dp) :: dStar                           ! Dimensionless particle diameter.
         real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
-        ! Settling only occurs if density of SPM is greater than density of water
+        ! Settling only occurs if SPM particle density is greater than density of water
         if (rho_spm > C%rho_w(T)) then
             dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
             W_spm = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                     ! Calculate the settling velocity

@@ -1,12 +1,12 @@
 !> Module containing the SoilProfile1 class definition.
 module classSoilProfile1
-    use Globals                                                 ! global declarations
+    use Globals
     use UtilModule                                              ! Useful functions
-    use mo_netcdf                                               ! input/output handling
-    use ResultModule                                            ! error handling classes, required for
-    use spcSoilProfile                                          ! use containing object type
-    use classSoilLayer1
-    implicit none                                               ! force declaration of all variables
+    use mo_netcdf                                               ! Input/output handling
+    use ResultModule                                            ! Error handling classes
+    use spcSoilProfile                                          ! Parent class
+    use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
+    implicit none
 
     !> A SoilProfile class acts as a container for a collection of
     !! SoilLayer objects, which collectively define the layout of
@@ -74,60 +74,89 @@ module classSoilProfile1
         call r%addToTrace("Creating " // trim(me%ref))
     end function
 
+    !> Destroy this SoilProfile
     function destroySoilProfile1(me) result(r)
         class(SoilProfile1) :: me                               !! This SoilProfile instance
         type(Result) :: r                                       !! Result object to return
     end function
 
-    !> Perform the simulation of the SoilProfile for the current time step:
+    !> Perform the simulation of the `SoilProfile` for the current time step:
     !! <ul>
-    !!  <li>Erode sediment</li>
     !!  <li>Percolate soil through all SoilLayers</li>
+    !!  <li>Erode sediment</li>
     !! </ul>
     function updateSoilProfile1(me, t, Q_runoff) result(r)
-        class(SoilProfile1) :: me                               !! This SoilProfile instance
+        class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         integer :: t                                            !! The current timestep
         real(dp) :: Q_runoff                                    !! Runoff (quickflow) generated on this timestep
-        integer :: l                                            ! Loop iterator for SoilLayers
         type(Result) :: r                                       !! Result object to return
+        integer :: l, i                                         ! Loop iterator for SoilLayers
+        real(dp) :: Q_l_in                                      ! Temporary inflow for a particular SoilLayer
         
         ! Set the timestep-specific object properties
         me%Q_runoff = Q_runoff                                  ! Set the runoff (quickflow) for this timestep
-        me%Q_precip = me%Q_precip_timeSeries(t)                 ! Get the relevant time step's precip
-        me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evap
+        me%Q_precip = me%Q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation
+        me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evaporation
         me%Q_in = me%Q_precip - me%Q_evap                       ! Infiltration = precip - evap. This is supplied to SoilLayer_1
         
+        ! Loop through SoilLayers and remove 
+        do l = 1, me%nSoilLayers
+            if (l=1) then                           ! If it's the first SoilLayer, Q_in will be from precip - ET
+                Q_l_in = me%Qin
+            else                                    ! Else, get Q_in from previous layer's Q_perc
+                Q_l_in = me%colSoilLayers(l-1)%item%V_perc/C%timeStep
+            end if
+            ! Run the percolation simulation for individual layer, setting V_perc, V_pool etc.
+            call r%addErrors(.errors. &
+                me%colSoilLayers(l)%item%update(t, Q_l_in) &
+            )
+            ! If there is pooled water, we must push up to the previous layer, recursively
+            ! for each SoilLayer above this
+            do i = 1, l
+                ! Check if the layer beneath has pooled any water
+                if (me%colSoilLayers(l-i+1)%item%V_pool > 0) then
+                    if (l-i == 0) then                          ! If it's the top soil layer, add V_pool to surface runoff
+                        ! Surface runoff [m3 m-2 m-1] that drives erosion is that pooled from percolation,
+                        ! up to a maximum of 10% of HMF's quickflow
+                        me%Q_surf = min( &
+                            me%colSoilLayers(l-i+1)%item%V_pool/C%timestep, &
+                            0.1*me%Q_runoff/me%area &           ! TODO: Q_runoff still in m3/s, change to m/s
+                        )
+                    else
+                        call r%addErrors(.errors. &             ! Else, add pooled volume to layer above
+                            me%colSoilLayers(l-i)%item%addPooledWater( &
+                                me%colSoilLayers(l-i+1)%item%V_pool &
+                            ) &
+                        )
+                        me%Q_surf = 0                           ! If no water's been pooled, there'll be no runoff
+                    end if
+                end if
+            end do
+        end do
+
         ! Erode soil on this timestep
         r = me%erode(t)
-
-        ! Percolation. Firstly, precip - ET goes into top layer
-        call r%addErrors(.errors. &
-            me%colSoilLayers(1)%item%update(t, me%Q_in) &
-        )
-        ! TODO: Think about when to get pooling. Q_in = Q_perc + Q_pool
-        do l = 1, me%nSoilLayers
-            ! PERCOLATION
-        end do
 
         ! Add trace to the Result object that is returned                               
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
 
-    !> Calculates soil erosion for this timstep t. Updates this GridCell's
-    !! state variable erodedSediment accordingly.
+    !> Calculates soil erosion for this timestep, Updates this `GridCell`'s
+    !! state variable `erodedSediment` accordingly.
     function erodeSoilProfile1(me, t) result(r)
-        class(SoilProfile1) :: me               !! This SoilProfile instance
+        class(SoilProfile1) :: me               !! This `SoilProfile` instance
         integer             :: t                !! The timestep we're on
-        type(NcDataset)     :: nc               !! NetCDF dataset
-        type(NcVariable)    :: var              !! NetCDF variable
-        type(NcGroup)       :: grp              !! NetCDF group
-        real(dp)            :: t_conc           !! Time of concentration \( t_{\text{tc}} \)
-        real(dp)            :: q_peak           !! Peak rainfall \( q_{\text{peak}} \)
-        real(dp)            :: S_tot            !! Total eroded sediment
-        type(Result)        :: r                !! The Result object
-        ! Change units of quickflow from HMF, Q_runoff from m3/s for the GridCell, to m3/day for the HRU,
-        ! and only use 10% of it to drive soil erosion        
-        me%Q_surf = ((me%Q_runoff*me%usle_area_hru*8640/me%area))      ! [m3/day]
+        type(NcDataset)     :: nc               ! NetCDF dataset
+        type(NcVariable)    :: var              ! NetCDF variable
+        type(NcGroup)       :: grp              ! NetCDF group
+        real(dp)            :: t_conc           ! Time of concentration \( t_{\text{tc}} \)
+        real(dp)            :: q_peak           ! Peak rainfall \( q_{\text{peak}} \)
+        real(dp)            :: Q_surf_hru       ! Surface runoff for the whole HRU per day [m3/day]
+        real(dp)            :: S_tot            ! Total eroded sediment
+        type(Result)        :: r                ! The Result object
+
+        ! Change units of surface runoff from m/s for the GridCell, to m3/day for the HRU
+        Q_surf_hru = me%Q_surf*me%usle_area_hru*86400       ! [m3/day]
         ! Estimate the time of concentration
         t_conc = (me%usle_L_sb**0.6 * me%usle_n_sb**0.6)/(18 * me%usle_slp_sb) &
                 + (0.62 * me%usle_L_ch * me%n_river**0.75)/(me%usle_area_sb**0.125 * me%usle_slp_ch**0.375)
@@ -145,24 +174,24 @@ module classSoilProfile1
     end function
 
     !> Impose a size class distribution on a total mass to split it up
-    !! into separate size classes. If a size distribution has been specified
-    !! for this SoilProfile, use that, otherwise, use the global size distribution.
+    !! into separate size classes. If no distribution has been specified
+    !! for this `SoilProfile`, then a default global size distribution is used
     function imposeSizeDistributionSoilProfile1(me, mass) result(distribution)
         class(SoilProfile1) :: me                               !! This SoilProfile instance
         real(dp)            :: mass                             !! The mass to split into size classes
-        integer             :: i                                !! Loop iterator for size classes
         real(dp)            :: distribution(C%nSizeClassesSpm)  !! The resulting distribution
+        integer             :: i                                ! Loop iterator for size classes
         do i = 1, C%nSizeClassesSpm
             distribution(i) = mass*me%distributionSediment(i)*0.01
         end do
-        ! TODO: Check mass = sum(distribution(i)) - actually, just check sum(distributionSpm(i)) = 100
     end function
 
     !> Get the data from the input file and set object properties
-    !! accordingly, including allocation of arrays that depend on
-    !! input data
+    !! accordingly, including the allocation of arrays that depend on
+    !! this input data
     function parseInputDataSoilProfile1(me) result(r)
         class(SoilProfile1)     :: me                       !! This SoilProfile instance
+        type(Result)            :: r                        !! Result object to return
         type(NcDataset)         :: nc                       ! NetCDF dataset
         type(NcVariable)        :: var                      ! NetCDF variable
         type(NcGroup)           :: grp                      ! NetCDF group
@@ -170,7 +199,6 @@ module classSoilProfile1
         real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
         integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param
         real(dp), allocatable   :: usle_rsd(:)              ! Residue on soil surface [kg/ha]
-        type(Result)            :: r                        !! Result object to return
 
         ! Allocate the data which are time series. These must be allocatable (as opposed to
         ! being declared that length) to work with the mo_netcdf getData() procedure.
