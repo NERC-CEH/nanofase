@@ -1,24 +1,16 @@
+!> Module containing definition of abstract base class `RiverReach`.
 module spcRiverReach
-                                                                    ! superclass for RiverReach subclasses
-                                                                    ! defines properties and methods required in any implmentation
-                                                                    ! of a RiverReach class
-                                                                    ! a RiverReach class computes water velocity, depth and sediment dynamics for
-                                                                    ! a defined length of (homogeneous) flowing water
-                                                                    ! IMPORTED MODULES
-                                                                    ! Description
-                                                                    ! -----------
-    use Globals                                                     ! global declarations
-    use mo_netcdf                                                   ! input/output handling
-    use ResultModule                                                ! error handling classes, required for
-    use ErrorInstanceModule                                         ! generation of trace error messages
+    use Globals                                                     ! Global declarations
+    use mo_netcdf                                                   ! Input/output handling
+    use ResultModule                                                ! Error handling classes, required for
+    use ErrorInstanceModule
     ! use spcBedSediment
-    implicit none                                                   ! force declaration of all variables
+    implicit none
 
-    type, abstract, public :: RiverReach                            ! type declaration for superclass
-        character(len=100) :: ref                                   ! Reference for this object, of the form RiverReach_x_y_s_r
-                                                                    ! PROPERTIES
-                                                                    ! Description
-                                                                    ! -----------
+    !> Abstract base class for `RiverReach`. Defines properties and procedures
+    !! required in any implementation of this class.
+    type, abstract, public :: RiverReach
+        character(len=100) :: ref                                   !! Reference for this object, of the form RiverReach_x_y_s_r
         real(dp) :: S                                               !! Slope of reach [m/m]
         real(dp) :: Qin                                             !! Inflow from upstream reach [m3/timestep]
         real(dp) :: Qout                                            !! Outflow to the next reach [m3/timestep]
@@ -33,6 +25,7 @@ module spcRiverReach
         real(dp) :: v                                               !! Water velocity [m/s]
         real(dp) :: l                                               !! Length of the river, without meandering factor [m]
         real(dp) :: f_m = 1                                         !! Meandering factor used for calculating river volume. Default to 1 (no meandering).
+            ! TODO: Move the default to config file
         real(dp) :: xsArea                                          !! The cross-sectional area of water in the reach [m2]
         real(dp) :: bsArea                                          !! The bed sediment area in the reach [m2]
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
@@ -44,72 +37,81 @@ module spcRiverReach
         ! class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
-                                                                    ! METHODS
-                                                                    ! Description
-                                                                    ! -----------
-        procedure(createRiverReach), deferred :: create             ! create the RiverReach object. Exposed name: create
-        procedure(destroyRiverReach), deferred :: destroy           ! remove the RiverReach object and all contained objects. Exposed name: destroy
+        procedure(createRiverReach), deferred :: create             ! Create the RiverReach object
+        procedure(destroyRiverReach), deferred :: destroy           ! Remove the RiverReach object and all contained objects
         procedure(updateRiverReach), deferred :: update             ! Run the RiverReach simulation for one timestep
         procedure(resuspensionRiverReach), deferred :: resuspension ! Run resuspension algorithm for one timestep
-                                                                                ! PRIVATE routines
-        procedure(calculateDepth), private, deferred :: calculateDepth           ! compute the depth of the water column
-        procedure(calculateWidth), private, deferred :: calculateWidth           ! compute the width of the reach
-        procedure(calculateVelocity), private, deferred :: calculateVelocity     ! compute the water velocity
-        procedure(calculateSettlingVelocity), private, deferred :: calculateSettlingVelocity ! compute the sediment settling velocities
+        procedure(calculateDepth), private, deferred :: calculateDepth           ! Compute the depth of the water column
+        procedure(calculateWidth), private, deferred :: calculateWidth           ! Compute the width of the reach
+        procedure(calculateVelocity), private, deferred :: calculateVelocity     ! Compute the water velocity
+        procedure(calculateSettlingVelocity), private, deferred :: calculateSettlingVelocity ! Compute the sediment settling velocities
         procedure(calculateResuspension), private, deferred :: calculateResuspension
         procedure(calculateVolume), private, deferred :: calculateVolume         ! Calculate the volume of the reach
         procedure(calculateArea), private, deferred :: calculateArea             ! Calculate the area of the reach's cross-section
-                                                                    ! GETTERS
+        ! GETTERS
         procedure :: getVolume => getVolumeRiverReach               ! Should getters all be non-abstract, seeing as all they're
         procedure :: getQOut => getQOutRiverReach                   ! doing is returning a type variable?
         procedure :: getSpmOut => getSpmOutRiverReach               ! Return the SPM discharge
     end type
 
     abstract interface
+        !> Create this `RiverReach`
         function createRiverReach(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
             use Globals
             import RiverReach, Result
-            class(RiverReach) :: me                                     !! The RiverReach instance
-            integer :: x, y, s, r                                       !! GridCell, SubRiver and RiverReach identifiers
-            real(dp) :: l                                               !! The RiverReach length [m]
+            class(RiverReach) :: me                                     !! The `RiverReach` instance
+            integer :: x, y, s, r                                       !! `GridCell`, `SubRiver` and `RiverReach` identifiers
+            real(dp) :: l                                               !! The `RiverReach` length [m]
             real(dp), allocatable :: QrunoffTimeSeries(:)               !! Any initial runoff [m3/s]
             type(Result) :: res                                         !! The Result object
         end function
+
+        !> Destroy this `RiverReach`
         function destroyRiverReach(me) result(r)
             import RiverReach, Result
-            class(RiverReach) :: me                                     !! The RiverReach instance
-            type(Result) :: r                                           !! The Result object to return
+            class(RiverReach) :: me                                     !! The `RiverReach` instance
+            type(Result) :: r                                           !! The `Result` object to return
         end function
+
+        !> Update this `RiverReach` on given time step
         function updateRiverReach(me, Qin, spmIn, t) result(r)
             use Globals
             import RiverReach, Result
-            class(RiverReach) :: me                                     !! This RiverReach instance
+            class(RiverReach) :: me                                     !! This `RiverReach` instance
             real(dp) :: Qin                                             !! Inflow to this reach [m3/timestep]
             integer :: t                                                !! What time step are we on?
             real(dp) :: spmIn(C%nSizeClassesSpm)                        !! Inflow SPM to this reach [kg/timestep]
-            type(Result) :: r                                           !! The Result object
+            type(Result) :: r                                           !! The `Result` object
         end function
+
+        !> Resuspend sediment based on current river flow
         function resuspensionRiverReach(me) result(r)
             import RiverReach, Result
-            class(RiverReach) :: me                                     !! This RiverReach instance
-            type(Result) :: r                                           !! The Result object to return
+            class(RiverReach) :: me                                     !! This `RiverReach` instance
+            type(Result) :: r                                           !! The `Result` object to return
         end function
+
+        !> Calculate the depth of this `RiverReach`
         pure function calculateDepth(me, W, S, Q) result(r)
             use Globals
             import RiverReach, Result0D
-            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: W                                   !! River width [m]
             real(dp), intent(in) :: S                                   !! River slope [-]
             real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
-            type(Result0D) :: r                                         !! The result object
+            type(Result0D) :: r                                         !! The `Result` object
         end function
+
+        !> Calculate the width of this `RiverReach`
         function calculateWidth(me, Q) result(W)
             use Globals
             import RiverReach
-            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
             real(dp) :: W                                               !! Calculated width [m]
         end function
+
+        !> Calculate the volume of this `RiverReach`
         pure function calculateVolume(me, D, W, l, f_m) result(volume)
             use Globals
             import RiverReach
@@ -120,43 +122,49 @@ module spcRiverReach
             real(dp), intent(in) :: f_m                                 !! Meandering factor [-]
             real(dp) :: volume                                          !! Calculated volume [m3]
         end function
+
+        !> Calculate the cross-sectional area of this `RiverReach`
         pure function calculateArea(me, D, W) result(area)
             use Globals
             import RiverReach
-            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: D                                   !! River depth [m]
             real(dp), intent(in) :: W                                   !! River width [m]
             real(dp) :: area                                            !! Calculated area [m2]
         end function
+
+        !> Calculate the velocity of water from the dimensions and flow
         pure function calculateVelocity(me, D, Q, W) result(v)
             use Globals
             import RiverReach
-            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: D                                   !! River depth [m]
             real(dp), intent(in) :: Q                                   !! Flow rate [m3/s]
             real(dp), intent(in) :: W                                   !! River width [m]
             real(dp) :: v                                               !! The calculated velocity [m/s]
         end function
+
         !> Calculate the settling velocity of sediment particles for an individual
         !! size class
         function calculateSettlingVelocity(Me, d, rho_spm, T) result(W_spm)
             use Globals
             import RiverReach
-            class(RiverReach), intent(in) :: me                         !! The RiverReach instance
+            class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: d                                   !! Sediment particle diameter [m]
             real(dp), intent(in) :: rho_spm                             !! Sediment particulate density [kg/m3]
             real(dp), intent(in) :: T                                   !! Temperature [C]
             real(dp) :: W_spm                                           !! Calculated settling velocity [m/s]
         end function
+
         !> Calculate the resuspension flux of sediment particles
         pure function calculateResuspension(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
             use Globals
             import RiverReach
-            class(RiverReach), intent(in) :: me             !! This RiverReach instance
+            class(RiverReach), intent(in) :: me             !! This `RiverReach` instance
             real(dp), intent(in) :: beta                    !! Calibration parameter \( \beta \) [s2 kg-1]
             real(dp), intent(in) :: L                       !! Reach length \( L = lf_{\text{m}} \) [m]
             real(dp), intent(in) :: W                       !! Reach width \( W \) [m]
-            real(dp), intent(in) :: m_bed                   !! BedSediment mass per unit area \( m_{\text{bed}} \) [kg m-2]
+            real(dp), intent(in) :: m_bed                   !! `BedSediment` mass per unit area \( m_{\text{bed}} \) [kg m-2]
             real(dp), intent(in) :: M_prop(C%nTimeSteps)    !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
             real(dp), intent(in) :: omega                   !! Stream power per unit bed area \( \omega \) [kg m-2]
             real(dp), intent(in) :: f_fr                    !! Friction factor \( f \) [-]
@@ -166,7 +174,7 @@ module spcRiverReach
 
   contains
 
-    !> Return the volume of the RiverReach.
+    !> Return the volume of the `RiverReach`.
     function getVolumeRiverReach(me) result(volume)
         class(RiverReach) :: me
         real(dp) :: volume

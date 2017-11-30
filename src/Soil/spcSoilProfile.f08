@@ -1,4 +1,4 @@
-!> Module containing definition of abstract base class SoilProfile.
+!> Module containing definition of abstract base class `SoilProfile`.
 module spcSoilProfile
     use Globals                                                     ! global declarations
     use spcSoilLayer                                                ! use containing object type
