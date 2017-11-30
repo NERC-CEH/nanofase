@@ -1,12 +1,12 @@
-!> Module containing definition of SoilLayer1 class.
+!> Module containing definition of `SoilLayer1` class.
 module classSoilLayer1
     use Globals
     use UtilModule
     use spcSoilLayer
     implicit none
 
-    !> SoilLayer is responsible for routing percolation through
-    !! the SoilProfile in which it is contained.
+    !> `SoilLayer1` is responsible for routing percolation through
+    !! the `SoilProfile` in which it is contained.
     type, public, extends(SoilLayer) :: SoilLayer1
       contains
         procedure :: create => createSoilLayer1
@@ -17,17 +17,17 @@ module classSoilLayer1
     end type
 
   contains
-    !> Create this SoilLayer
+    !> Create this `SoilLayer` and call the input data parsing procedure
     function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s) result(r)
-        class(SoilLayer1) :: me                         !! This SoilLayer1 instance
-        integer, intent(in) :: x                        !! Containing GridCell x index
-        integer, intent(in) :: y                        !! Containing GridCell y index
-        integer, intent(in) :: p                        !! Containing SoilProfile index
+        class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
+        integer, intent(in) :: x                        !! Containing `GridCell` x index
+        integer, intent(in) :: y                        !! Containing `GridCell` y index
+        integer, intent(in) :: p                        !! Containing `SoilProfile` index
         integer, intent(in) :: l                        !! Layer index
         real(dp), intent(in) :: WC_sat                  !! Water content at saturation [m3/m3]
         real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
         real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
-        type(Result) :: r                               !! The Result object to return
+        type(Result) :: r                               !! The `Result` object to return, with any errors
 
         ! Set the metadata
         me%x = x
@@ -49,18 +49,21 @@ module classSoilLayer1
         call r%addToTrace("Creating " // trim(me%ref))
     end function
 
-    !> Destroy this SoilLayer
+    !> Destroy this `SoilLayer1`
     function destroySoilLayer1(me) result(r)
-        class(SoilLayer1) :: me                         !! This SoilLayer1 instance
-        type(Result) :: r                               !! The Result object to return
+        class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
+        type(Result) :: r                               !! The `Result` object to return
     end function
 
-    !> Update the SoilLayer on a given timestep
+    !> Update the `SoilLayer1` on a given time step, based on specified inflow.
+    !! Calculate percolation to next layer and, if saturated, the amount
+    !! to pool to the above layer (or surface runoff, if this is the top layer)
     function updateSoilLayer1(me, t, Q_in) result(r)
-        class(SoilLayer1) :: me                         !! This SoilLayer1 instance
-        integer :: t                                    !! The current timestep [s]
-        real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m3/s]
-        type(Result) :: r                               !! The Result object to return
+        class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
+        integer :: t                                    !! The current time step [s]
+        real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m3 s-1]
+        type(Result) :: r
+            !! The `Result` object to return. Contains warning if all water on this time step removed.
         
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + Q_in*C%timeStep < me%V_sat) then           ! If water volume below V_sat after inflow
@@ -74,14 +77,24 @@ module classSoilLayer1
         end if
         ! Calculate volume percolated on this timestep [m3 m-2]
         me%V_perc = min(me%V_excess * &                          
-                        (1-exp(-C%timeStep*me%K_s/(me%V_sat-me%V_FC))), &   ! up to a maximum of V_w
+                        (1-exp(-C%timeStep*me%K_s/(me%V_sat-me%V_FC))), &   ! Up to a maximum of V_w
                         me%V_w)
         me%V_w = me%V_w - me%V_perc                              ! Get rid of the percolated water
 
+        ! Emit a warning if all water removed
+        call r%addError( &
+            ERROR_HANDER%nonZero( &
+                value = me%V_w, &
+                message = "All water removed from SoilProfile.", &
+                isCritical = .false. &
+            ) &
+        )
+        ! Add this procedure to the error trace
+        call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
     end function
 
     !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
-    !! No percolation occurs as pooled water never really leaves the SoilLayer.
+    !! No percolation occurs as pooled water never really leaves the `SoilLayer`.
     function addPooledWaterSoilLayer1(me, V_pool) result(r)
         class(SoilLayer1) :: me                         !! This SoilLayer1 instance
         real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
