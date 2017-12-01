@@ -81,9 +81,12 @@ module spcSoilLayer
             type(Result) :: r                               !! The `Result` object to return, with no data
         end function
 
+        !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
+        !! No percolation occurs as pooled water never really leaves the `SoilLayer`.
         function addPooledWaterSoilLayer(me, V_pool) result(r)
             use Globals
             import SoilLayer, Result
+            class(SoilLayer) :: me                          !! This `SoilLayer` instance
             real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
             type(Result) :: r                               !! The `Result` object to return, with no data
         end function

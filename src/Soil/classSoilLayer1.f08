@@ -5,7 +5,7 @@ module classSoilLayer1
     use spcSoilLayer
     implicit none
 
-    !> `SoilLayer1` is responsible for routing percolation through
+    !> `SoilLayer1` is responsible for routing percolated water through
     !! the `SoilProfile` in which it is contained.
     type, public, extends(SoilLayer) :: SoilLayer1
       contains
@@ -27,7 +27,8 @@ module classSoilLayer1
         real(dp), intent(in) :: WC_sat                  !! Water content at saturation [m3/m3]
         real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
         real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
-        type(Result) :: r                               !! The `Result` object to return, with any errors
+        type(Result) :: r
+            !! The `Result` object to return, with any errors from parsing input data.
 
         ! Set the metadata
         me%x = x
@@ -64,7 +65,7 @@ module classSoilLayer1
         real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m3 s-1]
         type(Result) :: r
             !! The `Result` object to return. Contains warning if all water on this time step removed.
-        
+
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + Q_in*C%timeStep < me%V_sat) then           ! If water volume below V_sat after inflow
             me%V_pool = 0                                       ! No pooled water
@@ -81,14 +82,10 @@ module classSoilLayer1
                         me%V_w)
         me%V_w = me%V_w - me%V_perc                              ! Get rid of the percolated water
 
-        ! Emit a warning if all water removed
-        call r%addError( &
-            ERROR_HANDER%nonZero( &
-                value = me%V_w, &
-                message = "All water removed from SoilProfile.", &
-                isCritical = .false. &
-            ) &
-        )
+        ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
+        ! in floating point numbers. Here, we're really checking whether me%V_w == 0
+        ! Error code 600 = "All water removed from SoilProfile"
+        if (abs(me%V_w) <= C%epsilon) call r%addError(ErrorInstance(600, isCritical=.false.))
         ! Add this procedure to the error trace
         call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
     end function
@@ -99,13 +96,9 @@ module classSoilLayer1
         class(SoilLayer1) :: me                         !! This SoilLayer1 instance
         real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
         type(Result) :: r                               !! The Result object to return, with no data
-        if (me%V_w + V_pool < me%V_sat) then            ! If the pooled water doesn't push volume above saturation, just add it
-            me%V_w = me%V_w + V_pool
-            me%V_pool = 0
-        else                                            ! Else, add as much as possible and then pool the rest
-            me%V_w = me%V_sat                           ! Volume of water must be at saturation
-            me%V_pool = me%V_w + V_pool - V%sat         ! Add pooled water
-        end if
+
+        me%V_pool = max(me%V_w + V_pool - me%V_sat, 0.0)  ! Will the input pooled water result in pooled water for this layer?
+        me%V_w = min(me%V_w + V_pool, me%V_sat)         ! Add pooled water, up to a maximum of V_sat
     end function
 
     !> Get the data from the input file and set object properties
@@ -123,18 +116,23 @@ module classSoilLayer1
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")                        ! Get the Environment group
         grp = grp%getGroup(ref("GridCell",me%x,me%y))           ! Get the containing GridCell's group
-        grp = grp%getGroup(ref("SoilProfile",me%x,me%y,me%p))  ! Get the containing SoilProfile's group
-        me%ncGroup = grp%getGroup("SoilLayer_" // trim(str(me%l)))  ! Get this SoilLayer's group
+        grp = grp%getGroup(ref("SoilProfile",me%x,me%y,me%p))   ! Get the containing SoilProfile's group
 
-        ! Get the depth of the SoilLayer, if present, otherwise default
-        ! without warning
-        if (me%ncGroup%hasVariable('depth')) then
-            var = me%ncGroup%getVariable('depth')
-            call var%getData(me%depth)
+        ! Check if this SoilLayer has a group, and if not, set default variables
+        if (grp%hasGroup("SoilLayer_" // trim(str(me%l)))) then
+            me%ncGroup = grp%getGroup("SoilLayer_" // trim(str(me%l)))  ! Get this SoilLayer's group
+
+            ! Get the depth of the SoilLayer, if present, otherwise default
+            ! without warning
+            if (me%ncGroup%hasVariable('depth')) then
+                var = me%ncGroup%getVariable('depth')
+                call var%getData(me%depth)
+            else
+                me%depth = C%defaultSoilLayerDepth
+            end if
         else
             me%depth = C%defaultSoilLayerDepth
         end if
-
     end function
 
 end module

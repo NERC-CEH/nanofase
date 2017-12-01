@@ -9,7 +9,7 @@ module classRiverReach1
     ! use classBedSediment1
     implicit none
 
-    !> RiverReach1 object is responsible for sediment transport along river and
+    !> `RiverReach1` object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
     type, public, extends(RiverReach) :: RiverReach1
 
@@ -89,11 +89,11 @@ module classRiverReach1
         if (me%ncGroup%hasVariable("spm")) then
             var = me%ncGroup%getVariable("spm")
             call var%getData(me%m_spmTimeSeries)
-            me%m_spmTimeSeries = me%m_spmTimeSeries*C%timeStep      ! SPM should be in kg/s, thus need to convert to kg/timestep
+            me%m_spmTimeSeries = me%m_spmTimeSeries*C%timeStep      ! SPM is in kg/s, thus need to convert to kg/timestep
         else
             me%m_spmTimeSeries = 0
         end if
-        ! Initial density can't be updated in we have volume from Qin, so this is left to the update() procedure
+        ! Initial concentration can't be updated in we have volume from Qin, so this is left to the update() procedure
 
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%n = C%n_river
@@ -251,13 +251,13 @@ module classRiverReach1
 
     !> Perform the resuspension simulation for a time step
     function resuspensionRiverReach1(me) result(r)
-        class(RiverReach1) :: me                !! This RiverReach1 instance
-        type(Result) :: r                       !! The Result object to return
-        real(dp) :: d_max                       ! Maximum resuspendable particle size
-        real(dp) :: M_prop(C%nSizeClassesSpm)   ! Proportion of size class that can be resuspended
-        real(dp) :: omega                       ! Stream power per unit bed area [W m-2]
-        real(dp) :: f_fr                        ! Friction factor [-]
-        integer :: n                            ! Iterator for size classes
+        class(RiverReach1) :: me                                !! This `RiverReach1` instance
+        type(Result) :: r                                       !! The Result object to return
+        real(dp) :: d_max                                       ! Maximum resuspendable particle size
+        real(dp) :: M_prop(C%nSizeClassesSpm)                   ! Proportion of size class that can be resuspended
+        real(dp) :: omega                                       ! Stream power per unit bed area [W m-2]
+        real(dp) :: f_fr                                        ! Friction factor [-]
+        integer :: n                                            ! Iterator for size classes
         ! There must be inflow for there to be resuspension
         if (me%Qin > 0) then
             ! Calculate maximum resuspendable particle size and proportion of each
@@ -305,8 +305,8 @@ module classRiverReach1
     !!  <li>[Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)</li>
     !! </ul>
     pure function calculateWidth1(me, Q) result(W)
-        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance
-        real(dp), intent(in) :: Q               !! Grid cell discharge \( Q \) [m**3/s]
+        class(RiverReach1), intent(in) :: me    !! The `RiverReach1` instance
+        real(dp), intent(in) :: Q               !! `GridCell` discharge \( Q \) [m**3/s]
         real(dp) :: W                           !! The calculated width \( W \) [m]
         W = 1.22*Q**0.557                       ! Calculate the width
     end function
@@ -325,10 +325,12 @@ module classRiverReach1
     !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
     !! $$
     pure function calculateDepth1(me, W, S, Q) result(r)
-        class(RiverReach1), intent(in) :: me    !! The RiverReach1 instance.
+        class(RiverReach1), intent(in) :: me    !! The `RiverReach1` instance.
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m3/s].
+        type(Result0D) :: r
+            !! The Result object, containing the calculated depth [m] and any numerical error.
         real(dp) :: D_i                         ! The iterative river depth \( D_i \) [m].
         real(dp) :: f                           ! The function to find roots for \( f(D) \).
         real(dp) :: df                          ! The derivative of \( f(D) \) with respect to \( D \).
@@ -340,7 +342,6 @@ module classRiverReach1
         character(len=100) :: iChar             ! Loop iterator as character (for error message).
         character(len=100) :: fChar             ! f(D) value as character (for error message).
         character(len=100) :: epsilonChar       ! Proximity of f(D) to zero as character (for error message).
-        type(Result0D) :: r                     !! The Result object.
 
         ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
         D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
@@ -390,7 +391,7 @@ module classRiverReach1
     !!      v = \frac{Q}{WD}
     !! $$
     pure function calculateVelocity1(me, D, Q, W) result(v)
-        class(RiverReach1), intent(in) :: me    !! This RiverReach1 instance
+        class(RiverReach1), intent(in) :: me    !! This `RiverReach1` instance
         real(dp), intent(in) :: D               !! River depth \( D \) [m]
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]
@@ -413,12 +414,12 @@ module classRiverReach1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
     function calculateSettlingVelocity1(me, d, rho_spm, T) result(W_spm)
-        class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance.
+        class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance.
         real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
         real(dp), intent(in) :: rho_spm             !! Sediment particle density [kg/m**3].
         real(dp), intent(in) :: T                   !! Temperature [C].
-        real(dp) :: dStar                           ! Dimensionless particle diameter.
         real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
+        real(dp) :: dStar                           ! Dimensionless particle diameter.
         ! Settling only occurs if SPM particle density is greater than density of water
         if (rho_spm > C%rho_w(T)) then
             dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
@@ -434,11 +435,11 @@ module classRiverReach1
     !!      \mathbf{j}_{\text{res}} = \beta L W m_{\text{bed}} \mathbf{M}_{\text{prop}} \omega f
     !! $$
     pure function calculateResuspension1(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
-        class(RiverReach1), intent(in) :: me            !! This RiverReach1 instance
+        class(RiverReach1), intent(in) :: me            !! This `RiverReach1` instance
         real(dp), intent(in) :: beta                    !! Calibration parameter \( \beta \) [s2 kg-1]
         real(dp), intent(in) :: L                       !! Reach length \( L = lf_{\text{m}} \) [m]
         real(dp), intent(in) :: W                       !! Reach width \( W \) [m]
-        real(dp), intent(in) :: m_bed                   !! BedSediment mass per unit area \( m_{\text{bed}} \) [kg m-2]
+        real(dp), intent(in) :: m_bed                   !! `BedSediment` mass per unit area \( m_{\text{bed}} \) [kg m-2]
         real(dp), intent(in) :: M_prop(C%nSizeClassesSpm) !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
         real(dp), intent(in) :: omega                   !! Stream power per unit bed area \( \omega \) [kg m-2]
         real(dp), intent(in) :: f_fr                    !! Friction factor \( f \) [-]
@@ -451,7 +452,7 @@ module classRiverReach1
     !!      \text{volume} = DWlf_m
     !! $$
     pure function calculateVolume1(me, D, W, l, f_m) result(volume)
-        class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance
+        class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
         real(dp), intent(in) :: l                   !! River length, without meandering [m]
@@ -466,7 +467,7 @@ module classRiverReach1
     !!      \text{area} = DW
     !! $$
     pure function calculateArea1(me, D, W) result(area)
-        class(RiverReach1), intent(in) :: me        !! The RiverReach1 instance
+        class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
         real(dp) :: area                            !! The calculated area [m3]
