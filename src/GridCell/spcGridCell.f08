@@ -46,6 +46,8 @@ module spcGridCell
     type(integer) :: nPointSources = 0                               ! Number of contained point sources
     type(logical) :: DiffS                                           ! Yes=diffuse source present; NO=no diffuse source
     real(dp), allocatable :: QrunoffTimeSeries(:)                    ! Runoff from the hydrological model
+    real(dp), allocatable :: Q_evap_timeSeries(:)                   ! Evaporation time series [m/s]
+    real(dp), allocatable :: Q_precip_timeSeries(:)                   ! Evaporation time series [m/s]
     real(dp) :: Qrunoff                                              ! Runoff from the hydrological model
     real(dp) :: slope                                                ! The slope of the GridCell
     real(dp) :: n_river                                              ! Manning's roughness coefficient for the river

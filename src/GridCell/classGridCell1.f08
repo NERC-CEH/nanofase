@@ -56,6 +56,8 @@ module classGridCell1
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%QrunoffTimeSeries(C%nTimeSteps))
+        allocate(me%Q_evap_timeSeries(C%nTimeSteps))
+        allocate(me%Q_precip_timeSeries(C%nTimeSteps))
         allocate(subRiverRunoffTimeSeries(C%nTimeSteps))
         allocate(me%colSoilProfiles(1))
         me%Qrunoff = 0                                  ! Default to no runoff
@@ -73,7 +75,16 @@ module classGridCell1
 
             ! Create a soil profile and add to this GridCell
             call r%addErrors(.errors. &
-                soilProfile%create(me%gridX, me%gridY, 1, me%slope, me%n_river, me%area) &
+                soilProfile%create( &
+                    me%gridX, &
+                    me%gridY, &
+                    1, &
+                    me%slope, &
+                    me%n_river, &
+                    me%area, &
+                    me%Q_precip_timeSeries, &
+                    me%Q_evap_timeSeries &
+                ) &
             )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
 
@@ -209,6 +220,22 @@ module classGridCell1
             me%QrunoffTimeSeries = me%QrunoffTimeSeries*C%timeStep ! Convert to m3/timestep
         else
             me%QrunoffTimeSeries = 0
+        end if
+        ! Precipitation [m/s]
+        if (me%ncGroup%hasVariable("precip")) then
+            var = me%ncGroup%getVariable("precip")
+            call var%getData(me%Q_precip_timeSeries)                 
+            me%Q_precip_timeSeries = me%Q_precip_timeSeries*C%timeStep    ! Convert to m3/timestep
+        else
+            me%Q_precip_timeSeries = 0
+        end if
+        ! Evaporation [m/s]
+        if (me%ncGroup%hasVariable("evap")) then
+            var = me%ncGroup%getVariable("evap")
+            call var%getData(me%Q_evap_timeSeries)                 
+            me%Q_evap_timeSeries = me%Q_evap_timeSeries*C%timeStep       ! Convert to m3/timestep
+        else
+            me%Q_evap_timeSeries = 0
         end if
         ! Slope of the GridCell [m/m]
         if (me%ncGroup%hasVariable('slope')) then
