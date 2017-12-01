@@ -77,7 +77,7 @@ module spcSoilProfile
         !> Creating the `SoilProfile` parses input data and fills
         !! the corresponding object properties, as well as setting
         !! up the contained `SoilLayer`s.
-        function createSoilProfile(me, x, y, p, slope, n_river, area) result(r)
+        function createSoilProfile(me, x, y, p, slope, n_river, area, Q_precip_timeSeries, Q_evap_timeSeries) result(r)
             use Globals
             import SoilProfile, Result
             class(SoilProfile)  :: me                           !! The `SoilProfile` instance.
@@ -87,6 +87,8 @@ module spcSoilProfile
             real(dp)            :: slope                        !! Slope of the containing `GridCell` [m m-1]
             real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
             real(dp)            :: area                         !! The area of the `SoilProfile`'s surface
+            real(dp), allocatable :: Q_precip_timeSeries(:)     !! Precipitation time series [m/s]
+            real(dp), allocatable :: Q_evap_timeSeries(:)       !! Evaporation time series [m/s]
             type(Result)        :: r                            !! `Result` object to return
         end function
 

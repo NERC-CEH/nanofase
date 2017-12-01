@@ -26,7 +26,7 @@ module classSoilProfile1
     !> Creating the SoilProfile parses input data and fills
     !! the corresponding object properties, as well as setting
     !! up the contained SoilLayers.
-    function createSoilProfile1(me, x, y, p, slope, n_river, area) result(r)
+    function createSoilProfile1(me, x, y, p, slope, n_river, area, Q_precip_timeSeries, Q_evap_timeSeries) result(r)
         class(SoilProfile1) :: me                           !! The SoilProfile instance.
         integer             :: x                            !! Containing GridCell x index
         integer             :: y                            !! Containing GridCell y index
@@ -34,6 +34,8 @@ module classSoilProfile1
         real(dp)            :: slope                        !! Slope of the containing GridCell [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the GridCell's rivers [-]
         real(dp)            :: area                         !! The surface area of the SoilProfile [m3]
+        real(dp), allocatable :: Q_precip_timeSeries(:)     !! Precipitation time series [m/s]
+        real(dp), allocatable :: Q_evap_timeSeries(:)       !! Evaporation time series [m/s]
         type(Result)        :: r                            !! The Result object
         integer             :: l                            ! Soil layer iterator
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
@@ -44,8 +46,6 @@ module classSoilProfile1
         allocate(me%rusle2015_erodedSediment(C%nTimeSteps))
         allocate(me%erodedSediment(C%nTimeSteps))
         allocate(me%distributionSediment(C%nSizeClassesSpm))
-        allocate(me%Q_precip_timeSeries(C%nTimeSteps))
-        allocate(me%Q_evap_timeSeries(C%nTimeSteps))
 
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
@@ -54,6 +54,8 @@ module classSoilProfile1
         me%slope = slope
         me%n_river = n_river
         me%area = area                                      ! Surface area
+        allocate(me%Q_precip_timeSeries, source=Q_precip_timeSeries)
+        allocate(me%Q_evap_timeSeries, source=Q_evap_timeSeries)
         me%V_buried = 0                                     ! Volume of water "lost" from the bottom of SoilProfile
         
         ! Parse and store input data in this object's properties
@@ -141,7 +143,7 @@ module classSoilProfile1
                 ! Check if the layer beneath has pooled any water
                 if (me%colSoilLayers(l-i+1)%item%V_pool > 0) then
                     if (l-i == 0) then                          ! If it's the top soil layer, add V_pool to surface runoff
-                        ! Surface runoff [m3 m-2 m-1] that drives erosion is that pooled from percolation,
+                        ! Surface runoff [m3 m-2 s-1] that drives erosion is that pooled from percolation,
                         ! up to a maximum of 10% of HMF's quickflow
                         ! TODO: Maybe change this to just 10% of QF
                         me%Q_surf = min( &
@@ -249,34 +251,6 @@ module classSoilProfile1
                 code = 201, &
                 message = "Value for nSoilLayers not found in input file." &
             ))
-        end if
-
-        ! Precipitation time series
-        if (me%ncGroup%hasVariable('Q_precip')) then
-            var = me%ncGroup%getVariable('Q_precip')
-            call var%getData(me%Q_precip_timeSeries)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Values for Q_precip not found in input file. " // &
-                            "Defaulting to 0 for all time steps.", &
-                isCritical = .false. &
-            ))
-            me%Q_precip_timeSeries = 0
-        end if
-
-        ! Evapotranspiration time series
-        if (me%ncGroup%hasVariable('Q_evap')) then
-            var = me%ncGroup%getVariable('Q_evap')
-            call var%getData(me%Q_evap_timeSeries)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Values for Q_evap not found in input file. " // &
-                            "Defaulting to 0 for all time steps.", &
-                isCritical = .false. &
-            ))
-            me%Q_evap_timeSeries = 0
         end if
 
         ! Water content at saturation [m3/m3]
