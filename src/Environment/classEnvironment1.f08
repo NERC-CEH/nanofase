@@ -1,3 +1,4 @@
+!> Container module for class `Environment1`
 module classEnvironment1
     use mo_netcdf
     use Globals
@@ -7,9 +8,11 @@ module classEnvironment1
     use classGridCell1
     implicit none
     private
-
+    
+    !> The `Environment1` class acts as a container for all other
+    !! environmental compartments, triggering their creation, simulation
+    !! and passing data between them
     type, public, extends(Environment) :: Environment1
-        private
 
       contains
         procedure :: create => createEnvironment1
@@ -19,21 +22,23 @@ module classEnvironment1
 
   contains
 
-    !> Create the environment, which sets up the grid and river structure.
-    !! The Environment instance must be a target so that SubRiver inflows
-    !! can point to another SubRiver object ([see here](https://stackoverflow.com/questions/45761050/pointing-to-a-objects-type-variable-fortran/))
+    !> Create the `Environment`, which sets up the grid and river structure.
+    !! The `Environment` instance must be a target so that `SubRiver` inflows
+    !! can point to another `SubRiver` object:
+    !! ([see here](https://stackoverflow.com/questions/45761050/pointing-to-a-objects-type-variable-fortran/))
     function createEnvironment1(me) result(r)
-        class(Environment1), target :: me                       !! This Environment instace. Must be target so SubRivers can be pointed at.
-        type(Result) :: r                                       !! Result object to return
-        type(NcDataset) :: nc                                   !! NetCDF dataset
-        type(NcVariable) :: var                                 !! NetCDF variable
-        type(NcGroup) :: grp, gcGrp                             !! NetCDF group
-        integer :: x, y, s, i                                   !! Iterators for GridCells, SubRivers and inflows
-        integer :: iX, iY, iS                                   !! Indices for inflow grid and SubRiver coordinates
-        character(len=100) :: gridCellRef                       !! To store GridCell name in, e.g. "GridCell_x_y"
-        integer :: gridCellType                                 !! Integer representing the GridCell type
-        logical :: isValidInflow                                !! Is inflow SubRiver is a neighbouring river
-        type(ErrorInstance), allocatable :: errors(:)           !! Errors to return
+        class(Environment1), target :: me
+            !! This `Environment` instace. Must be target so `SubRiver`s can be pointed at.
+        type(Result) :: r                                       !! `Result` object to return any error(s) in
+        type(NcDataset) :: nc                                   ! NetCDF dataset
+        type(NcVariable) :: var                                 ! NetCDF variable
+        type(NcGroup) :: grp, gcGrp                             ! NetCDF group
+        integer :: x, y, s, i                                   ! Iterators for GridCells, SubRivers and inflows
+        integer :: iX, iY, iS                                   ! Indices for inflow grid and SubRiver coordinates
+        character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
+        integer :: gridCellType                                 ! Integer representing the GridCell type
+        logical :: isValidInflow                                ! Is inflow SubRiver is a neighbouring river
+        type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
         ! No errors to begin with
         allocate(errors(0))
@@ -65,31 +70,21 @@ module classEnvironment1
                         case (1)
                             allocate(me%colGridCells(x,y)%item, source=GridCell1(x,y))    
                         case default
-                            ! TODO: Not valid type, throw an error
+                            call r%addError( &                      ! Invalid type error
+                                ErrorInstance(1,"Invalid GridCell type index for " // &
+                                    trim(gridCellRef) // ": " // trim(str(gridCellType))) &
+                            )
                     end select
                 else
                     allocate(me%colGridCells(x,y)%item, source=GridCell1(x,y,isEmpty=.true.))
                 end if
             end do
         end do
-! *** SL:
-! don't we need to actually create the GridCell objects
-! (and by extension the SubRivers etc.) here? or is it that
-! that last block of code does that, in association with the
-! 'interface GridCell1' in classGridCell1.f08? At the moment it Also
-! looks as though the line
-!
-! allocate(me%colGridCells(x,y)%item, source=GridCell1(x,y))
-!
-! will only work specifically with GridCell objects of type GridCell1?
-! There's no appearent way of specifying the actual type of the GridCell...
-! ...which we will need to do as we want to have (and use in anger)
-! a number of different actual GridCell types
-! ***
+
         ! Now we need to create links between SubRivers (wasn't possible before creating GridCells
         ! and their SubRivers). We will point SubRivers' inflows array elements to GridCells' colSubRivers
         ! array elements.
-        ! TODO: Do something with result object! And audit that inflows are coming from rational cells
+        ! TODO: Audit that inflows are coming from rational cells
         do x = 1, size(me%colGridCells, 1)                                              ! Loop through the rows
             do y = 1, size(me%colGridCells, 2)                                          ! Loop through the columns
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
@@ -100,17 +95,6 @@ module classEnvironment1
                                 iX = subRiver%inflowRefs(i)%gridX
                                 iY = subRiver%inflowRefs(i)%gridY
                                 iS = subRiver%inflowRefs(i)%subRiver
-! *** SL:
-! is this the best place to do the auditing?
-! I'm thinking that there could be errors that need careful thinking about
-! in order to structure the code to pick them up,
-! an example would be where a SubRiver is incorrectly linked to more than one
-! downstream SubRiver. This could happen because of the way we are linking
-! i.e. that the links are held in the downstream SubRiver and point at the "upstream"
-! SubRiver(s). (Actually, all this means is that no two pointers from a SubRiver to an upstream
-! SubRiver can be the same).
-! Worth having a sit-down to go through how to structure this auditing.
-! ***
                                 isValidInflow = .true.
                                 ! Check that (iX, iY) is a neighbouring or the same GridCell
                                 if (abs(iX-x) > 1 .or. abs(iY-y) > 1) isValidInflow = .false.
@@ -127,7 +111,6 @@ module classEnvironment1
                                             ". Inflow must be from a neighbouring SubRiver." &
                                     )]
                                 end if
-
                                 ! Point this SubRiver's inflows pointer to the corresponding SubRiver
                                 subRiver%inflows(i)%item => me%colGridCells(iX,iY)%item%colSubRivers(iS)%item
                             end do
@@ -136,22 +119,23 @@ module classEnvironment1
                 end if
             end do
         end do
+
         call r%addErrors(errors)        ! Add any errors that have occurred
         call ERROR_HANDLER%trigger(errors=errors)
     end function
 
-    !> Destroy the Environment instance
+    !> Destroy the `Environment` instance
     function destroyEnvironment1(me) result(r)
         class(Environment1) :: me
         type(Result) :: r
         ! Destroy logic here
     end function
 
-    !> Perform simulations for the Environment
+    !> Perform simulations for the `Environment`
     function updateEnvironment1(me, t) result(r)
-        class(Environment1) :: me                               !! This Environment instance
+        class(Environment1) :: me                               !! This `Environment` instance
         integer :: t                                            !! Current time step
-        type(Result) :: r
+        type(Result) :: r                                       !! Return error(s) in `Result` object
         integer :: x, y, s
         ! Perform the main routing procedure
         do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
@@ -166,17 +150,5 @@ module classEnvironment1
                 r = me%colGridCells(x,y)%item%finaliseUpdate()  ! finaliseUpdate() loops through SubRivers
             end do
         end do
-        ! *** SL comments re SubRiver routing and the SubRiver%routing() function:
-        ! the SubRiver%routing() command needs to go into a separate function (in GridCell not Environment???) that executes whatever
-        ! transport commands are needed to route water and sediment etc. through and in a specific GridCell.
-        ! At the moment we can focus solely on water and suspended sediment routing through a river system,
-        ! but ultimately we need to loop through all GridCells of all types and handle routing for all possible
-        ! situations, e.g. soil-> river/lake, in-lake water movements, estuarine transport, and marine transport.
-        ! This is going to need some careful thinking because at the moment, considering only riverine transport,
-        ! we are only dealing with a situation where water and sediment move in a single direction. For some groups
-        ! of GridCell types we need to consider two-way exchange of material - particularly for the marine GridCells.
-        ! We may well need, for example, to treat the marine cells as a distinct collection within Environment in
-        ! order to achieve this.
-        ! ***
     end function
 end module

@@ -58,7 +58,7 @@ module classSoilProfile1
         
         ! Parse and store input data in this object's properties
         r = me%parseInputData()
-        if (r%hasError()) then                              ! Return early if there are errors
+        if (r%hasCriticalError()) then                       ! Return early if there are critical errors
             call r%addToTrace("Creating " // trim(me%ref))
             return                           
         end if
@@ -66,6 +66,7 @@ module classSoilProfile1
         ! Set up the SoilLayers
         ! TODO: Different types of SoilLayer
         do l = 1, me%nSoilLayers
+            allocate(sl)        ! Must be allocated on every time step
             ! Create the SoilLayer and add any errors to Result object
             call r%addErrors(.errors. &
                 sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s) &
@@ -101,11 +102,11 @@ module classSoilProfile1
         
         ! Perform percolation and erosion simluation, at the same
         ! time adding any errors to the Result object
-        call r%addErrors(.errors. [ &
-                me%percolate(t), &
-                me%erode(t) &
-            ] &
-        )
+        call r%addErrors([ &
+            .errors. me%percolate(t), &
+            .errors. me%erode(t) &
+        ])
+
         ! Add this procedure to the Result object's trace                               
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
@@ -124,11 +125,12 @@ module classSoilProfile1
 
         ! Loop through SoilLayers and remove 
         do l = 1, me%nSoilLayers
-            if (l=1) then                           ! If it's the first SoilLayer, Q_in will be from precip - ET
-                Q_l_in = me%Qin
+            if (l == 1) then                        ! If it's the first SoilLayer, Q_in will be from precip - ET
+                Q_l_in = me%Q_in
             else                                    ! Else, get Q_in from previous layer's Q_perc
                 Q_l_in = me%colSoilLayers(l-1)%item%V_perc/C%timeStep
             end if
+
             ! Run the percolation simulation for individual layer, setting V_perc, V_pool etc.
             call r%addErrors(.errors. &
                 me%colSoilLayers(l)%item%update(t, Q_l_in) &
@@ -141,6 +143,7 @@ module classSoilProfile1
                     if (l-i == 0) then                          ! If it's the top soil layer, add V_pool to surface runoff
                         ! Surface runoff [m3 m-2 m-1] that drives erosion is that pooled from percolation,
                         ! up to a maximum of 10% of HMF's quickflow
+                        ! TODO: Maybe change this to just 10% of QF
                         me%Q_surf = min( &
                             me%colSoilLayers(l-i+1)%item%V_pool/C%timestep, &
                             0.1*me%Q_runoff/me%area &           ! TODO: Q_runoff still in m3/s, change to m/s

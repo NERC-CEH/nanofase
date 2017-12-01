@@ -1,14 +1,5 @@
+!> Module containing `GridCell1` class.
 module classGridCell1
-                                                                         ! superclass for SubRiver subclasses
-                                                                         ! defines properties and methods required in any implmentation
-                                                                         ! of a River class
-                                                                         ! a River class acts as a container for a collection of RiverReach objects which collectively define the
-                                                                         ! layout of the flowing waters within each grid cell
-                                                                         ! the RiverReach class routes, water, suspended sediments (and ultimately nanoparticles) through the flowing waters within
-                                                                         ! the grid cell
-                                                                         ! IMPORTED MODULES
-                                                                         ! Description
-                                                                         ! -----------
     use Globals                                                        ! global declarations
     use UtilModule                                                     ! useful functions, e.g. str()
     use mo_netcdf                                                      ! input/output handling
@@ -17,16 +8,15 @@ module classGridCell1
     use spcGridCell
     use classSoilProfile1
     use classSubRiver1
-    implicit none                                                      ! force declaration of all variables
-    type, public, extends(GridCell) :: GridCell1                       ! type declaration for subclass
-                                                                     ! -----------
+    implicit none
+    !> `GridCell1` is responsible for running creation and simulation
+    !! procedures for `SoilProfile` and `RiverReach`es.
+    type, public, extends(GridCell) :: GridCell1
+
       contains
-                                                                    ! METHODS
-                                                                    ! Description
-                                                                    ! -----------
-        procedure :: create => createGridCell1                      ! create the GridCell object. Exposed name: create
-        procedure :: destroy => destroyGridCell1                    ! remove the GridCell object and all contained objects. Exposed name: destroy
-        procedure :: update => updateGridCell1                      ! route water and suspended solids through all SubRiver objects. Exposed name: update
+        procedure :: create => createGridCell1                      ! Create the GridCell object. Exposed name: create
+        procedure :: destroy => destroyGridCell1                    ! Remove the GridCell object and all contained objects. Exposed name: destroy
+        procedure :: update => updateGridCell1                      ! Route water and suspended solids through all SubRiver objects. Exposed name: update
         procedure :: finaliseUpdate => finaliseUpdateGridCell1      ! Set variables for this timestep that couldn't be updated whilst simulation running
         procedure :: parseInputData => parseInputDataGridCell1      ! Parse the input data and store in object properties
     end type
@@ -82,7 +72,9 @@ module classGridCell1
             r = me%parseInputData()                         ! Parse and store input data in this object
 
             ! Create a soil profile and add to this GridCell
-            r = soilProfile%create(me%gridX, me%gridY, 1, me%slope, me%n_river, me%area)
+            call r%addErrors(.errors. &
+                soilProfile%create(me%gridX, me%gridY, 1, me%slope, me%n_river, me%area) &
+            )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
 
             ! Add SubRivers to the GridCell (if any are present in the data file)
@@ -130,9 +122,10 @@ module classGridCell1
         call ERROR_HANDLER%trigger(errors = .errors. r)
     end function
 
+    !> Destroy this `GridCell`
     function destroyGridCell1(Me) result(r)
-        class(GridCell1) :: Me                              !! The GridCell instance.
-        type(Result) :: r                                   !! The Result object
+        class(GridCell1) :: Me                              !! The `GridCell` instance.
+        type(Result) :: r                                   !! The `Result` object
         type(integer) :: x                                  !! loop counter
         do x = 1, me%nSubRivers
             r = Me%colSubRivers(x)%item%destroy()           ! remove all SubRiver objects and any contained objects
@@ -146,7 +139,7 @@ module classGridCell1
         r = Me%objDiffuseSource%item%destroy()              ! remove the DiffuseSource object and any contained objects
     end function
 
-    !> Perform the simulations required for an individual timestep t.
+    !> Perform the simulations required for an individual time step
     function updateGridCell1(Me, t) result(r)
         class(GridCell1) :: Me                                         ! The GridCell instance
         integer :: t                                                   ! The timestep we're on
@@ -159,6 +152,7 @@ module classGridCell1
             ! simulations and store the eroded sediment in this object
             r = me%colSoilProfiles(1)%item%update(t, me%QrunoffTimeSeries(t))
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
+
             ! Loop through each SubRiver and run its update procedure
             do s = 1, me%nSubRivers
                 srR = me%colSubRivers(s)%item%update(t)

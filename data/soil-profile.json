@@ -19,6 +19,13 @@
             "data" : [ 50, 30, 10, 7, 3 ]
         },
         { "name" : "Q_precip", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps"], "data" : "precip.json" },
-        { "name" : "Q_evap", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps"], "data" : "evap.json" }
+        { "name" : "Q_evap", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps"], "data" : "evap.json" },
+        {
+            "name" : "SoilLayer_1",
+            "type" : "group",
+            "data" : [
+                { "name" : "depth", "type" : "variable", "datatype" : "f8", "data" : 0.05 }
+            ]
+        }
     ]
 }

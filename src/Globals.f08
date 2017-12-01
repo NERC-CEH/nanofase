@@ -38,6 +38,7 @@ module Globals
 
         ! Limits
         integer :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
+        real(dp) :: epsilon = 1e-10         !! Used as proximity to check whether variable as equal
                                             !! TODO: Would be good if this was from config file
 
         ! Structure and time
@@ -81,6 +82,8 @@ module Globals
             ! River routing
             ErrorInstance(code=500, message="All SPM advected from RiverReach.", isCritical=.false.), &
             ErrorInstance(code=501, message="No input data provided for required SubRiver - check nSubRivers is correct."), &
+            ! Soil
+            ErrorInstance(code=600, message="All water removed from SoilProfile.", isCritical=.false.), &
             ! General
             ErrorInstance(code=901, message="Invalid RiverReach type index provided."), &
             ErrorInstance(code=902, message="Invalid Biota index provided."), &
