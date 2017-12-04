@@ -1,8 +1,7 @@
 project:        NanoFASE
 summary:        Model of the environmental fate of engineered nanoparticles.
 src_dir:        ./src/BedSediment
-<!-- exclude_dir:    src\BedSediment
-                src\BedSedimentLayer -->
+                ./src/BedSedimentLayer
 output_dir:     ./doc/dist
 graph_dir:      ./doc/graph
 css:            ./doc/styles.css
