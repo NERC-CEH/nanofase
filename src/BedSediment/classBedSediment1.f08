@@ -1,4 +1,5 @@
-module classBedSediment1                                             ! class definition for BedSediment1
+!> Module containing definition of `BedSediment1`.
+module classBedSediment1
     use Globals
     use ResultModule
     use ResultFineSedimentModule
@@ -7,8 +8,10 @@ module classBedSediment1                                             ! class def
     implicit none                                                    ! force declaration of all variables
     private
 
+    !> Class representing a `BedSediment1` object, which is an extension of the
+    !! abstract superclass `BedSediment`.
     type, public, extends(BedSediment) :: &
-        BedSediment1                                                 ! type declaration for class - extends abstract superclass
+        BedSediment1
       contains
         procedure, public :: create => createBedSediment1            ! constructor method
         procedure, public :: destroy => destroyBedSediment1          ! finaliser method
@@ -16,25 +19,16 @@ module classBedSediment1                                             ! class def
         procedure, public :: resuspend => ResuspendSediment1         ! resuspend sediment to water column
     end type
   contains
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
+    !> **Function purpose**                                         <br>
     !! Initialise a BedSediment object.
-    !!
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !! initialised BedSediment object, including all layers and included FineSediment
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! Initialised `BedSediment` object, including all layers and included `FineSediment`
     !! objects
-    !!
-    !! ----------------------------------------------------------------------------------
     function createBedSediment1(Me, riverReachGroup) result(r)
-        class(BedSediment1) :: Me                                    !! self-reference
-        type(NcGroup), intent(in) :: riverReachGroup                 !! NetCDF group reference to the RiverReach containing this object
-        type(Result) :: r                                            !! returned Result object
+        class(BedSediment1) :: Me                                    !! Self-reference
+        type(NcGroup), intent(in) :: riverReachGroup                 !! NetCDF group reference to the `RiverReach` containing this object
+        type(Result) :: r                                            !! Returned `Result` object
         type(NcGroup) :: grp                                         ! LOCAL NetCDF group reference
         integer, allocatable :: bslType(:)                           ! LOCAL the type identification number of the BedSedimentLayer(s)
         type(BedSedimentLayer1), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
@@ -123,20 +117,12 @@ module classBedSediment1                                             ! class def
             end associate
         end do
     end function
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
-    !! deallocate all allocatable variables and call destroy methods for all
+    !> **Function purpose**                                         <br>
+    !! Deallocate all allocatable variables and call destroy methods for all
     !! enclosed objects
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !! none
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! returns a warning if any deallocation throws an error
-    !! ----------------------------------------------------------------------------------
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! Returns a warning if any deallocation throws an error
     function destroyBedSediment1(Me) result(r)
         class(BedSediment1) :: Me                                    !! self-reference
         type(Result) :: r                                            !! returned Result object
@@ -166,29 +152,20 @@ module classBedSediment1                                             ! class def
             call r%addError(er)                                      ! add to Result
         end if
     end function
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
+    !> **Function purpose**                                         <br>
     !! Resuspend specified masses of fine sediment in each size class, and their
     !! associated water
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! M_resusp (real, dp)      1D array of fine sediment masses to be resuspended
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! returns a warning if the resuspended mass in a size class exceeds the mass in the
-    !! sediment bed
-    !!
-    !! r returns resuspended fine sediments as type ResultFineSediment2D
-    !!
-    !! ----------------------------------------------------------------------------------
+    !!                                                              <br>
+    !! **Function inputs**
+    !! `M_resusp (real, dp)`: 1D array of fine sediment masses to be resuspended
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! Returns a warning if the resuspended mass in a size class exceeds the mass in the
+    !! sediment bed. `r` returns resuspended fine sediments as type `ResultFineSediment2D`
     function resuspendSediment1(Me, M_resusp) result(r)
-        class(BedSediment1) :: Me                                    !! self-reference
-        real(dp), allocatable :: M_resusp(:)                         !! sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
-        type(ResultFineSediment2D) :: r                              !! returned Result object. Type = FineSediment
+        class(BedSediment1) :: Me                                    !! Self-reference
+        real(dp), allocatable :: M_resusp(:)                         !! Sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+        type(ResultFineSediment2D) :: r                              !! Returned `Result` object. Type = `FineSediment`
         type(FineSediment1), allocatable :: FS(:,:)                  ! LOCAL resuspended fine sediment. Index 1 = size class, Index 2 = layer
 !        type(FineSediment1), allocatable :: F                        ! LOCAL FineSediment object representing material that has been resuspended
         type(FineSediment1), allocatable :: G                        ! LOCAL FineSediment object representing material to be resuspended
@@ -320,29 +297,23 @@ module classBedSediment1                                             ! class def
 !        end if
         r = Result(data = FS)                                        ! copy output to Result
     end function
-    !> compute deposition to bed sediment, including burial and downward shifting of fine sediment and water
-    !
-    !> Function purpose
-    !! -------------------------------------------------------------------------------
+    !> Compute deposition to bed sediment, including burial and downward shifting of fine sediment and water <br>
+    !> **Function purpose**                                         <br>
     !! Deposit specified masses of fine sediment in each size class, and their
     !! associated water. Function buries sediment and shifts remaining sediment down
     !! to make space for deposition, if required
-    !!
-    !! Function inputs
-    !! -------------------------------------------------------------------------------
+    !!                                                              <br>
+    !! **Function inputs**                                          <br>
     !! Function takes as inputs:
-    !! FS_dep (FineSediment1)   1D array of FineSediment1 objects containing the
+    !! `FS_dep (FineSediment1)`: 1D array of FineSediment1 objects containing the
     !! depositing fine sediment per size class
-    !!
-    !! Function outputs/outcomes
-    !! -------------------------------------------------------------------------------
-    !!
-    !! r (real(dp)) returns water requirement from the water column [m3 m-2] real(dp)
-    !! -------------------------------------------------------------------------------
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! `r (real(dp))`: returns water requirement from the water column [m3 m-2] real(dp)
     function depositSediment1(Me, FS_dep) result (r)
-        class(BedSediment1) :: Me                                    !! self-reference
+        class(BedSediment1) :: Me                                    !! Self-reference
         type(FineSediment1), allocatable :: FS_dep(:)                !! Depositing sediment by size class
-        type(Result0D) :: r                                          !! Result object. Returns water requirement from the water column [m3 m-2], real(dp)
+        type(Result0D) :: r                                          !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
         real(dp) :: V_w_tot                                          ! LOCAL water requirement from the water column [m3 m-2]
         type(ResultFineSediment0D) :: r0D                            ! LOCAL Result0D object to return data from addSediment method
         type(ResultFineSediment1D) :: r1D                            ! LOCAL ResultFineSediment1D object to return data from removeSediment method

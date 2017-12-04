@@ -1,4 +1,4 @@
-!> class definition for BedSedimentLayer1
+!> Module container for `BedSedimentLayer1` class
 module classBedSedimentLayer1
     use spcBedSedimentLayer                                          ! use BedSedimentLayer superclass
     use Globals
@@ -6,8 +6,10 @@ module classBedSedimentLayer1
     use ResultModule
     use ErrorInstanceModule
     implicit none                                                    ! force declaration of all variables
+    !> Class definition for `BedSedimentLayer1`. Extends abstract
+    !! superclass `BedSedimentLayer`
     type, public, extends(BedSedimentLayer) :: &
-        BedSedimentLayer1                                            ! type declaration for class - extends abstract superclass
+        BedSedimentLayer1
         ! private real(dp), allocatable :: C_f_l(:)                    ! LOCAL capacity for fine sediment [m3 m-2]
         ! private real(dp), allocatable :: C_w_l(:)                    ! LOCAL capacity for water [m3 m-2]
         contains                                                     ! methods deferred from superclass
@@ -22,32 +24,28 @@ module classBedSedimentLayer1
             procedure, public :: clearAll => clearAllSediment1
     end type
     contains
-        !> Function purpose
-        !! -------------------------------------------------------------------------------
-        !! initialise a BedSedimentLayer object and its constituent
-        !! FineSediment objects
-        !!  - sets number of particle size classes
-        !!  - reads in fixed layer volume
-        !!  - reads in masses of fine sediment in each size class
-        !!  - sets associated water volume for each size class
-        !!  - sets volume of coarse material
-        !!
-        !! Function inputs
-        !! -------------------------------------------------------------------------------
-        !!
-        !! layerGroup (NcGroup)   reference to the group holding this layer's data in the
+        !> **Function purpose**                                     <br>
+        !! Initialise a `BedSedimentLayer` object and its constituent
+        !! `FineSediment` objects
+        !! <ul>
+        !!  <li>sets number of particle size classes</li>
+        !!  <li>reads in fixed layer volume</li>
+        !!  <li>reads in masses of fine sediment in each size class</li>
+        !!  <li>sets associated water volume for each size class</li>
+        !!  <li>sets volume of coarse material</li>
+        !! </ul>
+        !!                                                          <br>
+        !! **Function inputs**                                      <br>
+        !! `layerGroup (NcGroup)` reference to the group holding this layer's data in the
         !!                        netCDF input file
-        !!
-        !! Function outputs/outcomes
-        !! -------------------------------------------------------------------------------
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
         !! No specific outputs: results are initialisation of variables and objects
-        !!
-        !! -------------------------------------------------------------------------------
         function createBedSedimentLayer1(Me, Parent, layerGroup) result(r)
-            class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
-            character(len=*) :: Parent                               !! name of parent object
+            class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
+            character(len=*) :: Parent                               !! Name of parent object
             type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
-            type(Result) :: r                                        !! The Result object.
+            type(Result) :: r                                        !! The `Result` object.
             type(NcGroup) :: grp                                     ! LOCAL NetCDF group referring to the fractional compositions
             real(dp) :: Porosity                                     ! LOCAL layer porosity
             real(dp), allocatable :: M_f(:)                          ! LOCAL set of fine sediment masses, index = size class
@@ -243,22 +241,14 @@ module classBedSedimentLayer1
             end if
             Me%V_c = Me%C_total - Me%V_m_layer()                     ! set the coarse material volume
         end function
-        !>Function purpose
-        !! -------------------------------------------------------------------------------
+        !> **Function purpose**                                     <br>
         !! Deallocate all allocated variables in this object.
-        !!
-        !! Function inputs
-        !! -------------------------------------------------------------------------------
-        !! no inputs
-        !!
-        !! Function outputs/outcomes
-        !! -------------------------------------------------------------------------------
-        !! all allocated variables deallocated
-        !!
-        !! -------------------------------------------------------------------------------
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! All allocated variables deallocated
         function destroyBedSedimentLayer1(Me) result(r)
-            class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
-            type(Result) :: r                                        !! The Result object
+            class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
+            type(Result) :: r                                        !! The `Result` object
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL array allocation status
             character(len=18), parameter :: &
@@ -312,26 +302,21 @@ module classBedSedimentLayer1
                                )                                     ! add to Result
             end if
         end function
-        !> Function purpose
-        !! -----------------------------------------------------------------------------------
-        !!  add fine sediment of a specified size fraction, and associated water,
+        !> **Function purpose**                                     <br>
+        !!  Add fine sediment of a specified size fraction, and associated water,
         !!  to a bed sediment layer
-        !!
-        !! Function inputs
-        !! -----------------------------------------------------------------------------------
-        !!
-        !! S (integer)       the size class to which sediment is to be added
-        !! F (FineSediment1) object representing the FineSediment to be added
-        !!
-        !! Function outputs/outcomes
-        !! -----------------------------------------------------------------------------------
-        !! r (FineSediment1) returns the amounts of sediment and water that could not be added
-        !! -----------------------------------------------------------------------------------
+        !!                                                          <br>
+        !! **Function inputs**                                      <br>
+        !! `S (integer)`:       the size class to which sediment is to be added
+        !! `F (FineSediment1)`: object representing the FineSediment to be added
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! `r (FineSediment1)`: Returns the amounts of sediment and water that could not be added
         function addSediment1(Me, S, F) result(r)
-            class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
-            integer, intent(in) :: S                                 !! the particle size class
-            type(FineSediment1), intent(in) :: F                     !! FineSediment - holds material to be added
-            type(ResultFineSediment0D) :: r                          !! The Result object. Return data type = FineSediment1
+            class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
+            integer, intent(in) :: S                                 !! The particle size class
+            type(FineSediment1), intent(in) :: F                     !! `FineSediment` - holds material to be added
+            type(ResultFineSediment0D) :: r                          !! The `Result` object. Return data type = `FineSediment1`
             real(dp) :: add_M_f                                      ! LOCAL mass of fine sediment being added
             real(dp) :: add_V_f                                      ! LOCAL volume of fine sediment to be added
             real(dp) :: add_V_w                                      ! LOCAL volume of water to be added
@@ -456,27 +441,24 @@ module classBedSedimentLayer1
             end if
             r = Result(data = F)                                     ! Result%data = fine sediment that could not be added
         end function
-        !> Function purpose
-        !! -------------------------------------------------------------------------------
-        !! remove sediment of a specified size fraction, and associated water,
+        !> **Function purpose**                                     <br>
+        !! Remove sediment of a specified size fraction, and associated water,
         !! from a bed sediment layer
-        !!
-        !! Function inputs
-        !! -------------------------------------------------------------------------------
-        !!
-        !! S (integer)       the size class from which sediment is to be removed
-        !! G (FineSediment1) sediment to be removed
-        !!
-        !! Function outputs/outcomes
-        !! -------------------------------------------------------------------------------
-        !! r(1) (FineSediment1) returns the sediment that was removed
-        !! r(2) (FineSediment1) returns the sediment that could not be removed
-        !! -------------------------------------------------------------------------------
+        !!                                                          <br>
+        !! **Function inputs**                                      <br>
+        !! `S (integer)`:       the size class from which sediment is to be removed
+        !! `G (FineSediment1)`: sediment to be removed
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! `r(1) (FineSediment1)` returns the sediment that was removed <br>
+        !! `r(2) (FineSediment1)` returns the sediment that could not be removed
         function removeSediment1(Me, S, G) result(r)
-            class(BedSedimentLayer1) :: Me                           !! the BedSedimentLayer instance
-            integer, intent(in) :: S                                 !! the particle size class
-            type(FineSediment1), intent(in) :: G                     !! fine sediment to be removed
-            type(ResultFineSediment1D) :: r                          !! The Result object. Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
+            class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
+            integer, intent(in) :: S                                 !! The particle size class
+            type(FineSediment1), intent(in) :: G                     !! Fine sediment to be removed
+            type(ResultFineSediment1D) :: r
+                !! The Result object. `Result%data(1)` = fine sediment that was removed;
+                !! `Result%data(2)` = fine sediment that could not be removed
             type(FineSediment1) :: F                                 ! LOCAL returns fine sediment that was removed
             real(dp) :: V_f_SC                                       ! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     ! LOCAL fine sediment volume removed
@@ -558,24 +540,19 @@ module classBedSedimentLayer1
             end if
             r = Result(data = [F,G])                                 ! Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
         end function
-        !> Subroutine purpose
-        !! -------------------------------------------------------------------------------
-        !! remove sediment of a specified size fraction, and associated water,
+        !> **Subroutine purpose**                                   <br>
+        !! Remove sediment of a specified size fraction, and associated water,
         !! from a bed sediment layer
-        !!
-        !! Subroutine inputs
-        !! -------------------------------------------------------------------------------
-        !!
-        !! S (integer)       the size class from which sediment is to be removed
-        !! G (FineSediment1) sediment to be removed
-        !!
-        !! Subroutine outcomes
-        !! -------------------------------------------------------------------------------
+        !!                                                          <br>
+        !! **Subroutine inputs**                                    <br>
+        !! `S (integer)`: the size class from which sediment is to be removed <br>
+        !! `G (FineSediment1)`: sediment to be removed
+        !!                                                          <br>
+        !! **Subroutine outcomes**                                  <br>
         !! Values of sediment mass, water volume and fractional composition set to zero
         !! for all sediments in this layer
-        !! -------------------------------------------------------------------------------
         subroutine clearAllSediment1(Me)
-            class(BedSedimentLayer1) :: Me                           ! This BedSedimentLayer1 object
+            class(BedSedimentLayer1) :: Me                           !! This `BedSedimentLayer1` object
             integer :: i                                             ! Loop iterator for FineSediment objects
             do i = 1, size(Me%colFineSediment)
                 call Me%colFineSediment(i)%ClearAll()

@@ -1,8 +1,4 @@
-!> Module containing definition of abstract superclass `BedSediment`
-
-!> abstract superclass definition for BedSediment
-!! defines the properties and methods shared by all BedSediment objects
-!! objects of this class cannot be instantiated, only objects of its subclasses
+!> Module containing definition of abstract superclass `BedSediment`.
 module spcBedSediment
     use Globals                                                      !  global declarations
     use mo_netcdf                                                    ! input/output handling
@@ -12,19 +8,26 @@ module spcBedSediment
     use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
     use classFineSediment1
     implicit none                                                    ! force declaration of all variables
+    !> Type definition for polymorphic `BedSedimentLayer` container,
+    !! which stores a polymorphic class(BedSedimentLayer) in derived
+    !! type so that a collection of different extended types of `BedSedimentLayer`
+    !! can be stored in an array.
     type BedSedimentLayerElement
-        class(BedSedimentLayer), allocatable :: item                 ! Storing polymorphic class(BedSedimentLayer) in derived type so that a collection of
-    end type                                                         ! different extended types of BedSedimentLayer can be stored in an array.
-    type, abstract, public :: BedSediment                            ! type declaration for superclass
-        character(len=256) :: name                                   ! Name for this object, of the form BedSediment_x_y_s_r
-                                                                     ! define variables for 'has a' objects: BedSedimentLayer
+        class(BedSedimentLayer), allocatable :: item                !! The polymorphic `BedSedimentLayer` object
+    end type
+    !> Abstract superclass `BedSediment`. Defines the properties and methods
+    !! shared by all `BedSediment` objects. Objects of this class cannot be instantiated,
+    !! only objects of its subclasses
+    type, abstract, public :: BedSediment
+        character(len=256) :: name                                  !! Name for this object, of the form *BedSediment_x_y_s_r*
+                                                                    ! define variables for 'has a' objects: BedSedimentLayer
         class(BedSedimentLayerElement), allocatable :: &
-        colBedSedimentLayers(:)                                      ! collection of BedSedimentLayer objects
-                                                                     ! properties
-        integer :: nSizeClasses                                      ! number of fine sediment size classes
-        integer :: nLayers                                           ! number of layers (BedSedimentLayer objects)
-        integer :: nfComp                                            ! number of fractional composition terms for sediment
-        type(NcGroup) :: ncGroup                                     !! The NETCDF group for this BedSediment
+        colBedSedimentLayers(:)                                     !! Collection of `BedSedimentLayer` objects
+                                                                    ! properties
+        integer :: nSizeClasses                                     !! Number of fine sediment size classes
+        integer :: nLayers                                          !! Number of layers (`BedSedimentLayer` objects)
+        integer :: nfComp                                           !! number of fractional composition terms for sediment
+        type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`
     contains
                                                                      ! deferred methods: must be defined in all subclasses
         procedure(createBedSediment), public, deferred :: &
@@ -44,70 +47,50 @@ module spcBedSediment
         procedure, public :: Mf_sed_all => Get_Mf_sed_all            ! fine sediment mass in all size classes
     end type
     abstract interface
-        !> Function purpose
-        !! ----------------------------------------------------------------------------------
-        !! Initialise a BedSediment object.
-        !!
-        !!
-        !! Function inputs
-        !! ----------------------------------------------------------------------------------
-        !!
-        !!
-        !! Function outputs/outcomes
-        !! ----------------------------------------------------------------------------------
-        !! initialised BedSediment object, including all layers and included FineSediment
+        !> **Function purpose:** <br>
+        !! Initialise a `BedSediment` object.
+        !!                                                          <br>
+        !! **Function outputs/outcomes:** <br>
+        !! Initialised `BedSediment` object, including all layers and included `FineSediment`
         !! objects
-        !!
-        !! ----------------------------------------------------------------------------------
         function createBedSediment(Me, riverReachGroup) result(r)
             import BedSediment, Result, NcGroup
-            class(BedSediment) :: Me                                 !! self-reference
-            type(NcGroup), intent(in) :: riverReachGroup             !! NetCDF group reference to the RiverReach containing this object
-            type(Result) :: r                                        !! returned Result object
+            class(BedSediment) :: Me                                !! Self-reference
+            type(NcGroup), intent(in) :: riverReachGroup            !! NetCDF group reference to the `RiverReach` containing this object
+            type(Result) :: r                                       !! Returned `Result` object
         end function
-        !> Function purpose
-        !! ----------------------------------------------------------------------------------
-        !! deallocate all allocatable variables and call destroy methods for all
+        !> **Function purpose** <br>
+        !! Deallocate all allocatable variables and call destroy methods for all
         !! enclosed objects
-        !!
-        !! Function inputs
-        !! ----------------------------------------------------------------------------------
-        !! none
-        !!
-        !! Function outputs/outcomes
-        !! ----------------------------------------------------------------------------------
-        !!
-        !! returns a warning if any deallocation throws an error
-        !! ----------------------------------------------------------------------------------
+        !!                                                          <br>
+        !! **Function outputs/outcomes** <br>
+        !! Returns a warning if any deallocation throws an error
         function destroyBedSediment(Me) result(r)
             import BedSediment, Result
-            class(BedSediment) :: Me                                     !! self-reference
-            type(Result) :: r                                            !! returned Result object
+            class(BedSediment) :: Me                                !! Self-reference
+            type(Result) :: r                                       !! Returned `Result` object
         end function
-        !> Function purpose
-        !! -------------------------------------------------------------------------------
+        !> **Function purpose**                                     <br>
         !! Deposit specified masses of fine sediment in each size class, and their
         !! associated water. Function buries sediment and shifts remaining sediment down
         !! to make space for deposition, if required
-        !!
-        !! Function inputs
-        !! -------------------------------------------------------------------------------
+        !!                                                          <br>
+        !! **Function inputs**                                      <br>
         !! Function takes as inputs:
-        !! FS_dep (FineSediment1)   1D array of FineSediment1 objects containing the
+        !! <ul><li>
+        !! `FS_dep (FineSediment1)`: 1D array of FineSediment1 objects containing the
         !! depositing fine sediment per size class
-        !!
-        !! Function outputs/outcomes
-        !! -------------------------------------------------------------------------------
-        !!
-        !! r (real(dp)) returns water requirement from the water column [m3 m-2] real(dp)
-        !! -------------------------------------------------------------------------------
+        !! </li></ul>
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! `r (real(dp))` returns water requirement from the water column [m3 m-2]
         function depositSediment(Me, FS_dep) result (r)
             use Globals
             import BedSediment, Result0D, FineSediment1
             ! TODO: replace D with real array to represent SPM *masses* only
-            class(BedSediment) :: Me                                 !! self-reference
-            type(FineSediment1), allocatable :: FS_dep(:)            !! Depositing sediment by size class
-            type(Result0D) :: r                                      !! returned Result object
+            class(BedSediment) :: Me                                !! Self-reference
+            type(FineSediment1), allocatable :: FS_dep(:)           !! Depositing sediment by size class
+            type(Result0D) :: r                                     !! Returned `Result` object
             !
             ! Function purpose
             ! -------------------------------------------------------------------------------
@@ -159,29 +142,21 @@ module spcBedSediment
         function resuspendSediment(Me, M_resusp) result(r)
             use Globals
             import ResultFineSediment2D, BedSediment
-            class(BedSediment) :: Me                                     !! self-reference
-            real(dp), allocatable :: M_resusp(:)                         !! array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
-            type(Result2D) :: r                                          !! returned Result object
+            class(BedSediment) :: Me                                     !! Self-reference
+            real(dp), allocatable :: M_resusp(:)                         !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+            type(Result2D) :: r                                          !! Returned `Result` object
         end function
     end interface
 contains
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
-    !! return available capacity for fine sediment of a specified size class in the whole
+    !> **Function purpose**                                             <br>
+    !! Return available capacity for fine sediment of a specified size class in the whole
     !! sediment
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! S    size class
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! r (Result 0D) returns value required
-    !! throws critical error if size class is invalid
-    !!
-    !! ----------------------------------------------------------------------------------
+    !!                                                                  <br>
+    !! **Function inputs**                                              <br>
+    !! `S`: size class  
+    !!                                                                  <br>
+    !! **Function outputs/outcomes**                                    <br>
+    !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     pure function Get_Af_sediment(Me, S) result(r)
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
@@ -216,27 +191,19 @@ contains
         end do
         r = Result(data = Af_sediment)
     end function
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
-    !! return capacity for fine sediment of a specified size class in the whole
+    !> **Function purpose**                                         <br>
+    !! Return capacity for fine sediment of a specified size class in the whole
     !! sediment
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! S    size class
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! r (Result 0D) returns value required
-    !! throws critical error if size class is invalid
-    !!
-    !! ----------------------------------------------------------------------------------
+    !!                                                              <br>
+    !! **Function inputs**                                          <br>
+    !! `S`: size class
+    !!                                                              <br>
+    !! **Function outputs/outcomes**
+    !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     pure function Get_Cf_sediment(Me, S) result(r)
-        class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
-        integer, intent(in) :: S                                     !! size class
-        type(Result0D) :: r                                          !! return value
+        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        integer, intent(in) :: S                                     !! Size class
+        type(Result0D) :: r                                          !! Return value
         real(dp) :: Cf_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
         character(len=14), parameter :: tr = &
@@ -267,27 +234,19 @@ contains
         end do
         r = Result(data = Cf_sediment)
     end function
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
-    !! return available capacity for water associated with a specified size class in the
+    !> **Function purpose**                                         <br>
+    !! Return available capacity for water associated with a specified size class in the
     !! whole sediment
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! S    size class
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! r (Result 0D) returns value required
-    !! throws critical error if size class is invalid
-    !!
-    !! ----------------------------------------------------------------------------------
+    !!                                                              <br>
+    !! **Function inputs**                                          <br>
+    !! `S`: size class
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     pure function Get_Aw_sediment(Me, S) result(r)
-        class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
-        integer, intent(in) :: S                                     !! size class
-        type(Result0D) :: r                                          !! return value
+        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        integer, intent(in) :: S                                     !! Size class
+        type(Result0D) :: r                                          !! Return value
         real(dp) :: Aw_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
         character(len=14), parameter :: tr = &
@@ -318,27 +277,19 @@ contains
         end do
         r = Result(data = Aw_sediment)
     end function
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
-    !! return capacity for water associated with a specified size class in the
+    !> **Function purpose**                                         <br>
+    !! Return capacity for water associated with a specified size class in the
     !! whole sediment
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! S    size class
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! r (Result 0D) returns value required
-    !! throws critical error if size class is invalid
-    !!
-    !! ----------------------------------------------------------------------------------
+    !!                                                              <br>
+    !! **Function inputs**                                          <br>
+    !! `S`: size class
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     pure function Get_Cw_sediment(Me, S) result(r)
-        class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
-        integer, intent(in) :: S                                     !! size class
-        type(Result0D) :: r                                          !! return value
+        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        integer, intent(in) :: S                                     !! Size class
+        type(Result0D) :: r                                          !! Return value
         real(dp) :: Cw_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
         character(len=14), parameter :: tr = &
@@ -369,26 +320,18 @@ contains
         end do
         r = Result(data = Cw_sediment)
     end function
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
-    !! return fine sediment mass in a specified size class, in the whole sediment
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! S    size class
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! r (Result 0D) returns value required
-    !! throws critical error if size class is invalid
-    !!
-    !! ----------------------------------------------------------------------------------
+    !> **Function purpose**                                         <br>
+    !! Return fine sediment mass in a specified size class, in the whole sediment
+    !!                                                              <br>
+    !! **Function inputs**                                          <br>
+    !! `S`: size class
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     pure function Get_Mf_sediment(Me, S) result(r)
-        class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
-        integer, intent(in) :: S                                     !! size class
-        type(Result0D) :: r                                          !! return value
+        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        integer, intent(in) :: S                                     !! Size class
+        type(Result0D) :: r                                          !! Return value
         real(dp) :: Mf_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
         character(len=14), parameter :: tr = &
@@ -420,24 +363,14 @@ contains
         end do
         r = Result(data = Mf_sediment)
     end function
-    !> Function purpose
-    !! ----------------------------------------------------------------------------------
-    !! return fine sediment mass for all size classes, in the whole sediment
-    !!
-    !! Function inputs
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! none
-    !!
-    !! Function outputs/outcomes
-    !! ----------------------------------------------------------------------------------
-    !!
-    !! r (Result 0D) returns value required
-    !!
-    !! ----------------------------------------------------------------------------------
+    !> **Function purpose**                                         <br>
+    !! Return fine sediment mass for all size classes, in the whole sediment
+    !!                                                              <br>
+    !! **Function outputs/outcomes**                                <br>
+    !! `r (Result 0D)`: returns value required
     pure function Get_Mf_sed_all(Me) result(r)
-        class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
-        type(Result0D) :: r                                          !! return value
+        class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
+        type(Result0D) :: r                                          !! Return value
         type(Result0D) :: r_l                                        ! LOCAL internal storage
         real(dp) :: Mf_sed_all                                       ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
