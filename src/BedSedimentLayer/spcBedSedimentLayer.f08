@@ -33,7 +33,7 @@ module spcBedSedimentLayer
         procedure, public :: C_w_layer => GetCwlayer                 ! return total water capacity in the layer
         procedure, public :: V_m_layer => GetVmlayer                 ! return total fine sediment and water volume in the layer
         procedure, public :: V_layer => GetVlayer                    ! return sum of fine sediment, water and coarse material volumes in the layer
-        procedure, public :: clearAll => clearAllBedSedimentLayer    ! clear all sediment and water in the layer
+        ! procedure, public :: clearAll => clearAllBedSedimentLayer    ! clear all sediment and water in the layer
                                                                      ! deferred methods: must be defined in all subclasses
         procedure(createBedSedimentLayer), public, deferred :: &
         create                                                       ! constructor method
@@ -109,7 +109,7 @@ module spcBedSedimentLayer
         !! `r(2) (FineSediment1)` returns the sediment that could not be removed
         function RemoveSedimentFromLayer(Me, S, G) result(r)
             import BedSedimentLayer, FineSediment1, ResultFineSediment1D
-            class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
+            class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(in) :: G                     !! Fine sediment to be removed
             type(ResultFineSediment1D) :: r
@@ -136,7 +136,7 @@ module spcBedSedimentLayer
             r = Result(data = A_f)                                   ! add to Result
             if (A_f < 0) then                                        ! CRITICAL ERROR if A_f < 0
                 call r%addError(ErrorInstance(code = 103, &
-                            message = "Fine sediment unoccupied " &
+                            message = "Fine sediment unoccupied " // &
                                       "capacity less than zero", &
                             trace = ["spcBedSedimentLayer%GetAf"] &
                                              ) &
@@ -161,7 +161,7 @@ module spcBedSedimentLayer
             r = Result(data = A_w)                                   ! add to Result
             if (A_w < 0) then                                        ! CRITICAL ERROR if A_w < 0
                 call r%addError(ErrorInstance(code = 103, &
-                            message = "Water unoccupied " &
+                            message = "Water unoccupied " // &
                                       "capacity less than zero", &
                             trace = ["spcBedSedimentLayer%GetAw"] &
                                              ) &
@@ -186,7 +186,7 @@ module spcBedSedimentLayer
             r = Result(data = C_f)                                   ! add to Result
             if (C_f < 0) then                                        ! CRITICAL ERROR if C_f < 0
                 call r%addError(ErrorInstance(code = 103, &
-                            message = "Sediment total " &
+                            message = "Sediment total " // &
                                       "capacity less than zero", &
                             trace = ["spcBedSedimentLayer%GetCf"] &
                                              ) &
@@ -212,7 +212,7 @@ module spcBedSedimentLayer
             r = Result(data = C_w)                                   ! add to Result
             if (C_w < 0) then                                        ! CRITICAL ERROR if C_f < 0
                 call r%addError(ErrorInstance(code = 103, &
-                            message = "Sediment total " &
+                            message = "Sediment total " // &
                                       "capacity less than zero", &
                             trace = ["spcBedSedimentLayer%GetCf"] &
                                              ) &
@@ -237,7 +237,7 @@ module spcBedSedimentLayer
                 r = Result(Data = volSLR)                            ! add to result object
             else
                 call r%addError(ErrorInstance(code = 1, &
-                            message = "Error in computing solid-" &
+                            message = "Error in computing solid-" // &
                                       "liquid ratio", &
                             trace = ["spcBedSedimentLayer%volSLR"] &
                                              ) &
