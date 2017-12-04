@@ -27,13 +27,13 @@ module classGridCell1
     end interface
 
   contains
-    !> Return a newly-created GridCell1 object.
+    !> Return a newly-created `GridCell1` object.
     !! TODO: Do something with result object
     function newGridCell1(x, y, isEmpty) result(me)
-        type(GridCell1) :: me                         !! The new GridCell to return
-        integer :: x, y                               !! Location of the GridCell
-        logical, optional :: isEmpty                  !! Is anything to be simulated in this GridCell?
-        type(Result) :: r                             !! Result object
+        type(GridCell1) :: me                         !! The new `GridCell1` to return
+        integer :: x, y                               !! Location of the `GridCell`
+        logical, optional :: isEmpty                  !! Is anything to be simulated in this `GridCell`?
+        type(Result) :: r                             !! `Result` object
         ! Create the new GridCell, specifying isEmpty if it's present (it default to false if not)
         if (present(isEmpty)) r = me%create(x, y, isEmpty)
         if (.not. present(isEmpty)) r = me%create(x, y)
@@ -41,18 +41,18 @@ module classGridCell1
 
     !> Create a GridCell with coordinates x and y.
     function createGridCell1(me, x, y, isEmpty) result(r)
-        class(GridCell1)      :: me                   !! The GridCell instance.
-        type(Result)          :: r                    !! The Result object to return.
-        integer               :: x, y                 !! Location of the GridCell
-        logical, optional     :: isEmpty              !! Is anything to be simulated in this GridCell?
-        type(SoilProfile1)    :: soilProfile          !! The soil profile contained in this GridCell
-        integer               :: s                    !! Iterator for SubRivers
-        integer               :: t                    !! Iterator for time series
-        character(len=100)    :: subRiverPrefix       !! Prefix for SubRivers ref, e.g. SubRiver_1_1
-        real(dp)              :: subRiverLength       !! Length of the SubRivers
-        real(dp), allocatable :: subRiverRunoffTimeSeries(:) !! Runoff to each SubRiver
-        type(Result)          :: srR                  !! Result object for individual SubRivers
-        type(SubRiver1), allocatable :: sr1           !! SubRiver1 object for storing created SubRiver1s in
+        class(GridCell1)      :: me                   !! The `GridCell1` instance.
+        type(Result)          :: r                    !! The `Result` object to return.
+        integer               :: x, y                 !! Location of the `GridCell`
+        logical, optional     :: isEmpty              !! Is anything to be simulated in this `GridCell`?
+        type(SoilProfile1)    :: soilProfile          ! The soil profile contained in this GridCell
+        integer               :: s                    ! Iterator for SubRivers
+        integer               :: t                    ! Iterator for time series
+        character(len=100)    :: subRiverPrefix       ! Prefix for SubRivers ref, e.g. SubRiver_1_1
+        real(dp)              :: subRiverLength       ! Length of the SubRivers
+        real(dp), allocatable :: subRiverRunoffTimeSeries(:) ! Runoff to each SubRiver
+        type(Result)          :: srR                  ! Result object for individual SubRivers
+        type(SubRiver1), allocatable :: sr1           ! SubRiver1 object for storing created SubRiver1s in
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%QrunoffTimeSeries(C%nTimeSteps))
@@ -152,10 +152,10 @@ module classGridCell1
 
     !> Perform the simulations required for an individual time step
     function updateGridCell1(Me, t) result(r)
-        class(GridCell1) :: Me                                         ! The GridCell instance
-        integer :: t                                                   ! The timestep we're on
+        class(GridCell1) :: Me                                         !! The `GridCell` instance
+        integer :: t                                                   !! The timestep we're on
+        type(Result) :: r                                              !! `Result` object to return errors in
         type(Result) :: srR                                            ! Result object for SubRivers
-        type(Result) :: r                                              ! Result object
         type(integer) :: s                                             ! Loop counter
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
@@ -177,12 +177,12 @@ module classGridCell1
 
     !> Set the outflow from the temporary outflow variables that were setting by the
     !! update procedure. This step is kept separate from the routing so that the
-    !! wrong outflow isn't used as an inflow for another SubRiver whilst the SubRivers
+    !! wrong outflow isn't used as an inflow for another `SubRiver` whilst the `SubRiver`s
     !! are looped through.
     function finaliseUpdateGridCell1(me) result(r)
-        class(GridCell1) :: me                                      !! This SubRiver1 instace
-        integer :: s                                                !! Iterator of SubRivers
-        type(Result) :: r                                           !! The Result object
+        class(GridCell1) :: me                                      !! This `SubRiver1` instace
+        type(Result) :: r                                           !! The `Result` object
+        integer :: s                                                ! Iterator of SubRivers
         if (.not. me%isEmpty) then
             do s = 1, me%nSubRivers
                 r = me%colSubRivers(s)%item%finaliseUpdate()
@@ -194,11 +194,11 @@ module classGridCell1
     !! accordingly, including allocation of arrays that depend on
     !! input data.
     function parseInputDataGridCell1(me) result(r)
-        class(GridCell1)        :: me                   !! This GridCell1 object
-        type(NcDataset)         :: nc                   !! NetCDF dataset
-        type(NcVariable)        :: var                  !! NetCDF variable
-        type(NcGroup)           :: grp                  !! NetCDF group
-        type(Result)            :: r                    !! The result object
+        class(GridCell1)        :: me                   !! This `GridCell1` object
+        type(Result)            :: r                    !! The `Result` object
+        type(NcDataset)         :: nc                   ! NetCDF dataset
+        type(NcVariable)        :: var                  ! NetCDF variable
+        type(NcGroup)           :: grp                  ! NetCDF group
 
         ! Open the dataset
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
