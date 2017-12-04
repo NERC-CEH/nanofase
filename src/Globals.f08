@@ -1,5 +1,4 @@
 module Globals
-    use json_module
     use mo_netcdf
     use ErrorCriteriaModule
     use ErrorInstanceModule
@@ -17,7 +16,7 @@ module Globals
 
         ! Data input
         real(dp) :: T = 15.0_dp             !! Temperature [C]
-        character(len=12) :: inputFile = 'data/data.nc'   !! Name of the data input file. TODO: Get this from config file.
+        character(len=12) :: inputFile = 'data/data.nc'   !! Name of the data input file.
 
         ! Size class distributions
         real(dp), allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
@@ -39,7 +38,6 @@ module Globals
         ! Limits
         integer :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
         real(dp) :: epsilon = 1e-10         !! Used as proximity to check whether variable as equal
-                                            !! TODO: Would be good if this was from config file
 
         ! Structure and time
         real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
@@ -54,19 +52,17 @@ module Globals
 
   contains
 
-    !> Initialise global variables. For the moment, just error
-    !! handling, but concievably could deal with constants, files
-    !! and other setup tasks in the future.
+    !> Initialise global variables, such as `ERROR_HANDLER`
     subroutine GLOBALS_INIT()
-        type(NcDataset) :: NC                               !! NetCDF dataset
-        type(NcVariable) :: var                             !! NetCDF variable
-        type(NcGroup) :: grp                                !! NetCDF group
-        type(json_file) :: config                           !! JSON config file
-        logical :: jsonVarFound                             !! Was the JSON variable found?
-        real(dp), allocatable :: spmSizeClasses(:)          !! Array of sediment particle sizes
-        real(dp), allocatable :: spmFracComps(:)            !! Array of sediment fractional composition
-        real(dp), allocatable :: npSizeClasses(:)           !! Array of nanoparticle particle sizes
-        integer :: n                                        !! Iterator for size classes
+        type(NcDataset) :: NC                               ! NetCDF dataset
+        type(NcVariable) :: var                             ! NetCDF variable
+        type(NcGroup) :: grp                                ! NetCDF group
+        type(json_file) :: config                           ! JSON config file
+        logical :: jsonVarFound                             ! Was the JSON variable found?
+        real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
+        real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
+        real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
+        integer :: n                                        ! Iterator for size classes
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=[ &
@@ -162,10 +158,10 @@ module Globals
     !! where \( A = 0.824493 - 0.0040899T + 0.000076438T^2 -0.00000082467T^3 + 0.0000000053675T^4 \),
     !! \( B = -0.005724 + 0.00010227T - 0.0000016546T^2 \) and \( C = 4.8314 \times 10^{-4} \).
     !! Reference:
-    !!  - [D. R. Maidment, Handbook of Hydrology (2012)](https://books.google.co.uk/books/about/Handbook_of_hydrology.html?id=4_9OAAAAMAAJ)
+    !! [D. R. Maidment, Handbook of Hydrology (2012)](https://books.google.co.uk/books/about/Handbook_of_hydrology.html?id=4_9OAAAAMAAJ)
     pure function rho_w(me, T, S)
-        class(Constants), intent(in) :: me                      !! This Constants instance.
-        real(dp), intent(in) :: T                               !! Temperature \( T \) [C].
+        class(Constants), intent(in) :: me                      !! This `Constants` instance
+        real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: rho_w                                       !! Density of water \( \rho_w \) [kg/m**3].
         if (present(S)) then
@@ -181,11 +177,11 @@ module Globals
     !> Calculate the kinematic viscosity of water \( \nu_w \) at given temperature \( T \)
     !! and optionally salinity \( S \):
     !! $$
-    !!      \nu_{\text{w}}(T,S) = \frac{1}{\rho_w(T,S)} 2.414\times 10^{-5} 10^{\frac{247.8}{(T+273.15)-140.0}}
+    !!      \nu_{\text{w}}(T,S) = \frac{1}{\rho_w(T,S)} 2.414\times 10^{-5} \cdot 10^{\frac{247.8}{(T+273.15)-140.0}}
     !! $$
     pure function nu_w(me, T, S)
-        class(Constants), intent(in) :: me                      !! This Constants instance.
-        real(dp), intent(in) :: T                               !! Temperature \( T \) [C].
+        class(Constants), intent(in) :: me                      !! This `Constants` instance
+        real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: nu_w                                        !! Kinematic viscosity of water \( \nu_{\text{w}} \)
         if (present(S)) then

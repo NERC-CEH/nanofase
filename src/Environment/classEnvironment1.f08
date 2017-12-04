@@ -126,8 +126,8 @@ module classEnvironment1
 
     !> Destroy the `Environment` instance
     function destroyEnvironment1(me) result(r)
-        class(Environment1) :: me
-        type(Result) :: r
+        class(Environment1) :: me                               !! This `Environment` instance
+        type(Result) :: r                                       !! Return error(s) in `Result` object
         ! Destroy logic here
     end function
 
