@@ -1,8 +1,8 @@
 !> Module container for `FineSediment1` class. Nonpolymorphic.
 module classFineSediment1
     use Globals
+    use ErrorInstanceModule
     use ResultModule
-    use ResultFineSedimentModule
     use UtilModule
     implicit none                                                    ! force declaration of all variables
     !> Definition of `FineSediment1` class. Nonpolymorphic.
@@ -26,7 +26,33 @@ module classFineSediment1
         procedure, public :: ClearAll => ClearAll1                   ! clear all fine sediment and water from the object
         procedure, public :: mix => Mix1                             ! mix this sediment into another
     end type
-    contains
+
+    !> Result object with operator for FineSediment scalar data
+    type, public, extends(Result0D) :: ResultFineSediment0D
+      contains
+        procedure, public :: getDataAsFineSediment => getDataAsFineSediment0D
+        generic, public :: operator(.finesediment.) => getDataAsFineSediment
+    end type
+
+    !> Result object with operator for data as 1D FineSediment array
+    type, public, extends(Result1D) :: ResultFineSediment1D
+      contains
+        procedure, public :: getDataAsFineSediment => getDataAsFineSediment1D
+        generic, public :: operator(.finesediment.) => getDataAsFineSediment
+    end type
+
+    !> Result object with operator for data as 2D FineSediment array
+    type, public, extends(Result2D) :: ResultFineSediment2D
+      contains
+        procedure, public :: getDataAsFineSediment => getDataAsFineSediment2D
+        generic, public :: operator(.finesediment.) => getDataAsFineSediment
+    end type
+
+    interface Result
+        module procedure init0D, init1D, init2D
+    end interface
+
+  contains
         !> **Function purpose**                                     <br>
         !! Initialise a `FineSediment` object. Set the object name, number of compositional
         !! fractions, and particle density for each compositional fraction.
@@ -432,4 +458,80 @@ module classFineSediment1
             if (r%hasCriticalError()) return                         ! exit if critical error thrown
             r = Result(data = FS)                                    ! feed FineSediment object into Result
        end function
+
+! *********************************!
+!** ResultFineSediment extension **!
+!**********************************!
+        !> Initialise the result object with 0D `FineSediment` data.
+        pure function init0D(data, error, errors) result(this)
+            type(ResultFineSediment0D)                  :: this         !! This `Result` object
+            type(FineSediment1), intent(in)             :: data         !! 0D data to store
+            type(ErrorInstance), intent(in), optional   :: error        !! An error to store
+            type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
+
+            ! Store the given data in this%data and set the errors
+            allocate(this%data, source=data)
+            call this%setErrors(error, errors)
+        end function
+
+        !> Initialise the result object with 1D `FineSediment` data.
+        pure function init1D(data, error, errors) result(this)
+            type(ResultFineSediment1D)                  :: this         !! This Result object
+            type(FineSediment1), intent(in)             :: data(:)      !! 1D data to store
+            type(ErrorInstance), intent(in), optional   :: error        !! An error to store
+            type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
+
+            ! Store the given data in this%data and set the errors
+            allocate(this%data, source=data)
+            call this%setErrors(error, errors)
+        end function
+
+        !> Initialise the result object with 2D `FineSediment` data.
+        pure function init2D(data, error, errors) result(this)
+            type(ResultFineSediment2D)                  :: this         !! This Result object
+            type(FineSediment1), intent(in)             :: data(:,:)    !! 2D data to store
+            type(ErrorInstance), intent(in), optional   :: error        !! An error to store
+            type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
+
+            ! Store the given data in this%data and set the errors
+            allocate(this%data, source=data)
+            call this%setErrors(error, errors)
+        end function
+
+       !> Attempt to return the data as a scalar FineSediment1 object
+        pure function getDataAsFineSediment0D(this) result(data)
+            class(ResultFineSediment0D), intent(in) :: this     !! This Result object
+            type(FineSediment1)                     :: data     !! The data as a `FineSediment1` object
+            select type (d => this%data)
+                type is (FineSediment1)
+                    data = d
+                class default
+                    error stop "Error trying to return 0D data as FineSediment1. Are you sure the data is of type FineSediment1?"
+            end select
+        end function
+
+        !> Attempt to return the data as a 1D FineSediment1 object array
+        pure function getDataAsFineSediment1D(this) result(data)
+            class(ResultFineSediment1D), intent(in) :: this                     !! This Result object
+            type(FineSediment1)                     :: data(size(this%data))    !! The data as a 1D `FineSediment1` array
+            select type (d => this%data)
+                type is (FineSediment1)
+                    data = d
+                class default
+                    error stop "Error trying to return 1D data as FineSediment1. Are you sure the data is of type FineSediment1?"
+            end select
+        end function
+
+        !> Attempt to return the data as a 2D FineSediment1 object array
+        pure function getDataAsFineSediment2D(this) result(data)
+            class(ResultFineSediment2D), intent(in) :: this                         !! This Result object
+            type(FineSediment1)                     :: data(size(this%data,1), &
+                                                            size(this%data,2))      !! The data as a 1D `FineSediment1` array
+            select type (d => this%data)
+                type is (FineSediment1)
+                    data = d
+                class default
+                    error stop "Error trying to return 2D data as FineSediment1. Are you sure the data is of type FineSediment1?"
+            end select
+        end function
 end module
