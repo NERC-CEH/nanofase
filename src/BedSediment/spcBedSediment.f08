@@ -1,3 +1,5 @@
+!> Module containing definition of abstract superclass `BedSediment`
+
 !> abstract superclass definition for BedSediment
 !! defines the properties and methods shared by all BedSediment objects
 !! objects of this class cannot be instantiated, only objects of its subclasses
