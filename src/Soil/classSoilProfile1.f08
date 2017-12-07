@@ -8,9 +8,9 @@ module classSoilProfile1
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
     implicit none
 
-    !> A SoilProfile class acts as a container for a collection of
-    !! SoilLayer objects, which collectively define the layout of
-    !! the SoilProfile.
+    !> A `SoilProfile` class acts as a container for a collection of
+    !! `SoilLayer` objects, which collectively define the layout of
+    !! the `SoilProfile`.
     type, public, extends(SoilProfile) :: SoilProfile1
       contains
         procedure :: create => createSoilProfile1                   ! Create the SoilProfile object
@@ -23,20 +23,20 @@ module classSoilProfile1
     end type
 
   contains
-    !> Creating the SoilProfile parses input data and fills
+    !> Creating the `SoilProfil`e parses input data and fills
     !! the corresponding object properties, as well as setting
-    !! up the contained SoilLayers.
+    !! up the contained `SoilLayers`.
     function createSoilProfile1(me, x, y, p, slope, n_river, area, Q_precip_timeSeries, Q_evap_timeSeries) result(r)
-        class(SoilProfile1) :: me                           !! The SoilProfile instance.
-        integer             :: x                            !! Containing GridCell x index
-        integer             :: y                            !! Containing GridCell y index
-        integer             :: p                            !! SoilProfile reference (redundant for now as only one SoilProfile per GridCell)
-        real(dp)            :: slope                        !! Slope of the containing GridCell [m/m]
-        real(dp)            :: n_river                      !! Manning's roughness coefficient for the GridCell's rivers [-]
-        real(dp)            :: area                         !! The surface area of the SoilProfile [m3]
+        class(SoilProfile1) :: me                           !! The `SoilProfile` instance.
+        integer             :: x                            !! Containing `GridCell` x index
+        integer             :: y                            !! Containing `GridCell` y index
+        integer             :: p                            !! `SoilProfile` reference (redundant for now as only one `SoilProfile` per `GridCell`)
+        real(dp)            :: slope                        !! Slope of the containing `GridCell` [m/m]
+        real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
+        real(dp)            :: area                         !! The surface area of the `SoilProfile` [m3]
         real(dp), allocatable :: Q_precip_timeSeries(:)     !! Precipitation time series [m/s]
         real(dp), allocatable :: Q_evap_timeSeries(:)       !! Evaporation time series [m/s]
-        type(Result)        :: r                            !! The Result object
+        type(Result)        :: r                            !! The `Result` object
         integer             :: l                            ! Soil layer iterator
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
 
@@ -81,8 +81,8 @@ module classSoilProfile1
 
     !> Destroy this SoilProfile
     function destroySoilProfile1(me) result(r)
-        class(SoilProfile1) :: me                               !! This SoilProfile instance
-        type(Result) :: r                                       !! Result object to return
+        class(SoilProfile1) :: me                               !! This `SoilProfile` instance
+        type(Result) :: r                                       !! `Result` object to return
     end function
 
     !> Perform the simulation of the `SoilProfile` for the current time step:
@@ -206,7 +206,7 @@ module classSoilProfile1
     !! into separate size classes. If no distribution has been specified
     !! for this `SoilProfile`, then a default global size distribution is used
     function imposeSizeDistributionSoilProfile1(me, mass) result(distribution)
-        class(SoilProfile1) :: me                               !! This SoilProfile instance
+        class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         real(dp)            :: mass                             !! The mass to split into size classes
         real(dp)            :: distribution(C%nSizeClassesSpm)  !! The resulting distribution
         integer             :: i                                ! Loop iterator for size classes
@@ -219,8 +219,8 @@ module classSoilProfile1
     !! accordingly, including the allocation of arrays that depend on
     !! this input data
     function parseInputDataSoilProfile1(me) result(r)
-        class(SoilProfile1)     :: me                       !! This SoilProfile instance
-        type(Result)            :: r                        !! Result object to return
+        class(SoilProfile1)     :: me                       !! This `SoilProfile` instance
+        type(Result)            :: r                        !! `Result` object to return
         type(NcDataset)         :: nc                       ! NetCDF dataset
         type(NcVariable)        :: var                      ! NetCDF variable
         type(NcGroup)           :: grp                      ! NetCDF group
