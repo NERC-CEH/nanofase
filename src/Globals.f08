@@ -57,8 +57,8 @@ module Globals
         type(NcDataset) :: NC                               ! NetCDF dataset
         type(NcVariable) :: var                             ! NetCDF variable
         type(NcGroup) :: grp                                ! NetCDF group
-        type(json_file) :: config                           ! JSON config file
-        logical :: jsonVarFound                             ! Was the JSON variable found?
+        ! type(json_file) :: config                           ! JSON config file
+        ! logical :: jsonVarFound                             ! Was the JSON variable found?
         real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
         real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes

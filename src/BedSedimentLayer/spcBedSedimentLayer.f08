@@ -43,6 +43,7 @@ module spcBedSedimentLayer
         AddSediment                                                  ! add fine sediment to the layer
         procedure(RemoveSedimentFromLayer), public, deferred :: &
         RemoveSediment                                               ! remove fine sediment from layer
+        procedure(clearAllFromLayer), public, deferred :: clearAll
     end type
     abstract interface
         !> **Function purpose**                                     <br>
@@ -116,6 +117,21 @@ module spcBedSedimentLayer
                 !! The `Result` object. `Result%data(1)` = fine sediment that was removed;
                 !! `Result%data(2)` = fine sediment that could not be removed
         end function
+        !> **Subroutine purpose**                                   <br>
+        !! Remove sediment of a specified size fraction, and associated water,
+        !! from a bed sediment layer
+        !!                                                          <br>
+        !! **Subroutine inputs**                                    <br>
+        !! `S (integer)`: the size class from which sediment is to be removed <br>
+        !! `G (FineSediment1)`: sediment to be removed
+        !!                                                          <br>
+        !! **Subroutine outcomes**                                  <br>
+        !! Values of sediment mass, water volume and fractional composition set to zero
+        !! for all sediments in this layer
+        subroutine clearAllFromLayer(Me)
+            import BedSedimentLayer
+            class(BedSedimentLayer) :: Me                            !! This `BedSedimentLayer` object
+        end subroutine
     end interface
   contains
         !> **Function purpose**                                     <br>

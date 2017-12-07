@@ -3,7 +3,6 @@ module spcBedSediment
     use Globals                                                      !  global declarations
     use mo_netcdf                                                    ! input/output handling
     use ResultModule                                                 ! error handling classes, required for
-    use ResultFineSedimentModule
     use ErrorInstanceModule                                          ! generation of trace error messages
     use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
     use classFineSediment1
@@ -144,7 +143,7 @@ module spcBedSediment
             import ResultFineSediment2D, BedSediment
             class(BedSediment) :: Me                                     !! Self-reference
             real(dp), allocatable :: M_resusp(:)                         !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
-            type(Result2D) :: r                                          !! Returned `Result` object
+            type(ResultFineSediment2D) :: r                              !! Returned `Result` object
         end function
     end interface
 contains
@@ -163,31 +162,33 @@ contains
         type(Result0D) :: r                                          !! return value
         real(dp) :: Af_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
-        character(len=14), parameter :: tr = &
-            trim(Me%name // "Get_Af_sediment")                       ! LOCAL error trace
-        if (S < 0) then &
+        character(len=14) :: tr                                      ! LOCAL error trace
+        tr  = trim(Me%name // "Get_Af_sediment")
+        if (S < 0) then
             call r%addError(ErrorInstance( &
                             code = 103, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S < 0
+        end if
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
             call r%addToTrace(tr)                                    ! add trace to Result
             return                                                   ! and exit
         end if
-        if (S > Me%nSizeClasses) then &
+        if (S > Me%nSizeClasses) then
             call r%addError(ErrorInstance( &
                             code = 104, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S > nSizeClasses
+        end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Af_sediment = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
             Af_sediment = Af_sediment + &
-                Me%colBedSedimentLayers(L)%item%A_f(S)               ! sum capacities for all layers
+                .dp. Me%colBedSedimentLayers(L)%item%A_f(S)          ! sum capacities for all layers
         end do
         r = Result(data = Af_sediment)
     end function
@@ -206,26 +207,28 @@ contains
         type(Result0D) :: r                                          !! Return value
         real(dp) :: Cf_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
-        character(len=14), parameter :: tr = &
-            trim(Me%name // "Get_Cf_sediment")                       ! LOCAL error trace
-        if (S < 0) &
+        character(len=14) :: tr                                      ! LOCAL error trace
+        tr = trim(Me%name // "Get_Cf_sediment")
+        if (S < 0) then
             call r%addError(ErrorInstance( &
                             code = 103, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S < 0
+        end if
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
             call r%addToTrace(tr)                                    ! add trace to Result
             return                                                   ! and exit
         end if
-        if (S > Me%nSizeClasses) then &
+        if (S > Me%nSizeClasses) then
             call r%addError(ErrorInstance( &
                             code = 104, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S > nSizeClasses
+        end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Cf_sediment = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
@@ -249,31 +252,33 @@ contains
         type(Result0D) :: r                                          !! Return value
         real(dp) :: Aw_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
-        character(len=14), parameter :: tr = &
-            trim(Me%name // "Get_Aw_sediment")                       ! LOCAL error trace
-        if (S < 0)  &
+        character(len=14) :: tr                                      ! LOCAL error trace
+        tr = trim(Me%name // "Get_Aw_sediment")
+        if (S < 0) then
             call r%addError(ErrorInstance( &
                             code = 103, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S < 0
+        end if
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
             call r%addToTrace(tr)                                    ! add trace to Result
             return                                                   ! and exit
         end if
-        if (S > Me%nSizeClasses) &
+        if (S > Me%nSizeClasses) then
             call r%addError(ErrorInstance( &
                             code = 104, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S > nSizeClasses
+        end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Aw_sediment = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
             Aw_sediment = Aw_sediment + &
-                Me%colBedSedimentLayers(L)%item%A_w(S)               ! sum capacities for all layers
+                .dp. Me%colBedSedimentLayers(L)%item%A_w(S)          ! sum capacities for all layers
         end do
         r = Result(data = Aw_sediment)
     end function
@@ -292,31 +297,33 @@ contains
         type(Result0D) :: r                                          !! Return value
         real(dp) :: Cw_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
-        character(len=14), parameter :: tr = &
-            trim(Me%name // "Get_Cw_sediment")                       ! LOCAL error trace
-        if (S < 0) then &
+        character(len=14) :: tr                                      ! LOCAL error trace  
+        tr = trim(Me%name // "Get_Cw_sediment")
+        if (S < 0) then
             call r%addError(ErrorInstance( &
                             code = 103, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S < 0
+        end if
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
             call r%addToTrace(tr)                                    ! add trace to Result
             return                                                   ! and exit
         end if
-        if (S > Me%nSizeClasses) then &
+        if (S > Me%nSizeClasses) then
             call r%addError(ErrorInstance( &
                             code = 104, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S > nSizeClasses
+        end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Cw_sediment = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
             Cw_sediment = Cw_sediment + &
-                Me%colBedSedimentLayers(L)%item%C_w(S)               ! sum capacities for all layers
+                .dp. Me%colBedSedimentLayers(L)%item%C_w(S)          ! sum capacities for all layers
         end do
         r = Result(data = Cw_sediment)
     end function
@@ -334,26 +341,28 @@ contains
         type(Result0D) :: r                                          !! Return value
         real(dp) :: Mf_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
-        character(len=14), parameter :: tr = &
-            trim(Me%name // "Get_Mf_sediment")                       ! LOCAL error trace
-        if (S < 0) then &
+        character(len=14) :: tr                                      ! LOCAL error trace
+        tr = trim(Me%name // "Get_Mf_sediment")
+        if (S < 0) then
             call r%addError(ErrorInstance( &
                             code = 103, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S < 0
+        end if
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
             call r%addToTrace(tr)                                    ! add trace to Result
             return                                                   ! and exit
         end if
-        if (S > Me%nSizeClasses) then &
+        if (S > Me%nSizeClasses) then
             call r%addError(ErrorInstance( &
                             code = 104, &
                             message = "The size class is invalid", &
                               trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if S > nSizeClasses
+        end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Mf_sediment = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
@@ -374,12 +383,12 @@ contains
         type(Result0D) :: r_l                                        ! LOCAL internal storage
         real(dp) :: Mf_sed_all                                       ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
-        character(len=14), parameter :: tr = &
-            trim(Me%name // "Get_Mf_sediment")                       ! LOCAL error trace
+        character(len=14) :: tr                                      ! LOCAL error trace
+        tr = trim(Me%name // "Get_Mf_sediment")
         Mf_sed_all = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
             r_l = Me%colBedSedimentLayers(L)%item%M_f_layer()        ! get Result object for Layer L
-            r%addErrors(.errors. r_l)                                ! pull errors out of Result object
+            call r%addErrors(.errors. r_l)                           ! pull errors out of Result object
             if (r%hasCriticalError()) return                         ! exit if error thrown
             Mf_sed_all = Mf_sed_all + .real. r_l                     ! sum masses across layers
         end do
