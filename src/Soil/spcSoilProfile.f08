@@ -4,10 +4,10 @@ module spcSoilProfile
     use spcSoilLayer                                                ! use containing object type
     implicit none                                                   ! force declaration of all variables
 
-    !> Abstract base class for SoilProfile. Defines properties and methods
-    !! required in any implmentation of a SoilProfile class. A SoilProfile
-    !! class acts as a container for a collection of SoilLayer objects, which
-    !! collectively define the layout of the SoilProfile. The SoilLayer class
+    !> Abstract base class for `SoilProfile`. Defines properties and methods
+    !! required in any implmentation of a `SoilProfile` class. A `SoilProfile`
+    !! class acts as a container for a collection of `SoilLayer` objects, which
+    !! collectively define the layout of the `SoilProfile`. The `SoilLayer` class
     !! routes, water, eroded soil (and ultimately nanoparticles) through a
     !! layer of soil
     type, abstract, public :: SoilProfile

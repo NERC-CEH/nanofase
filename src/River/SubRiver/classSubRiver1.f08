@@ -1,12 +1,5 @@
+!> Module container for `SubRiver1` class
 module classSubRiver1
-                                                                    ! SubRiver1 subclass
-                                                                    ! implements spcSubRiver superclass
-                                                                    ! of a SubRiver class
-                                                                    ! a SubRiver class acts as a container for a collection of RiverReach objects which collectively define a
-                                                                    ! contiguous stretch of flowing waters within each grid cell
-                                                                    ! IMPORTED MODULES
-                                                                    ! Description
-                                                                    ! -----------
     use Globals                                                     ! global declarations
     use UtilModule                                                  ! useful utilities
     use netcdf                                                      ! input/output handling
@@ -16,20 +9,17 @@ module classSubRiver1
     use spcSubRiver                                                 ! Module containing SubRiver abstract interface
     use classRiverReach1
     implicit none                                                   ! force declaration of all variables
-    type, extends(SubRiver), public :: SubRiver1                    ! type declaration for subclass
+
+    !> A `SubRiver` class acts as a container for a collection of `RiverReach`
+    !! objects which collectively define a contiguous stretch of flowing waters
+    !! within each `GridCell`
+    type, extends(SubRiver), public :: SubRiver1
 
       contains
-                                                                    ! METHODS
-                                                                    ! Description
-                                                                    ! -----------
         procedure, public :: create => createSubRiver1              ! create the SubRiver1 object. Exposed name: create
         procedure, public :: destroy => destroySubRiver1            ! remove the SubRiver1 object and all contained objects. Exposed name: destroy
-        procedure, public :: update => updateSubRiver1            ! route water and suspended solids through the SubRiver. Exposed name: routing
+        procedure, public :: update => updateSubRiver1              ! route water and suspended solids through the SubRiver. Exposed name: routing
         procedure, public :: finaliseUpdate => finaliseUpdateSubRiver1 ! Finalise the routing by setting temp outflows to actual outflows
-                                                                    ! Description
-                                                                    ! -----------
-        procedure, private :: auditrefs                             ! internal property function: sense check the inflow and outflow GridCell references
-        ! THIS PROCEDURE IS NOT DEFINED IN THE ABSTRACT CLASS AS IT IS PRIVATE. CAN IT STILL BE INHERITED?
     end type
 
     !> Interface so that we can create new SubRivers by `sr = SubRiver1()`
@@ -37,26 +27,27 @@ module classSubRiver1
         module procedure newSubRiver1
     end interface
   contains
-    !> Return a newly-created SubRiver1 object. This is bound to SubRiver1 interface
-    !! TODO: Do something with result object
+    !> Return a newly-created `SubRiver1` object. This is bound to `SubRiver1` interface
     function newSubRiver1(x, y, s, length, QrunoffTimeSeries) result(me)
-        type(SubRiver1) :: me                                       !! The new SubRiver to return
-        integer :: x, y, s                                          !! Location of the SubRiver
-        real(dp) :: length                                          !! Length of the SubRiver (without meandering)
+        type(SubRiver1) :: me                                       !! The new `SubRiver` to return
+        integer :: x, y, s                                          !! Location of the `SubRiver`
+        real(dp) :: length                                          !! Length of the `SubRiver` (without meandering)
         real(dp), allocatable :: QrunoffTimeSeries(:)               !! Any initial runoff from the hydrological model
-        type(Result) :: r                                           !! Result object
+        type(Result) :: r                                           !! `Result` object
         ! Create the new SubRiver
         r = me%create(x, y, s, length, QrunoffTimeSeries)
+        ! TODO: Do something with result object
     end function
-
-    function createSubRiver1(me, x, y, s, length, QrunoffTimeSeries) result(r)! create the SubRiver object by reading data in from file
-        class(SubRiver1) :: me                                      ! the SubRiver instance
-        type(integer), intent(in) :: x                              ! the row number of the enclosing GridCell
-        type(integer), intent(in) :: y                              ! the column number of the enclosing GridCell
-        type(integer), intent(in) :: s                              ! reference SubRiver number
-        real(dp) :: length                                          ! The length of the SubRiver (without meandering)
-        real(dp), allocatable :: QrunoffTimeSeries(:)               ! Initial runoff from the hydrological model
-        type(Result) :: r                                           ! the result object
+    
+    !> Create the `SubRiver` object by reading data in from file
+    function createSubRiver1(me, x, y, s, length, QrunoffTimeSeries) result(r)
+        class(SubRiver1) :: me                                      !! The `SubRiver` instance
+        type(integer), intent(in) :: x                              !! The row number of the enclosing `GridCell`
+        type(integer), intent(in) :: y                              !! The column number of the enclosing `GridCell`
+        type(integer), intent(in) :: s                              !! Reference `SubRiver` number
+        real(dp) :: length                                          !! The length of the `SubRiver` (without meandering)
+        real(dp), allocatable :: QrunoffTimeSeries(:)               !! Initial runoff from the hydrological model
+        type(Result) :: r                                           !! The `Result` object to return any errors in
         real(dp), allocatable :: riverReachRunoffTimeSeries(:)      ! Runoff for each RiverReach
         type(NcDataset) :: NC                                       ! NetCDF dataset
         type(NcVariable) :: var                                     ! NetCDF variable
@@ -202,9 +193,10 @@ module classSubRiver1
         call r%addToTrace("Creating " // trim(me%ref))
     end function
     
+    !> Destroy this `SubRiver1`
     function destroySubRiver1(me) result(r)
-        class(SubRiver1) :: me                                      ! the SubRiver instance
-        type(Result) :: r                                           ! the Result object
+        class(SubRiver1) :: me                                      !! The `SubRiver1` instance
+        type(Result) :: r                                           !! The `Result` object
         type(integer) :: i                                          ! loop counter
         do i = 1, me%nReaches                                       ! loop through each RiverReach
             r = me%colReaches(i)%item%destroy()                     ! call destroy routine in the SubRiver object
@@ -212,11 +204,12 @@ module classSubRiver1
         ! TODO: Something here to compile all returned Result objects into one?
     end function
 
-    ! TODO: Sort out object storage of spmIn and Q_in
-    function updateSubRiver1(me, t) result(r)                         ! routes inflow(s) through the specified SubRiver
-        class(SubRiver1) :: me                                      ! the SubRiver instance
-        integer :: t                                                ! What time step are we on?
-        type(Result) :: r                                           ! the Result object
+    !> Run simulation for current time step. Routes inflow(s) through
+    !! the specified `SubRiver`
+    function updateSubRiver1(me, t) result(r)
+        class(SubRiver1) :: me                                      !! The `SubRiver` instance
+        integer :: t                                                !! The current time step 
+        type(Result) :: r                                           !! The `Result` object to return any errors in
         type(Result) :: reachR                                      ! Result object for each reach
         real(dp) :: Qin(me%nReaches + 1)                            ! The inflow, final element for outflow [m3/timestep]
         real(dp) :: spmIn(me%nReaches + 1, C%nSizeClassesSpm)       ! The SPM inflow per size class, final element for outflow [kg/timestep]
@@ -285,20 +278,10 @@ module classSubRiver1
     !! wrong outflow isn't used as an inflow for another SubRiver whilst the SubRivers
     !! are looped through.
     function finaliseUpdateSubRiver1(me) result(r)
-        class(SubRiver1) :: me                                      !! This SubRiver1 instace
-        type(Result) :: r                                           !! The Result object
+        class(SubRiver1) :: me                                      !! This `SubRiver1` instace
+        type(Result) :: r                                           !! The `Result` object to return any errors in
         me%Qout = me%tmpQout
         me%spmOut = me%tmpSpmOut
         me%m_spm = me%tmpm_spm
-    end function
-
-    ! ******************************************************
-    function auditrefs(me) result(r)
-        class(SubRiver1) :: me                                      ! the SubRiver instance
-        type(Result) :: r                                           ! the result object
-        ! the purpose of this function is to sense check the inflow and outflow references, i.e. do they form
-        ! robust, consistent links to adjacent grid cells?
-        ! but perhaps this could be a function within the Environment module that audits all links at the same time
-        ! on startup? i.e. call Audit(<GridCell>) for all GridCells?
     end function
 end module
