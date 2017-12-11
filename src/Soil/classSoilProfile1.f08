@@ -34,11 +34,13 @@ module classSoilProfile1
         real(dp)            :: slope                        !! Slope of the containing `GridCell` [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
         real(dp)            :: area                         !! The surface area of the `SoilProfile` [m3]
-        real(dp), allocatable :: Q_precip_timeSeries(:)     !! Precipitation time series [m/s]
-        real(dp), allocatable :: Q_evap_timeSeries(:)       !! Evaporation time series [m/s]
+        real(dp), allocatable :: Q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
+        real(dp), allocatable :: Q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
         type(Result)        :: r                            !! The `Result` object
         integer             :: l                            ! Soil layer iterator
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
+
+        call r%addToTrace("Creating " // trim(me%ref))
 
         ! Allocate the object properties that need to be
         allocate(me%usle_C(C%nTimeSteps))
@@ -59,11 +61,8 @@ module classSoilProfile1
         me%V_buried = 0                                     ! Volume of water "lost" from the bottom of SoilProfile
         
         ! Parse and store input data in this object's properties
-        r = me%parseInputData()
-        if (r%hasCriticalError()) then                       ! Return early if there are critical errors
-            call r%addToTrace("Creating " // trim(me%ref))
-            return                           
-        end if
+        call r%addErrors(.errors. me%parseInputData())
+        if (r%hasCriticalError()) return                    ! Return early if there are critical errors
 
         ! Set up the SoilLayers
         ! TODO: Different types of SoilLayer
@@ -75,8 +74,6 @@ module classSoilProfile1
             )
             call move_alloc(sl, me%colSoilLayers(l)%item)
         end do
-
-        call r%addToTrace("Creating " // trim(me%ref))
     end function
 
     !> Destroy this SoilProfile
@@ -98,9 +95,12 @@ module classSoilProfile1
         
         ! Set the timestep-specific object properties
         me%Q_runoff = Q_runoff                                  ! Set the runoff (quickflow) for this timestep
-        me%Q_precip = me%Q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation
-        me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evaporation
-        me%Q_in = me%Q_precip - me%Q_evap                       ! Infiltration = precip - evap. This is supplied to SoilLayer_1
+        ! TODO: Q_runoff still in m3/s, change to m/s
+        me%Q_surf = 0.1*me%Q_runoff/me%area                     ! Surface runoff = 10% of quickflow [m/timestep]
+        me%Q_precip = me%Q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
+        me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
+        me%Q_in = max(me%Q_precip - me%Q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
+            ! TODO: Should the minimum Q_in be 0, or should evaporation be allowed to remove water from top soil layer?
         
         ! Perform percolation and erosion simluation, at the same
         ! time adding any errors to the Result object
@@ -130,7 +130,7 @@ module classSoilProfile1
             if (l == 1) then                        ! If it's the first SoilLayer, Q_in will be from precip - ET
                 Q_l_in = me%Q_in
             else                                    ! Else, get Q_in from previous layer's Q_perc
-                Q_l_in = me%colSoilLayers(l-1)%item%V_perc/C%timeStep
+                Q_l_in = me%colSoilLayers(l-1)%item%V_perc
             end if
 
             ! Run the percolation simulation for individual layer, setting V_perc, V_pool etc.
@@ -142,21 +142,14 @@ module classSoilProfile1
             do i = 1, l
                 ! Check if the layer beneath has pooled any water
                 if (me%colSoilLayers(l-i+1)%item%V_pool > 0) then
-                    if (l-i == 0) then                          ! If it's the top soil layer, add V_pool to surface runoff
-                        ! Surface runoff [m3 m-2 s-1] that drives erosion is that pooled from percolation,
-                        ! up to a maximum of 10% of HMF's quickflow
-                        ! TODO: Maybe change this to just 10% of QF
-                        me%Q_surf = min( &
-                            me%colSoilLayers(l-i+1)%item%V_pool/C%timestep, &
-                            0.1*me%Q_runoff/me%area &           ! TODO: Q_runoff still in m3/s, change to m/s
-                        )
-                    else
-                        call r%addErrors(.errors. &             ! Else, add pooled volume to layer above
+                    if (l-i == 0) then                          ! If it's the top soil layer, track how much pooled above soil
+                        me%V_pool = me%colSoilLayers(l-i+1)%item%V_pool
+                    else                                        ! Else, add pooled volume to layer above
+                        call r%addErrors(.errors. &
                             me%colSoilLayers(l-i)%item%addPooledWater( &
                                 me%colSoilLayers(l-i+1)%item%V_pool &
                             ) &
                         )
-                        me%Q_surf = 0                           ! If no water's been pooled, there'll be no runoff
                     end if
                 end if
             end do
@@ -184,8 +177,8 @@ module classSoilProfile1
         real(dp)            :: Q_surf_hru       ! Surface runoff for the whole HRU per day [m3/day]
         real(dp)            :: S_tot            ! Total eroded sediment
 
-        ! Change units of surface runoff from m/s for the GridCell, to m3/day for the HRU
-        Q_surf_hru = me%Q_surf*me%usle_area_hru*86400       ! [m3/day]
+        ! Change units of surface runoff from m/timestep for the GridCell, to m3/day for the HRU
+        Q_surf_hru = (me%Q_surf/C%timeStep)*me%usle_area_hru*86400       ! [m3/day]
         ! Estimate the time of concentration
         t_conc = (me%usle_L_sb**0.6 * me%usle_n_sb**0.6)/(18 * me%usle_slp_sb) &
                 + (0.62 * me%usle_L_ch * me%n_river**0.75)/(me%usle_area_sb**0.125 * me%usle_slp_ch**0.375)
@@ -254,6 +247,7 @@ module classSoilProfile1
         end if
 
         ! Water content at saturation [m3/m3]
+        ! TODO: Check between 0 and 1
         if (me%ncGroup%hasVariable('WC_sat')) then
             var = me%ncGroup%getVariable('WC_sat')
             call var%getData(me%WC_sat)
@@ -266,9 +260,10 @@ module classSoilProfile1
         end if
 
         ! Water content at field capacity [m3/m3]
+        ! TODO: Check between 0 and 1
         if (me%ncGroup%hasVariable('WC_FC')) then
             var = me%ncGroup%getVariable('WC_FC')
-            call var%getData(me%WC_sat)
+            call var%getData(me%WC_FC)
         else
              call r%addError(ErrorInstance( &
                 code = 201, &

@@ -79,13 +79,13 @@ module Globals
             ErrorInstance(code=500, message="All SPM advected from RiverReach.", isCritical=.false.), &
             ErrorInstance(code=501, message="No input data provided for required SubRiver - check nSubRivers is correct."), &
             ! Soil
-            ErrorInstance(code=600, message="All water removed from SoilProfile.", isCritical=.false.), &
+            ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.), &
             ! General
             ErrorInstance(code=901, message="Invalid RiverReach type index provided."), &
             ErrorInstance(code=902, message="Invalid Biota index provided."), &
             ErrorInstance(code=903, message="Invalid Reactor index provided."), &
             ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.") &
-        ])
+        ], on=.false.)
 
         ! Get config options from the config file
         ! TODO: NOT WORKING

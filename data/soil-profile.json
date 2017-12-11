@@ -3,9 +3,9 @@
     "type" : "group",
     "data" : [
         { "name" : "nSoilLayers", "type" : "variable", "datatype" : "i4", "data" : 4 },
-        { "name" : "WC_sat", "type" : "variable", "datatype" : "f8", "data" : 4 },
-        { "name" : "WC_FC", "type" : "variable", "datatype" : "f8", "data" : 4 },
-        { "name" : "K_s", "type" : "variable", "datatype" : "f8", "data" : 4 },
+        { "name" : "WC_sat", "type" : "variable", "datatype" : "f8", "data" : 0.8 },
+        { "name" : "WC_FC", "type" : "variable", "datatype" : "f8", "data" : 0.5 },
+        { "name" : "K_s", "type" : "variable", "datatype" : "f8", "data" : 1e-6 },
         { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
         { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
@@ -22,7 +22,7 @@
             "name" : "SoilLayer_1",
             "type" : "group",
             "data" : [
-                { "name" : "depth", "type" : "variable", "datatype" : "f8", "data" : 0.05 }
+                { "name" : "depth", "type" : "variable", "datatype" : "f8", "data" : 0.1 }
             ]
         }
     ]
