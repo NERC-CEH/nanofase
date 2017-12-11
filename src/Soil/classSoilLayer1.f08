@@ -62,17 +62,20 @@ module classSoilLayer1
     function updateSoilLayer1(me, t, Q_in) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer :: t                                    !! The current time step [s]
-        real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m3 s-1]
+        real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
         type(Result) :: r
             !! The `Result` object to return. Contains warning if all water on this time step removed.
 
+        ! Set the inflow to this SoilLayer
+        me%Q_in = Q_in
+
         ! Setting volume of water, pooled water and excess water, based on inflow
-        if (me%V_w + Q_in*C%timeStep < me%V_sat) then           ! If water volume below V_sat after inflow
+        if (me%V_w + me%Q_in < me%V_sat) then                      ! If water volume below V_sat after inflow
             me%V_pool = 0                                       ! No pooled water
-            me%V_w = me%V_w + Q_in*C%timeStep                   ! Update the volume based on inflow
+            me%V_w = me%V_w + me%Q_in                              ! Update the volume based on inflow
             me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)         ! Volume of water above V_FC
-        else if (me%V_w + Q_in*C%timeStep > me%V_sat) then      ! Else, water pooled above V_sat
-            me%V_pool = me%V_w + Q_in*C%timeStep - me%V_sat     ! Water pooled above V_sat
+        else if (me%V_w + me%Q_in > me%V_sat) then                 ! Else, water pooled above V_sat
+            me%V_pool = me%V_w + me%Q_in - me%V_sat                ! Water pooled above V_sat
             me%V_w = me%V_sat                                   ! Volume of water must be V_sat
             me%V_excess = me%V_w - me%V_FC                      ! Volume must be above FC and so there is excess
         end if
@@ -86,6 +89,7 @@ module classSoilLayer1
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
         ! Error code 600 = "All water removed from SoilProfile"
         if (abs(me%V_w) <= C%epsilon) call r%addError(ErrorInstance(600, isCritical=.false.))
+
         ! Add this procedure to the error trace
         call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
     end function
