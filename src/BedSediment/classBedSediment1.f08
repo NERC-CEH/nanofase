@@ -42,6 +42,7 @@ module classBedSediment1
         ! ----------------------------------------------------------------------------------
         ! no notes
         ! ----------------------------------------------------------------------------------
+        allocate(bsl1)
         Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
         Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
@@ -80,41 +81,39 @@ module classBedSediment1
         var = Me%ncGroup%getVariable("layerType")                    ! Get the BedSedimentLayer type number
         call var%getData(bslType)                                    ! retrieve into bslType variable
         do L = 1, Me%nLayers                                         ! loop through each layer
-            associate(O => Me%colBedSedimentLayers(L)%item)
-                select case (bslType(L))                             ! loop through possible BedSedimentLayer types
-                    case(1)                                          ! type number 1
-                        allocate(bsl1, stat = allst)                 ! allocate empty object of this type
-                        if (allst /= 0) then
-                            call r%addError(ErrorInstance( &
-                                               code = 1, &
-                                            message = ms, &
-                                              trace = [tr]))         ! add to Result
-                            return                                   ! critical error, so return
-                        end if
-                        if (r%hasCriticalError()) then               ! if a critical error has been thrown
-                            call r%addToTrace(tr)                    ! add trace to Result
-                            return                                   ! exit, as a critical error has occurred
-                        end if
-                        call move_alloc(bsl1, &
-                            Me%colBedSedimentLayers(L)%item)         ! move bsl1 object into layers collection
-                    case default                                     ! invalid BedSedimentLayer type specified
-                        call r%addError(ErrorInstance(code = 1, &
-                                    message = "Invalid &
-                                               BedSedimentLayer &
-                                               object type &
-                                               specified" &
-                                                     ) &
-                                       )                             ! add ErrorInstance
-                        call r%addToTrace(tr)                        ! add trace to Result
-                        return                                       ! critical error, so exit
-                end select
-                grp = Me%ncGroup%getGroup(trim(ref("Layer", L)))     ! Get the layer group
-                call r%addErrors(.errors. O%create(Me%name, grp))    ! initialise the layer object
-                if (r%hasCriticalError()) then                       ! if a critical error has been thrown
-                    call r%addToTrace(tr)                            ! add trace to Result
-                    return                                           ! exit, as a critical error has occurred
-                end if
-            end associate
+            select case (bslType(L))                             ! loop through possible BedSedimentLayer types
+                case(1)                                          ! type number 1
+                    grp = Me%ncGroup%getGroup(trim(ref("Layer", L)))     ! Get the layer group
+                    call r%addErrors(.errors. bsl1%create(Me%name, grp)) ! initialise the layer object
+                    allocate(Me%colBedSedimentLayers(L)%item, source=bsl1, stat = allst)                 ! allocate empty object of this type
+                    if (allst /= 0) then
+                        call r%addError(ErrorInstance( &
+                                           code = 1, &
+                                        message = ms, &
+                                          trace = [tr]))         ! add to Result
+                        return                                   ! critical error, so return
+                    end if
+                    if (r%hasCriticalError()) then               ! if a critical error has been thrown
+                        call r%addToTrace(tr)                    ! add trace to Result
+                        return                                   ! exit, as a critical error has occurred
+                    end if
+                    ! call move_alloc(bsl1, &
+                    !     Me%colBedSedimentLayers(L)%item)         ! move bsl1 object into layers collection
+                case default                                     ! invalid BedSedimentLayer type specified
+                    call r%addError(ErrorInstance(code = 1, &
+                                message = "Invalid &
+                                           BedSedimentLayer &
+                                           object type &
+                                           specified" &
+                                                 ) &
+                                   )                             ! add ErrorInstance
+                    call r%addToTrace(tr)                        ! add trace to Result
+                    return                                       ! critical error, so exit
+            end select
+            if (r%hasCriticalError()) then                       ! if a critical error has been thrown
+                call r%addToTrace(tr)                            ! add trace to Result
+                return                                           ! exit, as a critical error has occurred
+            end if
         end do
     end function
     !> **Function purpose**                                         <br>

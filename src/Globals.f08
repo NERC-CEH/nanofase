@@ -85,7 +85,7 @@ module Globals
             ErrorInstance(code=902, message="Invalid Biota index provided."), &
             ErrorInstance(code=903, message="Invalid Reactor index provided."), &
             ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.") &
-        ], on=.false.)
+        ], on=.true.)
 
         ! Get config options from the config file
         ! TODO: NOT WORKING

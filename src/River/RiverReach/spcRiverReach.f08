@@ -4,7 +4,7 @@ module spcRiverReach
     use mo_netcdf                                                   ! Input/output handling
     use ResultModule                                                ! Error handling classes, required for
     use ErrorInstanceModule
-    ! use spcBedSediment
+    use spcBedSediment
     implicit none
 
     !> Abstract base class for `RiverReach`. Defines properties and procedures
@@ -31,27 +31,32 @@ module spcRiverReach
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
         real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux on a given timestep [kg/s]
+        real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
         real(dp) :: n                                               !! Manning's roughness coefficient [-]
-        ! class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
+        class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
-        procedure(createRiverReach), deferred :: create             ! Create the RiverReach object
-        procedure(destroyRiverReach), deferred :: destroy           ! Remove the RiverReach object and all contained objects
-        procedure(updateRiverReach), deferred :: update             ! Run the RiverReach simulation for one timestep
-        procedure(resuspensionRiverReach), deferred :: resuspension ! Run resuspension algorithm for one timestep
-        procedure(calculateDepth), private, deferred :: calculateDepth           ! Compute the depth of the water column
-        procedure(calculateWidth), private, deferred :: calculateWidth           ! Compute the width of the reach
-        procedure(calculateVelocity), private, deferred :: calculateVelocity     ! Compute the water velocity
-        procedure(calculateSettlingVelocity), private, deferred :: calculateSettlingVelocity ! Compute the sediment settling velocities
+       ! Create/destory
+        procedure(createRiverReach), deferred :: create
+        procedure(destroyRiverReach), deferred :: destroy
+        ! Simulators
+        procedure(updateRiverReach), deferred :: update
+        procedure(resuspensionRiverReach), private, deferred :: resuspension
+        procedure(settlingRiverReach), private, deferred :: settling
+        ! Calculators
+        procedure(calculateDepth), private, deferred :: calculateDepth
+        procedure(calculateWidth), private, deferred :: calculateWidth
+        procedure(calculateVelocity), private, deferred :: calculateVelocity
+        procedure(calculateSettlingVelocity), private, deferred :: calculateSettlingVelocity
         procedure(calculateResuspension), private, deferred :: calculateResuspension
-        procedure(calculateVolume), private, deferred :: calculateVolume         ! Calculate the volume of the reach
-        procedure(calculateArea), private, deferred :: calculateArea             ! Calculate the area of the reach's cross-section
-        ! GETTERS
-        procedure :: getVolume => getVolumeRiverReach               ! Should getters all be non-abstract, seeing as all they're
-        procedure :: getQOut => getQOutRiverReach                   ! doing is returning a type variable?
-        procedure :: getSpmOut => getSpmOutRiverReach               ! Return the SPM discharge
+        procedure(calculateVolume), private, deferred :: calculateVolume
+        procedure(calculateArea), private, deferred :: calculateArea
+        ! Getters
+        procedure :: getVolume => getVolumeRiverReach
+        procedure :: getQOut => getQOutRiverReach
+        procedure :: getSpmOut => getSpmOutRiverReach
     end type
 
     abstract interface
@@ -86,6 +91,13 @@ module spcRiverReach
 
         !> Resuspend sediment based on current river flow
         function resuspensionRiverReach(me) result(r)
+            import RiverReach, Result
+            class(RiverReach) :: me                                     !! This `RiverReach` instance
+            type(Result) :: r                                           !! The `Result` object to return
+        end function
+
+        !> Set settling rate \( k_{\text{settle}} \) for this time step
+        function settlingRiverReach(me) result(r)
             import RiverReach, Result
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             type(Result) :: r                                           !! The `Result` object to return

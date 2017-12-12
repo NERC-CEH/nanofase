@@ -63,11 +63,13 @@ module classSoilLayer1
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer :: t                                    !! The current time step [s]
         real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
+        real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         type(Result) :: r
             !! The `Result` object to return. Contains warning if all water on this time step removed.
 
-        ! Set the inflow to this SoilLayer
+        ! Set the inflow to this SoilLayer and store initial water in layer
         me%Q_in = Q_in
+        initial_V_w = me%V_w
 
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + me%Q_in < me%V_sat) then                      ! If water volume below V_sat after inflow
@@ -87,8 +89,10 @@ module classSoilLayer1
 
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
-        ! Error code 600 = "All water removed from SoilProfile"
-        if (abs(me%V_w) <= C%epsilon) call r%addError(ErrorInstance(600, isCritical=.false.))
+        ! Error code 600 = "All water removed from SoilLayer"
+        if (abs(me%V_w) <= C%epsilon .and. initial_V_w > 0) then
+            call r%addError(ErrorInstance(600, isCritical=.false.))
+        end if
 
         ! Add this procedure to the error trace
         call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
