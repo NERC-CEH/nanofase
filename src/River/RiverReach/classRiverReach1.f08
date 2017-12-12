@@ -6,7 +6,7 @@ module classRiverReach1
     use ResultModule
     use ErrorInstanceModule
     use spcRiverReach
-    ! use classBedSediment1
+    use classBedSediment1
     implicit none
 
     !> `RiverReach1` object is responsible for sediment transport along river and
@@ -17,7 +17,8 @@ module classRiverReach1
         procedure :: create => createRiverReach1
         procedure :: destroy => destroyRiverReach1
         procedure :: update => updateRiverReach1
-        procedure :: resuspension => resuspensionRiverReach1
+        procedure, private :: resuspension => resuspensionRiverReach1
+        procedure, private :: settling => settlingRiverReach1
         procedure, private :: calculateWidth => calculateWidth1
         procedure, private :: calculateDepth => calculateDepth1
         procedure, private :: calculateVelocity => calculateVelocity1
@@ -48,7 +49,7 @@ module classRiverReach1
         type(NcVariable) :: var                                 ! NetCDF variable
         type(NcGroup) :: grp                                    ! NetCDF group
         type(ErrorInstance) :: error                            ! To return errors
-        ! type(BedSediment1), allocatable :: bs1                  ! BedSediment1 object to temporarily store me%bedSediment in
+        type(BedSediment1), allocatable :: bs1                  ! BedSediment1 object to temporarily store me%bedSediment in
 
         ! First, let's set the RiverReach's reference and the length
         me%ref = trim(ref("RiverReach", x, y, s, r))
@@ -59,6 +60,7 @@ module classRiverReach1
             me%m_spm(C%nSizeClassesSpm), &
             me%j_spm_res(C%nSizeClassesSpm), &
             me%C_spm(C%nSizeClassesSpm), &
+            me%k_settle(C%nSizeClassesSpm), &
             stat=allst)
         me%C_spm = 0                    ! Set SPM concentration and mass to 0 to begin with
         me%m_spm = 0
@@ -100,10 +102,10 @@ module classRiverReach1
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        ! allocate(bs1)
-        ! res = bs1%create(x, y, s, r, me%ncGroup)
-        ! call move_alloc(bs1, me%bedSediment)
-        ! call res%addToTrace('Creating ' // trim(me%ref))
+        allocate(bs1)
+        res = bs1%create(me%ncGroup)
+        call move_alloc(bs1, me%bedSediment)
+        call res%addToTrace('Creating ' // trim(me%ref))
     end function
 
     !> Destroy this `RiverReach1`
@@ -154,11 +156,14 @@ module classRiverReach1
         me%bsArea = me%W*me%l*me%f_m                        ! Calculate the BedSediment area
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
 
-        ! Set the resuspension flux me%j_spm_res (but don't acutally resuspend until we're looping
-        ! through displacements). This can be done now as resuspension doesn't depend
-        ! on anything that changes on each displacement (unlike settling velocity,
-        ! which depends on SPM density).
-        call r%addErrors(.errors. me%resuspension())
+        ! Set the resuspension flux me%j_spm_res and settling rate me%k_settle
+        ! (but don't acutally resuspend/settle until we're looping through
+        ! displacements). This can be done now as settling/resuspension rates
+        ! don't depend on anything that changes on each displacement
+        call r%addErrors([ &
+            .errors. me%resuspension(), &
+            .errors. me%settling() &
+        ])
 
         ! If Qin for this timestep is bigger than the reach volume, then we need to
         ! split into a number of displacements
@@ -181,31 +186,18 @@ module classRiverReach1
             me%m_spm = me%m_spm + me%j_spm_res*dt         ! SPM resuspended is resuspension flux * displacement length
             me%C_spm = me%m_spm/me%volume                 ! Update the SPM concentration
 
-            ! Calculate the settling velocity and rate for each SPM size class. Must be
-            ! done for each displacement as it depends on rho_spm
-            ! ########### This doesn't need to be done on each displacement as rho_spm won't change
-            ! TODO: This should be done for each fractional comp - change
-            do n = 1, C%nSizeClassesSpm
-                settlingVelocity(n) = me%calculateSettlingVelocity( &
-                    C%d_spm(n), &
-                    sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps.
-                    C%T &
-                )
-                k_settle(n) = settlingVelocity(n)/me%D
-            end do
-
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
-            me%m_spm = me%m_spm - (k_settle*dt)*me%m_spm
-            me%C_spm = me%m_spm/me%volume                       ! Recalculate the concentration
+            me%m_spm = max(me%m_spm - (me%k_settle*dt)*me%m_spm, 0.0)
+            me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
 
             ! If we've removed all of the SPM, set to 0
             ! TODO: Simplify this in max() function
-            do n = 1, C%nSizeClassesSpm
-                if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
-                    me%m_spm(n) = 0
-                    me%C_spm(n) = 0
-                end if
-            end do
+            ! do n = 1, C%nSizeClassesSpm
+            !     if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
+            !         me%m_spm(n) = 0
+            !         me%C_spm(n) = 0
+            !     end if
+            ! end do
 
             ! Other stuff, like abstraction, to go here.
 
@@ -293,6 +285,23 @@ module classRiverReach1
             me%j_spm_res = 0                                ! If there's no inflow
         end if
         call r%addToTrace('Calculating resuspension')
+    end function
+
+    !> Perform the settling simulation for a time step
+    function settlingRiverReach1(me) result(r)
+        class(RiverReach1) :: me                            !! This `RiverReach1` instance
+        type(Result) :: r                                   !! The `Result` object to return any errors
+        integer :: n                                        ! Size class iterator
+        real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
+        ! Loop through the size classes and calculate settling velocity
+        do n = 1, C%nSizeClassesSpm
+            settlingVelocity(n) = me%calculateSettlingVelocity( &
+                C%d_spm(n), &
+                sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
+                C%T &
+            )
+        end do
+        me%k_settle = settlingVelocity/me%D
     end function
 
     !> Calculate the width \( W \) of the river based on the discharge:
