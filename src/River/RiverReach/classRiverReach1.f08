@@ -219,7 +219,7 @@ module classRiverReach1
         ! Set the final SPM concentration
         me%C_spm = me%m_spm/me%volume
         ! Add what we're doing here to the error trace
-        call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
+        call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
 
     !> Perform the resuspension simulation for a time step
@@ -263,11 +263,12 @@ module classRiverReach1
                 f_fr = f_fr &
             )
             ! Remove the material from the bed sediment
+            print *, me%j_spm_res*C%timeStep/me%bedArea
             call r%addErrors(.errors. me%bedSediment%resuspend(me%j_spm_res*C%timeStep/me%bedArea))
         else
             me%j_spm_res = 0                                ! If there's no inflow
         end if
-        call r%addToTrace('Calculating resuspension')
+        call r%addToTrace('Calculating resuspension for ' // trim(me%ref))
     end function
 
     !> Perform the settling simulation for a time step

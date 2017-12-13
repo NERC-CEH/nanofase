@@ -203,10 +203,11 @@ module classFineSediment1
                     return                                               ! and exit
                 end if
                 if (present(Mf_in)) then
-                    if (Mf_in <= 0) then                                 ! Mf_in is invalid
+                    if (Mf_in < 0) then                                  ! Mf_in is invalid
                         er = ErrorInstance( &
                             code = 103, &
-                            message = "Sediment mass is out of range", &
+                            message = "Sediment mass is out of range. " &
+                                // "Value: " // str(Mf_in) // ".", &
                             trace = [Me%name] &
                                           )                              ! compose error
                         call r%addError(er)                              ! add it to the result
@@ -214,10 +215,11 @@ module classFineSediment1
                     end if
                 end if
                 if (present(Vf_in)) then
-                    if (Vf_in <= 0) then                                 ! Vf_in is invalid
+                    if (Vf_in < 0) then                                  ! Vf_in is invalid
                         er = ErrorInstance( &
                             code = 103, &
-                            message = "Sediment volume is out of range", &
+                            message = "Sediment volume is out of range. " &
+                                // "Value: " // str(Vf_in) // ".", &
                             trace = [Me%name] &
                                           )                              ! compose error
                         call r%addError(er)                              ! add it to the result
@@ -225,10 +227,11 @@ module classFineSediment1
                     end if
                 end if
                 if (present(Vw_in)) then
-                    if (Vw_in <= 0) then                                 ! Vw_in is invalid
+                    if (Vw_in < 0) then                                  ! Vw_in is invalid
                         er = ErrorInstance( &
                             code = 103, &
-                            message = "Water volume is out of range", &
+                            message = "Water volume is out of range. " &
+                                // "Value: " // str(Vw_in) // ".", &
                             trace = [Me%name] &
                                           )                              ! compose error
                         call r%addError(er)                              ! add it to the result
