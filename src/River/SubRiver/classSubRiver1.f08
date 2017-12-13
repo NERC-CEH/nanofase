@@ -263,7 +263,6 @@ module classSubRiver1
             spmIn(i+1,:) = me%colReaches(i)%item%getSpmOut()
             me%tmpm_spm = me%tmpm_spm + me%colReaches(i)%item%m_spm ! Sum the SPM mass across the reaches to get total SPM mass for the SubRiver
         end do
-
         ! Temporary storage for QOut and spmOut, until all SubRivers have been routed and we can
         ! be sure that updating Qout won't result in the wrong timestep's Qout being used as Qin
         ! to a downstream SubRiver

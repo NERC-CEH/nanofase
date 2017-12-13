@@ -54,7 +54,7 @@ module classBedSedimentLayer1
             real(dp), allocatable :: f_comp_sc(:)                    ! LOCAL fractional compositions for one size class, needed to retrieve data from NetCDF file
             type(NcVariable) :: var                                  ! LOCAL NetCDF variable
             type(ErrorInstance) :: er                                ! LOCAL ErrorCriteria object for error handling.
-            type(Result) :: tmpResult
+            type(Result) :: tmpResult                                ! LOCAL Temporary Result object
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             character(len=16), parameter :: ms = &
                                             "Allocation error"       ! LOCAL allocation error message
@@ -136,50 +136,50 @@ module classBedSedimentLayer1
                 "%createBedSedimentLayer1%colFineSediment"           ! trace message
             allocate(Me%colFineSediment(Me%nSizeClasses), &
                 stat = allst, errmsg = allms)                                        ! set up fine sediment collection
-            if (allst /= 0) then
-                call r%addError(ErrorInstance( &
-                                      code = 1, &
-                                   message = allms, &
-                                     trace = [tr] &
-                                             ) &
-                               )                                     ! add to Result
-            end if
+            ! if (allst /= 0) then
+            !     call r%addError(ErrorInstance( &
+            !                           code = 1, &
+            !                        message = allms, &
+            !                          trace = [tr] &
+            !                                  ) &
+            !                    )                                     ! add to Result
+            ! end if
             tr = trim(Me%name) // &
                 "%createBedSedimentLayer1%C_f_l"                     ! trace message
             allocate(Me%C_f_l(Me%nSizeClasses), &
                 stat = allst, errmsg = allms)                        ! allocate space for fine sediment capacity
-            if (allst /= 0) then
-                call r%addError(ErrorInstance( &
-                                      code = 1, &
-                                   message = allms, &
-                                     trace = [tr] &
-                                             ) &
-                               )                                     ! add to Result
-            end if
+            ! if (allst /= 0) then
+            !     call r%addError(ErrorInstance( &
+            !                           code = 1, &
+            !                        message = allms, &
+            !                          trace = [tr] &
+            !                                  ) &
+            !                    )                                     ! add to Result
+            ! end if
             tr = trim(Me%name) // &
                 "%createBedSedimentLayer1%C_w_l"                     ! trace message
             allocate(Me%C_w_l(Me%nSizeClasses), &
                 stat = allst, errmsg = allms)                        ! allocate space for water capacity
-            if (allst /= 0) then
-                call r%addError(ErrorInstance( &
-                                      code = 1, &
-                                   message = allms, &
-                                     trace = [tr] &
-                                             ) &
-                               )                                     ! add to Result
-            end if
+            ! if (allst /= 0) then
+            !     call r%addError(ErrorInstance( &
+            !                           code = 1, &
+            !                        message = allms, &
+            !                          trace = [tr] &
+            !                                  ) &
+            !                    )                                     ! add to Result
+            ! end if
             tr = trim(Me%name) // &
                 "%createBedSedimentLayer1%pd_comp"                   ! trace message
             allocate(Me%pd_comp(Me%nfComp), &
                 stat = allst, errmsg = allms)                        ! allocate space for particle densities of components
-            if (allst /= 0) then
-                call r%addError(ErrorInstance( &
-                                      code = 1, &
-                                   message = allms, &
-                                     trace = [tr] &
-                                             ) &
-                               )                                     ! add to Result
-            end if
+            ! if (allst /= 0) then
+            !     call r%addError(ErrorInstance( &
+            !                           code = 1, &
+            !                        message = allms, &
+            !                          trace = [tr] &
+            !                                  ) &
+            !                    )                                     ! add to Result
+            ! end if
             if (r%hasCriticalError()) return                         ! exit if allocation has thrown an error
             do S = 1, Me%nSizeClasses
                 call r%addErrors(.errors. &
@@ -522,12 +522,14 @@ module classBedSedimentLayer1
                     return                                           ! exit here
                 end if
                 tr = Me%name //  "%removeSediment1%"                 ! trace message
-                call r%addErrors(.errors. F%set( &
+                call r%addErrors([ &
+                                .errors. F%create("a"), &            ! first, create the FineSediment object (e.g. allocate arrays)
+                                .errors. F%set( &
                                     Vf_in = V_f_SC_r, &
                                     Vw_in = V_w_SC_r, &
                                     f_comp_in = O%f_comp &
                                                ) &
-                                )                                    ! set properties of the sediment being removed, including fractional composition
+                                ])                                   ! set properties of the sediment being removed, including fractional composition
                 if (r%hasCriticalError()) then                       ! if a critical error has been thrown
                     call r%addToTrace(tr)                            ! add a trace message to any errors
                     return                                           ! exit here

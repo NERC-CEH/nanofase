@@ -142,7 +142,7 @@ module spcBedSediment
             use Globals
             import ResultFineSediment2D, BedSediment
             class(BedSediment) :: Me                                     !! Self-reference
-            real(dp), allocatable :: M_resusp(:)                         !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+            real(dp) :: M_resusp(:)                                      !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
             type(ResultFineSediment2D) :: r                              !! Returned `Result` object
         end function
     end interface

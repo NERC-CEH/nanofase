@@ -153,7 +153,7 @@ module classRiverReach1
         call r%addError(.error. D)                          ! Add any error that occurred
         me%v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
         me%xsArea = me%calculateArea(me%D, me%W)            ! Calculate the cross-sectional area of the reach
-        me%bsArea = me%W*me%l*me%f_m                        ! Calculate the BedSediment area
+        me%bedArea = me%W*me%l*me%f_m                        ! Calculate the BedSediment area
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
 
         ! Set the resuspension flux me%j_spm_res and settling rate me%k_settle
@@ -187,36 +187,17 @@ module classRiverReach1
             me%C_spm = me%m_spm/me%volume                 ! Update the SPM concentration
 
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
+            ! If we've removed all of the SPM, set to 0
             me%m_spm = max(me%m_spm - (me%k_settle*dt)*me%m_spm, 0.0)
             me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
-
-            ! If we've removed all of the SPM, set to 0
-            ! TODO: Simplify this in max() function
-            ! do n = 1, C%nSizeClassesSpm
-            !     if (me%m_spm(n) < 0) then                       ! If we've removed all of the SPM, set to 0
-            !         me%m_spm(n) = 0
-            !         me%C_spm(n) = 0
-            !     end if
-            ! end do
 
             ! Other stuff, like abstraction, to go here.
 
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
             ! TODO: Set dQout different to dQin based on abstraction etc.
-            dSpmOut = dQin*me%C_spm
-            do n = 1, C%nSizeClassesSpm
-                if (dSpmOut(n) .le. me%m_spm(n)) then
-                    ! Update the SPM mass and concentration after it has been advected
-                    me%m_spm(n) = me%m_spm(n) - dSpmOut(n)
-                    me%C_spm(n) = me%m_spm(n)/me%volume
-                else
-                    ! If dSpmOut > current SPM mass, then actual spmOut must equal the SPM mass,
-                    ! i.e., all of the remaining SPM has been advected out of the reach 
-                    dSpmOut(n) = me%m_spm(n)
-                    me%m_spm(n) = 0                       ! SPM mass and concentration must now be zero
-                    me%C_spm(n) = 0
-                end if
-            end do
+            dSpmOut = min(dQin*me%C_spm, me%m_spm)              ! Maximum of m_spm can be advected
+            me%m_spm = me%m_spm - dSpmOut                       ! Update the SPM mass after advection
+            me%C_spm = me%m_spm/me%volume                       ! Update the concentration
 
             ! Sum the displacement outflows and mass for the final outflow
             ! Currently, Qout = Qin. Maybe abstraction etc will change this
@@ -225,7 +206,7 @@ module classRiverReach1
         end do
         ! If there's no SPM left, add the "all SPM advected" warning
         do n = 1, C%nSizeClassesSpm
-            if (me%m_spm(n) == 0 .and. me%spmIn(n) /= 0) then
+            if (isZero(me%m_spm(n)) .and. me%spmIn(n) /= 0) then
                 call r%addError(ErrorInstance( &
                     code = 500, &
                     message = "All SPM in size class " // trim(str(n)) // " (" // trim(str(C%d_spm(n)*1e6)) // &
@@ -281,6 +262,8 @@ module classRiverReach1
                 omega = omega, &
                 f_fr = f_fr &
             )
+            ! Remove the material from the bed sediment
+            call r%addErrors(.errors. me%bedSediment%resuspend(me%j_spm_res*C%timeStep/me%bedArea))
         else
             me%j_spm_res = 0                                ! If there's no inflow
         end if

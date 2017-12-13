@@ -27,7 +27,7 @@ module spcRiverReach
         real(dp) :: f_m = 1                                         !! Meandering factor used for calculating river volume. Default to 1 (no meandering).
             ! TODO: Move the default to config file
         real(dp) :: xsArea                                          !! The cross-sectional area of water in the reach [m2]
-        real(dp) :: bsArea                                          !! The bed sediment area in the reach [m2]
+        real(dp) :: bedArea                                         !! The bed sediment area in the reach [m2]
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
         real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux on a given timestep [kg/s]

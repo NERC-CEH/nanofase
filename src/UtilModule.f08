@@ -19,6 +19,11 @@ module UtilModule
         module procedure ref5
     end interface
 
+    interface isZero
+        module procedure isZeroReal
+        module procedure isZeroDp
+    end interface
+
   contains
         !> Convert an integer to a string
         pure function strFromInteger(i) result(str)
@@ -110,4 +115,36 @@ module UtilModule
             ref5 = trim(prefix) // "_" // trim(str(a)) // "_" // trim(str(b)) // &
                     "_" // trim(str(c)) // "_" // trim(str(d)) // "_" // trim(str(e))
         end function
+
+        !> Check whether a real value is within epsilon of zero
+        pure function isZeroReal(value, epsilon)
+            real, intent(in)                :: value        !! Value to check
+            real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
+            real(dp)                        :: e            !! Internal epsilon
+            logical :: isZeroReal
+            isZeroReal = .false.
+            if (.not. present(epsilon)) then
+                e = C%epsilon
+            else
+                e = epsilon
+            end if
+            if (abs(value) < epsilon) isZeroReal = .true.
+        end function
+
+        !> Check whether a real(dp) value is within epsilon of zero
+        pure function isZeroDp(value, epsilon)
+            real(dp), intent(in)            :: value        !! Value to check
+            real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
+            real(dp)                        :: e            !! Internal epsilon
+            logical :: isZeroDp
+            isZeroDp = .false.
+            if (.not. present(epsilon)) then
+                e = C%epsilon
+            else
+                e = epsilon
+            end if
+            if (abs(value) < e) isZeroDp = .true.
+        end function
+
+
 end module
