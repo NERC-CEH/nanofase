@@ -80,8 +80,8 @@ module classBedSedimentLayer1
             if (len_trim(Me%name) == 0) then
                 call r%addError(ErrorInstance( &
                             code = 1, &
-                            message = "An object name has not &
-                                           been provided", &
+                            message = "An object name has not " &
+                                           // "been provided", &
                             trace = [tr] &
                                              ) &
                                )                                     ! error if name is not provided
@@ -102,8 +102,8 @@ module classBedSedimentLayer1
             if (size(M_f) /= Me%nSizeClasses) then                   ! array of fine sediment masses must have correct size
                 call r%AddError(ErrorInstance( &
                             code = 1, &
-                            message = "Array of fine sediment &
-                                       masses is the wrong size", &
+                            message = "Array of fine sediment " &
+                                       // "masses is the wrong size", &
                             trace = [tr] &
                                              ) &
                                )                                     ! create error instance
@@ -260,7 +260,7 @@ module classBedSedimentLayer1
             ! -------------------------------------------------------------------------------
             ! No notes.
             ! -------------------------------------------------------------------------------
-            tr = Me%name // &
+            tr = trim(Me%name) // &
                 "%destroyBedSedimentLayer1%colFineSediment"          ! trace message
             deallocate(Me%colFineSediment, stat = allst)          ! deallocate all allocatable variables
             if (allst /= 0) then
@@ -271,7 +271,7 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! add to Result
             end if
-            tr = Me%name // &
+            tr = trim(Me%name) // &
                 "%destroyBedSedimentLayer1%pd_comp"                  ! trace message
             deallocate(Me%pd_comp, stat = allst)
             if (allst /= 0) then
@@ -282,7 +282,7 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! add to Result
             end if
-            tr = Me%name // &
+            tr = trim(Me%name) // &
                 "%destroyBedSedimentLayer1%C_f_l"                    ! trace message
             deallocate(Me%C_f_l, stat = allst)
             if (allst /= 0) then
@@ -293,7 +293,7 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! add to Result
             end if
-            tr = Me%name // &
+            tr = trim(Me%name) // &
                 "%destroyBedSedimentLayer1%C_w_l"                    ! trace message
             deallocate(Me%C_w_l, stat = allst)
             if (allst /= 0) then
@@ -340,7 +340,7 @@ module classBedSedimentLayer1
             ! -------------------------------------------------------------------------------
             ! No notes.
             ! -------------------------------------------------------------------------------
-            tr = Me%name // "%addSediment1"                          ! trace for this procedure
+            tr = (Me%name) // "%addSediment1"                        ! trace for this procedure
             if (S <= 0 .or. S > Me%nSizeClasses) then                ! CRITICAL ERROR HERE: if S <= 0 or S > nSizeClasses
                 call r0D%addError(ErrorInstance(code = 1, &
                                 message = "The size class is out of &
@@ -372,11 +372,11 @@ module classBedSedimentLayer1
                                           " is less than zero" &
                                ))
             end if
-            if (r0D%hasCriticalError()) then                           ! if AddSediment throws a critical error
-                call r0D%addToTrace(tr)                                ! add trace to all errors
+            if (r0D%hasCriticalError()) then                         ! if AddSediment throws a critical error
+                call r0D%addToTrace(tr)                              ! add trace to all errors
                 return                                               ! and exit
             end if
-            tr = Me%name // &
+            tr = trim(Me%name) // &
                 "%createBedSedimentLayer1%t_comp"                    ! trace message
             allocate(t_comp(1:Me%nfComp), stat = allst)              ! for storage of modified fractional composition of modified sediment
             if (allst /= 0) then
@@ -474,7 +474,7 @@ module classBedSedimentLayer1
             ! -------------------------------------------------------------------------------
             ! No notes.
             ! -------------------------------------------------------------------------------
-            tr = Me%name // "%removeSediment1"                       ! trace for this procedure
+            tr = trim(Me%name) // "%removeSediment1"                 ! trace for this procedure
             if (S <= 0 .or. S > Me%nSizeClasses) then                ! CRITICAL ERROR HERE: if S <= 0 or S > nSizeClasses
                 call r%addError(ErrorInstance( &
                   code = 1, &
@@ -514,14 +514,14 @@ module classBedSedimentLayer1
                 call r%addErrors(.errors. O%set( &
                                     Vf_in = V_f_SC - V_f_SC_r, &
                                     Vw_in = V_w_SC - V_w_SC_r &
-                                         ) &
-                          )                                          ! update fine sediment in layer
+                                                ) &
+                                )                                    ! update fine sediment in layer
                                                                      ! fractional composition unchanged
                 if (r%hasCriticalError()) then                       ! if a critical error has been thrown
                     call r%addToTrace(tr)                            ! add a trace message to any errors
                     return                                           ! exit here
                 end if
-                tr = Me%name //  "%removeSediment1%"                 ! trace message
+                tr = trim(Me%name) //  "%removeSediment1%"           ! trace message
                 call r%addErrors([ &
                                 .errors. F%create("a"), &            ! first, create the FineSediment object (e.g. allocate arrays)
                                 .errors. F%set( &

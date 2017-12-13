@@ -47,7 +47,7 @@ module classBedSediment1
         Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
-        tr = Me%name // "%createBedSediment1"                        ! procedure name as trace
+        tr = trim(Me%name) // "%createBedSediment1"                        ! procedure name as trace
         var = Me%ncGroup%getVariable("nLayers")                      ! Get the number of BedSedimentLayers
         call var%getData(Me%nLayers)                                 ! retrieve into nLayers variable
         ! call r%addErrors(.errors. Me%setLayers(Me%nLayers))          ! set number of layers and allocate layer collection
@@ -140,7 +140,7 @@ module classBedSediment1
             call r%addErrors(.errors. &
                 Me%colBedSedimentLayers(L)%item%destroy())           ! destroy enclosed BedSedimentLayers
         end do
-        tr = Me%name // &
+        tr = trim(Me%name) // &
             "%destroyBedSedimentLayer1%colBedSedimentLayers"         ! trace message
         deallocate(Me%colBedSedimentLayers, stat = allst)            ! deallocate all allocatable variables
         if (allst /= 0) then
@@ -181,7 +181,7 @@ module classBedSediment1
         ! -----------------------------------------------------------------------------------------
         ! do the references to Me%nSizeClasses and Me%nLayers preclude making this a pure function?
         ! -----------------------------------------------------------------------------------------
-        tr = Me%name // "ResuspendSediment1"                         ! error trace for this procedure
+        tr = trim(Me%name) // "%resuspendSediment1"                         ! error trace for this procedure
         if (size(M_resusp) /= Me%nSizeClasses) then                  ! number of size classes must be consistent
             call r%addError(ErrorInstance( &
                             code = 1, &
@@ -220,9 +220,10 @@ module classBedSediment1
         end if
         if (r%hasCriticalError()) return                             ! exit if allocation error thrown
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
-            call r%addErrors(.errors. G%set(Mf_in = M_resusp(S) &
-                                           ) &
-                            )                                        ! top layer: set up the temporary object G, with the resuspended mass
+            call r%addErrors([ &
+                            .errors. G%create("n"), &                ! create FineSediment first so variables are allocated
+                            .errors. G%set(Mf_in = M_resusp(S)) &
+                            ])                                       ! top layer: set up the temporary object G, with the resuspended mass
             if (r%hasCriticalError()) then
                 call r%addToTrace(tr)
                 return                                               ! exit if a critical error has been thrown
