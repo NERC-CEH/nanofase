@@ -12,8 +12,7 @@ module spcBedSedimentLayer
         character(len=256) :: name                                   !! A name for the object
         real(dp), allocatable :: C_f_l(:)                            !! Capacity for fine sediment [m3 m-2]
         real(dp), allocatable :: C_w_l(:)                            !! Capacity for water [m3 m-2]
-        class(FineSediment1), allocatable :: &
-        colFineSediment(:)                                           !! Collection of `FineSediment` objects
+        type(FineSediment1), allocatable :: colFineSediment(:)       !! Collection of `FineSediment` objects
         real(dp) :: C_total                                          !! Total capacity [m3 m-2]
         real(dp) :: V_c                                              !! Coarse material volume [m3 m-2]
         real(dp), allocatable :: pd_comp(:)                          !! Particle densities of sediment components [kg m-3]

@@ -163,7 +163,7 @@ module classBedSediment1
     !! sediment bed. `r` returns resuspended fine sediments as type `ResultFineSediment2D`
     function resuspendSediment1(Me, M_resusp) result(r)
         class(BedSediment1) :: Me                                    !! Self-reference
-        real(dp), allocatable :: M_resusp(:)                         !! Sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+        real(dp) :: M_resusp(:)                                      !! Sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
         type(ResultFineSediment2D) :: r                              !! Returned `Result` object. Type = `FineSediment`
         type(FineSediment1), allocatable :: FS(:,:)                  ! LOCAL resuspended fine sediment. Index 1 = size class, Index 2 = layer
 !        type(FineSediment1), allocatable :: F                        ! LOCAL FineSediment object representing material that has been resuspended
