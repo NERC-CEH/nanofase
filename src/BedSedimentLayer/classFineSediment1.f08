@@ -13,6 +13,7 @@ module classFineSediment1
         real(dp), allocatable :: f_comp(:)                           !! Fractional composition [-]
         real(dp), allocatable :: pd_comp(:)                          !! LOCAL storage of fractional particle densities [kg m-3]
         integer :: nfComp                                            !! LOCAL number of fractional composition terms
+        logical :: isCreated = .false.                               !! LOCAL has this object been created?
     contains
         procedure, public :: create => createFineSediment1           ! sets up by reading variables required for computations
         procedure, public :: destroy => destroyFineSediment1         ! finalises by doing all necessary deallocations
@@ -106,6 +107,7 @@ module classFineSediment1
                 call r%addError(er)                                  ! add to Result
                 return                                               ! critical error, so exit
             end if
+            me%isCreated = .true.                                    ! if we got this far, tag the object as created
         end function
         !> **Function purpose**                                     <br>
         !! Finalise a `FineSediment` object. Deallocate all class-level allocated variables
@@ -188,72 +190,82 @@ module classFineSediment1
             ! -------------------------------------------------------------------------------
             ! No notes.
             ! -------------------------------------------------------------------------------
-            if ((present(Mf_in)) .and. (present(Vf_in))) then        ! both sediment mass and volume specified - cannot use both
-                er = ErrorInstance( &
-                    code = 1, &
-                    message = "Sediment mass and volume both &
-                               specified", &
-                    trace = [Me%name] &
-                                  )                                  ! compose error
-                call r%addError(er)                                  ! add it to the result
-                return                                               ! and exit
-            end if
-            if (present(Mf_in)) then
-                if (Mf_in <= 0) then                                 ! Mf_in is invalid
+            ! Only proceed if the object has been created
+            if (me%isCreated) then
+                if ((present(Mf_in)) .and. (present(Vf_in))) then        ! both sediment mass and volume specified - cannot use both
                     er = ErrorInstance( &
-                        code = 103, &
-                        message = "Sediment mass is out of range", &
+                        code = 1, &
+                        message = "Sediment mass and volume both &
+                                   specified", &
                         trace = [Me%name] &
-                                      )                              ! compose error
-                    call r%addError(er)                              ! add it to the result
-                    return                                           ! and exit
+                                      )                                  ! compose error
+                    call r%addError(er)                                  ! add it to the result
+                    return                                               ! and exit
                 end if
-            end if
-            if (present(Vf_in)) then
-                if (Vf_in <= 0) then                                 ! Vf_in is invalid
-                    er = ErrorInstance( &
-                        code = 103, &
-                        message = "Sediment volume is out of range", &
-                        trace = [Me%name] &
-                                      )                              ! compose error
-                    call r%addError(er)                              ! add it to the result
-                    return                                           ! and exit
-                end if
-            end if
-            if (present(Vw_in)) then
-                if (Vw_in <= 0) then                                 ! Vw_in is invalid
-                    er = ErrorInstance( &
-                        code = 103, &
-                        message = "Water volume is out of range", &
-                        trace = [Me%name] &
-                                      )                              ! compose error
-                    call r%addError(er)                              ! add it to the result
-                    return                                           ! and exit
-                end if
-            end if
-            if (present(f_comp_in)) then
-                if (size(f_comp_in) /= Me%NFComp) then
-                    er = ErrorInstance( &
-                        code = 106, &
-                        message = "Size of fractional composition &
-                                   array incorrect", &
-                        trace = [Me%name // "%SetFS1"] &             ! check size of compositional array against stored no. of fraction
-                                      )
-                    call r%addError(er)                              ! add it to the result
-                    return                                           ! and exit, as this is a critical error
-                else                                                 ! if no error thrown, then
-                    Me%f_comp = f_comp_in                            ! store the composition locally
-                    er = Me%audit_comp()                             ! audit sum (fractional composition) = 1, return error instance
-                    if (er%isError()) then                           ! if an error was thrown
-                        call er%addToTrace(trim(Me%name) // "%SetFS1") ! add a trace
-                        call r%addError(er)                          ! add it to the result
-                        return                                       ! and exit, as this is a critical error
+                if (present(Mf_in)) then
+                    if (Mf_in <= 0) then                                 ! Mf_in is invalid
+                        er = ErrorInstance( &
+                            code = 103, &
+                            message = "Sediment mass is out of range", &
+                            trace = [Me%name] &
+                                          )                              ! compose error
+                        call r%addError(er)                              ! add it to the result
+                        return                                           ! and exit
                     end if
                 end if
+                if (present(Vf_in)) then
+                    if (Vf_in <= 0) then                                 ! Vf_in is invalid
+                        er = ErrorInstance( &
+                            code = 103, &
+                            message = "Sediment volume is out of range", &
+                            trace = [Me%name] &
+                                          )                              ! compose error
+                        call r%addError(er)                              ! add it to the result
+                        return                                           ! and exit
+                    end if
+                end if
+                if (present(Vw_in)) then
+                    if (Vw_in <= 0) then                                 ! Vw_in is invalid
+                        er = ErrorInstance( &
+                            code = 103, &
+                            message = "Water volume is out of range", &
+                            trace = [Me%name] &
+                                          )                              ! compose error
+                        call r%addError(er)                              ! add it to the result
+                        return                                           ! and exit
+                    end if
+                end if
+                if (present(f_comp_in)) then
+                    if (size(f_comp_in) /= Me%NFComp) then
+                        er = ErrorInstance( &
+                            code = 106, &
+                            message = "Size of fractional composition &
+                                       array incorrect", &
+                            trace = [Me%name // "%SetFS1"] &             ! check size of compositional array against stored no. of fraction
+                                          )
+                        call r%addError(er)                              ! add it to the result
+                        return                                           ! and exit, as this is a critical error
+                    else                                                 ! if no error thrown, then
+                        Me%f_comp = f_comp_in                            ! store the composition locally
+                        er = Me%audit_comp()                             ! audit sum (fractional composition) = 1, return error instance
+                        if (er%isError()) then                           ! if an error was thrown
+                            call er%addToTrace(trim(Me%name) // "%SetFS1") ! add a trace
+                            call r%addError(er)                          ! add it to the result
+                            return                                       ! and exit, as this is a critical error
+                        end if
+                    end if
+                end if
+                if (present(Mf_in)) Me%M_f_l = Mf_in                     ! Storing fine sediment mass, if specified
+                if (present(Vf_in)) Me%M_f_l = Vf_in * Me%rho_part()     ! Storing fine sediment volume, if specified
+                if (present(Vw_in)) Me%V_w_l = Vw_in                     ! Volume of water, if specified
+            else
+                r = Result(error = &
+                    ErrorInstance( &
+                        message = "Fine Sediment object not yet created. " &
+                            // "Call FineSediment%create before trying to use the object", &
+                        trace = ["FineSediment%setFS1"] &
+                ))
             end if
-            if (present(Mf_in)) Me%M_f_l = Mf_in                     ! Storing fine sediment mass, if specified
-            if (present(Vf_in)) Me%M_f_l = Vf_in * Me%rho_part()     ! Storing fine sediment volume, if specified
-            if (present(Vw_in)) Me%V_w_l = Vw_in                     ! Volume of water, if specified
         end function
         !> **Function purpose**                                     <br>
         !! Return the fine sediment volume [m3 m-2] as a derived property
