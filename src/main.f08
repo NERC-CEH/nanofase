@@ -12,15 +12,14 @@ program main
     type(Environment1) :: env                                           ! Environment object
 
     call GLOBALS_INIT()                                                 ! Set up global vars and constants
-    open(unit=2,file='output.txt')                                      ! Open the output data file
-    open(unit=3,file='output_erosion.txt')
+    open(unit=2,file=C%outputFile)                                      ! Open the output data file
 
     call cpu_time(start)                                                ! Simulation start time
 
     r = env%create()                                                    ! Create the environment
 
-    do t=1, 365
-        r = env%update(t)                                               ! Run the simulation for 1 year
+    do t = 1, C%nTimeSteps
+        r = env%update(t)
         do x = 1, size(env%colGridCells, 1)                             ! Loop through the rows
             do y = 1, size(env%colGridCells, 2)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then

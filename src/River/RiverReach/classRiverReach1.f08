@@ -146,7 +146,7 @@ module classRiverReach1
         me%Qrunoff = me%Q_runoff_timeSeries(t)              ! Get the runoff for this time step
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
         me%spmIn = spmIn + me%j_spm_runoff_timeSeries(t,:)  ! Inflow SPM from upstream reach + runoff from data file [kg/timestep]
-        ! TODO: j_runoff isn't actually from data file, change to get runoff from SoilProfile
+        ! TODO: j_spm_runoff isn't actually from data file, change to get runoff from SoilProfile
 
         ! Calculate the depth, velocity, area and volume
         me%W = me%calculateWidth(me%Qin/C%timeStep)

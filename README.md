@@ -7,7 +7,12 @@ Project links:
  - [Facebook](https://www.facebook.com/nanofase/).
  - [Twitter](https://twitter.com/NanoFASE_EU).
 
-[Quick start guide](doc/Quickstart.md)
+Model documentation:
+ - [Git quickstart guide](doc/git-quickstart.md)
+ - [Input data requirements](doc/data-requirements.md)
+ - [Config file options](doc/config.md)
+ - [Conventions](doc/conventions.md)
+
 
 ## Overview of model procedure
 
