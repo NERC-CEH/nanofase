@@ -483,7 +483,7 @@ module classBedSedimentLayer1
                   ))
             end if
             V_f_SC_r = G%V_f()                                       ! static local copy of fine sediment volume to be removed
-            if (V_f_SC_r <= 0) then                                  ! CRITICAL ERROR HERE: if V_f_SC_r < 0
+            if (V_f_SC_r < 0) then                                  ! CRITICAL ERROR HERE: if V_f_SC_r < 0
                 call r%addError(ErrorInstance( &
                   code = 1, &
                   message = "The removed fine sediment &
@@ -492,8 +492,8 @@ module classBedSedimentLayer1
                              " is less than zero" &
                 ))
             end if
-            V_w_SC_r = G%V_w()                                       ! static local copy of water volume to be removed
-            if (V_w_SC_r <= 0) then                                  ! CRITICAL ERROR HERE: if V_w_SC_r < 0
+            V_w_SC_r = G%V_w()                                       ! static local copy of water volue to be removed
+            if (V_w_SC_r < 0) then                                  ! CRITICAL ERROR HERE: if V_w_SC_r < 0
                 call r%addError(ErrorInstance( &
                   code = 1, &
                   message = "The removed water volume &
@@ -544,7 +544,8 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                                ! add a trace message to any errors
                 return                                               ! exit here
             end if
-            call r%setData([F,G])                                    ! Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
+            r = ResultFS(data=[F,G])
+            ! call r%setData(data=[F,G])                                    ! Result%data(1) = fine sediment that was removed; Result%data(2) = fine sediment that could not be removed
         end function
         !> **Subroutine purpose**                                   <br>
         !! Remove sediment of a specified size fraction, and associated water,

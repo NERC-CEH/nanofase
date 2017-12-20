@@ -19,6 +19,7 @@ module spcRiverReach
         real(dp), allocatable :: spmIn(:)                           !! Inflow SPM from upstream reach [kg/timestep]
         real(dp), allocatable :: spmOut(:)                          !! Outflow SPM to next reach [kg/timestep]
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
+        real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
         real(dp), allocatable :: m_spmTimeSeries(:,:)               !! Time series of SPM inputs [kg/s]
         real(dp) :: W                                               !! Width of reach [m]
         real(dp) :: D                                               !! Depth of water column [m]
@@ -45,6 +46,7 @@ module spcRiverReach
         procedure(updateRiverReach), deferred :: update
         procedure(resuspensionRiverReach), private, deferred :: resuspension
         procedure(settlingRiverReach), private, deferred :: settling
+        procedure(depositToBedRiverReach), private, deferred :: depositToBed
         ! Calculators
         procedure(calculateDepth), private, deferred :: calculateDepth
         procedure(calculateWidth), private, deferred :: calculateWidth
@@ -101,6 +103,14 @@ module spcRiverReach
             import RiverReach, Result
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             type(Result) :: r                                           !! The `Result` object to return
+        end function
+
+        function depositToBedRiverReach(me, spmDep) result(r)
+            use Globals
+            import RiverReach, Result
+            class(RiverReach) :: me                                     !! This `RiverReach` instance
+            real(dp) :: spmDep(C%nSizeClassesSpm)                       !! The SPM to deposit
+            type(Result) :: r                                           !! The `Result` object to return any errors in
         end function
 
         !> Calculate the depth of this `RiverReach`

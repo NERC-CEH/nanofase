@@ -49,7 +49,7 @@ module classFineSediment1
         generic, public :: operator(.finesediment.) => getDataAsFineSediment
     end type
 
-    interface Result
+    interface ResultFS
         module procedure init0D, init1D, init2D
     end interface
 
@@ -71,6 +71,7 @@ module classFineSediment1
             type(ErrorInstance) :: er                                ! LOCAL to store errors in
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL array allocation status
+            character(len=256) :: allms                              ! LOCAL allocation message
         !
         ! Notes
         ! -------------------------------------------------------------------------------
@@ -86,22 +87,26 @@ module classFineSediment1
             end if
             Me%name = n                                              ! set object name
             Me%nfComp = C%nFracCompsSpm                              ! set number of compositional fractions from Global
-            allocate(Me%pd_comp(Me%nfComp), stat = allst)            ! allocate space for particle densities of compositional fractions
+            allocate(Me%pd_comp(Me%nfComp), &
+                stat = allst, &
+                errmsg = allms)                                      ! allocate space for particle densities of compositional fractions
             if (allst /= 0) then
                 er = ErrorInstance(1, &
-                                   "Allocation error", &
-                                    trace = [Me%name // &
+                                   "Allocation error: " // trim(allms), &
+                                    trace = [trim(Me%name) // &
                 "%createBedSedimentLayer1%colFineSediment"] &
                                   )                                  ! create error
                 call r%addError(er)                                  ! add to Result
                 return                                               ! critical error, so exit
             end if
-            Me%pd_comp = C%d_pd                                         ! particle densities of compositional fractions from Global
-            allocate(Me%f_comp(Me%nfComp), stat = allst)             ! allocate space for compositional fractions
+            Me%pd_comp = C%d_pd                                      ! particle densities of compositional fractions from Global
+            allocate(Me%f_comp(Me%nfComp), &
+                stat = allst, &
+                errmsg = allms)                                      ! allocate space for compositional fractions
             if (allst /= 0) then
                 er = ErrorInstance(1, &
-                                   "Allocation error", &
-                                    trace = [Me%name // &
+                                   "Allocation error: " // trim(allms), &
+                                    trace = [trim(Me%name) // &
                 "%createBedSedimentLayer1%colFineSediment"] &
                                   )                                  ! create error
                 call r%addError(er)                                  ! add to Result
@@ -471,7 +476,7 @@ module classFineSediment1
                                             ) &
                             )                                        ! set the properties of the returned FineSediment object
             if (r%hasCriticalError()) return                         ! exit if critical error thrown
-            r = Result(data = FS)                                    ! feed FineSediment object into Result
+            r = ResultFS(data = FS)                                    ! feed FineSediment object into Result
        end function
 
 ! *********************************!
