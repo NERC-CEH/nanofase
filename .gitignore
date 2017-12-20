@@ -1,5 +1,6 @@
 # Custom makefiles
 makefile
+Makefile
 
 # Compilation files
 *.stackdump
