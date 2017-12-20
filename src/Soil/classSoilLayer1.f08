@@ -131,7 +131,7 @@ module classSoilLayer1
             me%ncGroup = grp%getGroup("SoilLayer_" // trim(str(me%l)))  ! Get this SoilLayer's group
 
             ! Get the depth of the SoilLayer, if present, otherwise default
-            ! without warning
+            ! without warning [m]
             if (me%ncGroup%hasVariable('depth')) then
                 var = me%ncGroup%getVariable('depth')
                 call var%getData(me%depth)

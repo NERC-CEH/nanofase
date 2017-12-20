@@ -15,12 +15,12 @@ module spcRiverReach
         real(dp) :: Qin                                             !! Inflow from upstream reach [m3/timestep]
         real(dp) :: Qout                                            !! Outflow to the next reach [m3/timestep]
         real(dp) :: Qrunoff                                         !! Runoff from hydrological model [m3/s]
-        real(dp), allocatable :: QrunoffTimeSeries(:)               !! Time series runoff data from file [m3/s]
+        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Time series runoff data from file [m3/s]
         real(dp), allocatable :: spmIn(:)                           !! Inflow SPM from upstream reach [kg/timestep]
         real(dp), allocatable :: spmOut(:)                          !! Outflow SPM to next reach [kg/timestep]
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
-        real(dp), allocatable :: m_spmTimeSeries(:,:)               !! Time series of SPM inputs [kg/s]
+        real(dp), allocatable :: j_spm_runoff_timeSeries(:,:)       !! Time series of inputs from runoff [kg/s]
         real(dp) :: W                                               !! Width of reach [m]
         real(dp) :: D                                               !! Depth of water column [m]
         real(dp) :: v                                               !! Water velocity [m/s]
@@ -63,13 +63,13 @@ module spcRiverReach
 
     abstract interface
         !> Create this `RiverReach`
-        function createRiverReach(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
+        function createRiverReach(me, x, y, s, r, l, Q_runoff_timeSeries) result(res)
             use Globals
             import RiverReach, Result
             class(RiverReach) :: me                                     !! The `RiverReach` instance
             integer :: x, y, s, r                                       !! `GridCell`, `SubRiver` and `RiverReach` identifiers
             real(dp) :: l                                               !! The `RiverReach` length [m]
-            real(dp), allocatable :: QrunoffTimeSeries(:)               !! Any initial runoff [m3/s]
+            real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Any initial runoff [m3/s]
             type(Result) :: res                                         !! The Result object
         end function
 

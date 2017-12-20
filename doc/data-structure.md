@@ -1,6 +1,8 @@
 # Data structure
 
-Structure of data output from Database objects:
+Structure of data output from `Database` objects:
+
+*Work in progress - `Database` objects not currently implemented.*
 
 - global[]
     + `spm_size_classes`

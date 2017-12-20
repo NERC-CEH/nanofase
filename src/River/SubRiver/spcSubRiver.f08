@@ -49,7 +49,7 @@ module spcSubRiver
         integer, allocatable :: reachTypes(:)                       !! Integer array of reach type identifiers
         real(dp) :: Qin                                             !! Inflow per timestep [m3]
         real(dp) :: Qout                                            !! Discharge from the Subriver [m3]
-        real(dp), allocatable :: QrunoffTimeSeries(:)               !! Complete time series runoff data [m3/timestep]
+        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Complete time series runoff data [m3/timestep]
         real(dp) :: Qrunoff                                         !! Initial runoff from the hydrological model [m3]
         real(dp) :: tmpQout
             !! Temporary variable to store `Qout` whilst other `SubRiver`s are using previous time step's `Qout`.
@@ -80,7 +80,7 @@ module spcSubRiver
 
     abstract interface
         !> Create the `SubRiver` object by reading data in from file
-        function createSubRiver(me, x, y, s, length, QrunoffTimeSeries) result(r)
+        function createSubRiver(me, x, y, s, length, Q_runoff_timeSeries) result(r)
             use Globals
             import SubRiver, Result
             class(SubRiver) :: me                                   !! The `SubRiver` instance
@@ -88,7 +88,7 @@ module spcSubRiver
             type(integer), intent(in) :: y                          !! The column number of the enclosing `GridCell`
             type(integer), intent(in) :: s                          !! Reference `SubRiver` number
             real(dp) :: length                                      !! The `SubRiver` length
-            real(dp), allocatable :: QrunoffTimeSeries(:)           !! Any initial runoff
+            real(dp), allocatable :: Q_runoff_timeSeries(:)         !! Any initial runoff
             type(Result) :: r                                       !! The `Result` object to return any errors in
         end function
         !> Destory this `SubRiver`
