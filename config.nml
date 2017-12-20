@@ -1,0 +1,18 @@
+&data
+inputFile = "data/data.nc",
+outputFile = "data/output.csv"
+/
+
+&run
+timeStep = 86400,
+nTimeSteps = 365,
+epsilon = 1e-10
+/
+
+&soil
+defaultSoilLayerDepth = 0.1
+/
+
+&river
+maxRiverReaches = 100
+/

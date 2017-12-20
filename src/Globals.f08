@@ -8,15 +8,24 @@ module Globals
     integer, parameter :: dp = selected_real_kind(15, 307)
     integer, parameter :: qp = selected_real_kind(33, 4931)
 
-    type, public :: Constants
+    type, public :: GlobalsType
+        ! Config
+        character(len=10)   :: configFile = 'config.nml'
+        character(len=100)  :: inputFile
+        character(len=100)  :: outputFile
+        integer             :: timeStep                 !! The timestep to run the model on [s].
+        integer             :: nTimeSteps               !! The number of timesteps.
+        real(dp)            :: epsilon = 1e-10          !! Used as proximity to check whether variable as equal
+        real(dp)            :: defaultSoilLayerDepth = 0.1_dp  !! Default SoilLayer depth of 10 cm
+        integer             :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
+
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
         real(dp) :: n_river = 0.035_dp      !! Manning's roughness coefficient, for natural streams and major rivers.
                                             !! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
 
-        ! Data input
+        ! Temp
         real(dp) :: T = 15.0_dp             !! Temperature [C]
-        character(len=12) :: inputFile = 'data/data.nc'   !! Name of the data input file.
 
         ! Size class distributions
         real(dp), allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
@@ -32,23 +41,13 @@ module Globals
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
-        ! SoilProfile
-        real(dp) :: defaultSoilLayerDepth = 0.1_dp  !! Default SoilLayer depth of 10 cm
-
-        ! Limits
-        integer :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
-        real(dp) :: epsilon = 1e-10         !! Used as proximity to check whether variable as equal
-
-        ! Structure and time
+        ! Structure
         real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
-        integer :: timeStep                 !! The timestep to run the model on [s].
-        integer :: nTimeSteps               !! The number of timesteps.
-
       contains
         procedure :: rho_w, nu_w
     end type
 
-    type(Constants) :: C
+    type(GlobalsType) :: C
 
   contains
 
@@ -57,12 +56,33 @@ module Globals
         type(NcDataset) :: NC                               ! NetCDF dataset
         type(NcVariable) :: var                             ! NetCDF variable
         type(NcGroup) :: grp                                ! NetCDF group
-        ! type(json_file) :: config                           ! JSON config file
-        ! logical :: jsonVarFound                             ! Was the JSON variable found?
         real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
         real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n                                        ! Iterator for size classes
+        character(len=100) :: inputFile, outputFile         ! Input and output file paths
+        integer :: timeStep, nTimeSteps, maxRiverReaches    ! Length and number of time steps, max number of RiverReaches in GridCell
+        real(dp) :: epsilon, defaultSoilLayerDepth          ! Error criteria proximity and default soil layer depth
+        namelist /data/ inputFile, outputFile
+        namelist /run/ timeStep, nTimeSteps, epsilon
+        namelist /soil/ defaultSoilLayerDepth
+        namelist /river/ maxRiverReaches
+
+        ! Open the config file and read the different config groups
+        open(10, file="config.nml", status="old")
+        read(10, nml=data)
+        read(10, nml=run)
+        read(10, nml=soil)
+        read(10, nml=river)
+        close(10)
+        ! Store this data in the Globals variable
+        C%inputFile = inputFile
+        C%outputFile = outputFile
+        C%timeStep = timeStep
+        C%nTimeSteps = nTimeSteps
+        C%epsilon = epsilon
+        C%defaultSoilLayerDepth = defaultSoilLayerDepth
+        C%maxRiverReaches = maxRiverReaches
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=[ &
@@ -87,23 +107,6 @@ module Globals
             ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.") &
         ], on=.true.)
 
-        ! Get config options from the config file
-        ! TODO: NOT WORKING
-        ! call config%initialize()
-        ! call config%load_file(filename = '../config.json')
-        ! if (config%failed()) call ERROR_HANDLER%trigger( &
-        !     error = ErrorInstance(code=200, message="Config file config.json not found."))
-        ! ! call config%get('data.input_file', C%inputFile, jsonVarFound)
-        ! ! if (.not. jsonVarFound) call ERROR_HANDLER%queue(201, message="data.input_file variable not found in config file.")
-        ! call config%get('run.timestep', C%timeStep, jsonVarFound)
-        ! if (.not. jsonVarFound) call ERROR_HANDLER%queue( &
-        !     error = ErrorInstance(201, message="run.timestep variable not found in config file."))
-        ! call config%get('run.n_timesteps', C%nTimeSteps, jsonVarFound)
-        ! if (.not. jsonVarFound) call ERROR_HANDLER%queue( &
-        !     error = ErrorInstance(201, message="run.n_timesteps variable not found in config file."))
-
-        ! call config%destroy()
-
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
         grp = nc%getGroup("global")                         ! Get the global variables group
@@ -124,10 +127,6 @@ module Globals
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
         var = grp%getVariable("gridCellSize")               ! Get the size of a grid cell [m]
         call var%getData(C%gridCellSize)
-        var = grp%getVariable("timeStep")                   ! Get the timestep to run the model on [s]
-        call var%getData(C%timeStep)
-        var = grp%getVariable("nTimeSteps")                 ! Get the number of time steps [s]
-        call var%getData(C%nTimeSteps)
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
@@ -160,7 +159,7 @@ module Globals
     !! Reference:
     !! [D. R. Maidment, Handbook of Hydrology (2012)](https://books.google.co.uk/books/about/Handbook_of_hydrology.html?id=4_9OAAAAMAAJ)
     pure function rho_w(me, T, S)
-        class(Constants), intent(in) :: me                      !! This `Constants` instance
+        class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
         real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: rho_w                                       !! Density of water \( \rho_w \) [kg/m**3].
@@ -180,7 +179,7 @@ module Globals
     !!      \nu_{\text{w}}(T,S) = \frac{1}{\rho_w(T,S)} 2.414\times 10^{-5} \cdot 10^{\frac{247.8}{(T+273.15)-140.0}}
     !! $$
     pure function nu_w(me, T, S)
-        class(Constants), intent(in) :: me                      !! This `Constants` instance
+        class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
         real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: nu_w                                        !! Kinematic viscosity of water \( \nu_{\text{w}} \)

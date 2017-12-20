@@ -38,7 +38,7 @@ The [convention](/doc/conventions.md) is that input data is parsed in an object'
             - `usle_slp_ch` : **Recommended**, *defaults to GridCell slope*. Slope of the channel. [km]
             - `usle_L_ch` : **Required**. The length of the hillslope channel [km].
             - **`SoilLayer_{l}`**
-                + `depth`: *Defaults to `config%defaultSoilLayerDepth`*. Depth of the soil layer [m].
+                + `depth`: *Defaults to [`config%defaultSoilLayerDepth`](/doc/config.md)*. Depth of the soil layer [m].
         * **`SubRiver_{x}_{y}_{s}`**
             - `nInflows` : **Required**. Number of inflow SubRivers.
             - `reachTypes` : **Required**. Type of RiverReaches contained in the SubRiver.
@@ -51,4 +51,4 @@ The [convention](/doc/conventions.md) is that input data is parsed in an object'
                 + `f_m`: *Defaults to 1 (no meandering)*. Meandering factor such that actual river length = linear river length * f_m [-].
                 + `alpha_res`: **Required**. Calibration factor for maximum resuspendable particle size [-]. See [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub), parameter a<sub>7</sub>.
                 + `beta_res`: **Required**. Calibration factor for resuspension [s2/kg]. See [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub), parameter a<sub>8</sub>.
-                + `spm(nTimeSteps,nSizeClassesSpm)` &#129146; `j_spm_runoff_timeSeries(nTimeSteps,nSizeClassesSpm)` : *Soon to be deprecated*. SPM runoff inflow to the reach [kg/s in data, kg/timestep in model].
+                + `spm(nTimeSteps,nSizeClassesSpm)` &#129146; `j_spm_runoff_timeSeries(nTimeSteps,nSizeClassesSpm)` : *Soon to be deprecated and got from SoilProfile calculations instead*. SPM runoff inflow to the reach [kg/s in data, kg/timestep in model].
