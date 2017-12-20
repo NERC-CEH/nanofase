@@ -28,25 +28,25 @@ module classSubRiver1
     end interface
   contains
     !> Return a newly-created `SubRiver1` object. This is bound to `SubRiver1` interface
-    function newSubRiver1(x, y, s, length, QrunoffTimeSeries) result(me)
+    function newSubRiver1(x, y, s, length, Q_runoff_timeSeries) result(me)
         type(SubRiver1) :: me                                       !! The new `SubRiver` to return
         integer :: x, y, s                                          !! Location of the `SubRiver`
         real(dp) :: length                                          !! Length of the `SubRiver` (without meandering)
-        real(dp), allocatable :: QrunoffTimeSeries(:)               !! Any initial runoff from the hydrological model
+        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Any initial runoff from the hydrological model
         type(Result) :: r                                           !! `Result` object
         ! Create the new SubRiver
-        r = me%create(x, y, s, length, QrunoffTimeSeries)
+        r = me%create(x, y, s, length, Q_runoff_timeSeries)
         ! TODO: Do something with result object
     end function
     
     !> Create the `SubRiver` object by reading data in from file
-    function createSubRiver1(me, x, y, s, length, QrunoffTimeSeries) result(r)
+    function createSubRiver1(me, x, y, s, length, Q_runoff_timeSeries) result(r)
         class(SubRiver1) :: me                                      !! The `SubRiver` instance
         type(integer), intent(in) :: x                              !! The row number of the enclosing `GridCell`
         type(integer), intent(in) :: y                              !! The column number of the enclosing `GridCell`
         type(integer), intent(in) :: s                              !! Reference `SubRiver` number
         real(dp) :: length                                          !! The length of the `SubRiver` (without meandering)
-        real(dp), allocatable :: QrunoffTimeSeries(:)               !! Initial runoff from the hydrological model
+        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Initial runoff from the hydrological model
         type(Result) :: r                                           !! The `Result` object to return any errors in
         real(dp), allocatable :: riverReachRunoffTimeSeries(:)      ! Runoff for each RiverReach
         type(NcDataset) :: NC                                       ! NetCDF dataset
@@ -85,7 +85,7 @@ module classSubRiver1
             stat=me%allst)             
         me%ref = trim(ref("SubRiver", x, y, s))                     ! Create SubRiver reference name, SubRiver_x_y_s
         me%length = length                                          ! Set the length
-        allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! Set the runoff
+        allocate(me%Q_runoff_timeSeries, source=Q_runoff_timeSeries)! Set the runoff
         me%spmOut = 0                                               ! Initialise SPM to zero
         me%spmIn = 0
 
@@ -167,10 +167,10 @@ module classSubRiver1
                                                                     ! AUDIT size(ReachTypes)=nReaches here
                                                                     ! ^ nReaches is set as size(ReachTypes) now - is there any reason not to do this?
         allocate(me%colReaches(1:me%nReaches), stat=me%allst)       ! Set colReaches to be of size nReaches
-        allocate(riverReachRunoffTimeSeries(size(me%QrunoffTimeSeries)))
-        do t = 1, size(me%QrunoffTimeSeries)                        ! Split the runoff between the reaches
-            if (me%QrunoffTimeSeries(t) > 0) then
-                riverReachRunoffTimeSeries(t) = me%QrunoffTimeSeries(t)/me%nReaches
+        allocate(riverReachRunoffTimeSeries(size(me%Q_runoff_timeSeries)))
+        do t = 1, size(me%Q_runoff_timeSeries)                        ! Split the runoff between the reaches
+            if (me%Q_runoff_timeSeries(t) > 0) then
+                riverReachRunoffTimeSeries(t) = me%Q_runoff_timeSeries(t)/me%nReaches
             else
                 riverReachRunoffTimeSeries(t) = 0
             end if

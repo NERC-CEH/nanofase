@@ -32,14 +32,14 @@ module classRiverReach1
   contains
 
     !> Create this `RiverReach1`, parse input data and set up contained `BedSediment`
-    function createRiverReach1(me, x, y, s, r, l, QrunoffTimeSeries) result(res)
+    function createRiverReach1(me, x, y, s, r, l, Q_runoff_timeSeries) result(res)
         class(RiverReach1) :: me                                !! The `RiverReach1` instance.
         integer :: x                                            !! Containing `GridCell` x-position index.
         integer :: y                                            !! Containing `GridCell` y-position index.
         integer :: s                                            !! Containing `SubRiver` index.
         integer :: r                                            !! `RiverReach` index.
         real(dp) :: l                                           !! Length of the `RiverReach` (without meandering).
-        real(dp), allocatable :: QrunoffTimeSeries(:)           !! Any `GridCell` runoff (that has already been split to the correct `RiverReach` size)
+        real(dp), allocatable :: Q_runoff_timeSeries(:)         !! Any `GridCell` runoff (that has already been split to the correct `RiverReach` size)
         type(Result) :: res                                     !! The Result object
         type(Result0D) :: D                                     ! Depth [m]
         type(Result0D) :: v                                     ! River velocity [m/s]
@@ -66,7 +66,7 @@ module classRiverReach1
             stat=allst)
         me%C_spm = 0                    ! Set SPM concentration and mass to 0 to begin with
         me%m_spm = 0
-        allocate(me%QrunoffTimeSeries, source=QrunoffTimeSeries)    ! This reach's runoff
+        allocate(me%Q_runoff_timeSeries, source=Q_runoff_timeSeries)    ! This reach's runoff
 
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
@@ -89,13 +89,13 @@ module classRiverReach1
         ! TODO: Add checks for the above
 
         ! Get the time series of SPM inflows
-        allocate(me%m_spmTimeSeries(C%nTimeSteps,C%nSizeClassesSpm))
+        allocate(me%j_spm_runoff_timeSeries(C%nTimeSteps,C%nSizeClassesSpm))
         if (me%ncGroup%hasVariable("spm")) then
             var = me%ncGroup%getVariable("spm")
-            call var%getData(me%m_spmTimeSeries)
-            me%m_spmTimeSeries = me%m_spmTimeSeries*C%timeStep      ! SPM is in kg/s, thus need to convert to kg/timestep
+            call var%getData(me%j_spm_runoff_timeSeries)
+            me%j_spm_runoff_timeSeries = me%j_spm_runoff_timeSeries*C%timeStep  ! SPM is in kg/s, thus need to convert to kg/timestep
         else
-            me%m_spmTimeSeries = 0
+            me%j_spm_runoff_timeSeries = 0
         end if
         ! Initial concentration can't be updated in we have volume from Qin, so this is left to the update() procedure
 
@@ -143,11 +143,10 @@ module classRiverReach1
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dSpmOut(C%nSizeClassesSpm)              ! SPM outflow for the displacement
 
-        me%Qrunoff = me%QrunoffTimeSeries(t)                ! Get the runoff for this time step.
+        me%Qrunoff = me%Q_runoff_timeSeries(t)              ! Get the runoff for this time step
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
-        me%spmIn = spmIn + me%m_spmTimeSeries(t,:)          ! Inflow SPM from upstream reach + inflow from data file
-        ! TODO: m_spm shouldn't really be used as a symbol for what is a mass flux,
-        ! change the name to something else, e.g. spmInTimeSeries.
+        me%spmIn = spmIn + me%j_spm_runoff_timeSeries(t,:)  ! Inflow SPM from upstream reach + runoff from data file [kg/timestep]
+        ! TODO: j_runoff isn't actually from data file, change to get runoff from SoilProfile
 
         ! Calculate the depth, velocity, area and volume
         me%W = me%calculateWidth(me%Qin/C%timeStep)
@@ -156,7 +155,7 @@ module classRiverReach1
         call r%addError(.error. D)                          ! Add any error that occurred
         me%v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
         me%xsArea = me%calculateArea(me%D, me%W)            ! Calculate the cross-sectional area of the reach
-        me%bedArea = me%W*me%l*me%f_m                        ! Calculate the BedSediment area
+        me%bedArea = me%W*me%l*me%f_m                       ! Calculate the BedSediment area
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
 
         ! Set the resuspension flux me%j_spm_res and settling rate me%k_settle
@@ -235,6 +234,7 @@ module classRiverReach1
     end function
 
     !> Perform the resuspension simulation for a time step
+    !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
     function resuspensionRiverReach1(me) result(r)
         class(RiverReach1) :: me                                !! This `RiverReach1` instance
         type(Result) :: r                                       !! The Result object to return

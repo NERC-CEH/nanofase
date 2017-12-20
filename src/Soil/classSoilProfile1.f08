@@ -40,7 +40,8 @@ module classSoilProfile1
         integer             :: l                            ! Soil layer iterator
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
 
-        call r%addToTrace("Creating " // trim(me%ref))
+        me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
+        call r%addToTrace("Creating " // trim(me%ref))      ! Add this procedure to the error trace
 
         ! Allocate the object properties that need to be
         allocate(me%usle_C(C%nTimeSteps))
@@ -52,7 +53,6 @@ module classSoilProfile1
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
         me%p = p                                            ! SoilProfile index within the GridCell
-        me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
         me%slope = slope
         me%n_river = n_river
         me%area = area                                      ! Surface area
