@@ -221,7 +221,7 @@ module classBedSediment1
         if (r%hasCriticalError()) return                             ! exit if allocation error thrown
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
             call r%addErrors([ &
-                            .errors. G%create("n"), &                ! create FineSediment first so variables are allocated
+                            .errors. G%create("FineSediment"), &     ! create FineSediment first so variables are allocated
                             .errors. G%set(Mf_in = M_resusp(S)) &
                             ])                                       ! top layer: set up the temporary object G, with the resuspended mass
             if (r%hasCriticalError()) then
@@ -295,7 +295,7 @@ module classBedSediment1
     !! `r (real(dp))`: returns water requirement from the water column [m3 m-2] real(dp)
     function depositSediment1(Me, FS_dep) result (r)
         class(BedSediment1) :: Me                                    !! Self-reference
-        type(FineSediment1), allocatable :: FS_dep(:)                !! Depositing sediment by size class
+        type(FineSediment1) :: FS_dep(:)                             !! Depositing sediment by size class
         type(Result0D) :: r                                          !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
         real(dp) :: V_w_tot                                          ! LOCAL water requirement from the water column [m3 m-2]
         type(ResultFineSediment0D) :: r0D                            ! LOCAL Result0D object to return data from addSediment method

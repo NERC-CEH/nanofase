@@ -19,6 +19,7 @@ module classRiverReach1
         procedure :: update => updateRiverReach1
         procedure, private :: resuspension => resuspensionRiverReach1
         procedure, private :: settling => settlingRiverReach1
+        procedure, private :: depositToBed => depositToBedRiverReach1
         procedure, private :: calculateWidth => calculateWidth1
         procedure, private :: calculateDepth => calculateDepth1
         procedure, private :: calculateVelocity => calculateVelocity1
@@ -61,6 +62,7 @@ module classRiverReach1
             me%j_spm_res(C%nSizeClassesSpm), &
             me%C_spm(C%nSizeClassesSpm), &
             me%k_settle(C%nSizeClassesSpm), &
+            me%spmDep(C%nSizeClassesSpm), &
             stat=allst)
         me%C_spm = 0                    ! Set SPM concentration and mass to 0 to begin with
         me%m_spm = 0
@@ -136,6 +138,7 @@ module classRiverReach1
         integer :: i                                        ! Iterator for displacements
         real(dp) :: dQin                                    ! Qin for each displacement
         real(dp) :: dSpmIn(C%nSizeClassesSpm)               ! spmIn for each displacement
+        real(dp) :: dSpmDep(C%nSizeClassesSpm)              ! Deposited SPM for each displacement
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dSpmOut(C%nSizeClassesSpm)              ! SPM outflow for the displacement
@@ -161,8 +164,8 @@ module classRiverReach1
         ! displacements). This can be done now as settling/resuspension rates
         ! don't depend on anything that changes on each displacement
         call r%addErrors([ &
-            .errors. me%resuspension(), &
-            .errors. me%settling() &
+            .errors. me%resuspension(), &                   ! Also removes SPM from BedSediment
+            .errors. me%settling() &                        ! Doesn't remove SPM from BedSediment - done later
         ])
 
         ! If Qin for this timestep is bigger than the reach volume, then we need to
@@ -171,8 +174,9 @@ module classRiverReach1
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
         dQin = me%Qin/nDisp                                 ! Inflow to the first displacement [m3]
         dSpmIn = me%spmIn/nDisp                             ! SPM inflow to the first displacment [kg]
-        me%Qout = 0                                         ! Reset Qout for this timestep
-        me%spmOut = 0                                       ! Reset spmOut for this timestep
+        me%Qout = 0                                         ! Reset Qout for this time step
+        me%spmOut = 0                                       ! Reset spmOut for this time step
+        me%spmDep = 0                                       ! Reset deposited SPM for this time step
 
         ! Loop through the displacements
         do i = 1, nDisp
@@ -188,7 +192,9 @@ module classRiverReach1
 
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             ! If we've removed all of the SPM, set to 0
-            me%m_spm = max(me%m_spm - (me%k_settle*dt)*me%m_spm, 0.0)
+            dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)        ! Up to a maximum of the mass of SPM currently in reach
+            me%m_spm = me%m_spm - dSpmDep
+            me%spmDep = me%spmDep + dSpmDep                 ! Keep track of deposited SPM for this time step
             me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
 
             ! Other stuff, like abstraction, to go here.
@@ -204,6 +210,12 @@ module classRiverReach1
             me%Qout = me%Qout + dQin
             me%spmOut = me%spmOut + dSpmOut
         end do
+
+        ! Now add the settled SPM to the BedSediment
+        ! TODO: Fractional composition errors trigger when calling BedSediment%deposit.
+        ! Need to sort these out.
+        ! call r%addErrors(.errors. me%depositToBed(me%spmDep))
+
         ! If there's no SPM left, add the "all SPM advected" warning
         do n = 1, C%nSizeClassesSpm
             if (isZero(me%m_spm(n)) .and. me%spmIn(n) /= 0) then
@@ -253,6 +265,7 @@ module classRiverReach1
             omega = C%rho_w(C%T)*C%g*(me%Qin/C%timeStep)*me%S/me%W
             f_fr = 4*me%D/(me%W+2*me%D)
             ! Calculate the resuspension
+            ! TODO: Get actually mass of bed sediment
             me%j_spm_res = me%calculateResuspension( &
                 beta = me%beta_res, &
                 L = me%l*me%f_m, &
@@ -263,8 +276,10 @@ module classRiverReach1
                 f_fr = f_fr &
             )
             ! Remove the material from the bed sediment
-            print *, me%j_spm_res*C%timeStep/me%bedArea
-            call r%addErrors(.errors. me%bedSediment%resuspend(me%j_spm_res*C%timeStep/me%bedArea))
+            ! TODO: Not working - BedSediment throws memory errors
+            ! TODO: Double check M_resus param for resuspend is really /m2
+            ! print *, me%j_spm_res*C%timeStep/me%bedArea
+            ! call r%addErrors(.errors. me%bedSediment%resuspend(me%j_spm_res*C%timeStep/me%bedArea))
         else
             me%j_spm_res = 0                                ! If there's no inflow
         end if
@@ -275,6 +290,7 @@ module classRiverReach1
     function settlingRiverReach1(me) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
         type(Result) :: r                                   !! The `Result` object to return any errors
+        type(FineSediment1) :: fineSediment                 ! Object to pass SPM to BedSediment in
         integer :: n                                        ! Size class iterator
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         ! Loop through the size classes and calculate settling velocity
@@ -286,6 +302,27 @@ module classRiverReach1
             )
         end do
         me%k_settle = settlingVelocity/me%D
+    end function
+
+    !> Send the given mass of settled SPM to the BedSediment
+    function depositToBedRiverReach1(me, spmDep) result(r)
+        class(RiverReach1)  :: me                           !! This RiverReach1 instance
+        real(dp)            :: spmDep(C%nSizeClassesSpm)    !! The SPM to deposit [kg/reach]
+        type(Result)        :: r                            !! The data object to return any errors in
+        type(FineSediment1) :: fineSediment(C%nSizeClassesSpm) ! FineSediment object to pass to BedSediment
+        integer             :: n                            ! Loop iterator
+        ! Create the FineSediment object and add deposited SPM to it
+        ! (converting units of Mf_in to kg/m2), then give that object
+        ! to the BedSediment
+        ! TODO: Check units of deposited FS, are they /m2?
+        do n = 1, C%nSizeClassesSpm
+            call r%addErrors([ &
+                .errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n))), &
+                .errors. fineSediment(n)%set(Mf_in=spmDep(n)/me%bedArea) &
+            ])
+        end do
+        call r%addErrors(.errors. me%bedSediment%deposit(fineSediment))
+        call r%addToTrace("Depositing SPM to BedSediment")
     end function
 
     !> Calculate the width \( W \) of the river based on the discharge:

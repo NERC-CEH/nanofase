@@ -88,7 +88,7 @@ module spcBedSediment
             import BedSediment, Result0D, FineSediment1
             ! TODO: replace D with real array to represent SPM *masses* only
             class(BedSediment) :: Me                                !! Self-reference
-            type(FineSediment1), allocatable :: FS_dep(:)           !! Depositing sediment by size class
+            type(FineSediment1) :: FS_dep(:)                        !! Depositing sediment by size class
             type(Result0D) :: r                                     !! Returned `Result` object
             !
             ! Function purpose
