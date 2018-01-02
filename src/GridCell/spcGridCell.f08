@@ -36,7 +36,7 @@ module spcGridCell
     type(integer) :: nSoilProfiles = 0                               !! Number of contained `SoilProfile`s
     type(integer) :: nPointSources = 0                               !! Number of contained `PointSource`s
     type(logical) :: DiffS                                           !! Yes=diffuse source present; NO=no diffuse source
-    real(dp), allocatable :: QrunoffTimeSeries(:)                    !! Runoff from the hydrological model
+    real(dp), allocatable :: Q_runoff_timeSeries(:)                    !! Runoff from the hydrological model
     real(dp), allocatable :: Q_evap_timeSeries(:)                    !! Evaporation time series [m/s]
     real(dp), allocatable :: Q_precip_timeSeries(:)                  !! Precipitation time series [m/s]
     real(dp) :: Qrunoff                                              !! Runoff from the hydrological model for this time step
