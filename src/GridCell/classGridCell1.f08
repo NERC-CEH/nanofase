@@ -50,15 +50,15 @@ module classGridCell1
         integer               :: t                    ! Iterator for time series
         character(len=100)    :: subRiverPrefix       ! Prefix for SubRivers ref, e.g. SubRiver_1_1
         real(dp)              :: subRiverLength       ! Length of the SubRivers
-        real(dp), allocatable :: subRiverRunoffTimeSeries(:) ! Runoff to each SubRiver
+        real(dp), allocatable :: subRiverRunoff_timeSeries(:) ! Runoff to each SubRiver
         type(Result)          :: srR                  ! Result object for individual SubRivers
         type(SubRiver1), allocatable :: sr1           ! SubRiver1 object for storing created SubRiver1s in
 
         ! Allocate the object properties that need to be and set up defaults
-        allocate(me%QrunoffTimeSeries(C%nTimeSteps))
+        allocate(me%Q_runoff_timeSeries(C%nTimeSteps))
         allocate(me%Q_evap_timeSeries(C%nTimeSteps))
         allocate(me%Q_precip_timeSeries(C%nTimeSteps))
-        allocate(subRiverRunoffTimeSeries(C%nTimeSteps))
+        allocate(subRiverRunoff_timeSeries(C%nTimeSteps))
         allocate(me%colSoilProfiles(1))
         me%Qrunoff = 0                                  ! Default to no runoff
 
@@ -104,18 +104,18 @@ module classGridCell1
                 ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
                 do s = 1, me%nSubRivers
                     ! Split the runoff between SubRivers
-                    do t = 1, size(me%QrunoffTimeSeries)
-                        if (me%QrunoffTimeSeries(t) > 0) then
-                            subRiverRunoffTimeSeries(t) = me%QrunoffTimeSeries(t)/me%nSubRivers
+                    do t = 1, size(me%Q_runoff_timeSeries)
+                        if (me%Q_runoff_timeSeries(t) > 0) then
+                            subRiverRunoff_timeSeries(t) = me%Q_runoff_timeSeries(t)/me%nSubRivers
                         else
-                            subRiverRunoffTimeSeries(t) = 0
+                            subRiverRunoff_timeSeries(t) = 0
                         end if
                     end do
                     ! Check that group actually exists
                     ! TODO: Maybe perform this check somewhere else
                     if (me%ncGroup%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
                         allocate(sr1)                                   ! Create the new SubRiver
-                        srR = sr1%create(me%gridX, me%gridY, s, subRiverLength, subRiverRunoffTimeSeries)
+                        srR = sr1%create(me%gridX, me%gridY, s, subRiverLength, subRiverRunoff_timeSeries)
                         call r%addErrors(errors = .errors. srR)         ! Add any errors to final Result object
                         call move_alloc(sr1, me%colSubRivers(s)%item)   ! Allocate a new SubRiver to the colSubRivers array
                     else
@@ -161,7 +161,7 @@ module classGridCell1
         if (.not. me%isEmpty) then
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
-            r = me%colSoilProfiles(1)%item%update(t, me%QrunoffTimeSeries(t))
+            r = me%colSoilProfiles(1)%item%update(t, me%Q_runoff_timeSeries(t))
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Loop through each SubRiver and run its update procedure
@@ -216,10 +216,10 @@ module classGridCell1
         ! TODO: Runoff data currently m3/s, but maybe this should be m/s instead?
         if (me%ncGroup%hasVariable("runoff")) then
             var = me%ncGroup%getVariable("runoff")
-            call var%getData(me%QrunoffTimeSeries)                 
-            me%QrunoffTimeSeries = me%QrunoffTimeSeries*C%timeStep ! Convert to m3/timestep
+            call var%getData(me%Q_runoff_timeSeries)                 
+            me%Q_runoff_timeSeries = me%Q_runoff_timeSeries*C%timeStep ! Convert to m3/timestep
         else
-            me%QrunoffTimeSeries = 0
+            me%Q_runoff_timeSeries = 0
         end if
         ! Precipitation [m/s]
         if (me%ncGroup%hasVariable("precip")) then

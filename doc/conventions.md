@@ -11,6 +11,10 @@ List of code style, formatting and naming conventions to follow. Based loosely o
 - Limit line length to 80 characters.
 - Save Fortran files in UTF-8 encoding.
 
+## Data conventions
+- Where possible, input data should use SI units.
+- Time series data should be stored in a variable appended with `_timeSeries`. E.g. `Q_runoff_timeSeries`.
+
 ## Naming conventions
 Though Fortran is insensitive to case, it's still important to follow some sort of naming convention to improve code readability.
 - Use lowercase for all Fortran constructs (`do`, `subroutine`, `module`, etc).
