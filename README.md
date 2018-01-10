@@ -14,4 +14,4 @@ Model documentation:
  - [Conventions](doc/conventions.md)
 
 Other documentation:
- - [Git quickstart guide](doc/git-quickstart.md)
+ - [Git quickstart guide](doc/git-quickstart.md)# flow-direction-example
