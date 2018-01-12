@@ -144,6 +144,7 @@ module classSoilProfile1
                 if (me%colSoilLayers(l-i+1)%item%V_pool > 0) then
                     if (l-i == 0) then                          ! If it's the top soil layer, track how much pooled above soil
                         me%V_pool = me%colSoilLayers(l-i+1)%item%V_pool
+                        ! TODO: Think about how this relates to quickflow
                     else                                        ! Else, add pooled volume to layer above
                         call r%addErrors(.errors. &
                             me%colSoilLayers(l-i)%item%addPooledWater( &

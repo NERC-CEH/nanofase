@@ -28,6 +28,7 @@ module spcGridCell
     type(integer) :: gridY                                           !! `GridCell` y reference
     real(dp) :: area                                                 !! Area of the `GridCell`
     type(SubRiverElement), allocatable :: colSubRivers(:)            !! Array of `SubRiverElement` objects to hold the subrivers
+    type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)   !! Array of `EstuaryReachElement` objects
     type(SoilProfileElement), allocatable :: colSoilProfiles(:)      !! Array of `SoilProfileElement` objects to hold the soil profiles
     ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
     type(PointSourceElement), allocatable :: colPointSources(:)      !! Array of `PointSourceElement` objects to hold the point sources

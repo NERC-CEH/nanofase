@@ -20,6 +20,7 @@ program main
 
     do t = 1, C%nTimeSteps
         r = env%update(t)
+        ! TODO: Do something with Result object
         do x = 1, size(env%colGridCells, 1)                             ! Loop through the rows
             do y = 1, size(env%colGridCells, 2)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
