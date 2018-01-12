@@ -57,6 +57,10 @@ output*.*
 *.sublime-workspace
 .vs/
 .project
+Debug/
+*.sln
+*.u2d
+*.vfproj
 
 # Temp files
 ~$*.docx
