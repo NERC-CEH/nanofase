@@ -2,7 +2,7 @@
 module classFineSediment1
     use Globals
     use ErrorInstanceModule
-    use ResultModule
+    use ResultModule, only: Result, Result0D, Result1D, Result2D
     use UtilModule
     implicit none                                                    ! force declaration of all variables
     !> Definition of `FineSediment1` class. Nonpolymorphic.
@@ -50,7 +50,7 @@ module classFineSediment1
     end type
 
     interface ResultFS
-        module procedure init0D, init1D, init2D
+        module procedure init0DFS, init1DFS, init2DFS
     end interface
 
   contains
@@ -483,7 +483,7 @@ module classFineSediment1
 !** ResultFineSediment extension **!
 !**********************************!
         !> Initialise the result object with 0D `FineSediment` data.
-        pure function init0D(data, error, errors) result(this)
+        pure function init0DFS(data, error, errors) result(this)
             type(ResultFineSediment0D)                  :: this         !! This `Result` object
             type(FineSediment1), intent(in)             :: data         !! 0D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
@@ -495,7 +495,7 @@ module classFineSediment1
         end function
 
         !> Initialise the result object with 1D `FineSediment` data.
-        pure function init1D(data, error, errors) result(this)
+        pure function init1DFS(data, error, errors) result(this)
             type(ResultFineSediment1D)                  :: this         !! This Result object
             type(FineSediment1), intent(in)             :: data(:)      !! 1D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
@@ -507,7 +507,7 @@ module classFineSediment1
         end function
 
         !> Initialise the result object with 2D `FineSediment` data.
-        pure function init2D(data, error, errors) result(this)
+        pure function init2DFS(data, error, errors) result(this)
             type(ResultFineSediment2D)                  :: this         !! This Result object
             type(FineSediment1), intent(in)             :: data(:,:)    !! 2D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store

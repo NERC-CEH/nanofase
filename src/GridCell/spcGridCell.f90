@@ -6,6 +6,7 @@ module spcGridCell
   use ErrorInstanceModule                                            ! generation of trace error messages
   use spcSubRiver                                                    ! use containing object type
   use spcSoilProfile
+  use spcEstuaryReach
   use classDiffuseSource
   use classPointSource
   implicit none                                                      ! force declaration of all variables

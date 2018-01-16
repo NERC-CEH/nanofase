@@ -63,6 +63,7 @@ module Globals
         character(len=100) :: inputFile, outputFile         ! Input and output file paths
         integer :: timeStep, nTimeSteps, maxRiverReaches    ! Length and number of time steps, max number of RiverReaches in GridCell
         real(dp) :: epsilon, defaultSoilLayerDepth          ! Error criteria proximity and default soil layer depth
+        type(ErrorInstance) :: errors(13)                   ! ErrorInstances to be added to ErrorHandler
         namelist /data/ inputFile, outputFile
         namelist /run/ timeStep, nTimeSteps, epsilon
         namelist /soil/ defaultSoilLayerDepth
@@ -83,29 +84,32 @@ module Globals
         C%epsilon = epsilon
         C%defaultSoilLayerDepth = defaultSoilLayerDepth
         C%maxRiverReaches = maxRiverReaches
+        
+        ! File operations
+        errors(1) = ErrorInstance(code=200, message="File not found.")
+        errors(2) = ErrorInstance(code=201, message="Variable not found in input file.")
+        errors(3) = ErrorInstance(code=202, message="Group not found in input file.")
+        errors(4) = ErrorInstance(code=203, message="Unknown config file option.")
+        ! Numerical calculations
+        errors(5) = ErrorInstance(code=300, message="Newton's method failed to converge.")
+        ! Grid and geography
+        errors(6) = ErrorInstance(code=401, &
+            message="Invalid SubRiver inflow reference. Inflow must be from a neighbouring SubRiver.")
+        ! River routing
+        errors(7) = ErrorInstance(code=500, &
+            message="All SPM advected from RiverReach.", isCritical=.false.)
+        errors(8) = ErrorInstance(code=501, &
+            message="No input data provided for required SubRiver - check nSubRivers is correct.")
+        ! Soil
+        errors(9) = ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.)
+        ! General
+        errors(10) = ErrorInstance(code=901, message="Invalid RiverReach type index provided.")
+        errors(11) = ErrorInstance(code=902, message="Invalid Biota index provided.")
+        errors(12) = ErrorInstance(code=903, message="Invalid Reactor index provided.")
+        errors(13) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
 
         ! Add custom errors to the error handler
-        call ERROR_HANDLER%init(errors=[ &
-            ! File operations
-            ErrorInstance(code=200, message="File not found."), &
-            ErrorInstance(code=201, message="Variable not found in input file."), &
-            ErrorInstance(code=202, message="Group not found in input file."), &
-            ErrorInstance(code=203, message="Unknown config file option."), &
-            ! Numerical calculations
-            ErrorInstance(code=300, message="Newton's method failed to converge."), &
-            ! Grid and geography
-            ErrorInstance(code=401, message="Invalid SubRiver inflow reference. Inflow must be from a neighbouring SubRiver."), &
-            ! River routing
-            ErrorInstance(code=500, message="All SPM advected from RiverReach.", isCritical=.false.), &
-            ErrorInstance(code=501, message="No input data provided for required SubRiver - check nSubRivers is correct."), &
-            ! Soil
-            ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.), &
-            ! General
-            ErrorInstance(code=901, message="Invalid RiverReach type index provided."), &
-            ErrorInstance(code=902, message="Invalid Biota index provided."), &
-            ErrorInstance(code=903, message="Invalid Reactor index provided."), &
-            ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.") &
-        ], on=.true.)
+        call ERROR_HANDLER%init(errors=errors, on=.true.)
 
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
