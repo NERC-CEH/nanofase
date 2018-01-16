@@ -3,7 +3,7 @@ module classBedSedimentLayer1
     use spcBedSedimentLayer                                          ! use BedSedimentLayer superclass
     use Globals
     use UtilModule
-    use ResultModule
+    use ResultModule, only: Result, Result0D
     use classFineSediment1
     use ErrorInstanceModule
     implicit none                                                    ! force declaration of all variables

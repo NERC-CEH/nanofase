@@ -2,7 +2,7 @@
 module spcBedSediment
     use Globals                                                      !  global declarations
     use mo_netcdf                                                    ! input/output handling
-    use ResultModule                                                 ! error handling classes, required for
+    use ResultModule, only: Result, Result0D                         ! error handling classes, required for
     use ErrorInstanceModule                                          ! generation of trace error messages
     use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
     use classFineSediment1
@@ -53,7 +53,8 @@ module spcBedSediment
         !! Initialised `BedSediment` object, including all layers and included `FineSediment`
         !! objects
         function createBedSediment(Me, riverReachGroup) result(r)
-            import BedSediment, Result, NcGroup
+            use ResultModule, only: Result
+            import BedSediment, NcGroup
             class(BedSediment) :: Me                                !! Self-reference
             type(NcGroup), intent(in) :: riverReachGroup            !! NetCDF group reference to the `RiverReach` containing this object
             type(Result) :: r                                       !! Returned `Result` object
@@ -65,7 +66,8 @@ module spcBedSediment
         !! **Function outputs/outcomes** <br>
         !! Returns a warning if any deallocation throws an error
         function destroyBedSediment(Me) result(r)
-            import BedSediment, Result
+            use ResultModule, only: Result
+            import BedSediment
             class(BedSediment) :: Me                                !! Self-reference
             type(Result) :: r                                       !! Returned `Result` object
         end function
@@ -85,7 +87,8 @@ module spcBedSediment
         !! `r (real(dp))` returns water requirement from the water column [m3 m-2]
         function depositSediment(Me, FS_dep) result (r)
             use Globals
-            import BedSediment, Result0D, FineSediment1
+            use ResultModule, only: Result0D
+            import BedSediment, FineSediment1
             ! TODO: replace D with real array to represent SPM *masses* only
             class(BedSediment) :: Me                                !! Self-reference
             type(FineSediment1) :: FS_dep(:)                        !! Depositing sediment by size class
@@ -156,7 +159,7 @@ contains
     !!                                                                  <br>
     !! **Function outputs/outcomes**                                    <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
-    pure function Get_Af_sediment(Me, S) result(r)
+    function Get_Af_sediment(Me, S) result(r)
         class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
         integer, intent(in) :: S                                     !! size class
         type(Result0D) :: r                                          !! return value
@@ -201,7 +204,7 @@ contains
     !!                                                              <br>
     !! **Function outputs/outcomes**
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
-    pure function Get_Cf_sediment(Me, S) result(r)
+    function Get_Cf_sediment(Me, S) result(r)
         class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         type(Result0D) :: r                                          !! Return value
@@ -246,7 +249,7 @@ contains
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
-    pure function Get_Aw_sediment(Me, S) result(r)
+    function Get_Aw_sediment(Me, S) result(r)
         class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         type(Result0D) :: r                                          !! Return value
@@ -291,7 +294,7 @@ contains
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
-    pure function Get_Cw_sediment(Me, S) result(r)
+    function Get_Cw_sediment(Me, S) result(r)
         class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         type(Result0D) :: r                                          !! Return value
@@ -335,7 +338,7 @@ contains
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
-    pure function Get_Mf_sediment(Me, S) result(r)
+    function Get_Mf_sediment(Me, S) result(r)
         class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         type(Result0D) :: r                                          !! Return value
@@ -377,7 +380,7 @@ contains
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required
-    pure function Get_Mf_sed_all(Me) result(r)
+    function Get_Mf_sed_all(Me) result(r)
         class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
         type(Result0D) :: r                                          !! Return value
         type(Result0D) :: r_l                                        ! LOCAL internal storage

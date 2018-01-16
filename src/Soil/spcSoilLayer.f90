@@ -2,7 +2,7 @@
 module spcSoilLayer
     use Globals                                                     ! Global definitions and constants
     use mo_netcdf                                                   ! NetCDF input/output
-    use ResultModule                                                ! Result object to pass errors
+    use ResultModule, only: Result                                  ! Result object to pass errors
     implicit none
 
     !> Abstract base class for `SoilLayer` object. Defines properties and
@@ -51,8 +51,9 @@ module spcSoilLayer
     abstract interface
         !> Create this `SoilLayer`
         function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s) result(r)
-            use Globals
-            import SoilLayer, Result
+            use Globals, only: dp
+            use ResultModule, only: Result
+            import SoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             integer, intent(in) :: x                        !! Containing `GridCell` x index
             integer, intent(in) :: y                        !! Containing `GridCell` y index
@@ -66,15 +67,18 @@ module spcSoilLayer
 
         !> Destroy this `SoilLayer`
         function destroySoilLayer(me) result(r)
-            import SoilLayer, Result
+            use ResultModule, only: Result
+            use Globals, only: dp
+            import SoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             type(Result) :: r                               !! The `Result` object to return
         end function
 
         !> Update the `SoilLayer` on a given timestep
         function updateSoilLayer(me, t, Q_in) result(r)
-            use Globals
-            import SoilLayer, Result
+            use ResultModule, only: Result
+            use Globals, only: dp
+            import SoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             integer :: t                                    !! The current time step
             real(dp) :: Q_in                                !! Water into the layer on this time step [m3/s]
@@ -84,8 +88,9 @@ module spcSoilLayer
         !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
         !! No percolation occurs as pooled water never really leaves the `SoilLayer`.
         function addPooledWaterSoilLayer(me, V_pool) result(r)
-            use Globals
-            import SoilLayer, Result
+            use ResultModule, only: Result
+            use Globals, only: dp
+            import SoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
             type(Result) :: r                               !! The `Result` object to return, with no data
@@ -93,7 +98,9 @@ module spcSoilLayer
 
         !> Parse the data input for this SoilLayer
         function parseInputDataSoilLayer(me) result(r)
-            import SoilLayer, Result
+            use ResultModule, only: Result
+            use Globals, only: dp
+            import SoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             type(Result) :: r
                 !! The Result object to return any errors relating to the input data file

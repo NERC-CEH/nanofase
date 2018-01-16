@@ -2,7 +2,7 @@
 module spcRiverReach
     use Globals                                                     ! Global declarations
     use mo_netcdf                                                   ! Input/output handling
-    use ResultModule                                                ! Error handling classes, required for
+    use ResultModule, only: Result, Result0D                        ! Error handling classes, required for
     use ErrorInstanceModule
     use spcBedSediment
     implicit none
@@ -44,17 +44,17 @@ module spcRiverReach
         procedure(destroyRiverReach), deferred :: destroy
         ! Simulators
         procedure(updateRiverReach), deferred :: update
-        procedure(resuspensionRiverReach), private, deferred :: resuspension
-        procedure(settlingRiverReach), private, deferred :: settling
-        procedure(depositToBedRiverReach), private, deferred :: depositToBed
+        procedure(resuspensionRiverReach), deferred :: resuspension
+        procedure(settlingRiverReach), deferred :: settling
+        procedure(depositToBedRiverReach), deferred :: depositToBed
         ! Calculators
-        procedure(calculateDepth), private, deferred :: calculateDepth
-        procedure(calculateWidth), private, deferred :: calculateWidth
-        procedure(calculateVelocity), private, deferred :: calculateVelocity
-        procedure(calculateSettlingVelocity), private, deferred :: calculateSettlingVelocity
-        procedure(calculateResuspension), private, deferred :: calculateResuspension
-        procedure(calculateVolume), private, deferred :: calculateVolume
-        procedure(calculateArea), private, deferred :: calculateArea
+        procedure(calculateDepth), deferred :: calculateDepth
+        procedure(calculateWidth), deferred :: calculateWidth
+        procedure(calculateVelocity), deferred :: calculateVelocity
+        procedure(calculateSettlingVelocity), deferred :: calculateSettlingVelocity
+        procedure(calculateResuspension), deferred :: calculateResuspension
+        procedure(calculateVolume), deferred :: calculateVolume
+        procedure(calculateArea), deferred :: calculateArea
         ! Getters
         procedure :: getVolume => getVolumeRiverReach
         procedure :: getQOut => getQOutRiverReach
@@ -65,7 +65,8 @@ module spcRiverReach
         !> Create this `RiverReach`
         function createRiverReach(me, x, y, s, r, l, Q_runoff_timeSeries) result(res)
             use Globals
-            import RiverReach, Result
+            use ResultModule, only: Result
+            import RiverReach
             class(RiverReach) :: me                                     !! The `RiverReach` instance
             integer :: x, y, s, r                                       !! `GridCell`, `SubRiver` and `RiverReach` identifiers
             real(dp) :: l                                               !! The `RiverReach` length [m]
@@ -75,7 +76,8 @@ module spcRiverReach
 
         !> Destroy this `RiverReach`
         function destroyRiverReach(me) result(r)
-            import RiverReach, Result
+            use ResultModule, only: Result
+            import RiverReach
             class(RiverReach) :: me                                     !! The `RiverReach` instance
             type(Result) :: r                                           !! The `Result` object to return
         end function
@@ -83,7 +85,8 @@ module spcRiverReach
         !> Update this `RiverReach` on given time step
         function updateRiverReach(me, Qin, spmIn, t) result(r)
             use Globals
-            import RiverReach, Result
+            use ResultModule, only: Result
+            import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             real(dp) :: Qin                                             !! Inflow to this reach [m3/timestep]
             integer :: t                                                !! What time step are we on?
@@ -93,21 +96,24 @@ module spcRiverReach
 
         !> Resuspend sediment based on current river flow
         function resuspensionRiverReach(me) result(r)
-            import RiverReach, Result
+            use ResultModule, only: Result
+            import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             type(Result) :: r                                           !! The `Result` object to return
         end function
 
         !> Set settling rate \( k_{\text{settle}} \) for this time step
         function settlingRiverReach(me) result(r)
-            import RiverReach, Result
+            use ResultModule, only: Result
+            import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             type(Result) :: r                                           !! The `Result` object to return
         end function
 
         function depositToBedRiverReach(me, spmDep) result(r)
             use Globals
-            import RiverReach, Result
+            use ResultModule, only: Result
+            import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             real(dp) :: spmDep(C%nSizeClassesSpm)                       !! The SPM to deposit
             type(Result) :: r                                           !! The `Result` object to return any errors in
@@ -116,7 +122,8 @@ module spcRiverReach
         !> Calculate the depth of this `RiverReach`
         pure function calculateDepth(me, W, S, Q) result(r)
             use Globals
-            import RiverReach, Result0D
+            use ResultModule, only: Result0D
+            import RiverReach
             class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: W                                   !! River width [m]
             real(dp), intent(in) :: S                                   !! River slope [-]

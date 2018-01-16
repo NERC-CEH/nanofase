@@ -61,10 +61,10 @@ module spcSoilProfile
         procedure(createSoilProfile), deferred :: create                    ! Create the SoilProfile object
         procedure(destroySoilProfile), deferred :: destroy                  ! Remove the SoilProfile object and all contained objects
         procedure(updateSoilProfile), deferred :: update                    ! Perform simulation for given time step
-        procedure(percolateSoilProfile), private, deferred :: percolate     ! Percolate water for given time step
-        procedure(erodeSoilProfile), private, deferred :: erode             ! Erode soil for given time step
-        procedure(imposeSizeDistributionSoilProfile), private, deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
-        procedure(parseInputDataSoilProfile), private, deferred :: parseInputData ! Parse the data from the input file and store in object properties
+        procedure(percolateSoilProfile), deferred :: percolate              ! Percolate water for given time step
+        procedure(erodeSoilProfile), deferred :: erode                      ! Erode soil for given time step
+        procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
+        procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
     end type
 
     !> Container type for `class(SoilProfile)` such that a polymorphic

@@ -17,16 +17,16 @@ module classRiverReach1
         procedure :: create => createRiverReach1
         procedure :: destroy => destroyRiverReach1
         procedure :: update => updateRiverReach1
-        procedure, private :: resuspension => resuspensionRiverReach1
-        procedure, private :: settling => settlingRiverReach1
-        procedure, private :: depositToBed => depositToBedRiverReach1
-        procedure, private :: calculateWidth => calculateWidth1
-        procedure, private :: calculateDepth => calculateDepth1
-        procedure, private :: calculateVelocity => calculateVelocity1
-        procedure, private :: calculateSettlingVelocity => calculateSettlingVelocity1
-        procedure, private :: calculateResuspension => calculateResuspension1
-        procedure, private :: calculateArea => calculateArea1
-        procedure, private :: calculateVolume => calculateVolume1
+        procedure :: resuspension => resuspensionRiverReach1
+        procedure :: settling => settlingRiverReach1
+        procedure :: depositToBed => depositToBedRiverReach1
+        procedure :: calculateWidth => calculateWidth1
+        procedure :: calculateDepth => calculateDepth1
+        procedure :: calculateVelocity => calculateVelocity1
+        procedure :: calculateSettlingVelocity => calculateSettlingVelocity1
+        procedure :: calculateResuspension => calculateResuspension1
+        procedure :: calculateArea => calculateArea1
+        procedure :: calculateVolume => calculateVolume1
     end type
 
   contains
@@ -409,10 +409,8 @@ module classRiverReach1
         else
             error = ERROR_HANDLER%getNoError()                                  ! Otherwise, no error occurred
         end if
-        r = Result( &                                                           ! Return the resulting data and error (or no error)
-            data = D_i, &
-            error = error &
-        )
+        call r%setData(D_i)
+        call r%addError(error)
         call r%addToTrace("Calculating river depth")
     end function
 

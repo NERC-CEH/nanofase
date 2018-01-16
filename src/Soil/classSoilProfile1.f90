@@ -3,7 +3,7 @@ module classSoilProfile1
     use Globals                                                 ! Global definitions and constants
     use UtilModule                                              ! Useful functions
     use mo_netcdf                                               ! Input/output handling
-    use ResultModule                                            ! Error handling classes
+    use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
     implicit none
@@ -16,10 +16,10 @@ module classSoilProfile1
         procedure :: create => createSoilProfile1                   ! Create the SoilProfile object
         procedure :: destroy => destroySoilProfile1                 ! Remove the SoilProfile object and all contained objects
         procedure :: update => updateSoilProfile1                   ! Update on every timestep (e.g., perform routing of water through soil)
-        procedure, private :: percolate => percolateSoilProfile1    ! Percolate soil on a given time step
-        procedure, private :: erode => erodeSoilProfile1            ! Erode soil on a given time step
-        procedure, private :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
-        procedure, private :: parseInputData => parseInputDataSoilProfile1 ! Parse the data from the input file and store in object properties
+        procedure :: percolate => percolateSoilProfile1             ! Percolate soil on a given time step
+        procedure :: erode => erodeSoilProfile1                     ! Erode soil on a given time step
+        procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
+        procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
     end type
 
   contains

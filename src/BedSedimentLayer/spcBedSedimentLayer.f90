@@ -1,7 +1,7 @@
 !> Module container for `BedSedimentLayer` abstract superclass
 module spcBedSedimentLayer
     use Globals
-    use ResultModule                                                 ! error handling classes, required for
+    use ResultModule, only: Result, Result0D                         ! error handling classes, required for
     use ErrorInstanceModule                                          ! generation of trace error messages
     use classFineSediment1                                           ! USEs all subclasses of FineSediment
     implicit none                                                    ! force declaration of all variables
@@ -63,7 +63,8 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! No specific outputs: results are initialisation of variables and objects
         function createBedSedimentLayer(Me, Parent, layerGroup) result(r)
-            import BedSedimentLayer, Result, NcGroup
+            use ResultModule, only: Result
+            import BedSedimentLayer, NcGroup
             class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             character(len=*) :: Parent                               !! Name of parent object
             type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
@@ -75,6 +76,7 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! All allocated variables deallocated
         function destroyBedSedimentLayer(Me) result (r)
+            use ResultModule, only: Result
             import BedSedimentLayer, Result
             class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             type(Result) :: r                                        !! The `Result` object
@@ -142,7 +144,7 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result                        <br>
         !! `r` returns critical error 103 if `A_f < 0`
-        pure function GetAf(Me, s) result(r)
+        function GetAf(Me, s) result(r)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             integer, intent(in) :: s                                 !! size class for which to retrieve available capacity
             type(Result0D) :: r                                      !! return value
@@ -167,7 +169,7 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)`: returns the result                       <br>
         !! `r` returns critical error 103 if `A_w < 0`
-        pure function GetAw(Me, s) result(r)
+        function GetAw(Me, s) result(r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer, intent(in) :: s                                 !! Size class for which to retrieve available capacity
             type(Result0D) :: r                                      !! Return value
@@ -192,7 +194,7 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)`: returns the result                       <br>
         !! `r` returns critical error 103 if `C_f < 0`
-        pure function GetCf(Me, s) result(C_f)
+        function GetCf(Me, s) result(C_f)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer, intent(in) :: s                                 !! Size class for which to retrieve available capacity
             type(Result0D) :: r                                      !! Return value
@@ -218,7 +220,7 @@ module spcBedSedimentLayer
         !! Function outputs/outcomes                                <br>
         !! `r (Result0D)` returns the result                        <br>
         !! `r` returns critical error 103 if `C_w < 0`
-        pure function GetCw(Me, s) result(r)
+        function GetCw(Me, s) result(r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer, intent(in) :: s                                 !! Size class for which to retrieve capacity
             type(Result0D) :: r                                      !! Return value
@@ -243,7 +245,7 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result                        <br>
         !! `r` returns critical error if ratio cannot be computed
-        pure function GetvolSLR(Me) result(r)
+        function GetvolSLR(Me) result(r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: volSLR                                       ! LOCAL internal storage
@@ -267,7 +269,7 @@ module spcBedSedimentLayer
         !!
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        pure function GetMflayer(Me) result (r)
+        function GetMflayer(Me) result (r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Mf_layer                                     ! LOCAL internal storage
@@ -286,7 +288,7 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        pure function GetCflayer(Me) result (r)
+        function GetCflayer(Me) result (r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Cf_layer                                     ! LOCAL internal storage
@@ -304,7 +306,7 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        pure function GetVflayer(Me) result (r)
+        function GetVflayer(Me) result (r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Vf_layer                                     ! LOCAL internal storage
@@ -323,7 +325,7 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        pure function GetVwlayer(Me) result (r)
+        function GetVwlayer(Me) result (r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Vw_layer                                     ! LOCAL internal storage
@@ -342,7 +344,7 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        pure function GetCwlayer(Me) result (r)
+        function GetCwlayer(Me) result (r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Cw_layer                                     ! LOCAL internal storage
@@ -360,7 +362,7 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        pure function GetVmlayer(Me) result (r)
+        function GetVmlayer(Me) result (r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Vm_layer                                     ! LOCAL internal storage
@@ -380,7 +382,7 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! Function outputs/outcomes                                <br>
         !! `r (Result0D)` returns the result
-        pure function GetVlayer(Me) result (V_layer)
+        function GetVlayer(Me) result (V_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: V_layer                                      ! LOCAL internal storage
