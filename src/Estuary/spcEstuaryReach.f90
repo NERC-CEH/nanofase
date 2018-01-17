@@ -9,8 +9,13 @@ module spcEstuaryReach
         procedure(createEstuaryReach), deferred :: create
         procedure(updateEstuaryReach), deferred :: update
     end type
+      
+    type, public :: EstuaryReachElement
+        class(EstuaryReach), allocatable :: item    
+    end type
     
     abstract interface
+    
         function createEstuaryReach(me) result(r)
             use ResultModule
             import EstuaryReach, Result
@@ -27,6 +32,5 @@ module spcEstuaryReach
         end function
         
     end interface
-    
     
 end module

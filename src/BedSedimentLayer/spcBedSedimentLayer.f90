@@ -95,7 +95,7 @@ module spcBedSedimentLayer
             import BedSedimentLayer, FineSediment1, ResultFineSediment0D
             class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
-            type(FineSediment1), intent(in) :: F                     !! `FineSediment` - holds material to be added
+            type(FineSediment1), intent(inout) :: F                     !! `FineSediment` - holds material to be added
             type(ResultFineSediment0D) :: r                          !! The `Result` object. Return data type = `FineSediment1`
         end function
         !> **Function purpose**                                     <br>
