@@ -51,10 +51,10 @@ module classEnvironment1
         
         ! Set the size of Environment variable that holds the grid cells
         allocate(me%colGridCells(me%gridSize(1),me%gridSize(2)))
-        ! Loop through the x dimensions of the grid
-        do x = 1, me%gridSize(1)
-            ! Loop through the y dimensions of the grid
-            do y = 1, me%gridSize(2)
+        ! Loop through the y dimensions of the grid
+        do y = 1, me%gridSize(2)
+            ! Loop through the x dimensions of the grid
+            do x = 1, me%gridSize(1)
                 gridCellRef = "GridCell_" // trim(str(x)) // &
                     "_" // trim(str(y))
                 ! Check if the GridCell is defined in the data file before creating
@@ -85,8 +85,8 @@ module classEnvironment1
         ! and their SubRivers). We will point SubRivers' inflows array elements to GridCells' colSubRivers
         ! array elements.
         ! TODO: Audit that inflows are coming from rational cells
-        do x = 1, size(me%colGridCells, 1)                                              ! Loop through the rows
-            do y = 1, size(me%colGridCells, 2)                                          ! Loop through the columns
+        do y = 1, size(me%colGridCells, 2)                                              ! Loop through the rows
+            do x = 1, size(me%colGridCells, 1)                                          ! Loop through the columns
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
                     do s = 1, size(me%colGridCells(x,y)%item%colSubRivers)                  ! Loop through the SubRivers
                         associate(subRiver => me%colGridCells(x,y)%item%colSubRivers(s)%item)
@@ -138,15 +138,15 @@ module classEnvironment1
         type(Result) :: r                                       !! Return error(s) in `Result` object
         integer :: x, y, s
         ! Perform the main routing procedure
-        do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
-            do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
+        do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
+            do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
                 r = me%colGridCells(x,y)%item%update(t)         ! Run routing simulation for each GridCell
             end do
         end do
         ! Finalise the routing by setting outflows to temporary outflows that were stored
         ! to avoid routing using the wrong timestep's outflow as an inflow.
-        do x = 1, size(me%colGridCells, 1)                      ! Loop through the rows
-            do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
+        do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
+            do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
                 r = me%colGridCells(x,y)%item%finaliseUpdate()  ! finaliseUpdate() loops through SubRivers
             end do
         end do
