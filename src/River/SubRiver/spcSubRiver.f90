@@ -82,7 +82,8 @@ module spcSubRiver
         !> Create the `SubRiver` object by reading data in from file
         function createSubRiver(me, x, y, s, length, Q_runoff_timeSeries) result(r)
             use Globals
-            import SubRiver, Result
+            use ResultModule, only: Result
+            import SubRiver
             class(SubRiver) :: me                                   !! The `SubRiver` instance
             type(integer), intent(in) :: x                          !! The row number of the enclosing `GridCell`
             type(integer), intent(in) :: y                          !! The column number of the enclosing `GridCell`
@@ -93,14 +94,16 @@ module spcSubRiver
         end function
         !> Destory this `SubRiver`
         function destroySubRiver(me) result(r)
-            import SubRiver, Result
+            use ResultModule, only: Result
+            import SubRiver
             class(SubRiver) :: me                                   !! The `SubRiver` instance
             type(Result) :: r                                       !! The `Result` object to return any errors in
         end function
         !> Run the simulation for the current time step. Routes inflow(s)
         !! through the `SubRiver`
         function updateSubRiver(me, t) result(r)
-            import SubRiver, Result
+            use ResultModule, only: Result
+            import SubRiver
             class(SubRiver) :: me                                   !! The `SubRiver` instance
             integer :: t                                            !! The current time step
             type(Result) :: r                                       !! The `Result` object to return any errors in
@@ -108,7 +111,8 @@ module spcSubRiver
         !> Finalise the simulation by setting an state variable from
         !! temporary variables that were used to avoid time step conflicts
         function finaliseUpdateSubRiver(me) result(r)
-            import SubRiver, Result
+            use ResultModule, only: Result
+            import SubRiver
             class(SubRiver) :: me                                   !! The `SubRiver` instance  
             type(Result) :: r                                       !! The `Result` object to return any errors in
         end function

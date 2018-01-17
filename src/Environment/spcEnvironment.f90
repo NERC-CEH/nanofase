@@ -19,19 +19,22 @@ module spcEnvironment
     abstract interface
         !> Interface to create an Environment object
         function createEnvironment(me) result(r)
-            import Environment, Result
+            use ResultModule, only: Result
+            import Environment
             class(Environment), target :: me            !! This `Environment` instance
             type(Result) :: r                           !! `Result` object containing any errors
         end function
         !> Interface to destroy an Environment object
         function destroyEnvironment(me) result(r)
-            import Environment, Result
+            use ResultModule, only: Result
+            import Environment
             class(Environment) :: me                    !! This `Environment` instance
             type(Result) :: r                           !! `Result` object containing any errors
         end function
         !> Interface to perform simulations in Environment
         function updateEnvironment(me, t) result(r)
-            import Environment, Result
+            use ResultModule, only: Result
+            import Environment
             class(Environment) :: me                    !! This `Environment` instance
             integer :: t                                !! The current time step
             type(Result) :: r                           !! `Result` object containing any errors

@@ -318,7 +318,7 @@ module classBedSedimentLayer1
         function addSediment1(Me, S, F) result(r)
             class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
-            type(FineSediment1), intent(in) :: F                     !! `FineSediment` - holds material to be added
+            type(FineSediment1), intent(inout) :: F                  !! `FineSediment` - holds material to be added
             type(ResultFineSediment0D) :: r                          !! The `Result` object. Return data type = `FineSediment1`
             type(Result0D) :: r0D                                    ! Temporary `Result0D` object to hold return values in
             real(dp) :: add_M_f                                      ! LOCAL mass of fine sediment being added
