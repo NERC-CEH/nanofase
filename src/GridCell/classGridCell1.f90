@@ -166,7 +166,10 @@ module classGridCell1
 
             ! Loop through each SubRiver and run its update procedure
             do s = 1, me%nSubRivers
-                srR = me%colSubRivers(s)%item%update(t)
+                srR = me%colSubRivers(s)%item%update( &
+                    t = t, &
+                    j_spm_runoff = me%erodedSediment/me%nSubRivers &
+				)
                 call r%addErrors(errors = .errors. srR)
             end do
         end if
@@ -225,7 +228,7 @@ module classGridCell1
         if (me%ncGroup%hasVariable("precip")) then
             var = me%ncGroup%getVariable("precip")
             call var%getData(me%Q_precip_timeSeries)                 
-            me%Q_precip_timeSeries = me%Q_precip_timeSeries*C%timeStep    ! Convert to m3/timestep
+            me%Q_precip_timeSeries = me%Q_precip_timeSeries*C%timeStep    ! Convert to m/timestep
         else
             me%Q_precip_timeSeries = 0
         end if
@@ -233,7 +236,7 @@ module classGridCell1
         if (me%ncGroup%hasVariable("evap")) then
             var = me%ncGroup%getVariable("evap")
             call var%getData(me%Q_evap_timeSeries)                 
-            me%Q_evap_timeSeries = me%Q_evap_timeSeries*C%timeStep       ! Convert to m3/timestep
+            me%Q_evap_timeSeries = me%Q_evap_timeSeries*C%timeStep       ! Convert to m/timestep
         else
             me%Q_evap_timeSeries = 0
         end if

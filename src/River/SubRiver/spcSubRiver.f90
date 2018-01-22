@@ -101,11 +101,13 @@ module spcSubRiver
         end function
         !> Run the simulation for the current time step. Routes inflow(s)
         !! through the `SubRiver`
-        function updateSubRiver(me, t) result(r)
+        function updateSubRiver(me, t, j_spm_runoff) result(r)
+            use Globals
             use ResultModule, only: Result
             import SubRiver
             class(SubRiver) :: me                                   !! The `SubRiver` instance
             integer :: t                                            !! The current time step
+            real(dp) :: j_spm_runoff(:)				                !! Eroded sediment runoff [kg/timestep]
             type(Result) :: r                                       !! The `Result` object to return any errors in
         end function
         !> Finalise the simulation by setting an state variable from

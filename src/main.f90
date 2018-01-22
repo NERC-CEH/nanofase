@@ -13,6 +13,7 @@ program main
 
     call GLOBALS_INIT()                                                 ! Set up global vars and constants
     open(unit=2,file=C%outputFile)                                      ! Open the output data file
+    open(unit=3,file='data/output_erosion.csv')                         ! Open the output data file
 
     call cpu_time(start)                                                ! Simulation start time
 
@@ -24,8 +25,8 @@ program main
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
             do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
-                    ! write(3,*) t, ", ", x, ", ", y, ", ", &
-                    !     env%colGridCells(x,y)%item%erodedSediment
+                     write(3,*) t, ", ", x, ", ", y, ", ", &
+                         env%colGridCells(x,y)%item%erodedSediment(1)
                     do s = 1, size(env%colGridCells(x,y)%item%colSubRivers) ! Loop through the SubRivers
                         ! Write to the data file
                         write(2,*) t, ", ", x, &

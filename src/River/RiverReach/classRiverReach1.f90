@@ -7,6 +7,7 @@ module classRiverReach1
     use ErrorInstanceModule
     use spcRiverReach
     use classBedSediment1
+    use classReactor1
     implicit none
 
     !> `RiverReach1` object is responsible for sediment transport along river and
@@ -20,6 +21,7 @@ module classRiverReach1
         procedure :: resuspension => resuspensionRiverReach1
         procedure :: settling => settlingRiverReach1
         procedure :: depositToBed => depositToBedRiverReach1
+        procedure :: parseInputData => parseInputDataRiverReach1
         procedure :: calculateWidth => calculateWidth1
         procedure :: calculateDepth => calculateDepth1
         procedure :: calculateVelocity => calculateVelocity1
@@ -46,13 +48,13 @@ module classRiverReach1
         type(Result0D) :: W                                     ! River width [m]
         integer :: n                                            ! Loop iterator for SPM size classes
         integer :: allst                                        ! Allocation status
-        type(NcDataset) :: NC                                   ! NetCDF dataset
-        type(NcVariable) :: var                                 ! NetCDF variable
-        type(NcGroup) :: grp                                    ! NetCDF group
         type(ErrorInstance) :: error                            ! To return errors
-        type(BedSediment1), allocatable :: bs1                  ! BedSediment1 object to temporarily store me%bedSediment in
 
         ! First, let's set the RiverReach's reference and the length
+        me%x = x
+        me%y = y
+        me%s = s
+        me%r = r
         me%ref = trim(ref("RiverReach", x, y, s, r))
         me%l = l
         ! Allocate the arrays of size classes and set SPM to 0 to begin with
@@ -67,46 +69,24 @@ module classRiverReach1
         me%C_spm = 0                    ! Set SPM concentration and mass to 0 to begin with
         me%m_spm = 0
         allocate(me%Q_runoff_timeSeries, source=Q_runoff_timeSeries)    ! This reach's runoff
-
-        ! Get the specific RiverReach parameters from data - only the stuff
-        ! that doesn't depend on time
-        ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
-        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
-        grp = nc%getGroup("Environment")
-        grp = grp%getGroup(trim(ref("GridCell", x, y)))         ! Get the GridCell we're in
-        grp = grp%getGroup(trim(ref("SubRiver", x, y, s)))      ! Get the SubRiver we're in
-        me%ncGroup = grp%getGroup(trim(me%ref))                 ! Finally, get the actual RiverReach group
-        var = me%ncGroup%getVariable("slope")                   ! Get the slope
-        call var%getData(me%S)
-        if (me%ncGroup%hasVariable("f_m")) then                 ! If there is a meandering factor, get that
-            var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering).
-            call var%getData(me%f_m)
-        end if
-        var = me%ncGroup%getVariable("alpha_res")               ! Get the alpha_res calibration factor for resuspension
-        call var%getData(me%alpha_res)
-        var = me%ncGroup%getVariable("beta_res")                ! Get the beta_res calibration factor for resuspension
-        call var%getData(me%beta_res)
-        ! TODO: Add checks for the above
-
-        ! Get the time series of SPM inflows
-        allocate(me%j_spm_runoff_timeSeries(C%nTimeSteps,C%nSizeClassesSpm))
-        if (me%ncGroup%hasVariable("spm")) then
-            var = me%ncGroup%getVariable("spm")
-            call var%getData(me%j_spm_runoff_timeSeries)
-            me%j_spm_runoff_timeSeries = me%j_spm_runoff_timeSeries*C%timeStep  ! SPM is in kg/s, thus need to convert to kg/timestep
-        else
-            me%j_spm_runoff_timeSeries = 0
-        end if
-        ! Initial concentration can't be updated in we have volume from Qin, so this is left to the update() procedure
+        
+        ! Get data from the input data file
+        call res%addErrors( &
+            .errors. me%parseInputData() &    
+        )
 
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%n = C%n_river
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        allocate(bs1)
-        res = bs1%create(me%ncGroup)
-        call move_alloc(bs1, me%bedSediment)
+        allocate(BedSediment1::me%bedSediment)
+        call res%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        
+        ! Create the Reactor object to deal with nanoparticle transformations
+        allocate(Reactor1::me%reactor)
+        call res%addErrors(.errors. me%reactor%create(me%x, me%y))
+        
         call res%addToTrace('Creating ' // trim(me%ref))
     end function
 
@@ -125,10 +105,11 @@ module classRiverReach1
     !!  <li>Deposition to BedSediment removed</li>
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
-    function updateRiverReach1(me, Qin, spmIn, t) result(r)
+    function updateRiverReach1(me, Qin, spmIn, t, j_spm_runoff) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
         real(dp) :: Qin                                     !! Inflow to this reach
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
+        real(dp) :: j_spm_runoff(:)		                    !! Eroded sediment runoff to this reach
         integer :: t                                        !! Current time step [s]
         type(Result) :: r                                   !! `Result` object to return
         type(Result0D) :: D                                 ! Result object for depth
@@ -143,14 +124,14 @@ module classRiverReach1
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dSpmOut(C%nSizeClassesSpm)              ! SPM outflow for the displacement
 
-        me%Qrunoff = me%Q_runoff_timeSeries(t)              ! Get the runoff for this time step
+        me%Qrunoff = me%Q_runoff_timeSeries(t)              ! Hydrological runoff for this time step [m3/timestep - TODO change to m/s]
+        me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff [kg/timestep]
         me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
-        me%spmIn = spmIn + me%j_spm_runoff_timeSeries(t,:)  ! Inflow SPM from upstream reach + runoff from data file [kg/timestep]
-        ! TODO: j_spm_runoff isn't actually from data file, change to get runoff from SoilProfile
+        me%spmIn = spmIn + me%j_spm_runoff                  ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
 
         ! Calculate the depth, velocity, area and volume
         me%W = me%calculateWidth(me%Qin/C%timeStep)
-        D = me%calculateDepth(me%W, me%S, me%Qin/C%timeStep)
+        D = me%calculateDepth(me%W, me%slope, me%Qin/C%timeStep)
         me%D = .dp. D                                       ! Get real(dp) data from Result object
         call r%addError(.error. D)                          ! Add any error that occurred
         me%v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
@@ -248,7 +229,7 @@ module classRiverReach1
             ! Calculate maximum resuspendable particle size and proportion of each
             ! size class that can be resuspended. Changes on each timestep as dependent
             ! on river depth
-            d_max = 9.994*sqrt(me%alpha_res*C%g*me%D*me%S)**2.5208 
+            d_max = 9.994*sqrt(me%alpha_res*C%g*me%D*me%slope)**2.5208 
             ! Calculate proportion of each size class that can be resuspended
             do n = 1, C%nSizeClassesSpm
                 ! Calculate the proportion of size class that can be resuspended
@@ -262,7 +243,7 @@ module classRiverReach1
                 end if
             end do
             ! Calculate the stream power per unit bed area
-            omega = C%rho_w(C%T)*C%g*(me%Qin/C%timeStep)*me%S/me%W
+            omega = C%rho_w(C%T)*C%g*(me%Qin/C%timeStep)*me%slope/me%W
             f_fr = 4*me%D/(me%W+2*me%D)
             ! Calculate the resuspension
             ! TODO: Get actually mass of bed sediment
@@ -323,6 +304,38 @@ module classRiverReach1
         end do
         call r%addErrors(.errors. me%bedSediment%deposit(fineSediment))
         call r%addToTrace("Depositing SPM to BedSediment")
+    end function
+    
+    function parseInputDataRiverReach1(me) result(r)
+        class(RiverReach1) :: me            !! This `RiverReach1` instance
+        type(Result) :: r                   !! The `Result` object to return, with any errors
+        type(NcDataset) :: NC               ! NetCDF dataset
+        type(NcVariable) :: var             ! NetCDF variable
+        type(NcGroup) :: grp                ! NetCDF group
+        
+        ! Get the specific RiverReach parameters from data - only the stuff
+        ! that doesn't depend on time
+        ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
+        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
+        grp = nc%getGroup("Environment")
+        grp = grp%getGroup(trim(ref("GridCell", me%x, me%y)))       ! Get the GridCell we're in
+        grp = grp%getGroup(trim(ref("SubRiver", me%x, me%y, me%s))) ! Get the SubRiver we're in
+		me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
+        
+        var = me%ncGroup%getVariable("slope")                   ! Get the slope
+        call var%getData(me%slope)
+        if (me%ncGroup%hasVariable("f_m")) then                 ! If there is a meandering factor, get that
+            var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering) without warning
+            call var%getData(me%f_m)
+        end if
+        var = me%ncGroup%getVariable("alpha_res")               ! Get the alpha_res calibration factor for resuspension
+        call var%getData(me%alpha_res)
+        var = me%ncGroup%getVariable("beta_res")                ! Get the beta_res calibration factor for resuspension
+        call var%getData(me%beta_res)
+        ! TODO: Add checks for the above
+        
+        
+        call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
 
     !> Calculate the width \( W \) of the river based on the discharge:
