@@ -21,7 +21,11 @@ module classReactor1
         ! Allocate the NP masses array to correct number of state/form elements.
         ! States: 1. free, 2+ heteroaggreated (per SPM size class). 
         ! Forms: 1. core, 2. shell, 3. coating, 4. corona, 5. adsorbed, 6. dissolved
-        allocate(me%m_np(6, C%nSizeClassesSpm + 1))
+        allocate(me%m_np( &
+            C%nSizeClassesNP, &             ! Number of NP size classes
+            6, &                            ! Number of different forms
+            C%nSizeClassesSpm + 1 &         ! Number of different states
+        ))
     end function
     
     !> Run the `Reactor`'s simulation for the current time step
