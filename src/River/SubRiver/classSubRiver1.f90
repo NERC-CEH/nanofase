@@ -206,9 +206,10 @@ module classSubRiver1
 
     !> Run simulation for current time step. Routes inflow(s) through
     !! the specified `SubRiver`
-    function updateSubRiver1(me, t) result(r)
+    function updateSubRiver1(me, t, j_spm_runoff) result(r)
         class(SubRiver1) :: me                                      !! The `SubRiver` instance
         integer :: t                                                !! The current time step 
+        real(dp) :: j_spm_runoff(:)                                 !! Eroded sediment runoff [kg/timestep]
         type(Result) :: r                                           !! The `Result` object to return any errors in
         type(Result) :: reachR                                      ! Result object for each reach
         real(dp) :: Qin(me%nReaches + 1)                            ! The inflow, final element for outflow [m3/timestep]
@@ -257,7 +258,12 @@ module classSubRiver1
             ! Main simulation call to the RiverReach, which recalculates dimensions
             ! and outflows based on the inflow Q and SPM
             tmpSpmIn = spmIn(i,:)                                   ! Temporary array to avoid warning when using assumed shape as argument
-            reachR = me%colReaches(i)%item%update(Qin(i), tmpSpmIn, t)
+            reachR = me%colReaches(i)%item%update( &
+                Qin = Qin(i), &
+                spmIn = tmpSpmIn, &
+                t = t, &
+                j_spm_runoff = j_spm_runoff/me%nReaches &           ! Split the runoff equally between reaches. TODO: Change based on reach length
+			)
             call r%addErrors(.errors. reachR)                       ! Add any error that occured to the Result object to return
             Qin(i+1) = me%colReaches(i)%item%getQOut()              ! Set the next reach's inflows from this reach's outflow
             spmIn(i+1,:) = me%colReaches(i)%item%getSpmOut()

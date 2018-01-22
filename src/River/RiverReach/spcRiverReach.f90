@@ -5,13 +5,18 @@ module spcRiverReach
     use ResultModule, only: Result, Result0D                        ! Error handling classes, required for
     use ErrorInstanceModule
     use spcBedSediment
+    use spcReactor
     implicit none
 
     !> Abstract base class for `RiverReach`. Defines properties and procedures
     !! required in any implementation of this class.
     type, abstract, public :: RiverReach
         character(len=100) :: ref                                   !! Reference for this object, of the form RiverReach_x_y_s_r
-        real(dp) :: S                                               !! Slope of reach [m/m]
+        integer :: x                                                !! `GridCell` x position
+        integer :: y                                                !! `GridCell` y position
+        integer :: s                                                !! `SubRiver` reference
+        integer :: r                                                !! `RiverReach` reference
+        real(dp) :: slope                                           !! Slope of reach [m/m]
         real(dp) :: Qin                                             !! Inflow from upstream reach [m3/timestep]
         real(dp) :: Qout                                            !! Outflow to the next reach [m3/timestep]
         real(dp) :: Qrunoff                                         !! Runoff from hydrological model [m3/s]
@@ -20,7 +25,7 @@ module spcRiverReach
         real(dp), allocatable :: spmOut(:)                          !! Outflow SPM to next reach [kg/timestep]
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
-        real(dp), allocatable :: j_spm_runoff_timeSeries(:,:)       !! Time series of inputs from runoff [kg/s]
+        real(dp), allocatable :: j_spm_runoff(:)                    !! Eroded soil runoff for current time step [kg/timestep]
         real(dp) :: W                                               !! Width of reach [m]
         real(dp) :: D                                               !! Depth of water column [m]
         real(dp) :: v                                               !! Water velocity [m/s]
@@ -37,6 +42,7 @@ module spcRiverReach
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
         real(dp) :: n                                               !! Manning's roughness coefficient [-]
         class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
+        class(Reactor), allocatable :: reactor                      !! Contained Reactor object
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
        ! Create/destory
@@ -47,6 +53,7 @@ module spcRiverReach
         procedure(resuspensionRiverReach), deferred :: resuspension
         procedure(settlingRiverReach), deferred :: settling
         procedure(depositToBedRiverReach), deferred :: depositToBed
+        procedure(parseInputDataRiverReach), deferred :: parseInputData
         ! Calculators
         procedure(calculateDepth), deferred :: calculateDepth
         procedure(calculateWidth), deferred :: calculateWidth
@@ -83,13 +90,14 @@ module spcRiverReach
         end function
 
         !> Update this `RiverReach` on given time step
-        function updateRiverReach(me, Qin, spmIn, t) result(r)
+        function updateRiverReach(me, Qin, spmIn, t, j_spm_runoff) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             real(dp) :: Qin                                             !! Inflow to this reach [m3/timestep]
             integer :: t                                                !! What time step are we on?
+            real(dp) :: j_spm_runoff(:)		                            !! Eroded sediment runoff to this reach
             real(dp) :: spmIn(C%nSizeClassesSpm)                        !! Inflow SPM to this reach [kg/timestep]
             type(Result) :: r                                           !! The `Result` object
         end function
@@ -117,6 +125,14 @@ module spcRiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             real(dp) :: spmDep(C%nSizeClassesSpm)                       !! The SPM to deposit
             type(Result) :: r                                           !! The `Result` object to return any errors in
+        end function
+        
+        !> Obtain input data from the data file and store in object properties
+        function parseInputDataRiverReach(me) result(r)
+            use ResultModule, only: Result
+            import RiverReach
+            class(RiverReach) :: me             !! This `RiverReach1` instance
+            type(Result) :: r                   !! The `Result` object to return, with any errors
         end function
 
         !> Calculate the depth of this `RiverReach`
