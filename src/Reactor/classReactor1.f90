@@ -18,14 +18,16 @@ module classReactor1
         integer :: y                    !! The containing `GridCell` x reference
         type(Result) :: r               !! The `Result` object to return
         
-        ! Allocate the NP masses array to correct number of state/form elements.
-        ! States: 1. free, 2+ heteroaggreated (per SPM size class). 
-        ! Forms: 1. core, 2. shell, 3. coating, 4. corona, 5. adsorbed, 6. dissolved
+        ! Allocate the NP mass matrix to correct number of state/form elements.
+        ! States: 1. free, 2. bound to solid, 3+ heteroaggreated (per SPM size class). 
+        ! Forms: 1. core, 2. shell, 3. coating, 4. corona.
         allocate(me%m_np( &
             C%nSizeClassesNP, &             ! Number of NP size classes
-            6, &                            ! Number of different forms
-            C%nSizeClassesSpm + 1 &         ! Number of different states
+            4, &                            ! Number of different forms
+            C%nSizeClassesSpm + 2 &         ! Number of different states
         ))
+        ! Allocate dissolved metal array. 1. free ion, 2. solution, 3. adsorbed.
+        allocate(me%m_diss(3))
     end function
     
     !> Run the `Reactor`'s simulation for the current time step
