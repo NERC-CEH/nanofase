@@ -14,12 +14,12 @@ module spcRiverReach
         character(len=100) :: ref                                   !! Reference for this object, of the form RiverReach_x_y_s_r
         integer :: x                                                !! `GridCell` x position
         integer :: y                                                !! `GridCell` y position
-        integer :: s                                                !! `SubRiver` reference
+        integer :: s
         integer :: r                                                !! `RiverReach` reference
         real(dp) :: slope                                           !! Slope of reach [m/m]
-        real(dp) :: Qin                                             !! Inflow from upstream reach [m3/timestep]
-        real(dp) :: Qout                                            !! Outflow to the next reach [m3/timestep]
-        real(dp) :: Qrunoff                                         !! Runoff from hydrological model [m3/s]
+        real(dp) :: Q_in                                            !! Inflow from upstream reach [m3/timestep]
+        real(dp) :: Q_out                                           !! Outflow to the next reach [m3/timestep]
+        real(dp) :: Q_runoff                                        !! Runoff from hydrological model [m3/s]
         real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Time series runoff data from file [m3/s]
         real(dp), allocatable :: spmIn(:)                           !! Inflow SPM from upstream reach [kg/timestep]
         real(dp), allocatable :: spmOut(:)                          !! Outflow SPM to next reach [kg/timestep]
@@ -30,13 +30,12 @@ module spcRiverReach
         real(dp) :: D                                               !! Depth of water column [m]
         real(dp) :: v                                               !! Water velocity [m/s]
         real(dp) :: l                                               !! Length of the river, without meandering factor [m]
-        real(dp) :: f_m = 1                                         !! Meandering factor used for calculating river volume. Default to 1 (no meandering).
-            ! TODO: Move the default to config file
+        real(dp) :: f_m                                             !! Meandering factor used for calculating river volume. Default to 1 (no meandering).
         real(dp) :: xsArea                                          !! The cross-sectional area of water in the reach [m2]
         real(dp) :: bedArea                                         !! The bed sediment area in the reach [m2]
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
-        real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux on a given timestep [kg/s]
+        real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux for a given timestep [kg/s]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
@@ -53,6 +52,8 @@ module spcRiverReach
         procedure(resuspensionRiverReach), deferred :: resuspension
         procedure(settlingRiverReach), deferred :: settling
         procedure(depositToBedRiverReach), deferred :: depositToBed
+        ! Data handlers
+        procedure(setDefaultsRiverReach), deferred :: setDefaults
         procedure(parseInputDataRiverReach), deferred :: parseInputData
         ! Calculators
         procedure(calculateDepth), deferred :: calculateDepth
@@ -90,12 +91,12 @@ module spcRiverReach
         end function
 
         !> Update this `RiverReach` on given time step
-        function updateRiverReach(me, Qin, spmIn, t, j_spm_runoff) result(r)
+        function updateRiverReach(me, Q_in, spmIn, t, j_spm_runoff) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
-            real(dp) :: Qin                                             !! Inflow to this reach [m3/timestep]
+            real(dp) :: Q_in                                            !! Inflow to this reach [m3/timestep]
             integer :: t                                                !! What time step are we on?
             real(dp) :: j_spm_runoff(:)		                            !! Eroded sediment runoff to this reach
             real(dp) :: spmIn(C%nSizeClassesSpm)                        !! Inflow SPM to this reach [kg/timestep]
@@ -126,6 +127,11 @@ module spcRiverReach
             real(dp) :: spmDep(C%nSizeClassesSpm)                       !! The SPM to deposit
             type(Result) :: r                                           !! The `Result` object to return any errors in
         end function
+        
+        subroutine setDefaultsRiverReach(me)
+            import RiverReach
+            class(RiverReach) :: me                                     !! This `RiverReach` instance
+        end subroutine
         
         !> Obtain input data from the data file and store in object properties
         function parseInputDataRiverReach(me) result(r)
@@ -227,10 +233,10 @@ module spcRiverReach
     end function
 
     !> Return the outflow.
-    function getQOutRiverReach(me) result(Qout)
+    function getQOutRiverReach(me) result(Q_out)
         class(RiverReach) :: me
-        real(dp) :: Qout
-        Qout = me%Qout
+        real(dp) :: Q_out
+        Q_out = me%Q_out
     end function
 
     !> Return the SPM discahrge.

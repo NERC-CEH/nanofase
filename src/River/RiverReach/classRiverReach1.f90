@@ -21,6 +21,7 @@ module classRiverReach1
         procedure :: resuspension => resuspensionRiverReach1
         procedure :: settling => settlingRiverReach1
         procedure :: depositToBed => depositToBedRiverReach1
+        procedure :: setDefaults => setDefaultsRiverReach1
         procedure :: parseInputData => parseInputDataRiverReach1
         procedure :: calculateWidth => calculateWidth1
         procedure :: calculateDepth => calculateDepth1
@@ -70,6 +71,9 @@ module classRiverReach1
         me%m_spm = 0
         allocate(me%Q_runoff_timeSeries, source=Q_runoff_timeSeries)    ! This reach's runoff
         
+        ! Set any defaults (no errors to be thrown)
+        call me%setDefaults()
+        
         ! Get data from the input data file
         call res%addErrors( &
             .errors. me%parseInputData() &    
@@ -105,9 +109,9 @@ module classRiverReach1
     !!  <li>Deposition to BedSediment removed</li>
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
-    function updateRiverReach1(me, Qin, spmIn, t, j_spm_runoff) result(r)
+    function updateRiverReach1(me, Q_in, spmIn, t, j_spm_runoff) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
-        real(dp) :: Qin                                     !! Inflow to this reach
+        real(dp) :: Q_in                                    !! Inflow to this reach
         real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
         real(dp) :: j_spm_runoff(:)		                    !! Eroded sediment runoff to this reach
         integer :: t                                        !! Current time step [s]
@@ -117,24 +121,24 @@ module classRiverReach1
         integer :: nDisp                                    ! Number of displacements to split reach into
         real(dp) :: dt                                      ! Length of each displacement [s]
         integer :: i                                        ! Iterator for displacements
-        real(dp) :: dQin                                    ! Qin for each displacement
+        real(dp) :: dQ_in                                   ! Q_in for each displacement
         real(dp) :: dSpmIn(C%nSizeClassesSpm)               ! spmIn for each displacement
         real(dp) :: dSpmDep(C%nSizeClassesSpm)              ! Deposited SPM for each displacement
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dSpmOut(C%nSizeClassesSpm)              ! SPM outflow for the displacement
 
-        me%Qrunoff = me%Q_runoff_timeSeries(t)              ! Hydrological runoff for this time step [m3/timestep - TODO change to m/s]
+        me%Q_runoff = me%Q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m3/timestep - TODO change to m/s]
         me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff [kg/timestep]
-        me%Qin = Qin + me%Qrunoff                           ! Set this reach's inflow
+        me%Q_in = Q_in + me%Q_runoff                        ! Set this reach's inflow
         me%spmIn = spmIn + me%j_spm_runoff                  ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
 
         ! Calculate the depth, velocity, area and volume
-        me%W = me%calculateWidth(me%Qin/C%timeStep)
-        D = me%calculateDepth(me%W, me%slope, me%Qin/C%timeStep)
+        me%W = me%calculateWidth(me%Q_in/C%timeStep)
+        D = me%calculateDepth(me%W, me%slope, me%Q_in/C%timeStep)
         me%D = .dp. D                                       ! Get real(dp) data from Result object
         call r%addError(.error. D)                          ! Add any error that occurred
-        me%v = me%calculateVelocity(me%D, me%Qin/C%timeStep, me%W)
+        me%v = me%calculateVelocity(me%D, me%Q_in/C%timeStep, me%W)
         me%xsArea = me%calculateArea(me%D, me%W)            ! Calculate the cross-sectional area of the reach
         me%bedArea = me%W*me%l*me%f_m                       ! Calculate the BedSediment area
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
@@ -148,13 +152,13 @@ module classRiverReach1
             .errors. me%settling() &                        ! Doesn't remove SPM from BedSediment - done later
         ])
 
-        ! If Qin for this timestep is bigger than the reach volume, then we need to
+        ! If Q_in for this timestep is bigger than the reach volume, then we need to
         ! split into a number of displacements
-        nDisp = ceiling(me%Qin/me%volume)                   ! Number of displacements
+        nDisp = ceiling(me%Q_in/me%volume)                  ! Number of displacements
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
-        dQin = me%Qin/nDisp                                 ! Inflow to the first displacement [m3]
+        dQ_in = me%Q_in/nDisp                               ! Inflow to the first displacement [m3]
         dSpmIn = me%spmIn/nDisp                             ! SPM inflow to the first displacment [kg]
-        me%Qout = 0                                         ! Reset Qout for this time step
+        me%Q_out = 0                                        ! Reset Q_out for this time step
         me%spmOut = 0                                       ! Reset spmOut for this time step
         me%spmDep = 0                                       ! Reset deposited SPM for this time step
 
@@ -167,12 +171,12 @@ module classRiverReach1
 
             ! TODO: Resuspended SPM must be taken from BedSediment
             ! Resuspend SPM for this displacment, based on resuspension flux previously calculated
-            me%m_spm = me%m_spm + me%j_spm_res*dt         ! SPM resuspended is resuspension flux * displacement length
-            me%C_spm = me%m_spm/me%volume                 ! Update the SPM concentration
+            me%m_spm = me%m_spm + me%j_spm_res*dt           ! SPM resuspended is resuspension flux * displacement length
+            me%C_spm = me%m_spm/me%volume                   ! Update the SPM concentration
 
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             ! If we've removed all of the SPM, set to 0
-            dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)        ! Up to a maximum of the mass of SPM currently in reach
+            dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)    ! Up to a maximum of the mass of SPM currently in reach
             me%m_spm = me%m_spm - dSpmDep
             me%spmDep = me%spmDep + dSpmDep                 ! Keep track of deposited SPM for this time step
             me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
@@ -180,14 +184,14 @@ module classRiverReach1
             ! Other stuff, like abstraction, to go here.
 
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
-            ! TODO: Set dQout different to dQin based on abstraction etc.
-            dSpmOut = min(dQin*me%C_spm, me%m_spm)              ! Maximum of m_spm can be advected
+            ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
+            dSpmOut = min(dQ_in*me%C_spm, me%m_spm)             ! Maximum of m_spm can be advected
             me%m_spm = me%m_spm - dSpmOut                       ! Update the SPM mass after advection
             me%C_spm = me%m_spm/me%volume                       ! Update the concentration
 
             ! Sum the displacement outflows and mass for the final outflow
-            ! Currently, Qout = Qin. Maybe abstraction etc will change this
-            me%Qout = me%Qout + dQin
+            ! Currently, Q_out = Q_in. Maybe abstraction etc will change this
+            me%Q_out = me%Q_out + dQ_in
             me%spmOut = me%spmOut + dSpmOut
         end do
 
@@ -225,7 +229,7 @@ module classRiverReach1
         real(dp) :: f_fr                                        ! Friction factor [-]
         integer :: n                                            ! Iterator for size classes
         ! There must be inflow for there to be resuspension
-        if (me%Qin > 0) then
+        if (me%Q_in > 0) then
             ! Calculate maximum resuspendable particle size and proportion of each
             ! size class that can be resuspended. Changes on each timestep as dependent
             ! on river depth
@@ -243,7 +247,7 @@ module classRiverReach1
                 end if
             end do
             ! Calculate the stream power per unit bed area
-            omega = C%rho_w(C%T)*C%g*(me%Qin/C%timeStep)*me%slope/me%W
+            omega = C%rho_w(C%T)*C%g*(me%Q_in/C%timeStep)*me%slope/me%W
             f_fr = 4*me%D/(me%W+2*me%D)
             ! Calculate the resuspension
             ! TODO: Get actually mass of bed sediment
@@ -306,6 +310,14 @@ module classRiverReach1
         call r%addToTrace("Depositing SPM to BedSediment")
     end function
     
+    !> Set any defaults from config.nml file (accessed in Globals). Should be
+    !! called before input data in parsed.
+    subroutine setDefaultsRiverReach1(me)
+        class(RiverReach1) :: me            !! This `RiverReach` instance
+        me%f_m = C%defaultMeanderingFactor
+    end subroutine
+    
+    !> Obtain and store in object properties data from the input file
     function parseInputDataRiverReach1(me) result(r)
         class(RiverReach1) :: me            !! This `RiverReach1` instance
         type(Result) :: r                   !! The `Result` object to return, with any errors
