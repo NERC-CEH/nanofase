@@ -1,6 +1,8 @@
 module classReactor1
     use Globals
+    use ResultModule
     use spcReactor
+
     implicit none
     
     type, public, extends(Reactor) :: Reactor1

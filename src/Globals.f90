@@ -13,11 +13,12 @@ module Globals
         character(len=10)   :: configFile = 'config.nml'
         character(len=100)  :: inputFile
         character(len=100)  :: outputFile
-        integer             :: timeStep                 !! The timestep to run the model on [s].
-        integer             :: nTimeSteps               !! The number of timesteps.
-        real(dp)            :: epsilon = 1e-10          !! Used as proximity to check whether variable as equal
-        real(dp)            :: defaultSoilLayerDepth = 0.1_dp  !! Default SoilLayer depth of 10 cm
-        integer             :: maxRiverReaches = 100    !! Maximum number of RiverReaches a SubRiver can have.
+        integer             :: timeStep                         !! The timestep to run the model on [s].
+        integer             :: nTimeSteps                       !! The number of timesteps.
+        real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
+        real(dp)            :: defaultSoilLayerDepth = 0.1_dp   !! Default SoilLayer depth of 10 cm
+        real(dp)            :: defaultMeanderingFactor = 1.0_dp !! Default river meandering factor, >1
+        integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have.
 
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
@@ -62,11 +63,11 @@ module Globals
         integer :: n                                        ! Iterator for size classes
         character(len=100) :: inputFile, outputFile         ! Input and output file paths
         integer :: timeStep, nTimeSteps, maxRiverReaches    ! Length and number of time steps, max number of RiverReaches in GridCell
-        real(dp) :: epsilon, defaultSoilLayerDepth          ! Error criteria proximity and default soil layer depth
+        real(dp) :: epsilon, defaultSoilLayerDepth, defaultMeanderingFactor     ! Error criteria proximity and default soil layer depth
         type(ErrorInstance) :: errors(13)                   ! ErrorInstances to be added to ErrorHandler
         namelist /data/ inputFile, outputFile
         namelist /run/ timeStep, nTimeSteps, epsilon
-        namelist /soil/ defaultSoilLayerDepth
+        namelist /soil/ defaultSoilLayerDepth, defaultMeanderingFactor
         namelist /river/ maxRiverReaches
 
         ! Open the config file and read the different config groups
@@ -83,6 +84,7 @@ module Globals
         C%nTimeSteps = nTimeSteps
         C%epsilon = epsilon
         C%defaultSoilLayerDepth = defaultSoilLayerDepth
+        C%defaultMeanderingFactor = defaultMeanderingFactor
         C%maxRiverReaches = maxRiverReaches
         
         ! File operations

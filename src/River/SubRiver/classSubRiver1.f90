@@ -259,7 +259,7 @@ module classSubRiver1
             ! and outflows based on the inflow Q and SPM
             tmpSpmIn = spmIn(i,:)                                   ! Temporary array to avoid warning when using assumed shape as argument
             reachR = me%colReaches(i)%item%update( &
-                Qin = Qin(i), &
+                Q_in = Qin(i), &
                 spmIn = tmpSpmIn, &
                 t = t, &
                 j_spm_runoff = j_spm_runoff/me%nReaches &           ! Split the runoff equally between reaches. TODO: Change based on reach length
