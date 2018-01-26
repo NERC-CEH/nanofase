@@ -280,7 +280,7 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! Fine sediment volume [m3 m-2]
-        pure function getFSVol1(Me) result(Vf)
+        function getFSVol1(Me) result(Vf)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             real(dp) :: Vf                                           !! The return value
                                                                      ! function to return the fine sediment volume [m3 m-2]
@@ -292,7 +292,7 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! Fine sediment mass [kg m-2]
-        pure function getFSMass1(Me) result(Mf)
+        function getFSMass1(Me) result(Mf)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             real(dp) :: Mf                                           !! The return value
                                                                      ! function to return the fine sediment mass [kg m-2]
@@ -304,7 +304,7 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! water volume [m3 m-2]
-        pure function getWVol1(Me) result(Vw)
+        function getWVol1(Me) result(Vw)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             real(dp) :: Vw                                           !! The return value
                                                                      ! function to return the water volume [m3 m-2]
@@ -316,7 +316,7 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! Fine sediment particle density [kg m-3]
-        pure function pdens1(Me) result(rho_part)
+        function pdens1(Me) result(rho_part)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             real(dp) :: rho_part                                     !! Return value: the particle density [kg m-3]
             integer :: x                                             ! LOCAL loop counter
@@ -332,7 +332,7 @@ module classFineSediment1
         !! Function returns ErrorInstance with values
         !! 106: if fractional composition does not sum to unity <br>
         !! 0: otherwise
-        pure function audit_fcomp1(Me) result(er)
+        function audit_fcomp1(Me) result(er)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             type(ErrorInstance) :: er                                !! `ErrorInstance` object, returns error if `t_fcomp /= 1`
             integer :: F                                             ! LOCAL loop counter
@@ -357,7 +357,7 @@ module classFineSediment1
         !! **Function outputs/outcomes**                            <br>
         !! Function returns .true./.false. depending on whether any sediment or water is
         !! present or not
-        pure function Empty1(Me) result(t)
+        function Empty1(Me) result(t)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             logical :: t
                 !! Return value. True: `V_f/M_f = V_w = 0`. False: `V_f/M_f > 0 .or. V_w > 0`
@@ -483,7 +483,7 @@ module classFineSediment1
 !** ResultFineSediment extension **!
 !**********************************!
         !> Initialise the result object with 0D `FineSediment` data.
-        pure function init0DFS(data, error, errors) result(this)
+        function init0DFS(data, error, errors) result(this)
             type(ResultFineSediment0D)                  :: this         !! This `Result` object
             type(FineSediment1), intent(in)             :: data         !! 0D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
@@ -495,7 +495,7 @@ module classFineSediment1
         end function
 
         !> Initialise the result object with 1D `FineSediment` data.
-        pure function init1DFS(data, error, errors) result(this)
+        function init1DFS(data, error, errors) result(this)
             type(ResultFineSediment1D)                  :: this         !! This Result object
             type(FineSediment1), intent(in)             :: data(:)      !! 1D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
@@ -507,7 +507,7 @@ module classFineSediment1
         end function
 
         !> Initialise the result object with 2D `FineSediment` data.
-        pure function init2DFS(data, error, errors) result(this)
+        function init2DFS(data, error, errors) result(this)
             type(ResultFineSediment2D)                  :: this         !! This Result object
             type(FineSediment1), intent(in)             :: data(:,:)    !! 2D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
@@ -519,7 +519,7 @@ module classFineSediment1
         end function
 
        !> Attempt to return the data as a scalar FineSediment1 object
-        pure function getDataAsFineSediment0D(this) result(data)
+        function getDataAsFineSediment0D(this) result(data)
             class(ResultFineSediment0D), intent(in) :: this     !! This Result object
             type(FineSediment1)                     :: data     !! The data as a `FineSediment1` object
             select type (d => this%data)
@@ -531,7 +531,7 @@ module classFineSediment1
         end function
 
         !> Attempt to return the data as a 1D FineSediment1 object array
-        pure function getDataAsFineSediment1D(this) result(data)
+        function getDataAsFineSediment1D(this) result(data)
             class(ResultFineSediment1D), intent(in) :: this                     !! This Result object
             type(FineSediment1)                     :: data(size(this%data))    !! The data as a 1D `FineSediment1` array
             select type (d => this%data)
@@ -543,7 +543,7 @@ module classFineSediment1
         end function
 
         !> Attempt to return the data as a 2D FineSediment1 object array
-        pure function getDataAsFineSediment2D(this) result(data)
+        function getDataAsFineSediment2D(this) result(data)
             class(ResultFineSediment2D), intent(in) :: this                         !! This Result object
             type(FineSediment1)                     :: data(size(this%data,1), &
                                                             size(this%data,2))      !! The data as a 1D `FineSediment1` array
