@@ -42,9 +42,9 @@ module classSubRiver1
     !> Create the `SubRiver` object by reading data in from file
     function createSubRiver1(me, x, y, s, length, Q_runoff_timeSeries) result(r)
         class(SubRiver1) :: me                                      !! The `SubRiver` instance
-        type(integer), intent(in) :: x                              !! The row number of the enclosing `GridCell`
-        type(integer), intent(in) :: y                              !! The column number of the enclosing `GridCell`
-        type(integer), intent(in) :: s                              !! Reference `SubRiver` number
+        integer, intent(in) :: x                              !! The row number of the enclosing `GridCell`
+        integer, intent(in) :: y                              !! The column number of the enclosing `GridCell`
+        integer, intent(in) :: s                              !! Reference `SubRiver` number
         real(dp) :: length                                          !! The length of the `SubRiver` (without meandering)
         real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Initial runoff from the hydrological model
         type(Result) :: r                                           !! The `Result` object to return any errors in
@@ -53,9 +53,9 @@ module classSubRiver1
         type(NcVariable) :: var                                     ! NetCDF variable
         type(NcGroup) :: grp                                        ! NetCDF group
         type(NcGroup) :: subRiverGrp                                ! NetCDF group specifically for this SubRiver
-        type(integer) :: i, t                                       ! loop counter
-        type(character(len=100)) :: sr1                             ! string to dynamically compile and hold group names (must be specific length)
-        type(character(len=100)) :: sr2                             ! string to dynamically compile and hold group names
+        integer :: i, t                                       ! loop counter
+        character(len=100) :: sr1                             ! string to dynamically compile and hold group names (must be specific length)
+        character(len=100) :: sr2                             ! string to dynamically compile and hold group names
         type(RiverReach1), allocatable :: r1                        ! private RiverReach1 type, used for dynamic assignment
         character(len=5) :: charMaxRiverReaches                     ! character string to store max number of RiverReaches allowed in
         ! Function purpose
@@ -197,7 +197,7 @@ module classSubRiver1
     function destroySubRiver1(me) result(r)
         class(SubRiver1) :: me                                      !! The `SubRiver1` instance
         type(Result) :: r                                           !! The `Result` object
-        type(integer) :: i                                          ! loop counter
+        integer :: i                                          ! loop counter
         do i = 1, me%nReaches                                       ! loop through each RiverReach
             r = me%colReaches(i)%item%destroy()                     ! call destroy routine in the SubRiver object
         end do
@@ -214,7 +214,7 @@ module classSubRiver1
         type(Result) :: reachR                                      ! Result object for each reach
         real(dp) :: Qin(me%nReaches + 1)                            ! The inflow, final element for outflow [m3/timestep]
         real(dp) :: spmIn(me%nReaches + 1, C%nSizeClassesSpm)       ! The SPM inflow per size class, final element for outflow [kg/timestep]
-        type(integer) :: i                                          ! loop counter
+        integer :: i                                          ! loop counter
         real(dp) :: tmpSpmIn(C%nSizeClassesSpm)                     ! Temporary variable to pass as argument, avoiding array temporary warning (https://stackoverflow.com/questions/28859524/fortran-runtime-warning-temporary-array)
         ! Function purpose
         ! -------------------------------------------------------------
