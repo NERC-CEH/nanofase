@@ -68,6 +68,13 @@ module spcRiverReach
         procedure :: getQOut => getQOutRiverReach
         procedure :: getSpmOut => getSpmOutRiverReach
     end type
+      
+    !> Container type for `class(RiverReach)`, the actual type of the `RiverReach` class.
+    !! a variable of type `RiverReachElement` can be of any object type inheriting from the
+    !! `RiverReach` abstract base class.
+    type RiverReachElement                                          
+        class(RiverReach), allocatable :: item                      !! Polymorphic `RiverReach` object
+    end type
 
     abstract interface
         !> Create this `RiverReach`
@@ -219,7 +226,7 @@ module spcRiverReach
             real(dp), intent(in) :: M_prop(C%nTimeSteps)    !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
             real(dp), intent(in) :: omega                   !! Stream power per unit bed area \( \omega \) [kg m-2]
             real(dp), intent(in) :: f_fr                    !! Friction factor \( f \) [-]
-            real(dp) :: j_res(C%nTimeSteps)                 !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
+            real(dp) :: j_res(C%nSizeClassesSpm)            !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
         end function
     end interface
 

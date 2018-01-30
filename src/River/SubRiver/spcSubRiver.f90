@@ -8,13 +8,6 @@ module spcSubRiver
     use spcRiverReach                                               ! use containing object type
     implicit none                                                   ! force declaration of all variables
 
-    !> Container type for `class(RiverReach)`, the actual type of the `RiverReach` class.
-    !! a variable of type `RiverReachElement` can be of any object type inheriting from the
-    !! `RiverReach` abstract base class.
-    type RiverReachElement                                          
-        class(RiverReach), allocatable :: item                      !! Polymorphic `RiverReach` object
-    end type
-
     !> An internal user-defined type, defining a reference to a `SubRiver` sending water to this
     !! `SubRiver`. Comprises row (x) and column (y) references to the `GridCell` containing the
     !! sending `SubRiver` and the in-cell `SubRiver` reference number

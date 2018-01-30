@@ -91,16 +91,23 @@ module classGridCell1
             ! Add SubRivers to the GridCell (if any are present in the data file)
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. r%hasCriticalError()) then
-                subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
-                                    "_" // trim(str(me%gridY)) // "_"
-                ! Set SubRiver size to half of the grid cell size if there's more than one SubRiver,
-                ! otherwise the full size of the grid cell. TODO: Constrain number of SubRivers somewhere
-                ! so this makes sense.
-                if (me%nSubRivers > 1) then
-                    subRiverLength = C%gridCellSize / 2.0_dp
-                else
-                    subRiverLength = C%gridCellSize
-                end if
+                
+                do rr = 1, me%nRiverReaches
+                    allocate(RiverReach1::me%colRiverReaches(rr)%item)
+                    me%colRiverReaches(rr)%item%create()
+                end do
+                
+                
+                !subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
+                !                    "_" // trim(str(me%gridY)) // "_"
+                !! Set SubRiver size to half of the grid cell size if there's more than one SubRiver,
+                !! otherwise the full size of the grid cell. TODO: Constrain number of SubRivers somewhere
+                !! so this makes sense.
+                !if (me%nSubRivers > 1) then
+                !    subRiverLength = C%gridCellSize / 2.0_dp
+                !else
+                !    subRiverLength = C%gridCellSize
+                !end if
                 ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
                 do s = 1, me%nSubRivers
                     ! Split the runoff between SubRivers
