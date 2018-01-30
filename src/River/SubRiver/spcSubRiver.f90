@@ -12,9 +12,9 @@ module spcSubRiver
     !! `SubRiver`. Comprises row (x) and column (y) references to the `GridCell` containing the
     !! sending `SubRiver` and the in-cell `SubRiver` reference number
     type RoutingRef                                                 
-        type(integer) :: gridX                                      !! `GridCell` x reference
-        type(integer) :: gridY                                      !! `GridCell` y reference
-        type(integer) :: subRiver                                   !! `SubRiver` reference
+        integer :: gridX                                      !! `GridCell` x reference
+        integer :: gridY                                      !! `GridCell` y reference
+        integer :: subRiver                                   !! `SubRiver` reference
     end type
 
     !> `SubRiverPointer` used for `SubRiver` inflows array, so the elements within can
@@ -78,9 +78,9 @@ module spcSubRiver
             use ResultModule, only: Result
             import SubRiver
             class(SubRiver) :: me                                   !! The `SubRiver` instance
-            type(integer), intent(in) :: x                          !! The row number of the enclosing `GridCell`
-            type(integer), intent(in) :: y                          !! The column number of the enclosing `GridCell`
-            type(integer), intent(in) :: s                          !! Reference `SubRiver` number
+            integer, intent(in) :: x                          !! The row number of the enclosing `GridCell`
+            integer, intent(in) :: y                          !! The column number of the enclosing `GridCell`
+            integer, intent(in) :: s                          !! Reference `SubRiver` number
             real(dp) :: length                                      !! The `SubRiver` length
             real(dp), allocatable :: Q_runoff_timeSeries(:)         !! Any initial runoff
             type(Result) :: r                                       !! The `Result` object to return any errors in

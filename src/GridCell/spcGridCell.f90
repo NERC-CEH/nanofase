@@ -25,8 +25,8 @@ module spcGridCell
     type, abstract, public :: GridCell
         character(len=256) :: ref                                       !! A name for the object
         type(NcGroup) :: ncGroup                                        !! The NetCDF group for this dataset
-        type(integer) :: gridX                                          !! `GridCell` x reference
-        type(integer) :: gridY                                          !! `GridCell` y reference
+        integer :: gridX                                          !! `GridCell` x reference
+        integer :: gridY                                          !! `GridCell` y reference
         real(dp) :: area                                                !! Area of the `GridCell`
         type(RiverReachElement), allocatable :: colRiverReaches(:)      !! Array of `SubRiverElement` objects to hold the subrivers
         type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
@@ -34,10 +34,10 @@ module spcGridCell
         ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
         type(PointSourceElement), allocatable :: colPointSources(:)     !! Array of `PointSourceElement` objects to hold the point sources
         type(DiffuseSourceElement) :: objDiffuseSource                  !! `DiffuseSourceElement` object to hold the diffuse source
-        type(integer) :: nRiverReaches = 0                              !! Number of contained `SubRiver`s
-        type(integer) :: nSoilProfiles = 0                              !! Number of contained `SoilProfile`s
-        type(integer) :: nPointSources = 0                              !! Number of contained `PointSource`s
-        type(logical) :: DiffS                                          !! Yes=diffuse source present; NO=no diffuse source
+        integer :: nRiverReaches = 0                                    !! Number of contained `SubRiver`s
+        integer :: nSoilProfiles = 0                                    !! Number of contained `SoilProfile`s
+        integer :: nPointSources = 0                                    !! Number of contained `PointSource`s
+        logical :: DiffS                                                !! Yes=diffuse source present; NO=no diffuse source
         real(dp), allocatable :: Q_runoff_timeSeries(:)                 !! Runoff from the hydrological model
         real(dp), allocatable :: Q_evap_timeSeries(:)                   !! Evaporation time series [m/s]
         real(dp), allocatable :: Q_precip_timeSeries(:)                 !! Precipitation time series [m/s]

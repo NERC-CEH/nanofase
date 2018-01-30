@@ -45,7 +45,8 @@ module Globals
         ! Structure
         real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
       contains
-        procedure :: rho_w, nu_w
+        procedure :: rho_w
+        procedure :: nu_w
     end type
 
     type(GlobalsType) :: C
@@ -164,7 +165,7 @@ module Globals
     !! \( B = -0.005724 + 0.00010227T - 0.0000016546T^2 \) and \( C = 4.8314 \times 10^{-4} \).
     !! Reference:
     !! [D. R. Maidment, Handbook of Hydrology (2012)](https://books.google.co.uk/books/about/Handbook_of_hydrology.html?id=4_9OAAAAMAAJ)
-    pure function rho_w(me, T, S)
+    function rho_w(me, T, S)
         class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
         real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
@@ -184,7 +185,7 @@ module Globals
     !! $$
     !!      \nu_{\text{w}}(T,S) = \frac{1}{\rho_w(T,S)} 2.414\times 10^{-5} \cdot 10^{\frac{247.8}{(T+273.15)-140.0}}
     !! $$
-    pure function nu_w(me, T, S)
+    function nu_w(me, T, S)
         class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
         real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]

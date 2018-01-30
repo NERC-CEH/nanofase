@@ -362,7 +362,7 @@ module classRiverReach1
     !!  <li>[Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)</li>
     !!  <li>[Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)</li>
     !! </ul>
-    pure function calculateWidth1(me, Q) result(W)
+    function calculateWidth1(me, Q) result(W)
         class(RiverReach1), intent(in) :: me    !! The `RiverReach1` instance
         real(dp), intent(in) :: Q               !! `GridCell` discharge \( Q \) [m**3/s]
         real(dp) :: W                           !! The calculated width \( W \) [m]
@@ -382,7 +382,7 @@ module classRiverReach1
     !! $$
     !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
     !! $$
-    pure function calculateDepth1(me, W, S, Q) result(r)
+    function calculateDepth1(me, W, S, Q) result(r)
         class(RiverReach1), intent(in) :: me    !! The `RiverReach1` instance.
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
@@ -446,7 +446,7 @@ module classRiverReach1
     !! $$
     !!      v = \frac{Q}{WD}
     !! $$
-    pure function calculateVelocity1(me, D, Q, W) result(v)
+    function calculateVelocity1(me, D, Q, W) result(v)
         class(RiverReach1), intent(in) :: me    !! This `RiverReach1` instance
         real(dp), intent(in) :: D               !! River depth \( D \) [m]
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
@@ -490,7 +490,7 @@ module classRiverReach1
     !! $$
     !!      \mathbf{j}_{\text{res}} = \beta L W m_{\text{bed}} \mathbf{M}_{\text{prop}} \omega f
     !! $$
-    pure function calculateResuspension1(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
+    function calculateResuspension1(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
         class(RiverReach1), intent(in) :: me            !! This `RiverReach1` instance
         real(dp), intent(in) :: beta                    !! Calibration parameter \( \beta \) [s2 kg-1]
         real(dp), intent(in) :: L                       !! Reach length \( L = lf_{\text{m}} \) [m]
@@ -507,7 +507,7 @@ module classRiverReach1
     !! $$
     !!      \text{volume} = DWlf_m
     !! $$
-    pure function calculateVolume1(me, D, W, l, f_m) result(volume)
+    function calculateVolume1(me, D, W, l, f_m) result(volume)
         class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
@@ -522,7 +522,7 @@ module classRiverReach1
     !! $$
     !!      \text{area} = DW
     !! $$
-    pure function calculateArea1(me, D, W) result(area)
+    function calculateArea1(me, D, W) result(area)
         class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
