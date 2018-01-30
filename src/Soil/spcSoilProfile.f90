@@ -18,7 +18,7 @@ module spcSoilProfile
         integer :: p                                                !! `SoilProfile` reference (not needed currently as only one `SoilProfile` per `GridCell`)
         type(NcGroup) :: ncGroup                                    !! The NetCDF group for this object
         type(SoilLayerElement), allocatable :: colSoilLayers(:)     !! Array of `SoilLayerElement` objects to hold the soil layers
-        type(integer) :: nSoilLayers                                !! Number of contained `SoilLayer`s
+        integer :: nSoilLayers                                !! Number of contained `SoilLayer`s
         real(dp) :: slope                                           !! The slope of the containing `GridCell`
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Hydrology and met
