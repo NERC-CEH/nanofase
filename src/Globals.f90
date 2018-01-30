@@ -68,8 +68,8 @@ module Globals
         type(ErrorInstance) :: errors(13)                   ! ErrorInstances to be added to ErrorHandler
         namelist /data/ inputFile, outputFile
         namelist /run/ timeStep, nTimeSteps, epsilon
-        namelist /soil/ defaultSoilLayerDepth, defaultMeanderingFactor
-        namelist /river/ maxRiverReaches
+        namelist /soil/ defaultSoilLayerDepth
+        namelist /river/ maxRiverReaches, defaultMeanderingFactor
 
         ! Open the config file and read the different config groups
         open(10, file="config.nml", status="old")
