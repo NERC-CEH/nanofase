@@ -26,7 +26,7 @@ module UtilModule
 
   contains
         !> Convert an integer to a string
-        pure function strFromInteger(i) result(str)
+        function strFromInteger(i) result(str)
             integer, intent(in) :: i        !! The integer to convert to a string
             character(len=256) :: str       !! The string to return
             write(str, *)i
@@ -34,7 +34,7 @@ module UtilModule
         end function
 
         !> Convert a real to a string
-        pure function strFromReal(r) result(str)
+        function strFromReal(r) result(str)
             real, intent(in) :: r           !! The integer to convert to a string
             character(len=256) :: str       !! The string to return
             write(str, *)r
@@ -42,7 +42,7 @@ module UtilModule
         end function
 
         !> Convert a double-precision real to a string
-        pure function strFromDp(r) result(str)
+        function strFromDp(r) result(str)
             real(dp), intent(in) :: r           !! The integer to convert to a string
             character(len=256) :: str       !! The string to return
             write(str, *)r
@@ -51,7 +51,7 @@ module UtilModule
 
         !> Generate an object reference from a prefix (e.g., "GridCell")
         !! and one integers
-        pure function ref1(prefix, a)
+        function ref1(prefix, a)
             character(len=*), intent(in) :: prefix
             integer, intent(in) :: a
             character(len=256) :: ref1
@@ -60,7 +60,7 @@ module UtilModule
 
         !> Generate an object reference from two character prefixes and
         !! one integer
-        pure function ref2p1(prefix1, prefix2, a)
+        function ref2p1(prefix1, prefix2, a)
             character(len=*), intent(in) :: prefix1
             character(len=*), intent(in) :: prefix2
             integer, intent(in) :: a
@@ -70,7 +70,7 @@ module UtilModule
 
         !> Generate an object reference from a prefix (e.g., "GridCell")
         !! and two integers
-        pure function ref2(prefix, a, b)
+        function ref2(prefix, a, b)
             character(len=*), intent(in) :: prefix
             integer, intent(in) :: a
             integer, intent(in) :: b
@@ -80,7 +80,7 @@ module UtilModule
 
         !> Generate an object reference from a prefix (e.g., "RiverReach")
         !! and three integers
-        pure function ref3(prefix, a, b, c)
+        function ref3(prefix, a, b, c)
             character(len=*), intent(in) :: prefix
             integer, intent(in) :: a
             integer, intent(in) :: b
@@ -92,7 +92,7 @@ module UtilModule
 
         !> Generate an object reference from a prefix (e.g., "BedSediment")
         !! and four integers
-        pure function ref4(prefix, a, b, c, d)
+        function ref4(prefix, a, b, c, d)
             character(len=*), intent(in) :: prefix
             integer, intent(in) :: a
             integer, intent(in) :: b
@@ -104,7 +104,7 @@ module UtilModule
         end function
 
         !> Generate an object reference from a prefix and five integers
-        pure function ref5(prefix, a, b, c, d, e)
+        function ref5(prefix, a, b, c, d, e)
             character(len=*), intent(in) :: prefix
             integer, intent(in) :: a
             integer, intent(in) :: b
@@ -117,7 +117,7 @@ module UtilModule
         end function
 
         !> Check whether a real value is within epsilon of zero
-        pure function isZeroReal(value, epsilon)
+        function isZeroReal(value, epsilon)
             real, intent(in)                :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
@@ -132,7 +132,7 @@ module UtilModule
         end function
 
         !> Check whether a real(dp) value is within epsilon of zero
-        pure function isZeroDp(value, epsilon)
+        function isZeroDp(value, epsilon)
             real(dp), intent(in)            :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon

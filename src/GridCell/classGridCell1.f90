@@ -144,7 +144,7 @@ module classGridCell1
     function destroyGridCell1(Me) result(r)
         class(GridCell1) :: Me                              !! The `GridCell` instance.
         type(Result) :: r                                   !! The `Result` object
-        type(integer) :: x                                  !! loop counter
+        integer :: x                                  !! loop counter
         do x = 1, me%nSubRivers
             r = Me%colSubRivers(x)%item%destroy()           ! remove all SubRiver objects and any contained objects
         end do
@@ -163,7 +163,7 @@ module classGridCell1
         integer :: t                                                   !! The timestep we're on
         type(Result) :: r                                              !! `Result` object to return errors in
         type(Result) :: srR                                            ! Result object for SubRivers
-        type(integer) :: s                                             ! Loop counter
+        integer :: s                                             ! Loop counter
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Loop through all SoilProfiles (only one for the moment), run their

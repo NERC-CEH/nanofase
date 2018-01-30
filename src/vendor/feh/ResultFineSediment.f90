@@ -31,7 +31,7 @@ module ResultFineSedimentModule
   contains
 
     !> Attempt to return the data as a scalar FineSediment1 object
-    pure function getDataAsFineSediment0D(this) result(data)
+    function getDataAsFineSediment0D(this) result(data)
         class(ResultFineSediment0D), intent(in) :: this     !! This Result object
         type(FineSediment1)                     :: data     !! The data as a FineSediment1 object
         select type (d => this%data)
@@ -43,7 +43,7 @@ module ResultFineSedimentModule
     end function
 
     !> Attempt to return the data as a 1D FineSediment1 object array
-    pure function getDataAsFineSediment1D(this) result(data)
+    function getDataAsFineSediment1D(this) result(data)
         class(ResultFineSediment1D), intent(in) :: this                     !! This Result object
         type(FineSediment1)                     :: data(size(this%data))    !! The data as a 1D FineSediment1 array
         select type (d => this%data)
@@ -55,7 +55,7 @@ module ResultFineSedimentModule
     end function
 
     !> Attempt to return the data as a 2D FineSediment1 object array
-    pure function getDataAsFineSediment2D(this) result(data)
+    function getDataAsFineSediment2D(this) result(data)
         class(ResultFineSediment2D), intent(in) :: this                         !! This Result object
         type(FineSediment1)                     :: data(size(this%data,1), &
                                                         size(this%data,2))      !! The data as a 1D FineSediment1 array
