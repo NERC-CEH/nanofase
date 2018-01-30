@@ -142,7 +142,7 @@ module spcRiverReach
         end function
 
         !> Calculate the depth of this `RiverReach`
-        pure function calculateDepth(me, W, S, Q) result(r)
+        function calculateDepth(me, W, S, Q) result(r)
             use Globals
             use ResultModule, only: Result0D
             import RiverReach
@@ -163,7 +163,7 @@ module spcRiverReach
         end function
 
         !> Calculate the volume of this `RiverReach`
-        pure function calculateVolume(me, D, W, l, f_m) result(volume)
+        function calculateVolume(me, D, W, l, f_m) result(volume)
             use Globals
             import RiverReach
             class(RiverReach), intent(in) :: me                         !! The RiverReach instance
@@ -175,7 +175,7 @@ module spcRiverReach
         end function
 
         !> Calculate the cross-sectional area of this `RiverReach`
-        pure function calculateArea(me, D, W) result(area)
+        function calculateArea(me, D, W) result(area)
             use Globals
             import RiverReach
             class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
@@ -185,7 +185,7 @@ module spcRiverReach
         end function
 
         !> Calculate the velocity of water from the dimensions and flow
-        pure function calculateVelocity(me, D, Q, W) result(v)
+        function calculateVelocity(me, D, Q, W) result(v)
             use Globals
             import RiverReach
             class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
@@ -208,7 +208,7 @@ module spcRiverReach
         end function
 
         !> Calculate the resuspension flux of sediment particles
-        pure function calculateResuspension(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
+        function calculateResuspension(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
             use Globals
             import RiverReach
             class(RiverReach), intent(in) :: me             !! This `RiverReach` instance
@@ -219,7 +219,7 @@ module spcRiverReach
             real(dp), intent(in) :: M_prop(C%nTimeSteps)    !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
             real(dp), intent(in) :: omega                   !! Stream power per unit bed area \( \omega \) [kg m-2]
             real(dp), intent(in) :: f_fr                    !! Friction factor \( f \) [-]
-            real(dp) :: j_res(C%nTimeSteps)                 !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
+            real(dp) :: j_res(C%nSizeClassesSpm)                 !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
         end function
     end interface
 
