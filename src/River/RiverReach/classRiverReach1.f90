@@ -13,16 +13,19 @@ module classRiverReach1
     !> `RiverReach1` object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
     type, public, extends(RiverReach) :: RiverReach1
-
       contains
+        ! Create/destroy
         procedure :: create => createRiverReach1
         procedure :: destroy => destroyRiverReach1
+        ! Simulators
         procedure :: update => updateRiverReach1
         procedure :: resuspension => resuspensionRiverReach1
         procedure :: settling => settlingRiverReach1
         procedure :: depositToBed => depositToBedRiverReach1
+        ! Data handlers
         procedure :: setDefaults => setDefaultsRiverReach1
         procedure :: parseInputData => parseInputDataRiverReach1
+        ! Calculators
         procedure :: calculateWidth => calculateWidth1
         procedure :: calculateDepth => calculateDepth1
         procedure :: calculateVelocity => calculateVelocity1
