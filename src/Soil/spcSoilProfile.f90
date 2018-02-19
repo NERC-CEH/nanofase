@@ -23,7 +23,7 @@ module spcSoilProfile
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
-        real(dp) :: Q_runoff                                        !! Runoff (quickflow) from the hydrological model for this timestep [m3 s-1] TODO: Change to m/s
+        real(dp) :: Q_runoff                                        !! Runoff (quickflow) from the hydrological model for this timestep [m/s]
         real(dp) :: Q_surf                                          !! Surface runoff (different to quickflow) for this time step [m3 m-2 s-1]
         real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
         real(dp), allocatable :: Q_precip_timeSeries(:)             !! Time series of precipitation data [m3 m-2 s-1]
@@ -106,7 +106,7 @@ module spcSoilProfile
             import SoilProfile, Result
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current time step
-            real(dp) :: Q_runoff                                !! Runoff (quickflow) generated on this timestep
+            real(dp) :: Q_runoff                                !! Runoff (quickflow) generated on this timestep [m/s]
             type(Result) :: r                                   !! `Result` object to return
         end function
 

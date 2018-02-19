@@ -1,0 +1,145 @@
+{
+	"dimensions": {
+		"t" : 365,
+		"s" : 5,
+		"n" : 5,
+		"f" : 4,
+		"riverReachRef" : 3
+	},
+	"global" : {
+		"spmSizeClasses[s]" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ],
+		"npSizeClasses[n]" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ],
+		"spmParticleDensities[f]" : [ 1500, 2600, 2600, 2600 ],
+		"defaultDistributionSediment[s]" : [ 50, 30, 10, 7, 3 ],
+		"defaultDistributionNP[n]" : [ 50, 30, 10, 7, 3 ],
+		"gridCellSize" : 1000,
+		"temperature[t]" : "file::t.json"
+	},
+	"Environment": {
+		"dimensions": {
+			"d": 2
+		},
+		"gridSize[d]": [ 2, 2 ],
+		"GridCell_1_1": {
+			"dimensions": {
+				"r": 1
+			},
+			"reachTypes[r]": [ 1 ],
+			"nRiverReaches": 1,
+			"type": 1,
+			"slope": 0.0005,
+			"SoilProfile_1_1_1": "file::soil-profile-compact.json",
+			"runoff[t]": "file::runoff.json",
+			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
+			"evap[t]": "file::evap.json",
+			"RiverReach_1_1_1": {
+				"BedSediment": "file::bed-sediment-compact.json",
+				"slope": 0.0005,
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json"
+			}
+		},
+		"GridCell_1_2": {
+			"dimensions": {
+				"r": 2
+			},
+			"reachTypes[r]": [ 1, 1 ],
+			"nRiverReaches": 2,
+			"type": 1,
+			"slope": 0.0005,
+			"SoilProfile_1_2_1": "file::soil-profile-compact.json",
+			"runoff[t]": "file::runoff.json",
+			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
+			"evap[t]": "file::evap.json",
+			"RiverReach_1_2_1": {
+				"dimensions": { "in": 1 },
+				"inflows[in][riverReachRef]": [ [ 1, 1, 1 ] ],
+				"BedSediment": "file::bed-sediment-compact.json",
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json",
+				"slope": 0.0005
+			},
+			"RiverReach_1_2_2": {
+				"dimensions": { "in": 1 },
+				"inflows[in][riverReachRef]": [ [ 1, 2, 1 ] ],
+				"BedSediment": "file::bed-sediment-compact.json",
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json",
+				"slope": 0.0005
+			}
+		},
+		"GridCell_2_1": {
+			"dimensions": {
+				"r": 1
+			},
+			"reachTypes[r]": [ 1 ],
+			"nRiverReaches": 1,
+			"type": 1,
+			"slope": 0.0005,
+			"SoilProfile_2_1_1": "file::soil-profile-compact.json",
+			"runoff[t]": "file::runoff.json",
+			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
+			"evap[t]": "file::evap.json",
+			"RiverReach_2_1_1": {
+				"BedSediment": "file::bed-sediment-compact.json",
+				"slope": 0.0005,
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json"
+			}
+		},
+		"GridCell_2_2": {
+			"dimensions": {
+				"r": 2
+			},
+			"reachTypes[r]": [ 1, 1 ],
+			"nRiverReaches": 4,
+			"type": 1,
+			"slope": 0.0005,
+			"SoilProfile_2_2_1": "file::soil-profile-compact.json",
+			"runoff[t]": "file::runoff.json",
+			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
+			"evap[t]": "file::evap.json",
+			"RiverReach_2_2_1": {
+				"dimensions": { "in": 1 },
+				"inflows[in][riverReachRef]": [ [ 1, 2, 2 ] ],
+				"BedSediment": "file::bed-sediment-compact.json",
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json",
+				"slope": 0.0005
+			},
+			"RiverReach_2_2_2": {
+				"dimensions": { "in": 1 },
+				"inflows[in][riverReachRef]": [ [ 2, 1, 1 ] ],
+				"BedSediment": "file::bed-sediment-compact.json",
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json",
+				"slope": 0.0005
+			},
+			"RiverReach_2_2_3": {
+				"dimensions": { "in": 1 },
+				"inflows[in][riverReachRef]": [ [ 2, 2, 2 ] ],
+				"BedSediment": "file::bed-sediment-compact.json",
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json",
+				"slope": 0.0005
+			},
+			"RiverReach_2_2_4": {
+				"dimensions": { "in": 1 },
+				"inflows[in][riverReachRef]": [ [ 2, 2, 3 ] ],
+				"domainOutflow[d]": [ 3, 2 ],
+				"BedSediment": "file::bed-sediment-compact.json",
+				"beta_res": 1e-6,
+				"alpha_res": 0.001,
+				"spm[s][t]": "file::spm.json",
+				"slope": 0.0005
+			}
+		}
+	}
+}

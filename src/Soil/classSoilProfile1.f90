@@ -90,13 +90,13 @@ module classSoilProfile1
     function updateSoilProfile1(me, t, Q_runoff) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         integer :: t                                            !! The current timestep
-        real(dp) :: Q_runoff                                    !! Runoff (quickflow) generated on this timestep
+        real(dp) :: Q_runoff                                    !! Runoff (quickflow) generated on this timestep [m/s]
         type(Result) :: r                                       !! Result object to return
         
         ! Set the timestep-specific object properties
-        me%Q_runoff = Q_runoff                                  ! Set the runoff (quickflow) for this timestep
+        me%Q_runoff = Q_runoff                                  ! Set the runoff (quickflow) for this timestep [m/s]
         ! TODO: Q_runoff still in m3/s, change to m/s
-        me%Q_surf = 0.1*me%Q_runoff/me%area                     ! Surface runoff = 10% of quickflow [m/timestep]
+        me%Q_surf = 0.1*me%Q_runoff                             ! Surface runoff = 10% of quickflow [m/timestep]
         me%Q_precip = me%Q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
         me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
         me%Q_in = max(me%Q_precip - me%Q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.

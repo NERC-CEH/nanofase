@@ -8,7 +8,7 @@ The [convention](/doc/conventions.md) is that input data is parsed in an object'
 
 - **`Environment`**
     + **`GridCell_{x}_{y}`**
-        * `runoff(nTimeSteps)` &#129146; `Q_runoff_timeSeries`: *Defaults to 0.* Time series of runoff flows [m3/s - will soon be changed to m/s].
+        * `runoff(nTimeSteps)` &#129146; `Q_runoff_timeSeries`: *Defaults to 0.* Time series of runoff flows [m/s in data file, converted to m3/timestep in `parseInputData()`].
         * `precip(nTimeSteps)` &#129146; `Q_precip_timeSeries`: *Defaults to 0.* Time series of precipitation data [m/s].
         * `evap(nTimeSteps)` &#129146; `Q_evap_timeSeries`: *Defaults to 0.*Time series of evaporation data [m/s].
         * `slope`: **Required**. Average slope of the GridCell [m/m].
