@@ -27,16 +27,16 @@ program main
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
                      write(3,*) t, ", ", x, ", ", y, ", ", &
                          env%colGridCells(x,y)%item%erodedSediment(1)
-                    do s = 1, size(env%colGridCells(x,y)%item%colSubRivers) ! Loop through the SubRivers
-                        ! Write to the data file
-                        write(2,*) t, ", ", x, &
-                             ", ", y, ", ", s, ", " &
-                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(1), ", " &
-                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(2), ", " &
-                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
-                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
-                            , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
-                    end do
+                    !do s = 1, size(env%colGridCells(x,y)%item%colSubRivers) ! Loop through the SubRivers
+                    !    ! Write to the data file
+                    !    write(2,*) t, ", ", x, &
+                    !         ", ", y, ", ", s, ", " &
+                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(1), ", " &
+                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(2), ", " &
+                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
+                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
+                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
+                    !end do
                 end if
             end do
         end do

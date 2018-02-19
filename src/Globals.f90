@@ -65,7 +65,7 @@ module Globals
         character(len=100) :: inputFile, outputFile         ! Input and output file paths
         integer :: timeStep, nTimeSteps, maxRiverReaches    ! Length and number of time steps, max number of RiverReaches in GridCell
         real(dp) :: epsilon, defaultSoilLayerDepth, defaultMeanderingFactor     ! Error criteria proximity and default soil layer depth
-        type(ErrorInstance) :: errors(13)                   ! ErrorInstances to be added to ErrorHandler
+        type(ErrorInstance) :: errors(15)                   ! ErrorInstances to be added to ErrorHandler
         namelist /data/ inputFile, outputFile
         namelist /run/ timeStep, nTimeSteps, epsilon
         namelist /soil/ defaultSoilLayerDepth
@@ -97,19 +97,24 @@ module Globals
         errors(5) = ErrorInstance(code=300, message="Newton's method failed to converge.")
         ! Grid and geography
         errors(6) = ErrorInstance(code=401, &
-            message="Invalid SubRiver inflow reference. Inflow must be from a neighbouring SubRiver.")
+            message="Invalid RiverReach inflow reference. Inflow must be from a neighbouring RiverReach.")
+        errors(7) = ErrorInstance(code=402, &
+            message="Invalid RiverReach inflow reference. If multiple inflows are specified, they must " // &
+                        "be inflows to the GridCell and all come from the same GridCell.")
+        errors(8) = ErrorInstance(code=403, &
+            message="RiverReach cannot have more than 5 inflows.")
         ! River routing
-        errors(7) = ErrorInstance(code=500, &
+        errors(9) = ErrorInstance(code=500, &
             message="All SPM advected from RiverReach.", isCritical=.false.)
-        errors(8) = ErrorInstance(code=501, &
+        errors(10) = ErrorInstance(code=501, &
             message="No input data provided for required SubRiver - check nSubRivers is correct.")
         ! Soil
-        errors(9) = ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.)
+        errors(11) = ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.)
         ! General
-        errors(10) = ErrorInstance(code=901, message="Invalid RiverReach type index provided.")
-        errors(11) = ErrorInstance(code=902, message="Invalid Biota index provided.")
-        errors(12) = ErrorInstance(code=903, message="Invalid Reactor index provided.")
-        errors(13) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
+        errors(12) = ErrorInstance(code=901, message="Invalid RiverReach type index provided.")
+        errors(13) = ErrorInstance(code=902, message="Invalid Biota index provided.")
+        errors(14) = ErrorInstance(code=903, message="Invalid Reactor index provided.")
+        errors(15) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=errors, on=.true.)
@@ -117,13 +122,13 @@ module Globals
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
         grp = nc%getGroup("global")                         ! Get the global variables group
-        var = grp%getVariable("spm_size_classes")           ! Get the sediment size classes variable
+        var = grp%getVariable("spmSizeClasses")             ! Get the sediment size classes variable
         call var%getData(spmSizeClasses)                    ! Get the variable's data
         allocate(C%d_spm, source=spmSizeClasses)            ! Allocate to class variable
-        var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
+        var = grp%getVariable("npSizeClasses")              ! Get the sediment size classes variable
         call var%getData(npSizeClasses)                     ! Get the variable's data
         allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
-        var = grp%getVariable("spm_particle_densities")     ! Get the sediment particle density variable
+        var = grp%getVariable("spmParticleDensities")       ! Get the sediment particle density variable
         call var%getData(spmFracComps)                      ! Get the variable's data
         allocate(C%d_pd, source=spmFracComps)               ! Allocate to class variable
         allocate(C%rho_spm, source=spmFracComps)

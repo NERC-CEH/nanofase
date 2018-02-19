@@ -1,13 +1,13 @@
 !> Module containing `GridCell1` class.
 module classGridCell1
-    use Globals                                                        ! global declarations
-    use UtilModule                                                     ! useful functions, e.g. str()
-    use mo_netcdf                                                      ! input/output handling
-    use ResultModule                                                   ! error handling classes, required for
-    use ErrorInstanceModule                                            ! generation of trace error messages
+    use Globals
+    use UtilModule 
+    use mo_netcdf
+    use ResultModule
+    use ErrorInstanceModule
     use spcGridCell
     use classSoilProfile1
-    use classSubRiver1
+    use classRiverReach1
     implicit none
     !> `GridCell1` is responsible for running creation and simulation
     !! procedures for `SoilProfile` and `RiverReach`es.
@@ -15,8 +15,10 @@ module classGridCell1
 
       contains
         procedure :: create => createGridCell1                      ! Create the GridCell object. Exposed name: create
+        procedure :: finaliseCreate => finaliseCreateGridCell1
         procedure :: destroy => destroyGridCell1                    ! Remove the GridCell object and all contained objects. Exposed name: destroy
-        procedure :: update => updateGridCell1                      ! Route water and suspended solids through all SubRiver objects. Exposed name: update
+        procedure :: setBranchRouting => setBranchRoutingGridCell1
+        procedure :: update => updateGridCell1                      ! Route water and suspended solids through all RiverReach objects. Exposed name: update
         procedure :: finaliseUpdate => finaliseUpdateGridCell1      ! Set variables for this timestep that couldn't be updated whilst simulation running
         procedure :: parseInputData => parseInputDataGridCell1      ! Parse the input data and store in object properties
     end type
@@ -46,25 +48,25 @@ module classGridCell1
         integer               :: x, y                 !! Location of the `GridCell`
         logical, optional     :: isEmpty              !! Is anything to be simulated in this `GridCell`?
         type(SoilProfile1)    :: soilProfile          ! The soil profile contained in this GridCell
-        integer               :: s                    ! Iterator for SubRivers
+        integer               :: rr                    ! Iterator for RiverReaches
         integer               :: t                    ! Iterator for time series
-        character(len=100)    :: subRiverPrefix       ! Prefix for SubRivers ref, e.g. SubRiver_1_1
-        real(dp)              :: subRiverLength       ! Length of the SubRivers
-        real(dp), allocatable :: subRiverRunoff_timeSeries(:) ! Runoff to each SubRiver
-        type(Result)          :: srR                  ! Result object for individual SubRivers
-        type(SubRiver1), allocatable :: sr1           ! SubRiver1 object for storing created SubRiver1s in
+        !character(len=100)    :: subRiverPrefix       ! Prefix for SubRivers ref, e.g. SubRiver_1_1
+        !real(dp)              :: subRiverLength       ! Length of the SubRivers
+        !real(dp), allocatable :: subRiverRunoff_timeSeries(:) ! Runoff to each SubRiver
+        !type(Result)          :: srR                  ! Result object for individual SubRivers
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%Q_runoff_timeSeries(C%nTimeSteps))
         allocate(me%Q_evap_timeSeries(C%nTimeSteps))
         allocate(me%Q_precip_timeSeries(C%nTimeSteps))
-        allocate(subRiverRunoff_timeSeries(C%nTimeSteps))
+        !allocate(subRiverRunoff_timeSeries(C%nTimeSteps))
         allocate(me%colSoilProfiles(1))
-        me%Qrunoff = 0                                  ! Default to no runoff
+        allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with; let Environment deal with that
+        me%Q_runoff = 0                                 ! Default to no runoff
 
         ! Set the GridCell's position, area, whether it's empty and its name
-        me%gridX = x
-        me%gridY = y
+        me%x = x
+        me%y = y
         me%area = C%gridCellSize**2                   ! TODO: This will be changed to take into account lat-lon
         if (present(isEmpty)) me%isEmpty = isEmpty    ! isEmpty defaults to false if not present
         me%ref = trim(ref("GridCell", x, y))            ! ref() interface is from the Util module
@@ -76,8 +78,8 @@ module classGridCell1
             ! Create a soil profile and add to this GridCell
             call r%addErrors(.errors. &
                 soilProfile%create( &
-                    me%gridX, &
-                    me%gridY, &
+                    me%x, &
+                    me%y, &
                     1, &
                     me%slope, &
                     me%n_river, &
@@ -87,14 +89,20 @@ module classGridCell1
                 ) &
             )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
-
-            ! Add SubRivers to the GridCell (if any are present in the data file)
+            
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. r%hasCriticalError()) then
                 
+                ! Add RiverReaches to the GridCell (if any are present in the data file)
                 do rr = 1, me%nRiverReaches
                     allocate(RiverReach1::me%colRiverReaches(rr)%item)
-                    me%colRiverReaches(rr)%item%create()
+                    call r%addErrors(.errors. &
+                        me%colRiverReaches(rr)%item%create( &
+                            me%x, &
+                            me%y, &
+                            rr &
+                        ) &
+                    )
                 end do
                 
                 
@@ -109,45 +117,89 @@ module classGridCell1
                 !    subRiverLength = C%gridCellSize
                 !end if
                 ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
-                do s = 1, me%nSubRivers
-                    ! Split the runoff between SubRivers
-                    do t = 1, size(me%Q_runoff_timeSeries)
-                        if (me%Q_runoff_timeSeries(t) > 0) then
-                            subRiverRunoff_timeSeries(t) = me%Q_runoff_timeSeries(t)/me%nSubRivers
-                        else
-                            subRiverRunoff_timeSeries(t) = 0
-                        end if
-                    end do
-                    ! Check that group actually exists
-                    ! TODO: Maybe perform this check somewhere else
-                    if (me%ncGroup%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
-                        allocate(sr1)                                   ! Create the new SubRiver
-                        srR = sr1%create(me%gridX, me%gridY, s, subRiverLength, subRiverRunoff_timeSeries)
-                        call r%addErrors(errors = .errors. srR)         ! Add any errors to final Result object
-                        call move_alloc(sr1, me%colSubRivers(s)%item)   ! Allocate a new SubRiver to the colSubRivers array
-                    else
-                        call r%addError(ErrorInstance( &
-                            code = 501, &
-                            message = "No input data provided for " // trim(subRiverPrefix) // trim(str(s)) // &
-                                        " - check nSubRivers is set correctly." &
-                        ))
-                    end if
-                end do
+                !do s = 1, me%nSubRivers
+                !    ! Split the runoff between SubRivers
+                !    do t = 1, size(me%Q_runoff_timeSeries)
+                !        if (me%Q_runoff_timeSeries(t) > 0) then
+                !            subRiverRunoff_timeSeries(t) = me%Q_runoff_timeSeries(t)/me%nSubRivers
+                !        else
+                !            subRiverRunoff_timeSeries(t) = 0
+                !        end if
+                !    end do
+                !    ! Check that group actually exists
+                !    ! TODO: Maybe perform this check somewhere else
+                !    if (me%ncGroup%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
+                !        allocate(sr1)                                   ! Create the new SubRiver
+                !        srR = sr1%create(me%gridX, me%gridY, s, subRiverLength, subRiverRunoff_timeSeries)
+                !        call r%addErrors(errors = .errors. srR)         ! Add any errors to final Result object
+                !        call move_alloc(sr1, me%colSubRivers(s)%item)   ! Allocate a new SubRiver to the colSubRivers array
+                !    else
+                !        call r%addError(ErrorInstance( &
+                !            code = 501, &
+                !            message = "No input data provided for " // trim(subRiverPrefix) // trim(str(s)) // &
+                !                        " - check nSubRivers is set correctly." &
+                !        ))
+                !    end if
+                !end do
             end if
         end if
 
         call r%addToTrace("Creating " // trim(me%ref))
         call ERROR_HANDLER%trigger(errors = .errors. r)
     end function
-
+    
+    function finaliseCreateGridCell1(me) result(r)
+        class(GridCell1) :: me
+        type(Result) :: r
+        
+        ! TODO: Calculate RiverReach lengths, based on input data and
+        ! river routing
+    end function
+    
+    !> Recursively called function that sets the next elemet in the routedRiverReaches array,
+    !! based on the `riverReach%outflow` property. `rr` must be the current final reach in the array.
+    recursive function setBranchRoutingGridCell1(me, b, rr) result(r)
+        class(GridCell1) :: me
+        integer :: b                        !! Which branch to route
+        integer :: rr                       !! The `RiverReach` index to start from
+        type(Result) :: r
+        type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
+        class(RiverReach), allocatable :: finalRiverReach
+        ! Get the current final river reach in the branch (given that rr was passed correctly)
+        allocate(finalRiverReach, source=me%routedRiverReaches(b,rr)%item)
+        ! If it isn't an outflow to the GridCell, there must be further downstream
+        ! branches, so recursively add them
+        if (.not. finalRiverReach%isGridCellOutflow .and. associated(finalRiverReach%outflow%item)) then
+            ! The number of reaches in routedRiverReaches array might be larger than
+            ! number of reaches in this branch, so make sure we're only appending if
+            ! those elements don't exist
+            if (rr+1 > size(me%routedRiverReaches,2)) then
+                ! Allocate to the current number of reaches in the branch, plus 1
+                allocate(tmpRoutedRiverReaches(me%nBranches, size(me%routedRiverReaches,2)+1))
+                ! Fill the temp array with the current routedRiverReaches array
+                tmpRoutedRiverReaches(:,1:size(me%routedRiverReaches,2)) = me%routedRiverReaches
+                ! Add the new reach to this branch
+                tmpRoutedRiverReaches(b,size(tmpRoutedRiverReaches,2))%item => &
+                    finalRiverReach%outflow%item
+                call move_alloc(from=tmpRoutedRiverReaches, to=me%routedRiverReaches)
+            else
+                ! If rr+1 is equal to or smaller than array size, then we assume
+                ! the rr+1'th element is un-associated and fill it straight away
+                me%routedRiverReaches(b,rr+1)%item => finalRiverReach%outflow%item
+            end if
+            ! Call recursively until me%isGridCellOutflow isn't satisfied
+            r = me%setBranchRouting(b,rr+1)
+        else
+            me%nReachesInBranch(b) = rr
+        end if
+    end function
+    
     !> Destroy this `GridCell`
     function destroyGridCell1(Me) result(r)
         class(GridCell1) :: Me                              !! The `GridCell` instance.
         type(Result) :: r                                   !! The `Result` object
         integer :: x                                  !! loop counter
-        do x = 1, me%nSubRivers
-            r = Me%colSubRivers(x)%item%destroy()           ! remove all SubRiver objects and any contained objects
-        end do
+        
         do x = 1, Me%nSoilProfiles
             r = Me%colSoilProfiles(x)%item%destroy()        ! remove all SoilProfile objects and any contained objects
         end do
@@ -163,7 +215,7 @@ module classGridCell1
         integer :: t                                                   !! The timestep we're on
         type(Result) :: r                                              !! `Result` object to return errors in
         type(Result) :: srR                                            ! Result object for SubRivers
-        integer :: s                                             ! Loop counter
+        integer :: rr                                             ! Loop counter
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Loop through all SoilProfiles (only one for the moment), run their
@@ -171,14 +223,25 @@ module classGridCell1
             r = me%colSoilProfiles(1)%item%update(t, me%Q_runoff_timeSeries(t))
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
+            ! Loop through each RiverReach and run its update procedure
+            ! TODO: Aportion j_spm_runoff properly!
+            !do rr = 1, me%nRiverReaches
+            !    call r%addErrors(.errors. &
+            !        me%colRiverReaches(rr)%item%update( &
+            !            t = t, &
+            !            j_spm_runoff = me%erodedSediment/me%nRiverReaches &
+            !        ) &
+            !    )
+            !end do
+            !
             ! Loop through each SubRiver and run its update procedure
-            do s = 1, me%nSubRivers
-                srR = me%colSubRivers(s)%item%update( &
-                    t = t, &
-                    j_spm_runoff = me%erodedSediment/me%nSubRivers &
-				)
-                call r%addErrors(errors = .errors. srR)
-            end do
+    !        do s = 1, me%nSubRivers
+    !            srR = me%colSubRivers(s)%item%update( &
+    !                t = t, &
+    !                j_spm_runoff = me%erodedSediment/me%nSubRivers &
+				!)
+    !            call r%addErrors(errors = .errors. srR)
+    !        end do
         end if
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
@@ -193,11 +256,11 @@ module classGridCell1
         class(GridCell1) :: me                                      !! This `SubRiver1` instace
         type(Result) :: r                                           !! The `Result` object
         integer :: s                                                ! Iterator of SubRivers
-        if (.not. me%isEmpty) then
-            do s = 1, me%nSubRivers
-                r = me%colSubRivers(s)%item%finaliseUpdate()
-            end do
-        end if
+        !if (.not. me%isEmpty) then
+        !    do s = 1, me%nSubRivers
+        !        r = me%colSubRivers(s)%item%finaliseUpdate()
+        !    end do
+        !end if
     end function
 
     !> Get the data from the input file and set object properties
@@ -210,40 +273,42 @@ module classGridCell1
         type(NcVariable)        :: var                  ! NetCDF variable
         type(NcGroup)           :: grp                  ! NetCDF group
 
-        ! Open the dataset
-        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
+        ! Open the dataset (as read only)
+        nc = NcDataset(C%inputFile, "r")
         grp = nc%getGroup("Environment")
-        me%ncGroup = grp%getGroup(me%ref)                              ! Get this GridCell's group
-        ! Get the number of SubRivers for looping over
-        if (me%ncGroup%hasVariable("nSubRivers")) then
-            var = me%ncGroup%getVariable("nSubRivers")                     
-            call var%getData(me%nSubRivers)
-        else
-            me%nSubRivers = 0   ! If nSubRivers isn't present, default to having no SubRivers
+        me%ncGroup = grp%getGroup(me%ref)               ! Get this GridCell's group
+        ! Get the number of RiverReaches in this GridCell. If not present, nRiverReaches
+        ! defaults to 0
+        if (me%ncGroup%hasVariable("nRiverReaches")) then
+            var = me%ncGroup%getVariable("nRiverReaches")                     
+            call var%getData(me%nRiverReaches)
         end if
-        allocate(me%colSubRivers(me%nSubRivers))        ! Allocate the colSubRivers array to the number of SubRivers in the GridCell
+        
+        ! Allocate the colRiverReaches array to the number of RiverReaches in the GridCell
+        allocate(me%colRiverReaches(me%nRiverReaches))
+        
         ! Get the time-dependent runoff data from the file and put in array ready for use
-        ! TODO: Runoff data currently m3/s, but maybe this should be m/s instead?
+        ! If using HMF data, this is slow flow + quick flow. [m/s]
         if (me%ncGroup%hasVariable("runoff")) then
             var = me%ncGroup%getVariable("runoff")
             call var%getData(me%Q_runoff_timeSeries)                 
-            me%Q_runoff_timeSeries = me%Q_runoff_timeSeries*C%timeStep ! Convert to m3/timestep
+            me%Q_runoff_timeSeries = me%Q_runoff_timeSeries*me%area*C%timeStep ! Convert to m3/timestep
         else
             me%Q_runoff_timeSeries = 0
         end if
         ! Precipitation [m/s]
         if (me%ncGroup%hasVariable("precip")) then
             var = me%ncGroup%getVariable("precip")
-            call var%getData(me%Q_precip_timeSeries)                 
-            me%Q_precip_timeSeries = me%Q_precip_timeSeries*C%timeStep    ! Convert to m/timestep
+            call var%getData(me%q_precip_timeSeries)                 
+            me%Q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep    ! Convert to m/timestep
         else
             me%Q_precip_timeSeries = 0
         end if
         ! Evaporation [m/s]
         if (me%ncGroup%hasVariable("evap")) then
             var = me%ncGroup%getVariable("evap")
-            call var%getData(me%Q_evap_timeSeries)                 
-            me%Q_evap_timeSeries = me%Q_evap_timeSeries*C%timeStep       ! Convert to m/timestep
+            call var%getData(me%q_evap_timeSeries)                 
+            me%Q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep       ! Convert to m/timestep
         else
             me%Q_evap_timeSeries = 0
         end if

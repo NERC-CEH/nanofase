@@ -16,6 +16,7 @@ module classRiverReach1
       contains
         ! Create/destroy
         procedure :: create => createRiverReach1
+        procedure :: finaliseCreate => finaliseCreateRiverReach1
         procedure :: destroy => destroyRiverReach1
         ! Simulators
         procedure :: update => updateRiverReach1
@@ -38,15 +39,12 @@ module classRiverReach1
   contains
 
     !> Create this `RiverReach1`, parse input data and set up contained `BedSediment`
-    function createRiverReach1(me, x, y, s, r, l, Q_runoff_timeSeries) result(res)
+    function createRiverReach1(me, x, y, rr) result(r)
         class(RiverReach1) :: me                                !! The `RiverReach1` instance.
         integer :: x                                            !! Containing `GridCell` x-position index.
         integer :: y                                            !! Containing `GridCell` y-position index.
-        integer :: s                                            !! Containing `SubRiver` index.
-        integer :: r                                            !! `RiverReach` index.
-        real(dp) :: l                                           !! Length of the `RiverReach` (without meandering).
-        real(dp), allocatable :: Q_runoff_timeSeries(:)         !! Any `GridCell` runoff (that has already been split to the correct `RiverReach` size)
-        type(Result) :: res                                     !! The Result object
+        integer :: rr                                           !! `RiverReach` index.
+        type(Result) :: r                                       !! The Result object
         type(Result0D) :: D                                     ! Depth [m]
         type(Result0D) :: v                                     ! River velocity [m/s]
         type(Result0D) :: W                                     ! River width [m]
@@ -57,10 +55,9 @@ module classRiverReach1
         ! First, let's set the RiverReach's reference and the length
         me%x = x
         me%y = y
-        me%s = s
-        me%r = r
-        me%ref = trim(ref("RiverReach", x, y, s, r))
-        me%l = l
+        me%rr = rr
+        me%ref = trim(ref("RiverReach", x, y, rr))
+
         ! Allocate the arrays of size classes and set SPM to 0 to begin with
         allocate(me%spmIn(C%nSizeClassesSpm), &
             me%spmOut(C%nSizeClassesSpm), &
@@ -72,13 +69,12 @@ module classRiverReach1
             stat=allst)
         me%C_spm = 0                    ! Set SPM concentration and mass to 0 to begin with
         me%m_spm = 0
-        allocate(me%Q_runoff_timeSeries, source=Q_runoff_timeSeries)    ! This reach's runoff
         
         ! Set any defaults (no errors to be thrown)
         call me%setDefaults()
         
         ! Get data from the input data file
-        call res%addErrors( &
+        call r%addErrors( &
             .errors. me%parseInputData() &    
         )
 
@@ -88,13 +84,27 @@ module classRiverReach1
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
         allocate(BedSediment1::me%bedSediment)
-        call res%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
         
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
-        call res%addErrors(.errors. me%reactor%create(me%x, me%y))
+        call r%addErrors(.errors. me%reactor%create(me%x, me%y))
         
-        call res%addToTrace('Creating ' // trim(me%ref))
+        call r%addToTrace('Creating ' // trim(me%ref))
+    end function
+    
+    !> Finalise the creation of a `RiverReach1` object. This occurs after the
+    !! river network has been linked (pointers set to inflow RiverReaches) and
+    !! is responsible for filling data reliant on knowing the flow directions,
+    !! such as the reach length and subsequently the runoff to the reach.
+    function finaliseCreateRiverReach1(me, l, Q_runoff_timeSeries) result(r)
+        class(RiverReach1) :: me                            !! This `RiverReach1` instance
+        real(dp) :: l                                       !! The length of the reach
+        real(dp) :: Q_runoff_timeSeries(:)                  !! Runoff data partitioned for this reach
+        type(Result) :: r                                   !! The `Result` object to return any errors in
+        ! Set the length and runoff
+        me%l = l                                                        ! [m]
+        allocate(me%Q_runoff_timeSeries, source=Q_runoff_timeSeries)    ! [m3/timestep]
     end function
 
     !> Destroy this `RiverReach1`
@@ -131,9 +141,9 @@ module classRiverReach1
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dSpmOut(C%nSizeClassesSpm)              ! SPM outflow for the displacement
 
-        me%Q_runoff = me%Q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m3/timestep - TODO change to m/s]
+        me%Q_runoff = me%Q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m3/timestep]
         me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff [kg/timestep]
-        me%Q_in = Q_in + me%Q_runoff                        ! Set this reach's inflow
+        me%Q_in = Q_in + me%Q_runoff                        ! Set this reach's inflow [m3/timestep]
         me%spmIn = spmIn + me%j_spm_runoff                  ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
 
         ! Calculate the depth, velocity, area and volume
@@ -327,6 +337,8 @@ module classRiverReach1
         type(NcDataset) :: NC               ! NetCDF dataset
         type(NcVariable) :: var             ! NetCDF variable
         type(NcGroup) :: grp                ! NetCDF group
+        integer :: i                        ! Loop counter
+        integer, allocatable :: inflowArray(:,:) ! Temporary array for storing inflows from data file in
         
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
@@ -334,8 +346,17 @@ module classRiverReach1
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")
         grp = grp%getGroup(trim(ref("GridCell", me%x, me%y)))       ! Get the GridCell we're in
-        grp = grp%getGroup(trim(ref("SubRiver", me%x, me%y, me%s))) ! Get the SubRiver we're in
 		me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
+        
+        if (me%ncGroup%hasVariable("length")) then              ! Get the length of the reach, if present
+            var = me%ncGroup%getVariable("length")
+            call var%getData(me%l)
+        else
+            ! Otherwise, set to 0 and GridCell will deal with calculating length. Note that errors
+            ! might be thrown from GridCell if the reaches lengths within the GridCell are
+            ! not physically possible within the reach (e.g., too short).
+            me%l = 0                                            
+        end if
         
         var = me%ncGroup%getVariable("slope")                   ! Get the slope
         call var%getData(me%slope)
@@ -349,10 +370,62 @@ module classRiverReach1
         call var%getData(me%beta_res)
         ! TODO: Add checks for the above
         
+        ! ROUTING: Get the references to the inflow(s) RiverReaches and
+        ! store in inflowRefs(). Do some auditing as well.
+        if (me%ncGroup%hasVariable("inflows")) then
+            var = me%ncGroup%getVariable("inflows")
+            call var%getData(inflowArray)
+            print *, size(inflowArray, 1), size(inflowArray, 2)
+            ! There mustn't be more than 5 inflows to a reach (one from
+            ! each side/corner of the inflow GridCell)
+            if (size(inflowArray, 2) > 5) then
+                call r%addError(ErrorInstance(code=403))
+            end if
+            ! Set the number of inflows from the input inflowArray
+            allocate(me%inflowRefs(size(inflowArray, 2)))
+            me%nInflows = size(me%inflowRefs)
+            ! Loop through the inflow from data and store them at the object level
+            do i = 1, me%nInflows                               ! Loop through the inflows
+                me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
+                me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
+                me%inflowRefs(i)%rr = inflowArray(3,i)          ! Inflow RiverReach reference
+                ! Check the inflow is from a neighbouring RiverReach
+                if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
+                    call r%addError(ErrorInstance(code=401))
+                end if
+                ! Is this reach an inflow to the GridCell (i.e., are the inflows to this reach
+                ! from another GridCell)? We only need to check for the first inflow (i=1),
+                ! as the next bit checks that all inflows are from the same GridCell
+                if (i == 1 .and. (me%inflowRefs(i)%x /= me%x .or. me%inflowRefs(i)%y /= me%y)) then
+                    me%isGridCellInflow = .true.
+                end if
+                ! If there is more than one inflow to the reach, it must be
+                ! an inflow to the cell. Therefore, we need to check all
+                ! inflows are from the same cell
+                if (i > 1 .and. me%inflowRefs(i)%x /= me%inflowRefs(1)%x .and. me%inflowRefs(i)%y /= me%inflowRefs(1)%y) then
+                    call r%addError(ErrorInstance(code=402))
+                end if
+            end do
+        else
+        ! Else there mustn't be any inflows (i.e. it's a headwater)
+            allocate(me%inflowRefs(0))                          
+            me%nInflows = 0
+            me%isHeadwater = .true.
+        end if
+        ! Allocate inflows() array (the array of pointers) to the correct size
+        allocate(me%inflows(me%nInflows))
+        
+        if (me%ncGroup%hasVariable("domainOutflow")) then
+            var = me%ncGroup%getVariable("domainOutflow")
+            call var%getData(me%domainOutflow)
+            me%isDomainOutflow = .true.
+        end if
+        
+        
         
         call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
-
+    
     !> Calculate the width \( W \) of the river based on the discharge:
     !! $$
     !!      W = 1.22Q^{0.557}

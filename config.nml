@@ -1,5 +1,5 @@
 &data
-inputFile = "data/data.nc",
+inputFile = "data/data-compact.nc",
 outputFile = "data/output.csv"
 /
 

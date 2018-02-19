@@ -7,6 +7,21 @@ module spcRiverReach
     use spcBedSediment
     use spcReactor
     implicit none
+    
+    !> `RiverReachPointer` used for `RiverReach` inflows array, so the elements within can
+    !! point to other `GridCell`'s colRiverReach elements
+    type RiverReachPointer
+        class(RiverReach), pointer :: item => null()                  !! Pointer to polymorphic `RiverReach` object
+    end type
+    
+     !> An internal user-defined type, defining a reference to a `RiverReach` sending water to this
+    !! `RiverReach`. Comprises row (x) and column (y) references to the `GridCell` containing the
+    !! sending `RiveReach` and the in-cell `RiverReach` reference number
+    type RiverReachRef                                                 
+        integer :: x                                                !! `GridCell` x reference
+        integer :: y                                                !! `GridCell` y reference
+        integer :: rr                                               !! `RiverReach` reference
+    end type
 
     !> Abstract base class for `RiverReach`. Defines properties and procedures
     !! required in any implementation of this class.
@@ -14,13 +29,19 @@ module spcRiverReach
         character(len=100) :: ref                                   !! Reference for this object, of the form RiverReach_x_y_s_r
         integer :: x                                                !! `GridCell` x position
         integer :: y                                                !! `GridCell` y position
-        integer :: s
-        integer :: r                                                !! `RiverReach` reference
+        integer :: rr                                               !! `RiverReach` reference
+        type(RiverReachRef), allocatable :: inflowRefs(:)           !! References to inflow `RiverReach`es
+        type(RiverReachPointer), allocatable :: inflows(:)          !! Array of pointers to inflow `RiverReach`es
+        type(RiverReachPointer) :: outflow                          !! Pointer to the outflow from this `RiverReach`
+        integer, allocatable :: domainOutflow(:)                                 
+            !! If this `RiverReach` flows out of the gridded domain, this array is used to specify where to,
+            !! for reach length calculations
+        integer :: nInflows                                         !! Integer to store the number of inflows to this reach in
         real(dp) :: slope                                           !! Slope of reach [m/m]
         real(dp) :: Q_in                                            !! Inflow from upstream reach [m3/timestep]
         real(dp) :: Q_out                                           !! Outflow to the next reach [m3/timestep]
-        real(dp) :: Q_runoff                                        !! Runoff from hydrological model [m3/s]
-        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Time series runoff data from file [m3/s]
+        real(dp) :: Q_runoff                                        !! Runoff from hydrological model [m3/timestep]
+        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Time series runoff data from file [m3/timestep]
         real(dp), allocatable :: spmIn(:)                           !! Inflow SPM from upstream reach [kg/timestep]
         real(dp), allocatable :: spmOut(:)                          !! Outflow SPM to next reach [kg/timestep]
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
@@ -40,12 +61,20 @@ module spcRiverReach
         real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
         real(dp) :: n                                               !! Manning's roughness coefficient [-]
+        logical :: isHeadwater = .false.                            !! Is this `RiverReach` a headwater (no inflows)?
+        logical :: isGridCellInflow = .false.                       !! Is this `RiverReach` the inflow the `GridCell` its in
+        logical :: isGridCellOutflow = .false.                      !! Does the `RiverReach` outflow to another cell?
+        logical :: isDomainOutflow = .false.                        !! Does the `RiverReach` flow out of the gridded domain?
+        integer :: branch = 0                                       !! Which branch is this `RiverReach` on in the GridCell? 0 = not processed yet
+            !! TODO: Try and remove these; RiverReach shouldn't really know anything about
+            !! the GridCell - not very encapsulated
         class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         class(Reactor), allocatable :: reactor                      !! Contained Reactor object
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
-       ! Create/destory
+        ! Create/destory
         procedure(createRiverReach), deferred :: create
+        procedure(finaliseCreateRiverReach), deferred :: finaliseCreate
         procedure(destroyRiverReach), deferred :: destroy
         ! Simulators
         procedure(updateRiverReach), deferred :: update
@@ -78,15 +107,24 @@ module spcRiverReach
 
     abstract interface
         !> Create this `RiverReach`
-        function createRiverReach(me, x, y, s, r, l, Q_runoff_timeSeries) result(res)
+        function createRiverReach(me, x, y, rr) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! The `RiverReach` instance
-            integer :: x, y, s, r                                       !! `GridCell`, `SubRiver` and `RiverReach` identifiers
-            real(dp) :: l                                               !! The `RiverReach` length [m]
-            real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Any initial runoff [m3/s]
-            type(Result) :: res                                         !! The Result object
+            integer :: x, y, rr                                         !! `GridCell` and `RiverReach` identifiers
+            type(Result) :: r                                           !! The Result object
+        end function
+        
+        !> Finalise the creation of a `RiverReach` object
+        function finaliseCreateRiverReach(me, l, Q_runoff_timeSeries) result(r)
+            use Globals    
+            use ResultModule, only: Result
+            import RiverReach
+            class(RiverReach) :: me                                     !! This `RiverReach` instance
+            real(dp) :: l                                               !! The length of the reach
+            real(dp) :: Q_runoff_timeSeries(:)                          !! Runoff data partitioned for this reach
+            type(Result) :: r                                           !! The `Result` object to return errors in
         end function
 
         !> Destroy this `RiverReach`
