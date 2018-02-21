@@ -27,14 +27,17 @@ module spcGridCell
         type(NcGroup) :: ncGroup                                        !! The NetCDF group for this dataset
         integer :: x                                                    !! `GridCell` x reference
         integer :: y                                                    !! `GridCell` y reference
+        integer :: dx                                                   !! Size of `GridCell` in x direction [m]
+        integer :: dy                                                   !! Size of `GridCell` in y direction [m]
         real(dp) :: area                                                !! Area of the `GridCell`
         type(RiverReachElement), allocatable :: colRiverReaches(:)      !! Array of `RiverReachElement` objects to hold the RiverReaches
-        type(RiverReachPointer), allocatable :: routedRiverReaches(:,:)
+        type(RiverReachPointer), allocatable :: routedRiverReaches(:,:) !! `RiverReach`es ordered by branch and flow direction
             !! Array of `RiverReachPointer` objects to order rivers in routing order and by branch.
-            !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch            
+            !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch
+        real(dp), allocatable :: branchLengths(:)                       !! Calculated (or specified) lengths of river branches in this `GridCell`
         type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
-        ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
+            ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
         type(PointSourceElement), allocatable :: colPointSources(:)     !! Array of `PointSourceElement` objects to hold the point sources
         type(DiffuseSourceElement) :: objDiffuseSource                  !! `DiffuseSourceElement` object to hold the diffuse source
         integer :: nRiverReaches = 0                                    !! Number of contained `SubRiver`s
@@ -52,27 +55,27 @@ module spcGridCell
         real(dp) :: slope                                               !! The slope of the `GridCell`
         real(dp) :: n_river                                             !! Manning's roughness coefficient for the river
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
-        logical :: isEmpty = .false.                                    ! Is there anything going on in the `GridCell` or should we skip over when simulating?
-      contains
-        procedure(createGridCell), deferred :: create                   ! create the GridCell object. Exposed name: create
-        procedure(finaliseCreateGridCell), deferred :: finaliseCreate
-        procedure(destroyGridCell), deferred :: destroy                 ! remove the GridCell object and all contained objects. Exposed name: destroy
-        procedure(setBranchRoutingGridCell), deferred :: setBranchRouting
-        procedure(updateGridCell), deferred :: update                   ! route water and suspended solids through all SubRiver objects. Exposed name: routing
-        procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate  
-      end type
+        logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
       
-      !> Container type for polymorphic `GridCell`s
-      type GridCellElement                                               
-        class(GridCell), allocatable :: item                           !! Polymorphic `GridCell` object
-      end type
+    contains
+        procedure(createGridCell), deferred :: create
+        procedure(finaliseCreateGridCell), deferred :: finaliseCreate
+        procedure(destroyGridCell), deferred :: destroy
+        procedure(updateGridCell), deferred :: update
+        procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate  
+    end type
+      
+    !> Container type for polymorphic `GridCell`s
+    type GridCellElement                                               
+    class(GridCell), allocatable :: item                           !! Polymorphic `GridCell` object
+    end type
 
     abstract interface
         !> Create this `GridCell`
         function createGridCell(me, x, y, isEmpty) result(r)
             use ResultModule, only: Result
             import GridCell
-            class(GridCell) :: me                                      !! The `GridCell` instance
+            class(GridCell), target :: me                              !! The `GridCell` instance
             integer :: x, y                                            !! The (x,y) position of the `GridCell`
             logical, optional :: isEmpty                               !! Is anything to be simulated for this `GridCell`?
             type(Result) :: r                                          !! The `Result` object to return any errors in
@@ -84,15 +87,6 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me                                   !! This `GridCell` instance
             type(Result) :: r                                       !! The `Result` object to return any errors in
-        end function
-        
-        function setBranchRoutingGridCell(me, b, rr) result(r)
-            use ResultModule, only: Result
-            import GridCell
-            class(GridCell) :: me
-            integer :: b
-            integer :: rr
-            type(Result) :: r
         end function
         
         !> Destroy this `GridCell`

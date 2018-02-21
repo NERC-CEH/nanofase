@@ -12,48 +12,27 @@ module classGridCell1
     !> `GridCell1` is responsible for running creation and simulation
     !! procedures for `SoilProfile` and `RiverReach`es.
     type, public, extends(GridCell) :: GridCell1
-
       contains
-        procedure :: create => createGridCell1                      ! Create the GridCell object. Exposed name: create
+        procedure :: create => createGridCell1
         procedure :: finaliseCreate => finaliseCreateGridCell1
-        procedure :: destroy => destroyGridCell1                    ! Remove the GridCell object and all contained objects. Exposed name: destroy
-        procedure :: setBranchRouting => setBranchRoutingGridCell1
-        procedure :: update => updateGridCell1                      ! Route water and suspended solids through all RiverReach objects. Exposed name: update
-        procedure :: finaliseUpdate => finaliseUpdateGridCell1      ! Set variables for this timestep that couldn't be updated whilst simulation running
-        procedure :: parseInputData => parseInputDataGridCell1      ! Parse the input data and store in object properties
+        procedure :: destroy => destroyGridCell1
+        procedure, private :: setBranchRouting
+        procedure, private :: setRiverReachLengths
+        procedure, private :: createRiverReaches
+        procedure :: update => updateGridCell1
+        procedure :: finaliseUpdate => finaliseUpdateGridCell1
+        procedure :: parseInputData => parseInputDataGridCell1
     end type
 
-    !> Interface so that we can create new GridCells by `gc = GridCell1()`
-    interface GridCell1
-        module procedure newGridCell1
-    end interface
-
   contains
-    !> Return a newly-created `GridCell1` object.
-    !! TODO: Do something with result object
-    function newGridCell1(x, y, isEmpty) result(me)
-        type(GridCell1) :: me                         !! The new `GridCell1` to return
-        integer :: x, y                               !! Location of the `GridCell`
-        logical, optional :: isEmpty                  !! Is anything to be simulated in this `GridCell`?
-        type(Result) :: r                             !! `Result` object
-        ! Create the new GridCell, specifying isEmpty if it's present (it default to false if not)
-        if (present(isEmpty)) r = me%create(x, y, isEmpty)
-        if (.not. present(isEmpty)) r = me%create(x, y)
-    end function
 
     !> Create a GridCell with coordinates x and y.
     function createGridCell1(me, x, y, isEmpty) result(r)
-        class(GridCell1)      :: me                   !! The `GridCell1` instance.
+        class(GridCell1), target :: me                   !! The `GridCell1` instance.
         type(Result)          :: r                    !! The `Result` object to return.
         integer               :: x, y                 !! Location of the `GridCell`
         logical, optional     :: isEmpty              !! Is anything to be simulated in this `GridCell`?
         type(SoilProfile1)    :: soilProfile          ! The soil profile contained in this GridCell
-        integer               :: rr                    ! Iterator for RiverReaches
-        integer               :: t                    ! Iterator for time series
-        !character(len=100)    :: subRiverPrefix       ! Prefix for SubRivers ref, e.g. SubRiver_1_1
-        !real(dp)              :: subRiverLength       ! Length of the SubRivers
-        !real(dp), allocatable :: subRiverRunoff_timeSeries(:) ! Runoff to each SubRiver
-        !type(Result)          :: srR                  ! Result object for individual SubRivers
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%Q_runoff_timeSeries(C%nTimeSteps))
@@ -61,14 +40,14 @@ module classGridCell1
         allocate(me%Q_precip_timeSeries(C%nTimeSteps))
         !allocate(subRiverRunoff_timeSeries(C%nTimeSteps))
         allocate(me%colSoilProfiles(1))
-        allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with; let Environment deal with that
+        allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
         me%Q_runoff = 0                                 ! Default to no runoff
 
         ! Set the GridCell's position, area, whether it's empty and its name
         me%x = x
         me%y = y
-        me%area = C%gridCellSize**2                   ! TODO: This will be changed to take into account lat-lon
-        if (present(isEmpty)) me%isEmpty = isEmpty    ! isEmpty defaults to false if not present
+        me%area = C%defaultGridSize**2                  ! TODO: This will be changed to take into account lat-lon
+        if (present(isEmpty)) me%isEmpty = isEmpty      ! isEmpty defaults to false if not present
         me%ref = trim(ref("GridCell", x, y))            ! ref() interface is from the Util module
 
         ! Only carry on if there's stuff to be simulated for this GridCell
@@ -92,19 +71,8 @@ module classGridCell1
             
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. r%hasCriticalError()) then
-                
                 ! Add RiverReaches to the GridCell (if any are present in the data file)
-                do rr = 1, me%nRiverReaches
-                    allocate(RiverReach1::me%colRiverReaches(rr)%item)
-                    call r%addErrors(.errors. &
-                        me%colRiverReaches(rr)%item%create( &
-                            me%x, &
-                            me%y, &
-                            rr &
-                        ) &
-                    )
-                end do
-                
+                call r%addErrors(.errors. me%createRiverReaches())
                 
                 !subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
                 !                    "_" // trim(str(me%gridY)) // "_"
@@ -148,23 +116,84 @@ module classGridCell1
         call ERROR_HANDLER%trigger(errors = .errors. r)
     end function
     
-    function finaliseCreateGridCell1(me) result(r)
-        class(GridCell1) :: me
-        type(Result) :: r
+    !> Create the RiverReaches contained in this GridCell, and begin to populate
+    !! the routedRiverReaches array by specifying the head of each river branch
+    !! in the GridCell
+    function createRiverReaches(me) result(r)
+        class(GridCell1), target :: me          !! This `GridCell1` instance
+        type(Result) :: r                       !! The `Result` object to return any errors in
+        integer :: rr, b                        ! Iterator for reaches and branches
+        type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
+            ! Temporary array for appending to routedRiverReaches array
         
-        ! TODO: Calculate RiverReach lengths, based on input data and
-        ! river routing
+        b = 0                                   ! No river branches to begin with
+        ! Loop through all the reaches in this GridCell.
+        ! Don't type check for the moment
+        do rr = 1, me%nRiverReaches
+            allocate(RiverReach1::me%colRiverReaches(rr)%item)
+            call r%addErrors(.errors. &
+                me%colRiverReaches(rr)%item%create( &
+                    me%x, &
+                    me%y, &
+                    rr &
+                ) &
+            )
+            ! If the RiverReach we just created is the head of a branch in this
+            ! GridCell, then use it to start filling the routedRiverReaches array.
+            ! Whether it is a GridCell inflow or a headwater will have been set
+            ! by RiverReach%parseInputData().
+            if (me%colRiverReaches(rr)%item%isGridCellInflow &
+                    .or. me%colRiverReaches(rr)%item%isHeadwater) then
+                b = b + 1               ! Add another branch to the index
+                allocate(tmpRoutedRiverReaches(b,1))   ! Use temp array to append to me%routedRiverReaches
+                ! Fill the temp array with the current routedRiverReaches array
+                tmpRoutedRiverReaches(1:b-1,:) = me%routedRiverReaches
+                ! Then add the new branch by pointing first element in this branch to this reach
+                tmpRoutedRiverReaches(b,1)%item => me%colRiverReaches(rr)%item
+                call move_alloc(from=tmpRoutedRiverReaches, to=me%routedRiverReaches)
+                me%colRiverReaches(rr)%item%branch = b
+            end if
+        end do
+                
+        me%nBranches = b                            ! Number of branches in this GridCell
+        allocate(me%branchLengths(b))               ! Set the size of the array that holds the lengths of each branch
+        allocate(me%nReachesInBranch(b))            ! Set the size of the array that holds the number of reaches in a branch
+        me%nReachesInBranch = 1                     ! Currently only 1 reach per branch
+                    
+        ! We can't carry on setting the routingRiverReach array yet, as inflows/outflow array
+        ! haven't been filled yet - this is done by Environment after all of the GridCells
+        ! are set up (because inflows/outflows might point to different GridCells).
+    end function
+
+    
+    !> Set the routedRiverReaches array, presuming that the first reach in each
+    !! branch has already been set by the GridCell%create method. Then set
+    !! river reach lengths.
+    function finaliseCreateGridCell1(me) result(r)
+        class(GridCell1) :: me              !! This `GridCell1` instance
+        type(Result) :: r                   !! The `Result` object to return
+        integer :: b                        ! River branch iterator
+        ! Loop through the branch and call the setBranchRouting
+        ! function, which follows a particular branch downstream and fills
+        ! routedRiverReaches accordingly
+        if (.not. me%isEmpty) then
+            do b = 1, me%nBranches
+                call r%addErrors(.errors. me%setBranchRouting(b,1))
+                call r%addErrors(.errors. me%setRiverReachLengths(b))
+            end do
+        end if
     end function
     
     !> Recursively called function that sets the next elemet in the routedRiverReaches array,
     !! based on the `riverReach%outflow` property. `rr` must be the current final reach in the array.
-    recursive function setBranchRoutingGridCell1(me, b, rr) result(r)
-        class(GridCell1) :: me
+    recursive function setBranchRouting(me, b, rr) result(r)
+        class(GridCell1) :: me              !! This `GridCell1` instance
         integer :: b                        !! Which branch to route
         integer :: rr                       !! The `RiverReach` index to start from
-        type(Result) :: r
+        type(Result) :: r                   !! The `Result` object to return
         type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
         class(RiverReach), allocatable :: finalRiverReach
+        
         ! Get the current final river reach in the branch (given that rr was passed correctly)
         allocate(finalRiverReach, source=me%routedRiverReaches(b,rr)%item)
         ! If it isn't an outflow to the GridCell, there must be further downstream
@@ -190,8 +219,85 @@ module classGridCell1
             ! Call recursively until me%isGridCellOutflow isn't satisfied
             r = me%setBranchRouting(b,rr+1)
         else
+            ! Once we've reached the final reach in the branch (i.e. the outflow
+            ! from the GridCell), then set the number of branch to the current
+            ! RiverReach index
             me%nReachesInBranch(b) = rr
         end if
+    end function
+    
+    function setRiverReachLengths(me, b) result(r)
+        class(GridCell1) :: me                      !! This `GridCell` instance
+        integer :: b                                !! The branch to calculate the reach lengths for
+        type(Result) :: r                           !! The Result object to return any errors in
+        real(dp) :: dx, dy                          ! Distance from inflow to outflow
+        real(dp) :: branchLength                    ! Length of this branch
+        integer :: rr
+        real(dp) :: specifiedLengths(me%nReachesInBranch(b))
+        integer :: nReachesUnspecifiedLength        ! Number of reaches with unspecified length
+        real(dp) :: unspecifiedLengths              ! Calculated length for reaches with unspecified length
+        
+        call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))  
+        nReachesUnspecifiedLength = 0               ! Initialise to zero
+        
+        ! Use the x,y positions of inflow to the first reach and outflow from the
+        ! last reach to calculate the straight-line length of the branch through
+        ! the GridCell
+        associate (firstReach => me%routedRiverReaches(b,1)%item, &
+            finalReach => me%routedRiverReaches(b,me%nReachesInBranch(b))%item)
+            ! If inflows and outflows are defined (isn't a headwater or unspecified domain outflow)
+            if (.not. firstReach%isHeadwater .and. associated(finalReach%outflow%item)) then
+                ! A touch of trigonometry to calculate the branch length
+                dx = abs(firstReach%inflows(1)%item%x - finalReach%outflow%item%x)*0.5*me%dx   ! Distance from inflow to outflow in x direction
+                dy = abs(firstReach%inflows(1)%item%y - finalReach%outflow%item%y)*0.5*me%dy   ! Distance from inflow to outflow in y direction
+            else if (firstReach%isHeadwater .and. associated(finalReach%outflow%item)) then
+                ! Assume source is the centre of the GridCell
+                dx = abs(me%x - finalReach%outflow%item%x)*0.5*me%dx
+                dy = abs(me%y - finalReach%outflow%item%y)*0.5*me%dy
+            else if (.not. firstReach%isHeadwater .and. .not. associated(finalReach%outflow%item)) then
+                ! Check if domainOutflow specified in data file, if not, trigger error
+                if (size(finalReach%domainOutflow) == 2) then
+                    dx = abs(firstReach%inflows(1)%item%x - finalReach%domainOutflow(1))*0.5*me%dx
+                    dy = abs(firstReach%inflows(1)%item%y - finalReach%domainOutflow(2))*0.5*me%dy
+                else
+                    call r%addError(ErrorInstance( &
+                        code=404, &
+                        message=trim(finalReach%ref) // " outflow could not be determined. " // &
+                        "Reaches must either be specified as inflow to downstream reach, or have a model domain outflow specified.") &
+                    )
+                    return
+                end if
+            end if
+        end associate
+        
+            ! Set the length of this branch based on the above
+        branchLength = sqrt(dx**2 + dy**2)
+            
+        ! Loop through reaches and get their lengths from data
+        do rr = 1, me%nReachesInBranch(b)
+            specifiedLengths(rr) = me%routedRiverReaches(b,rr)%item%l
+            ! Add to tally of how many reaches don't have length in data file
+            if (abs(specifiedLengths(rr)) < C%epsilon) nReachesUnspecifiedLength = nReachesUnspecifiedLength + 1
+        end do
+        ! If the sum of their lenghts is greater than branch length, warn about it
+        ! but keep all reach lengths the same - effectively letting specified lengths
+        ! act as a meandering factor. Else, split up the "empty" space into the
+        ! number of reaches that have unspecified length and give them that length
+        if (sum(specifiedLengths) > branchLength) then
+            call r%addError(ErrorInstance(code=405, isCritical=.false.))
+            branchLength = sum(specifiedLengths)        ! Set the branch length to the specified length
+        else
+            ! How much length is left over after lengths specified in data file?
+            unspecifiedLengths = (branchLength - sum(specifiedLengths))/nReachesUnspecifiedLength
+            ! Give reaches with unspecified length an equal proportion of that length
+            do rr = 1, me%nReachesInBranch(b)
+                if (abs(specifiedLengths(rr)) < C%epsilon) then
+                    me%routedRiverReaches(b,rr)%item%l = unspecifiedLengths
+                end if
+            end do
+        end if
+        ! Set this element of the branchLengths array at GridCell object level
+        me%branchLengths(b) = branchLength              
     end function
     
     !> Destroy this `GridCell`
@@ -272,6 +378,7 @@ module classGridCell1
         type(NcDataset)         :: nc                   ! NetCDF dataset
         type(NcVariable)        :: var                  ! NetCDF variable
         type(NcGroup)           :: grp                  ! NetCDF group
+        integer, allocatable    :: xySize(:)            ! The size of the GridCell
 
         ! Open the dataset (as read only)
         nc = NcDataset(C%inputFile, "r")
@@ -286,6 +393,18 @@ module classGridCell1
         
         ! Allocate the colRiverReaches array to the number of RiverReaches in the GridCell
         allocate(me%colRiverReaches(me%nRiverReaches))
+        
+        ! Get the size of the GridCell [m]
+        if (me%ncGroup%hasVariable("size")) then
+            var = me%ncGroup%getVariable("size")
+            call var%getData(xySize)
+            me%dx = xySize(1)                   ! Size in x direction
+            me%dy = xySize(2)                   ! Size in y direction
+        else
+            ! If not present, default to defaultGridSize from config
+            me%dx = C%defaultGridSize
+            me%dy = C%defaultGridSize
+        end if
         
         ! Get the time-dependent runoff data from the file and put in array ready for use
         ! If using HMF data, this is slow flow + quick flow. [m/s]

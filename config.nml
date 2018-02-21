@@ -6,7 +6,9 @@ outputFile = "data/output.csv"
 &run
 timeStep = 86400,
 nTimeSteps = 365,
-epsilon = 1e-10
+epsilon = 1e-10,
+errorOutput = .false.
+defaultGridSize = 5000
 /
 
 &soil

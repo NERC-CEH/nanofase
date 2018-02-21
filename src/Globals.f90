@@ -13,12 +13,13 @@ module Globals
         character(len=10)   :: configFile = 'config.nml'
         character(len=100)  :: inputFile
         character(len=100)  :: outputFile
-        integer             :: timeStep                         !! The timestep to run the model on [s].
-        integer             :: nTimeSteps                       !! The number of timesteps.
+        integer             :: timeStep                         !! The timestep to run the model on [s]
+        integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
+        integer             :: defaultGridSize = 5000           !! Default GridCell size [m]
         real(dp)            :: defaultSoilLayerDepth = 0.1_dp   !! Default SoilLayer depth of 10 cm
         real(dp)            :: defaultMeanderingFactor = 1.0_dp !! Default river meandering factor, >1
-        integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have.
+        integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
 
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
@@ -42,8 +43,6 @@ module Globals
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
-        ! Structure
-        real(dp) :: gridCellSize            !! The dimensions of each grid cell [m].
       contains
         procedure :: rho_w
         procedure :: nu_w
@@ -63,11 +62,13 @@ module Globals
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n                                        ! Iterator for size classes
         character(len=100) :: inputFile, outputFile         ! Input and output file paths
-        integer :: timeStep, nTimeSteps, maxRiverReaches    ! Length and number of time steps, max number of RiverReaches in GridCell
+        integer :: timeStep, nTimeSteps, maxRiverReaches, defaultGridSize
+            ! Length and number of time steps, max number of RiverReaches in GridCell, default GridCell size
         real(dp) :: epsilon, defaultSoilLayerDepth, defaultMeanderingFactor     ! Error criteria proximity and default soil layer depth
-        type(ErrorInstance) :: errors(15)                   ! ErrorInstances to be added to ErrorHandler
+        logical :: errorOutput
+        type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
         namelist /data/ inputFile, outputFile
-        namelist /run/ timeStep, nTimeSteps, epsilon
+        namelist /run/ timeStep, nTimeSteps, epsilon, errorOutput, defaultGridSize
         namelist /soil/ defaultSoilLayerDepth
         namelist /river/ maxRiverReaches, defaultMeanderingFactor
 
@@ -84,40 +85,49 @@ module Globals
         C%timeStep = timeStep
         C%nTimeSteps = nTimeSteps
         C%epsilon = epsilon
+        C%defaultGridSize = defaultGridSize
         C%defaultSoilLayerDepth = defaultSoilLayerDepth
         C%defaultMeanderingFactor = defaultMeanderingFactor
         C%maxRiverReaches = maxRiverReaches
         
+        ! General
+        errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
         ! File operations
-        errors(1) = ErrorInstance(code=200, message="File not found.")
-        errors(2) = ErrorInstance(code=201, message="Variable not found in input file.")
-        errors(3) = ErrorInstance(code=202, message="Group not found in input file.")
-        errors(4) = ErrorInstance(code=203, message="Unknown config file option.")
+        errors(2) = ErrorInstance(code=200, message="File not found.")
+        errors(3) = ErrorInstance(code=201, message="Variable not found in input file.")
+        errors(4) = ErrorInstance(code=202, message="Group not found in input file.")
+        errors(5) = ErrorInstance(code=203, message="Unknown config file option.")
         ! Numerical calculations
-        errors(5) = ErrorInstance(code=300, message="Newton's method failed to converge.")
+        errors(6) = ErrorInstance(code=300, message="Newton's method failed to converge.")
         ! Grid and geography
-        errors(6) = ErrorInstance(code=401, &
+        errors(7) = ErrorInstance(code=401, &
             message="Invalid RiverReach inflow reference. Inflow must be from a neighbouring RiverReach.")
-        errors(7) = ErrorInstance(code=402, &
+        errors(8) = ErrorInstance(code=402, &
             message="Invalid RiverReach inflow reference. If multiple inflows are specified, they must " // &
                         "be inflows to the GridCell and all come from the same GridCell.")
-        errors(8) = ErrorInstance(code=403, &
+        errors(9) = ErrorInstance(code=403, &
             message="RiverReach cannot have more than 5 inflows.")
+        errors(10) = ErrorInstance(code=404, &
+            message="RiverReach outflow could not be determined. Reaches must either be specified as " // &
+                        "inflow to downstream reach, or have a model domain outflow specified.")
+        errors(11) = ErrorInstance(code=405, &
+            message="RiverReach lengths specified in input data sum to greater than straight-line river branch " // &
+                        "length. Are you sure this is intended?", isCritical=.false.)
         ! River routing
-        errors(9) = ErrorInstance(code=500, &
+        errors(11) = ErrorInstance(code=500, &
             message="All SPM advected from RiverReach.", isCritical=.false.)
-        errors(10) = ErrorInstance(code=501, &
+        errors(12) = ErrorInstance(code=501, &
             message="No input data provided for required SubRiver - check nSubRivers is correct.")
         ! Soil
-        errors(11) = ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.)
+        errors(13) = ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.)
         ! General
-        errors(12) = ErrorInstance(code=901, message="Invalid RiverReach type index provided.")
-        errors(13) = ErrorInstance(code=902, message="Invalid Biota index provided.")
-        errors(14) = ErrorInstance(code=903, message="Invalid Reactor index provided.")
-        errors(15) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
+        errors(14) = ErrorInstance(code=901, message="Invalid RiverReach type index provided.")
+        errors(15) = ErrorInstance(code=902, message="Invalid Biota index provided.")
+        errors(16) = ErrorInstance(code=903, message="Invalid Reactor index provided.")
+        errors(17) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
 
         ! Add custom errors to the error handler
-        call ERROR_HANDLER%init(errors=errors, on=.true.)
+        call ERROR_HANDLER%init(errors=errors, on=errorOutput)
 
         ! Get the sediment and nanoparticle size classes from data file
         nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
@@ -137,8 +147,7 @@ module Globals
         ! TODO: Check the distribution adds up to 100%
         var = grp%getVariable("defaultDistributionNP")      ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
-        var = grp%getVariable("gridCellSize")               ! Get the size of a grid cell [m]
-        call var%getData(C%gridCellSize)
+        
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
