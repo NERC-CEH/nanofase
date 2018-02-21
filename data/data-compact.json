@@ -12,7 +12,6 @@
 		"spmParticleDensities[f]" : [ 1500, 2600, 2600, 2600 ],
 		"defaultDistributionSediment[s]" : [ 50, 30, 10, 7, 3 ],
 		"defaultDistributionNP[n]" : [ 50, 30, 10, 7, 3 ],
-		"gridCellSize" : 1000,
 		"temperature[t]" : "file::t.json"
 	},
 	"Environment": {
@@ -24,6 +23,7 @@
 			"dimensions": {
 				"r": 1
 			},
+			"size[d]": [ 5000, 5000 ],
 			"reachTypes[r]": [ 1 ],
 			"nRiverReaches": 1,
 			"type": 1,
@@ -44,6 +44,7 @@
 			"dimensions": {
 				"r": 2
 			},
+			"size[d]": [ 5000, 5000 ],
 			"reachTypes[r]": [ 1, 1 ],
 			"nRiverReaches": 2,
 			"type": 1,
@@ -75,6 +76,7 @@
 			"dimensions": {
 				"r": 1
 			},
+			"size[d]": [ 5000, 5000 ],
 			"reachTypes[r]": [ 1 ],
 			"nRiverReaches": 1,
 			"type": 1,
@@ -95,6 +97,7 @@
 			"dimensions": {
 				"r": 2
 			},
+			"size[d]": [ 5000, 5000 ],
 			"reachTypes[r]": [ 1, 1 ],
 			"nRiverReaches": 4,
 			"type": 1,
@@ -106,6 +109,7 @@
 			"RiverReach_2_2_1": {
 				"dimensions": { "in": 1 },
 				"inflows[in][riverReachRef]": [ [ 1, 2, 2 ] ],
+				"domainOutflow[d]": [ 3, 2 ],
 				"BedSediment": "file::bed-sediment-compact.json",
 				"beta_res": 1e-6,
 				"alpha_res": 0.001,

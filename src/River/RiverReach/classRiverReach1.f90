@@ -375,7 +375,6 @@ module classRiverReach1
         if (me%ncGroup%hasVariable("inflows")) then
             var = me%ncGroup%getVariable("inflows")
             call var%getData(inflowArray)
-            print *, size(inflowArray, 1), size(inflowArray, 2)
             ! There mustn't be more than 5 inflows to a reach (one from
             ! each side/corner of the inflow GridCell)
             if (size(inflowArray, 2) > 5) then
@@ -415,13 +414,12 @@ module classRiverReach1
         ! Allocate inflows() array (the array of pointers) to the correct size
         allocate(me%inflows(me%nInflows))
         
+        ! If the data has an outflow to the model domain specified, set that
         if (me%ncGroup%hasVariable("domainOutflow")) then
             var = me%ncGroup%getVariable("domainOutflow")
             call var%getData(me%domainOutflow)
             me%isDomainOutflow = .true.
         end if
-        
-        
         
         call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
