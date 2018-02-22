@@ -30,6 +30,7 @@
 			"slope": 0.0005,
 			"SoilProfile_1_1_1": "file::soil-profile-compact.json",
 			"runoff[t]": "file::runoff.json",
+			"quickflow[t]": "file::runoff.json",
 			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
 			"evap[t]": "file::evap.json",
 			"RiverReach_1_1_1": {
@@ -51,6 +52,7 @@
 			"slope": 0.0005,
 			"SoilProfile_1_2_1": "file::soil-profile-compact.json",
 			"runoff[t]": "file::runoff.json",
+			"quickflow[t]": "file::runoff.json",
 			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
 			"evap[t]": "file::evap.json",
 			"RiverReach_1_2_1": {
@@ -83,6 +85,7 @@
 			"slope": 0.0005,
 			"SoilProfile_2_1_1": "file::soil-profile-compact.json",
 			"runoff[t]": "file::runoff.json",
+			"quickflow[t]": "file::runoff.json",
 			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
 			"evap[t]": "file::evap.json",
 			"RiverReach_2_1_1": {
@@ -104,6 +107,7 @@
 			"slope": 0.0005,
 			"SoilProfile_2_2_1": "file::soil-profile-compact.json",
 			"runoff[t]": "file::runoff.json",
+			"quickflow[t]": "file::runoff.json",
 			"precip[t]": "file::precip-ceh-gear-seathwaite-2015.json",
 			"evap[t]": "file::evap.json",
 			"RiverReach_2_2_1": {

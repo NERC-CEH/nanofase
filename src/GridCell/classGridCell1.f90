@@ -22,6 +22,12 @@ module classGridCell1
         procedure :: update => updateGridCell1
         procedure :: finaliseUpdate => finaliseUpdateGridCell1
         procedure :: parseInputData => parseInputDataGridCell1
+        ! Getters
+        procedure :: get_Q_out => get_Q_outGridCell1
+        procedure :: get_j_spm_out => get_j_spm_outGridCell1
+        procedure :: get_j_np_out => get_j_np_outGridCell1
+        procedure :: get_m_spm => get_m_spmGridCell1
+        procedure :: get_m_np => get_m_npGridCell1
     end type
 
   contains
@@ -35,18 +41,13 @@ module classGridCell1
         type(SoilProfile1)    :: soilProfile          ! The soil profile contained in this GridCell
 
         ! Allocate the object properties that need to be and set up defaults
-        allocate(me%Q_runoff_timeSeries(C%nTimeSteps))
-        allocate(me%Q_evap_timeSeries(C%nTimeSteps))
-        allocate(me%Q_precip_timeSeries(C%nTimeSteps))
-        !allocate(subRiverRunoff_timeSeries(C%nTimeSteps))
         allocate(me%colSoilProfiles(1))
         allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
-        me%Q_runoff = 0                                 ! Default to no runoff
+        me%q_runoff = 0                                 ! Default to no runoff
 
-        ! Set the GridCell's position, area, whether it's empty and its name
+        ! Set the GridCell's position, whether it's empty and its name
         me%x = x
         me%y = y
-        me%area = C%defaultGridSize**2                  ! TODO: This will be changed to take into account lat-lon
         if (present(isEmpty)) me%isEmpty = isEmpty      ! isEmpty defaults to false if not present
         me%ref = trim(ref("GridCell", x, y))            ! ref() interface is from the Util module
 
@@ -63,8 +64,9 @@ module classGridCell1
                     me%slope, &
                     me%n_river, &
                     me%area, &
-                    me%Q_precip_timeSeries, &
-                    me%Q_evap_timeSeries &
+                    me%q_quickflow_timeSeries, &
+                    me%q_precip_timeSeries, &
+                    me%q_evap_timeSeries &
                 ) &
             )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
@@ -135,7 +137,8 @@ module classGridCell1
                 me%colRiverReaches(rr)%item%create( &
                     me%x, &
                     me%y, &
-                    rr &
+                    rr, &
+                    me%q_runoff_timeSeries &
                 ) &
             )
             ! If the RiverReach we just created is the head of a branch in this
@@ -173,6 +176,7 @@ module classGridCell1
         class(GridCell1) :: me              !! This `GridCell1` instance
         type(Result) :: r                   !! The `Result` object to return
         integer :: b                        ! River branch iterator
+        integer :: rr                       ! RiverReach iterator
         ! Loop through the branch and call the setBranchRouting
         ! function, which follows a particular branch downstream and fills
         ! routedRiverReaches accordingly
@@ -316,18 +320,35 @@ module classGridCell1
     end function
 
     !> Perform the simulations required for an individual time step
-    function updateGridCell1(Me, t) result(r)
-        class(GridCell1) :: Me                                         !! The `GridCell` instance
-        integer :: t                                                   !! The timestep we're on
-        type(Result) :: r                                              !! `Result` object to return errors in
-        type(Result) :: srR                                            ! Result object for SubRivers
-        integer :: rr                                             ! Loop counter
+    function updateGridCell1(me, t) result(r)
+        class(GridCell1) :: me                                  !! The `GridCell` instance
+        integer :: t                                            !! The timestep we're on
+        type(Result) :: r                                       !! `Result` object to return errors in
+        integer :: rr                                           ! Loop counter
+        real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
-            r = me%colSoilProfiles(1)%item%update(t, me%Q_runoff_timeSeries(t))
+            r = me%colSoilProfiles(1)%item%update(t)
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
+
+            ! Loop through the reaches and call their update methods for this
+            ! timestep, providing them the eroded sediment split according
+            ! to their length
+            do rr = 1, me%nRiverReaches
+                ! Determine the proportion of this reach's length to the the total
+                ! river length in this GridCell
+                lengthRatio = me%colRiverReaches(rr)%item%l/sum(me%branchLengths)
+                ! Update the reach for this timestep
+                call r%addErrors(.errors. &
+                    me%colRiverReaches(rr)%item%update( &
+                        t = t, &
+                        j_spm_runoff = me%erodedSediment*lengthRatio &
+                    ) &
+                )
+            end do
+            
 
             ! Loop through each RiverReach and run its update procedure
             ! TODO: Aportion j_spm_runoff properly!
@@ -356,17 +377,20 @@ module classGridCell1
 
     !> Set the outflow from the temporary outflow variables that were setting by the
     !! update procedure. This step is kept separate from the routing so that the
-    !! wrong outflow isn't used as an inflow for another `SubRiver` whilst the `SubRiver`s
+    !! wrong outflow isn't used as an inflow for another `RiverReach` whilst the reaches
     !! are looped through.
     function finaliseUpdateGridCell1(me) result(r)
-        class(GridCell1) :: me                                      !! This `SubRiver1` instace
+        class(GridCell1) :: me                                      !! This `GridCell1` instace
         type(Result) :: r                                           !! The `Result` object
-        integer :: s                                                ! Iterator of SubRivers
-        !if (.not. me%isEmpty) then
-        !    do s = 1, me%nSubRivers
-        !        r = me%colSubRivers(s)%item%finaliseUpdate()
-        !    end do
-        !end if
+        integer :: rr                                               ! Iterator for reaches
+        if (.not. me%isEmpty) then
+            do rr = 1, me%nRiverReaches
+                call r%addErrors(.errors. &
+                    me%colRiverReaches(rr)%item%finaliseUpdate() &
+                )
+            end do
+        end if
+        call r%addToTrace("Finalising update for " // trim(me%ref))
     end function
 
     !> Get the data from the input file and set object properties
@@ -379,6 +403,12 @@ module classGridCell1
         type(NcVariable)        :: var                  ! NetCDF variable
         type(NcGroup)           :: grp                  ! NetCDF group
         integer, allocatable    :: xySize(:)            ! The size of the GridCell
+        
+        ! Allocate arrays to store flows in
+        allocate(me%q_runoff_timeSeries(C%nTimeSteps))
+        allocate(me%q_quickflow_timeSeries(C%nTimeSteps))
+        allocate(me%q_evap_timeSeries(C%nTimeSteps))
+        allocate(me%q_precip_timeSeries(C%nTimeSteps))
 
         ! Open the dataset (as read only)
         nc = NcDataset(C%inputFile, "r")
@@ -405,31 +435,41 @@ module classGridCell1
             me%dx = C%defaultGridSize
             me%dy = C%defaultGridSize
         end if
+        ! Set the area based on this
+        me%area = me%dx*me%dy
         
         ! Get the time-dependent runoff data from the file and put in array ready for use
         ! If using HMF data, this is slow flow + quick flow. [m/s]
         if (me%ncGroup%hasVariable("runoff")) then
             var = me%ncGroup%getVariable("runoff")
-            call var%getData(me%Q_runoff_timeSeries)                 
-            me%Q_runoff_timeSeries = me%Q_runoff_timeSeries*me%area*C%timeStep ! Convert to m3/timestep
+            call var%getData(me%q_runoff_timeSeries)                 
+            me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep  ! Convert to m/timestep
         else
-            me%Q_runoff_timeSeries = 0
+            me%q_runoff_timeSeries = 0
+        end if
+        ! Get the time-dependent surface runoff (quickflow) [m/s]
+        if (me%ncGroup%hasVariable("quickflow")) then
+            var = me%ncGroup%getVariable("quickflow")
+            call var%getData(me%q_quickflow_timeSeries)
+            me%q_quickflow_timeSeries = me%q_quickflow_timeSeries*C%timeStep    ! Convert to m/timestep
+        else
+            me%q_quickflow_timeSeries = 0
         end if
         ! Precipitation [m/s]
         if (me%ncGroup%hasVariable("precip")) then
             var = me%ncGroup%getVariable("precip")
             call var%getData(me%q_precip_timeSeries)                 
-            me%Q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep    ! Convert to m/timestep
+            me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep    ! Convert to m/timestep
         else
-            me%Q_precip_timeSeries = 0
+            me%q_precip_timeSeries = 0
         end if
         ! Evaporation [m/s]
         if (me%ncGroup%hasVariable("evap")) then
             var = me%ncGroup%getVariable("evap")
             call var%getData(me%q_evap_timeSeries)                 
-            me%Q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep       ! Convert to m/timestep
+            me%q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep       ! Convert to m/timestep
         else
-            me%Q_evap_timeSeries = 0
+            me%q_evap_timeSeries = 0
         end if
         ! Slope of the GridCell [m/m]
         if (me%ncGroup%hasVariable('slope')) then
@@ -454,6 +494,80 @@ module classGridCell1
             ))
             me%n_river = 0.035
         end if
+    end function
+
+!---------------!
+!--- GETTERS ---!
+!---------------!
+
+    function get_Q_outGridCell1(me, b) result(Q_out)
+        class(GridCell1) :: me                      !! This `GridCell1` instance
+        integer, optional :: b                      !! Branch
+        real(dp) :: Q_out
+        integer :: r
+        Q_out = 0
+        ! If branch is present, just get the outflow for that branch,
+        ! else, sum the outflows from each branch
+        if (present(b)) then
+            Q_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q_out
+        else
+            do b = 1, me%nBranches
+                Q_out = Q_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q_out
+            end do
+        end if
+    end function
+
+    function get_j_spm_outGridCell1(me, b) result(j_spm_out)
+        class(GridCell1) :: me                      !! This `GridCell1` instance
+        integer, optional :: b                      !! Branch
+        real(dp) :: j_spm_out(C%nSizeClassesSpm)
+        j_spm_out = 0
+        ! If branch is present, just get the outflow for that branch,
+        ! else, sum the outflows from each branch
+        if (present(b)) then
+            j_spm_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm_out
+        else
+            do b = 1, me%nBranches
+                j_spm_out = j_spm_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm_out
+            end do
+        end if
+    end function
+
+    function get_j_np_outGridCell1(me, b) result(j_np_out)
+        class(GridCell1) :: me                      !! This `GridCell1` instance
+        integer, optional :: b                      !! Branch
+        real(dp) :: j_np_out(C%nSizeClassesNP)
+        j_np_out = 0
+        ! TODO: Sum NP outflows here
+    end function
+
+    !> Get the total mass of SPM currently in the GridCell
+    function get_m_spmGridCell1(me, b) result(m_spm)
+        class(GridCell1) :: me                      !! This `GridCell1` instance
+        integer, optional :: b                      !! Branch
+        real(dp) :: m_spm(C%nSizeClassesSpm)
+        integer :: rr
+        m_spm = 0
+        if (present(b)) then
+            ! Loop through the reaches in the branch and sum the SPM masses
+            do rr = 1, me%nReachesInBranch(b)
+                m_spm = m_spm + me%routedRiverReaches(b,rr)%item%m_spm
+            end do
+        else
+            ! Loop through the reaches and sum the SPM masses
+            do rr = 1, me%nRiverReaches
+                m_spm = m_spm + me%colRiverReaches(rr)%item%m_spm
+            end do
+        end if
+    end function
+
+    !> Get the total mass of NPs currently in the GridCell
+    function get_m_npGridCell1(me, b) result(m_np)
+        class(GridCell1) :: me                      !! This `GridCell1` instance
+        integer, optional :: b                      !! Branch
+        real(dp) :: m_np(C%nSizeClassesNP)
+        m_np = 0
+        ! TODO: Sum NP masses here
     end function
     
 end module

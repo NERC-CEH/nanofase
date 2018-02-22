@@ -26,7 +26,16 @@ module classSoilProfile1
     !> Creating the `SoilProfil`e parses input data and fills
     !! the corresponding object properties, as well as setting
     !! up the contained `SoilLayers`.
-    function createSoilProfile1(me, x, y, p, slope, n_river, area, Q_precip_timeSeries, Q_evap_timeSeries) result(r)
+    function createSoilProfile1(me, &
+                                x, &
+                                y, &
+                                p, &
+                                slope, &
+                                n_river, &
+                                area, &
+                                q_quickflow_timeSeries, &
+                                q_precip_timeSeries, &
+                                q_evap_timeSeries) result(r)
         class(SoilProfile1) :: me                           !! The `SoilProfile` instance.
         integer             :: x                            !! Containing `GridCell` x index
         integer             :: y                            !! Containing `GridCell` y index
@@ -34,8 +43,9 @@ module classSoilProfile1
         real(dp)            :: slope                        !! Slope of the containing `GridCell` [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
         real(dp)            :: area                         !! The surface area of the `SoilProfile` [m3]
-        real(dp), allocatable :: Q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
-        real(dp), allocatable :: Q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
+        real(dp), allocatable :: q_quickflow_timeSeries(:)  !! The quickflow runoff from HMF [m/timestep]
+        real(dp), allocatable :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
+        real(dp), allocatable :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
         type(Result)        :: r                            !! The `Result` object
         integer             :: l                            ! Soil layer iterator
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
@@ -56,8 +66,9 @@ module classSoilProfile1
         me%slope = slope
         me%n_river = n_river
         me%area = area                                      ! Surface area
-        allocate(me%Q_precip_timeSeries, source=Q_precip_timeSeries)
-        allocate(me%Q_evap_timeSeries, source=Q_evap_timeSeries)
+        allocate(me%q_quickflow_timeSeries, source=q_quickflow_timeSeries)
+        allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)
+        allocate(me%q_evap_timeSeries, source=q_evap_timeSeries)
         me%V_buried = 0                                     ! Volume of water "lost" from the bottom of SoilProfile
         
         ! Parse and store input data in this object's properties
@@ -87,20 +98,19 @@ module classSoilProfile1
     !!  <li>Percolate soil through all SoilLayers</li>
     !!  <li>Erode sediment</li>
     !! </ul>
-    function updateSoilProfile1(me, t, Q_runoff) result(r)
+    function updateSoilProfile1(me, t) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         integer :: t                                            !! The current timestep
-        real(dp) :: Q_runoff                                    !! Runoff (quickflow) generated on this timestep [m/s]
         type(Result) :: r                                       !! Result object to return
         
         ! Set the timestep-specific object properties
-        me%Q_runoff = Q_runoff                                  ! Set the runoff (quickflow) for this timestep [m/s]
+        me%q_quickflow = me%q_quickflow_timeSeries(t)           ! Set the runoff (quickflow) for this timestep [m/s]
         ! TODO: Q_runoff still in m3/s, change to m/s
-        me%Q_surf = 0.1*me%Q_runoff                             ! Surface runoff = 10% of quickflow [m/timestep]
-        me%Q_precip = me%Q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
-        me%Q_evap = me%Q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
-        me%Q_in = max(me%Q_precip - me%Q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
-            ! TODO: Should the minimum Q_in be 0, or should evaporation be allowed to remove water from top soil layer?
+        me%q_surf = 0.1*me%q_quickflow                          ! Surface runoff = 10% of quickflow [m/timestep]
+        me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
+        me%q_evap = me%q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
+        me%q_in = max(me%q_precip - me%q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
+            ! TODO: Should the minimum q_in be 0, or should evaporation be allowed to remove water from top soil layer?
         
         ! Perform percolation and erosion simluation, at the same
         ! time adding any errors to the Result object
@@ -123,19 +133,19 @@ module classSoilProfile1
         integer             :: t                                !! The current time step
         type(Result)        :: r                                !! The `Result` object to return
         integer             :: l, i                             ! Loop iterator for SoilLayers
-        real(dp)            :: Q_l_in                           ! Temporary inflow for a particular SoilLayer
+        real(dp)            :: q_l_in                           ! Temporary inflow for a particular SoilLayer
 
         ! Loop through SoilLayers and remove 
         do l = 1, me%nSoilLayers
             if (l == 1) then                        ! If it's the first SoilLayer, Q_in will be from precip - ET
-                Q_l_in = me%Q_in
+                q_l_in = me%q_in
             else                                    ! Else, get Q_in from previous layer's Q_perc
-                Q_l_in = me%colSoilLayers(l-1)%item%V_perc
+                q_l_in = me%colSoilLayers(l-1)%item%V_perc
             end if
 
             ! Run the percolation simulation for individual layer, setting V_perc, V_pool etc.
             call r%addErrors(.errors. &
-                me%colSoilLayers(l)%item%update(t, Q_l_in) &
+                me%colSoilLayers(l)%item%update(t, q_l_in) &
             )
             ! If there is pooled water, we must push up to the previous layer, recursively
             ! for each SoilLayer above this
@@ -179,14 +189,14 @@ module classSoilProfile1
         real(dp)            :: S_tot            ! Total eroded sediment
 
         ! Change units of surface runoff from m/timestep for the GridCell, to m3/day for the HRU
-        Q_surf_hru = (me%Q_surf/C%timeStep)*me%usle_area_hru*86400       ! [m3/day]
+        Q_surf_hru = (me%q_surf/C%timeStep)*me%usle_area_hru*86400       ! [m3/day]
         ! Estimate the time of concentration
         t_conc = (me%usle_L_sb**0.6 * me%usle_n_sb**0.6)/(18 * me%usle_slp_sb) &
                 + (0.62 * me%usle_L_ch * me%n_river**0.75)/(me%usle_area_sb**0.125 * me%usle_slp_ch**0.375)
         ! Estimate the peak flow
-        q_peak = me%usle_alpha_half(t)*me%Q_surf*me%usle_area_sb/(3.6*t_conc)
+        q_peak = me%usle_alpha_half(t)*me%q_surf*me%usle_area_sb/(3.6*t_conc)
         ! Bring this all together to calculate eroded sediment, converted to kg/timestep (from metric ton/day)
-        S_tot = (118*C%timeStep/864) * (me%Q_surf * q_peak * me%usle_area_hru)**0.56 &
+        S_tot = (118*C%timeStep/864) * (me%q_surf * q_peak * me%usle_area_hru)**0.56 &
                 * me%usle_K * me%usle_C(t) * me%usle_P * me%usle_LS * me%usle_CFRG
         ! TODO: Need to convert sediment yield for the HRU to sediment yield for the grid cell.
         ! Simply scaling linearly from HRU area to grid cell area like below isn't realistic
