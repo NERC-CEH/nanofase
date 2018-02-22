@@ -150,7 +150,7 @@ module classGridCell1
                 b = b + 1               ! Add another branch to the index
                 allocate(tmpRoutedRiverReaches(b,1))   ! Use temp array to append to me%routedRiverReaches
                 ! Fill the temp array with the current routedRiverReaches array
-                tmpRoutedRiverReaches(1:b-1,:) = me%routedRiverReaches
+                if (size(me%routedRiverReaches,2) > 0) tmpRoutedRiverReaches(1:b-1,:) = me%routedRiverReaches
                 ! Then add the new branch by pointing first element in this branch to this reach
                 tmpRoutedRiverReaches(b,1)%item => me%colRiverReaches(rr)%item
                 call move_alloc(from=tmpRoutedRiverReaches, to=me%routedRiverReaches)
@@ -267,14 +267,15 @@ module classGridCell1
                     call r%addError(ErrorInstance( &
                         code=404, &
                         message=trim(finalReach%ref) // " outflow could not be determined. " // &
-                        "Reaches must either be specified as inflow to downstream reach, or have a model domain outflow specified.") &
+                        "Reaches must either be specified as inflow to downstream reach, " // &
+                        "or have a model domain outflow specified.") &
                     )
                     return
                 end if
             end if
         end associate
         
-            ! Set the length of this branch based on the above
+        ! Set the length of this branch based on the above
         branchLength = sqrt(dx**2 + dy**2)
             
         ! Loop through reaches and get their lengths from data
