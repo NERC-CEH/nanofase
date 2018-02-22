@@ -48,26 +48,38 @@ module spcGridCell
             !! Number of reaches in each branch. Needed as different branches might have different numbers of reaches
             !! (and Fortran matrices must be rectangular)
         logical :: DiffS                                                !! Yes=diffuse source present; NO=no diffuse source
-        real(dp), allocatable :: Q_runoff_timeSeries(:)                 !! Runoff from the hydrological model [m3/timestep]
+        real(dp), allocatable :: q_runoff_timeSeries(:)                 !! Runoff = slow flow + quick flow, from the hydrological model [m/timestep]
+        real(dp), allocatable :: q_quickflow_timeSeries(:)              !! Quick flow from the hydrological model [m/timestep]
         real(dp), allocatable :: q_evap_timeSeries(:)                   !! Evaporation time series [m/s]
         real(dp), allocatable :: q_precip_timeSeries(:)                 !! Precipitation time series [m/s]
-        real(dp) :: Q_runoff                                            !! Runoff from the hydrological model for this time step [m3/timestep]
+        real(dp) :: q_runoff                                            !! Runoff from the hydrological model for this time step [m/timestep]
+        real(dp) :: Q_out                                               !! Discharge from this `GridCell` on a given timestep [m3/timestep]
+        real(dp) :: tmp_Q_out                                           !! Temporary storage for Q_out until all `GridCell`s have been processed
+        real(dp) :: j_spm_out                                           !! SPM discharge from this GridCell on a given timestep [kg/timestep]
+        real(dp) :: tmp_j_spm_out                                       !! Temporary storage for Q_out until all `GridCell`s have been processed
         real(dp) :: slope                                               !! The slope of the `GridCell`
         real(dp) :: n_river                                             !! Manning's roughness coefficient for the river
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
       
     contains
+        ! Creation/destruction
         procedure(createGridCell), deferred :: create
         procedure(finaliseCreateGridCell), deferred :: finaliseCreate
         procedure(destroyGridCell), deferred :: destroy
+        ! Simulation
         procedure(updateGridCell), deferred :: update
-        procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate  
+        procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate
+        ! Getters
+        procedure(get_Q_outGridCell), deferred :: get_Q_out
+        procedure(get_j_spm_outGridCell), deferred :: get_j_spm_out
+        procedure(get_j_np_outGridCell), deferred :: get_j_np_out
+        procedure(get_m_spmGridCell), deferred :: get_m_spm
     end type
       
     !> Container type for polymorphic `GridCell`s
     type GridCellElement                                               
-    class(GridCell), allocatable :: item                           !! Polymorphic `GridCell` object
+        class(GridCell), allocatable :: item                           !! Polymorphic `GridCell` object
     end type
 
     abstract interface
@@ -112,6 +124,51 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me                                      !! The `GridCell` instance
             type(Result) :: r                                          !! The `Result` object to return any errors in
+        end function
+
+        function get_Q_outGridCell(me, b) result(Q_out)
+            use Globals, only: dp    
+            use ResultModule, only: Result
+            import GridCell
+            class(GridCell) :: me                                   !! The `GridCell` instance
+            integer, optional :: b                                  !! The branch to get the outflow for
+            real(dp) :: Q_out                                       !! Discharge to return
+        end function
+
+        function get_j_spm_outGridCell(me, b) result(j_spm_out)
+            use Globals, only: dp, C
+            use ResultModule, only: Result
+            import GridCell
+            class(GridCell) :: me                                   !! The `GridCell` instance
+            integer, optional :: b                                  !! The branch to get the outflow for
+            real(dp) :: j_spm_out(C%nSizeClassesSpm)                !! SPM outflow to return
+        end function
+
+        function get_j_np_outGridCell(me, b) result(j_np_out)
+            use Globals, only: dp, C
+            use ResultModule, only: Result
+            import GridCell
+            class(GridCell) :: me
+            integer, optional :: b
+            real(dp) :: j_np_out(C%nSizeClassesNP)
+        end function
+
+        function get_m_spmGridCell(me, b) result(m_spm)
+            use Globals, only: dp, C
+            use ResultModule, only: Result
+            import GridCell
+            class(GridCell) :: me
+            integer, optional :: b
+            real(dp) :: m_spm(C%nSizeClassesSpm)
+        end function
+
+        function get_m_npGridCell(me, b) result(m_np)
+            use Globals, only: dp, C
+            use ResultModule, only: Result
+            import GridCell
+            class(GridCell) :: me
+            integer, optional :: b
+            real(dp) :: m_np(C%nSizeClassesNP)
         end function
     end interface
 end module

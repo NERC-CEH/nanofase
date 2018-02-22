@@ -40,10 +40,12 @@ module spcRiverReach
         real(dp) :: slope                                           !! Slope of reach [m/m]
         real(dp) :: Q_in                                            !! Inflow from upstream reach [m3/timestep]
         real(dp) :: Q_out                                           !! Outflow to the next reach [m3/timestep]
+        real(dp) :: tmp_Q_out                                       !! Temporary outflow storage until timestep loop complete [m3/timestep]
         real(dp) :: Q_runoff                                        !! Runoff from hydrological model [m3/timestep]
         real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Time series runoff data from file [m3/timestep]
-        real(dp), allocatable :: spmIn(:)                           !! Inflow SPM from upstream reach [kg/timestep]
-        real(dp), allocatable :: spmOut(:)                          !! Outflow SPM to next reach [kg/timestep]
+        real(dp), allocatable :: j_spm_in(:)                        !! Inflow SPM from upstream reach [kg/timestep]
+        real(dp), allocatable :: j_spm_out(:)                          !! Outflow SPM to next reach [kg/timestep]
+        real(dp), allocatable :: tmp_j_spm_out(:)                      !! Temporary outflow storage until timestep loop complete [kg/timestep]
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
         real(dp), allocatable :: j_spm_runoff(:)                    !! Eroded soil runoff for current time step [kg/timestep]
@@ -74,10 +76,10 @@ module spcRiverReach
       contains
         ! Create/destory
         procedure(createRiverReach), deferred :: create
-        procedure(finaliseCreateRiverReach), deferred :: finaliseCreate
         procedure(destroyRiverReach), deferred :: destroy
         ! Simulators
         procedure(updateRiverReach), deferred :: update
+        procedure(finaliseUpdateRiverReach), deferred :: finaliseUpdate
         procedure(resuspensionRiverReach), deferred :: resuspension
         procedure(settlingRiverReach), deferred :: settling
         procedure(depositToBedRiverReach), deferred :: depositToBed
@@ -95,7 +97,7 @@ module spcRiverReach
         ! Getters
         procedure :: getVolume => getVolumeRiverReach
         procedure :: getQOut => getQOutRiverReach
-        procedure :: getSpmOut => getSpmOutRiverReach
+        procedure :: get_j_spm_out => get_j_spm_outRiverReach
     end type
       
     !> Container type for `class(RiverReach)`, the actual type of the `RiverReach` class.
@@ -107,24 +109,14 @@ module spcRiverReach
 
     abstract interface
         !> Create this `RiverReach`
-        function createRiverReach(me, x, y, rr) result(r)
+        function createRiverReach(me, x, y, rr, q_runoff_timeSeries) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! The `RiverReach` instance
             integer :: x, y, rr                                         !! `GridCell` and `RiverReach` identifiers
+            real(dp) :: q_runoff_timeSeries(:)                          !! The runoff = quickflow + slowflow [m/timestep]
             type(Result) :: r                                           !! The Result object
-        end function
-        
-        !> Finalise the creation of a `RiverReach` object
-        function finaliseCreateRiverReach(me, l, Q_runoff_timeSeries) result(r)
-            use Globals    
-            use ResultModule, only: Result
-            import RiverReach
-            class(RiverReach) :: me                                     !! This `RiverReach` instance
-            real(dp) :: l                                               !! The length of the reach
-            real(dp) :: Q_runoff_timeSeries(:)                          !! Runoff data partitioned for this reach
-            type(Result) :: r                                           !! The `Result` object to return errors in
         end function
 
         !> Destroy this `RiverReach`
@@ -136,16 +128,22 @@ module spcRiverReach
         end function
 
         !> Update this `RiverReach` on given time step
-        function updateRiverReach(me, Q_in, spmIn, t, j_spm_runoff) result(r)
+        function updateRiverReach(me, t, j_spm_runoff) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
-            real(dp) :: Q_in                                            !! Inflow to this reach [m3/timestep]
             integer :: t                                                !! What time step are we on?
-            real(dp) :: j_spm_runoff(:)		                            !! Eroded sediment runoff to this reach
-            real(dp) :: spmIn(C%nSizeClassesSpm)                        !! Inflow SPM to this reach [kg/timestep]
+            real(dp) :: j_spm_runoff(:)                                 !! Eroded sediment runoff to this reach [kg/timestep]
             type(Result) :: r                                           !! The `Result` object
+        end function
+
+        !> Set temporary outflow variable to real outflow variables
+        function finaliseUpdateRiverReach(me) result(r)
+            use ResultModule, only: Result
+            import RiverReach
+            class(RiverReach) :: me
+            type(Result) :: r
         end function
 
         !> Resuspend sediment based on current river flow
@@ -285,9 +283,9 @@ module spcRiverReach
     end function
 
     !> Return the SPM discahrge.
-    function getSpmOutRiverReach(me) result(spmOut)
+    function get_j_spm_outRiverReach(me) result(j_spm_out)
         class(RiverReach) :: me
-        real(dp) :: spmOut(size(me%spmOut))
-        spmOut = me%spmOut
+        real(dp) :: j_spm_out(size(me%j_spm_out))
+        j_spm_out = me%j_spm_out
     end function
 end module

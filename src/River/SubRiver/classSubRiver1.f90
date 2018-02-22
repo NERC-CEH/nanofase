@@ -263,7 +263,7 @@ module classSubRiver1
                 spmIn = tmpSpmIn, &
                 t = t, &
                 j_spm_runoff = j_spm_runoff/me%nReaches &           ! Split the runoff equally between reaches. TODO: Change based on reach length
-			)
+            )
             call r%addErrors(.errors. reachR)                       ! Add any error that occured to the Result object to return
             Qin(i+1) = me%colReaches(i)%item%getQOut()              ! Set the next reach's inflows from this reach's outflow
             spmIn(i+1,:) = me%colReaches(i)%item%getSpmOut()

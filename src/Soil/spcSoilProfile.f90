@@ -23,14 +23,15 @@ module spcSoilProfile
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
-        real(dp) :: Q_runoff                                        !! Runoff (quickflow) from the hydrological model for this timestep [m/s]
-        real(dp) :: Q_surf                                          !! Surface runoff (different to quickflow) for this time step [m3 m-2 s-1]
+        real(dp), allocatable :: q_quickflow_timeSeries(:)          !! Time series of runoff (quickflow) data [m3 m-2 s-1]
+        real(dp) :: q_quickflow                                     !! Runoff (quickflow) from the hydrological model for this timestep [m/timestep]
+        real(dp) :: q_surf                                          !! Surface runoff (different to quickflow) for this time step [m3 m-2 s-1]
         real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
-        real(dp), allocatable :: Q_precip_timeSeries(:)             !! Time series of precipitation data [m3 m-2 s-1]
-        real(dp) :: Q_precip                                        !! Precipitation for this time step [m3 m-2 s-1]
-        real(dp), allocatable :: Q_evap_timeSeries(:)               !! Time series of evapotranspiration data [m3 m-2 s-1]
-        real(dp) :: Q_evap                                          !! Evapotranspiration for this time step [m3 m-2 s-1]
-        real(dp) :: Q_in
+        real(dp), allocatable :: q_precip_timeSeries(:)             !! Time series of precipitation data [m3 m-2 s-1]
+        real(dp) :: q_precip                                        !! Precipitation for this time step [m3 m-2 s-1]
+        real(dp), allocatable :: q_evap_timeSeries(:)               !! Time series of evapotranspiration data [m3 m-2 s-1]
+        real(dp) :: q_evap                                          !! Evapotranspiration for this time step [m3 m-2 s-1]
+        real(dp) :: q_in
             !! Infiltration for this time step: \( Q_{\text{in}} = Q_{\text{precip}} - Q_{\text{evap}} \) [m3 m-2 s-1]
         real(dp) :: WC_sat                                          !! Water content at saturation [m3 m-3]
         real(dp) :: WC_FC                                           !! Water content at field capacity [m3 m-3]
@@ -78,7 +79,16 @@ module spcSoilProfile
         !> Creating the `SoilProfile` parses input data and fills
         !! the corresponding object properties, as well as setting
         !! up the contained `SoilLayer`s.
-        function createSoilProfile(me, x, y, p, slope, n_river, area, Q_precip_timeSeries, Q_evap_timeSeries) result(r)
+        function createSoilProfile(me, &
+                                   x, &
+                                   y, &
+                                   p, &
+                                   slope, &
+                                   n_river, &
+                                   area, &
+                                   q_quickflow_timeSeries, &
+                                   q_precip_timeSeries, &
+                                   q_evap_timeSeries) result(r)
             use Globals
             import SoilProfile, Result
             class(SoilProfile)  :: me                           !! The `SoilProfile` instance.
@@ -88,8 +98,9 @@ module spcSoilProfile
             real(dp)            :: slope                        !! Slope of the containing `GridCell` [m m-1]
             real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
             real(dp)            :: area                         !! The area of the `SoilProfile`'s surface
-            real(dp), allocatable :: Q_precip_timeSeries(:)     !! Precipitation time series [m/s]
-            real(dp), allocatable :: Q_evap_timeSeries(:)       !! Evaporation time series [m/s]
+            real(dp), allocatable :: q_quickflow_timeSeries(:)  !! Quickflow timeseries from the hydrological model [m/timestep]
+            real(dp), allocatable :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
+            real(dp), allocatable :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
             type(Result)        :: r                            !! `Result` object to return
         end function
 
@@ -101,12 +112,11 @@ module spcSoilProfile
         end function
 
         !> Perform the `SoilProfile`'s simulation for one timestep
-        function updateSoilProfile(me, t, Q_runoff) result(r)
+        function updateSoilProfile(me, t) result(r)
             use Globals
             import SoilProfile, Result
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current time step
-            real(dp) :: Q_runoff                                !! Runoff (quickflow) generated on this timestep [m/s]
             type(Result) :: r                                   !! `Result` object to return
         end function
 

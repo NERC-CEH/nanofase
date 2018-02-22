@@ -8,7 +8,8 @@ program main
 
     real :: start, finish                                               ! Simulation start and finish times
     type(Result) :: r                                                   ! Result object
-    integer :: x,y,s,t                                                  ! Loop iterator
+    integer :: x,y,rr,t                                                 ! Loop iterator
+    real(dp) :: m_spm(5)
     type(Environment1) :: env                                           ! Environment object
 
     call GLOBALS_INIT()                                                 ! Set up global vars and constants
@@ -25,18 +26,19 @@ program main
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
             do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
-                     write(3,*) t, ", ", x, ", ", y, ", ", &
+                    write(3,*) t, ", ", x, ", ", y, ", ", &
                          env%colGridCells(x,y)%item%erodedSediment(1)
-                    !do s = 1, size(env%colGridCells(x,y)%item%colSubRivers) ! Loop through the SubRivers
-                    !    ! Write to the data file
-                    !    write(2,*) t, ", ", x, &
-                    !         ", ", y, ", ", s, ", " &
-                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(1), ", " &
-                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(2), ", " &
-                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(3), ", " &
-                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(4), ", " &
-                    !        , env%colGridCells(x,y)%item%colSubRivers(s)%item%m_spm(5)
-                    !end do
+                    do rr = 1, env%colGridCells(x,y)%item%nRiverReaches ! Loop through the RiverReaches
+                        m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
+                        print *, env%colGridCells(x,y)%item%colRiverReaches(rr)%item%W
+                        ! Write to the data file
+                        write(2,*) t, ", ", x, ", ", y, ", ", rr, ", " &
+                            , m_spm(1), ", " &
+                            , m_spm(2), ", " &
+                            , m_spm(3), ", " &
+                            , m_spm(4), ", " &
+                            , m_spm(5)
+                    end do
                 end if
             end do
         end do
