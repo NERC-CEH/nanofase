@@ -30,14 +30,9 @@ program main
                          env%colGridCells(x,y)%item%erodedSediment(1)
                     do rr = 1, env%colGridCells(x,y)%item%nRiverReaches ! Loop through the RiverReaches
                         m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
-                        print *, env%colGridCells(x,y)%item%colRiverReaches(rr)%item%W
                         ! Write to the data file
-                        write(2,*) t, ", ", x, ", ", y, ", ", rr, ", " &
-                            , m_spm(1), ", " &
-                            , m_spm(2), ", " &
-                            , m_spm(3), ", " &
-                            , m_spm(4), ", " &
-                            , m_spm(5)
+                        write(2,'(i4,A,i2,A,i2,A,i2,A,F12.3,A,F12.3,A,F12.3,a,f12.3,a,f12.3)') t, ", ", x, ", ", y, ", ", rr, ", ", &
+                            m_spm(1), ", ", m_spm(2), ", ", m_spm(3), ", ", m_spm(4), ", ", m_spm(5)
                     end do
                 end if
             end do

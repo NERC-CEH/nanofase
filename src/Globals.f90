@@ -20,14 +20,21 @@ module Globals
         real(dp)            :: defaultSoilLayerDepth = 0.1_dp   !! Default SoilLayer depth of 10 cm
         real(dp)            :: defaultMeanderingFactor = 1.0_dp !! Default river meandering factor, >1
         integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
+        real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
+
+        ! General
+        type(NcDataset)     :: dataset                          !! The NetCDF dataset
 
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
+        real(dp) :: k_B = 1.38064852e-23    !! Boltzmann constant [m2 kg s-2 K-1]
+        real(dp) :: pi = 4*atan(1.0_dp)     !! Pi [-]
         real(dp) :: n_river = 0.035_dp      !! Manning's roughness coefficient, for natural streams and major rivers.
                                             !! [Reference](http://www.engineeringtoolbox.com/mannings-roughness-d_799.html).
 
         ! Temp
         real(dp) :: T = 15.0_dp             !! Temperature [C]
+        real(dp) :: defaultWaterTemperature !! Default water temperature [C]
 
         ! Size class distributions
         real(dp), allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
@@ -54,7 +61,6 @@ module Globals
 
     !> Initialise global variables, such as `ERROR_HANDLER`
     subroutine GLOBALS_INIT()
-        type(NcDataset) :: NC                               ! NetCDF dataset
         type(NcVariable) :: var                             ! NetCDF variable
         type(NcGroup) :: grp                                ! NetCDF group
         real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
@@ -63,14 +69,14 @@ module Globals
         integer :: n                                        ! Iterator for size classes
         character(len=100) :: inputFile, outputFile         ! Input and output file paths
         integer :: timeStep, nTimeSteps, maxRiverReaches, defaultGridSize
-            ! Length and number of time steps, max number of RiverReaches in GridCell, default GridCell size
-        real(dp) :: epsilon, defaultSoilLayerDepth, defaultMeanderingFactor     ! Error criteria proximity and default soil layer depth
+        real(dp) :: epsilon, defaultSoilLayerDepth, defaultMeanderingFactor, defaultWaterTemperature, default_alpha_hetero
         logical :: errorOutput
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
+        
         namelist /data/ inputFile, outputFile
         namelist /run/ timeStep, nTimeSteps, epsilon, errorOutput, defaultGridSize
         namelist /soil/ defaultSoilLayerDepth
-        namelist /river/ maxRiverReaches, defaultMeanderingFactor
+        namelist /river/ maxRiverReaches, defaultMeanderingFactor, defaultWaterTemperature, default_alpha_hetero
 
         ! Open the config file and read the different config groups
         open(10, file="config.nml", status="old")
@@ -89,6 +95,8 @@ module Globals
         C%defaultSoilLayerDepth = defaultSoilLayerDepth
         C%defaultMeanderingFactor = defaultMeanderingFactor
         C%maxRiverReaches = maxRiverReaches
+        C%defaultWaterTemperature = defaultWaterTemperature
+        C%default_alpha_hetero = default_alpha_hetero
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
@@ -130,8 +138,8 @@ module Globals
         call ERROR_HANDLER%init(errors=errors, on=errorOutput)
 
         ! Get the sediment and nanoparticle size classes from data file
-        nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
-        grp = nc%getGroup("global")                         ! Get the global variables group
+        C%dataset = NcDataset(C%inputFile, "r")             ! Open dataset as read-only
+        grp = C%dataset%getGroup("global")                  ! Get the global variables group
         var = grp%getVariable("spmSizeClasses")             ! Get the sediment size classes variable
         call var%getData(spmSizeClasses)                    ! Get the variable's data
         allocate(C%d_spm, source=spmSizeClasses)            ! Allocate to class variable

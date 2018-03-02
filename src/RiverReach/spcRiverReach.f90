@@ -41,8 +41,8 @@ module spcRiverReach
         real(dp) :: Q_in                                            !! Inflow from upstream reach [m3/timestep]
         real(dp) :: Q_out                                           !! Outflow to the next reach [m3/timestep]
         real(dp) :: tmp_Q_out                                       !! Temporary outflow storage until timestep loop complete [m3/timestep]
-        real(dp) :: Q_runoff                                        !! Runoff from hydrological model [m3/timestep]
-        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Time series runoff data from file [m3/timestep]
+        real(dp) :: q_runoff                                        !! Runoff from hydrological model [m/timestep]
+        real(dp), allocatable :: q_runoff_timeSeries(:)             !! Time series runoff data from file [m/timestep]
         real(dp), allocatable :: j_spm_in(:)                        !! Inflow SPM from upstream reach [kg/timestep]
         real(dp), allocatable :: j_spm_out(:)                          !! Outflow SPM to next reach [kg/timestep]
         real(dp), allocatable :: tmp_j_spm_out(:)                      !! Temporary outflow storage until timestep loop complete [kg/timestep]
@@ -60,9 +60,14 @@ module spcRiverReach
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
         real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux for a given timestep [kg/s]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
+        real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
+        real(dp), allocatable :: W_settle_np(:)                     !! NP settling velocity [m/s]
         real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
         real(dp) :: n                                               !! Manning's roughness coefficient [-]
+        real(dp), allocatable :: T_water_timeSeries(:)              !! Water temperature time series [C]
+        real(dp) :: T_water                                         !! Water temperature on a given time step [C]
+        real(dp) :: alpha_hetero                                    !! Heteroaggregation attachment efficiency, 0-1 [-]
         logical :: isHeadwater = .false.                            !! Is this `RiverReach` a headwater (no inflows)?
         logical :: isGridCellInflow = .false.                       !! Is this `RiverReach` the inflow the `GridCell` its in
         logical :: isGridCellOutflow = .false.                      !! Does the `RiverReach` outflow to another cell?
@@ -109,13 +114,14 @@ module spcRiverReach
 
     abstract interface
         !> Create this `RiverReach`
-        function createRiverReach(me, x, y, rr, q_runoff_timeSeries) result(r)
+        function createRiverReach(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! The `RiverReach` instance
             integer :: x, y, rr                                         !! `GridCell` and `RiverReach` identifiers
             real(dp) :: q_runoff_timeSeries(:)                          !! The runoff = quickflow + slowflow [m/timestep]
+            real(dp) :: T_water_timeSeries(:)                           !! Water temperature [C]
             type(Result) :: r                                           !! The Result object
         end function
 
@@ -240,12 +246,12 @@ module spcRiverReach
 
         !> Calculate the settling velocity of sediment particles for an individual
         !! size class
-        function calculateSettlingVelocity(Me, d, rho_spm, T) result(W_spm)
+        function calculateSettlingVelocity(Me, d, rho_particle, T) result(W_spm)
             use Globals
             import RiverReach
             class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: d                                   !! Sediment particle diameter [m]
-            real(dp), intent(in) :: rho_spm                             !! Sediment particulate density [kg/m3]
+            real(dp), intent(in) :: rho_particle                        !! Sediment particulate density [kg/m3]
             real(dp), intent(in) :: T                                   !! Temperature [C]
             real(dp) :: W_spm                                           !! Calculated settling velocity [m/s]
         end function

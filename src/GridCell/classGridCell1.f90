@@ -75,42 +75,6 @@ module classGridCell1
             if (.not. r%hasCriticalError()) then
                 ! Add RiverReaches to the GridCell (if any are present in the data file)
                 call r%addErrors(.errors. me%createRiverReaches())
-                
-                !subRiverPrefix = "SubRiver_" // trim(str(me%gridX)) // &
-                !                    "_" // trim(str(me%gridY)) // "_"
-                !! Set SubRiver size to half of the grid cell size if there's more than one SubRiver,
-                !! otherwise the full size of the grid cell. TODO: Constrain number of SubRivers somewhere
-                !! so this makes sense.
-                !if (me%nSubRivers > 1) then
-                !    subRiverLength = C%gridCellSize / 2.0_dp
-                !else
-                !    subRiverLength = C%gridCellSize
-                !end if
-                ! Loop through SubRivers, incrementing s (from SubRiver_x_y_s), until none found
-                !do s = 1, me%nSubRivers
-                !    ! Split the runoff between SubRivers
-                !    do t = 1, size(me%Q_runoff_timeSeries)
-                !        if (me%Q_runoff_timeSeries(t) > 0) then
-                !            subRiverRunoff_timeSeries(t) = me%Q_runoff_timeSeries(t)/me%nSubRivers
-                !        else
-                !            subRiverRunoff_timeSeries(t) = 0
-                !        end if
-                !    end do
-                !    ! Check that group actually exists
-                !    ! TODO: Maybe perform this check somewhere else
-                !    if (me%ncGroup%hasGroup(trim(subRiverPrefix) // trim(str(s)))) then
-                !        allocate(sr1)                                   ! Create the new SubRiver
-                !        srR = sr1%create(me%gridX, me%gridY, s, subRiverLength, subRiverRunoff_timeSeries)
-                !        call r%addErrors(errors = .errors. srR)         ! Add any errors to final Result object
-                !        call move_alloc(sr1, me%colSubRivers(s)%item)   ! Allocate a new SubRiver to the colSubRivers array
-                !    else
-                !        call r%addError(ErrorInstance( &
-                !            code = 501, &
-                !            message = "No input data provided for " // trim(subRiverPrefix) // trim(str(s)) // &
-                !                        " - check nSubRivers is set correctly." &
-                !        ))
-                !    end if
-                !end do
             end if
         end if
 
@@ -138,7 +102,8 @@ module classGridCell1
                     me%x, &
                     me%y, &
                     rr, &
-                    me%q_runoff_timeSeries &
+                    me%q_runoff_timeSeries, &
+                    me%T_water_timeSeries &
                 ) &
             )
             ! If the RiverReach we just created is the head of a branch in this
@@ -367,7 +332,7 @@ module classGridCell1
     !            srR = me%colSubRivers(s)%item%update( &
     !                t = t, &
     !                j_spm_runoff = me%erodedSediment/me%nSubRivers &
-				!)
+            !)
     !            call r%addErrors(errors = .errors. srR)
     !        end do
         end if
@@ -410,6 +375,7 @@ module classGridCell1
         allocate(me%q_quickflow_timeSeries(C%nTimeSteps))
         allocate(me%q_evap_timeSeries(C%nTimeSteps))
         allocate(me%q_precip_timeSeries(C%nTimeSteps))
+        allocate(me%T_water_timeSeries(C%nTimeSteps))
 
         ! Open the dataset (as read only)
         nc = NcDataset(C%inputFile, "r")
@@ -495,6 +461,20 @@ module classGridCell1
             ))
             me%n_river = 0.035
         end if
+        
+        if (me%ncGroup%hasVariable('T_water')) then
+            var = me%ncGroup%getVariable('T_water')
+            call var%getData(me%T_water_timeSeries)
+        else
+            call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Value for T_water not found in input file. " // &
+                            "Defaulting to that specified in config.nml.", &
+                isCritical = .false. &
+            ))
+            me%T_water_timeSeries = C%defaultWaterTemperature
+        end if
+        
     end function
 
 !---------------!
