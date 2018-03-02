@@ -59,6 +59,7 @@ module spcGridCell
         real(dp) :: tmp_j_spm_out                                       !! Temporary storage for Q_out until all `GridCell`s have been processed
         real(dp) :: slope                                               !! The slope of the `GridCell`
         real(dp) :: n_river                                             !! Manning's roughness coefficient for the river
+        real(dp), allocatable :: T_water_timeSeries(:)                  !! Water temperature [C]
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
       

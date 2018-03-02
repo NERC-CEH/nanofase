@@ -1,11 +1,11 @@
 &data
-inputFile = "data/data-compact.nc",
+inputFile = "data/data-gwava.nc",
 outputFile = "data/output.csv"
 /
 
 &run
 timeStep = 86400,
-nTimeSteps = 365,
+nTimeSteps = 10,
 epsilon = 1e-10,
 errorOutput = .false.
 defaultGridSize = 5000
@@ -18,4 +18,6 @@ defaultSoilLayerDepth = 0.1
 &river
 maxRiverReaches = 100
 defaultMeanderingFactor = 1.0
+defaultWaterTemperature = 10
+default_alpha_hetero = 0.1
 /

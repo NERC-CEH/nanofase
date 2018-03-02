@@ -39,12 +39,13 @@ module classRiverReach1
   contains
 
     !> Create this `RiverReach1`, parse input data and set up contained `BedSediment`
-    function createRiverReach1(me, x, y, rr, q_runoff_timeSeries) result(r)
+    function createRiverReach1(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries) result(r)
         class(RiverReach1) :: me                                !! The `RiverReach1` instance.
         integer :: x                                            !! Containing `GridCell` x-position index.
         integer :: y                                            !! Containing `GridCell` y-position index.
         integer :: rr                                           !! `RiverReach` index.
         real(dp) :: q_runoff_timeSeries(:)                      !! Runoff time series [m/timestep]
+        real(dp) :: T_water_timeSeries(:)                       !! Water temperature time series [C]
         type(Result) :: r                                       !! The Result object
         type(Result0D) :: D                                     ! Depth [m]
         type(Result0D) :: v                                     ! River velocity [m/s]
@@ -59,6 +60,7 @@ module classRiverReach1
         me%rr = rr
         me%ref = trim(ref("RiverReach", x, y, rr))
         allocate(me%q_runoff_timeSeries, source=q_runoff_timeSeries)    ! Runoff = slow flow + quick flow [m/timestep]
+        allocate(me%T_water_timeSeries, source=T_water_timeSeries)      ! Water temperature [C]
 
         ! Allocate the arrays of size classes and set SPM to 0 to begin with
         allocate(me%j_spm_in(C%nSizeClassesSpm), &
@@ -68,6 +70,8 @@ module classRiverReach1
             me%j_spm_res(C%nSizeClassesSpm), &
             me%C_spm(C%nSizeClassesSpm), &
             me%k_settle(C%nSizeClassesSpm), &
+            me%W_settle_spm(C%nSizeClassesSpm), &
+            me%W_settle_np(C%nSizeClassesNP), &
             me%spmDep(C%nSizeClassesSpm), &
             stat=allst)
         me%C_spm = 0                    ! Set SPM and flows to zero to begin with
@@ -95,7 +99,7 @@ module classRiverReach1
         
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
-        call r%addErrors(.errors. me%reactor%create(me%x, me%y))
+        call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
         
         call r%addToTrace('Creating ' // trim(me%ref))
     end function
@@ -132,7 +136,7 @@ module classRiverReach1
         real(dp) :: dSpmDep(C%nSizeClassesSpm)              ! Deposited SPM for each displacement
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
-        real(dp) :: dj_spm_out(C%nSizeClassesSpm)              ! SPM outflow for the displacement
+        real(dp) :: dj_spm_out(C%nSizeClassesSpm)           ! SPM outflow for the displacement
         
         ! Initialise inflows to 0
         Q_in = 0
@@ -145,6 +149,7 @@ module classRiverReach1
         end do
 
         me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
+        me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
         me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff [kg/timestep]
         me%Q_in = Q_in + me%q_runoff*me%bedArea             ! Set this reach's inflow, based on last time step's bed area [m3/timestep]
         me%j_spm_in = j_spm_in + me%j_spm_runoff            ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
@@ -172,6 +177,18 @@ module classRiverReach1
         call r%addErrors([ &
             .errors. me%resuspension(), &                   ! Also removes SPM from BedSediment
             .errors. me%settling() &                        ! Doesn't remove SPM from BedSediment - done later
+        ])
+
+        ! Transform the NPs
+        call r%addErrors([ &
+            .errors. me%reactor%update( &
+                t, &
+                me%C_spm, &
+                me%T_water, &
+                me%W_settle_np, &
+                me%W_settle_spm, &
+                10.0_dp &                    ! HACK: Where is the shear rate from?
+            ) &
         ])
 
         ! If Q_in for this timestep is bigger than the reach volume, then we need to
@@ -310,16 +327,28 @@ module classRiverReach1
         type(Result) :: r                                   !! The `Result` object to return any errors
         type(FineSediment1) :: fineSediment                 ! Object to pass SPM to BedSediment in
         integer :: n                                        ! Size class iterator
-        real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
-        ! Loop through the size classes and calculate settling velocity
+        ! SPM: Loop through the size classes and calculate settling velocity
         do n = 1, C%nSizeClassesSpm
-            settlingVelocity(n) = me%calculateSettlingVelocity( &
+            me%W_settle_spm(n) = me%calculateSettlingVelocity( &
                 C%d_spm(n), &
                 sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
-                C%T &
+                me%T_water &
             )
         end do
-        me%k_settle = settlingVelocity/me%D
+        me%k_settle = me%W_settle_spm/me%D
+
+        ! NP: Calculate this to pass to Reactor
+        do n = 1, C%nSizeClassesNP
+            me%W_settle_np(n) = me%calculateSettlingVelocity( &
+                C%d_np(n), &
+                4230.0_dp, &       ! HACK: rho_np, change this to account for different NP materials
+                me%T_water &
+            )
+        end do
+
+        print *, "W_settle_spm: ", me%W_settle_spm(1)
+        print *, "W_settle_np: ", me%W_settle_np(1)
+        print *, "k_settle: ", me%k_settle(1)
     end function
 
     !> Send the given mass of settled SPM to the BedSediment
@@ -389,6 +418,19 @@ module classRiverReach1
         var = me%ncGroup%getVariable("beta_res")                ! Get the beta_res calibration factor for resuspension
         call var%getData(me%beta_res)
         ! TODO: Add checks for the above
+
+        if (me%ncGroup%hasVariable("alpha_hetero")) then
+            var = me%ncGroup%getVariable("alpha_hetero")
+            call var%getData(me%alpha_hetero)
+        else
+            call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Value for alpha_hetero not found in input file. " // &
+                            "Defaulting to that specified in config.nml.", &
+                isCritical = .false. &
+            ))
+            me%alpha_hetero = C%default_alpha_hetero
+        end if
         
         ! ROUTING: Get the references to the inflow(s) RiverReaches and
         ! store in inflowRefs(). Do some auditing as well.
@@ -495,7 +537,7 @@ module classRiverReach1
         ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
         D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
         i = 1                                                                   ! Iterator for Newton solver
-        iMax = 10000                                                            ! Allow 10000 iterations
+        iMax = 100000                                                            ! Allow 10000 iterations
         epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
         alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
         f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
@@ -560,20 +602,20 @@ module classRiverReach1
     !!      \Delta = \frac{\rho_{\text{spm}}}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
-    function calculateSettlingVelocity1(me, d, rho_spm, T) result(W_spm)
+    function calculateSettlingVelocity1(me, d, rho_particle, T) result(W)
         class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance.
-        real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
-        real(dp), intent(in) :: rho_spm             !! Sediment particle density [kg/m**3].
+        real(dp), intent(in) :: d                   !! Particle diameter [m].
+        real(dp), intent(in) :: rho_particle        !! Particle density [kg/m3].
         real(dp), intent(in) :: T                   !! Temperature [C].
-        real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
+        real(dp) :: W                               !! Calculated settling velocity [m/s].
         real(dp) :: dStar                           ! Dimensionless particle diameter.
         ! Settling only occurs if SPM particle density is greater than density of water
-        if (rho_spm > C%rho_w(T)) then
-            dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
-            W_spm = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                     ! Calculate the settling velocity
+        if (rho_particle > C%rho_w(T)) then
+            dStar = ((rho_particle/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
+            W = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                         ! Calculate the settling velocity
                 * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
         else
-            W_spm = 0.0_dp
+            W = 0.0_dp
         end if
     end function
 

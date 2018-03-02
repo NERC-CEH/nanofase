@@ -1,6 +1,6 @@
 {
 	"dimensions": {
-		"t" : 365,
+		"t" : 1095,
 		"s" : 5,
 		"n" : 5,
 		"f" : 4,
@@ -37,8 +37,7 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"slope": 0.0005,
 				"beta_res": 1e-6,
-				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json"
+				"alpha_res": 0.001
 			}
 		},
 		"GridCell_1_2": {
@@ -61,7 +60,6 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"beta_res": 1e-6,
 				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json",
 				"slope": 0.0005
 			},
 			"RiverReach_1_2_2": {
@@ -70,7 +68,6 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"beta_res": 1e-6,
 				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json",
 				"slope": 0.0005
 			}
 		},
@@ -92,8 +89,7 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"slope": 0.0005,
 				"beta_res": 1e-6,
-				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json"
+				"alpha_res": 0.001
 			}
 		},
 		"GridCell_2_2": {
@@ -117,7 +113,6 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"beta_res": 1e-6,
 				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json",
 				"slope": 0.0005
 			},
 			"RiverReach_2_2_2": {
@@ -126,7 +121,6 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"beta_res": 1e-6,
 				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json",
 				"slope": 0.0005
 			},
 			"RiverReach_2_2_3": {
@@ -135,7 +129,6 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"beta_res": 1e-6,
 				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json",
 				"slope": 0.0005
 			},
 			"RiverReach_2_2_4": {
@@ -145,7 +138,6 @@
 				"BedSediment": "file::bed-sediment-compact.json",
 				"beta_res": 1e-6,
 				"alpha_res": 0.001,
-				"spm[s][t]": "file::spm.json",
 				"slope": 0.0005
 			}
 		}
