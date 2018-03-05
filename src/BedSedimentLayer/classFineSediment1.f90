@@ -90,28 +90,28 @@ module classFineSediment1
             allocate(Me%pd_comp(Me%nfComp), &
                 stat = allst, &
                 errmsg = allms)                                      ! allocate space for particle densities of compositional fractions
-            if (allst /= 0) then
-                er = ErrorInstance(1, &
-                                   "Allocation error: " // trim(allms), &
-                                    trace = [trim(Me%name) // &
-                "%createBedSedimentLayer1%colFineSediment"] &
-                                  )                                  ! create error
-                call r%addError(er)                                  ! add to Result
-                return                                               ! critical error, so exit
-            end if
+            !if (allst /= 0) then
+            !    er = ErrorInstance(1, &
+            !                       "Allocation error: " // trim(allms), &
+            !                        trace = [trim(Me%name) // &
+            !    "%createBedSedimentLayer1%colFineSediment"] &
+            !                      )                                  ! create error
+            !    call r%addError(er)                                  ! add to Result
+            !    return                                               ! critical error, so exit
+            !end if
             Me%pd_comp = C%d_pd                                      ! particle densities of compositional fractions from Global
             allocate(Me%f_comp(Me%nfComp), &
                 stat = allst, &
                 errmsg = allms)                                      ! allocate space for compositional fractions
-            if (allst /= 0) then
-                er = ErrorInstance(1, &
-                                   "Allocation error: " // trim(allms), &
-                                    trace = [trim(Me%name) // &
-                "%createBedSedimentLayer1%colFineSediment"] &
-                                  )                                  ! create error
-                call r%addError(er)                                  ! add to Result
-                return                                               ! critical error, so exit
-            end if
+            !if (allst /= 0) then
+            !    er = ErrorInstance(1, &
+            !                       "Allocation error: " // trim(allms), &
+            !                        trace = [trim(Me%name) // &
+            !    "%createBedSedimentLayer1%colFineSediment"] &
+            !                      )                                  ! create error
+            !    call r%addError(er)                                  ! add to Result
+            !    return                                               ! critical error, so exit
+            !end if
             me%isCreated = .true.                                    ! if we got this far, tag the object as created
         end function
         !> **Function purpose**                                     <br>

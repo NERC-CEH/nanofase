@@ -7,6 +7,21 @@ module spcRiverReach
     use spcBedSediment
     use spcReactor
     implicit none
+    
+    !> `RiverReachPointer` used for `RiverReach` inflows array, so the elements within can
+    !! point to other `GridCell`'s colRiverReach elements
+    type RiverReachPointer
+        class(RiverReach), pointer :: item => null()                  !! Pointer to polymorphic `RiverReach` object
+    end type
+    
+     !> An internal user-defined type, defining a reference to a `RiverReach` sending water to this
+    !! `RiverReach`. Comprises row (x) and column (y) references to the `GridCell` containing the
+    !! sending `RiveReach` and the in-cell `RiverReach` reference number
+    type RiverReachRef                                                 
+        integer :: x                                                !! `GridCell` x reference
+        integer :: y                                                !! `GridCell` y reference
+        integer :: rr                                               !! `RiverReach` reference
+    end type
 
     !> Abstract base class for `RiverReach`. Defines properties and procedures
     !! required in any implementation of this class.
@@ -14,18 +29,32 @@ module spcRiverReach
         character(len=100) :: ref                                   !! Reference for this object, of the form RiverReach_x_y_s_r
         integer :: x                                                !! `GridCell` x position
         integer :: y                                                !! `GridCell` y position
-        integer :: s
-        integer :: r                                                !! `RiverReach` reference
+        real(dp) :: gridCellArea                                    !! `GridCell` area
+        integer :: rr                                               !! `RiverReach` reference
+        type(RiverReachRef), allocatable :: inflowRefs(:)           !! References to inflow `RiverReach`es
+        type(RiverReachPointer), allocatable :: inflows(:)          !! Array of pointers to inflow `RiverReach`es
+        type(RiverReachPointer) :: outflow                          !! Pointer to the outflow from this `RiverReach`
+        integer, allocatable :: domainOutflow(:)                                 
+            !! If this `RiverReach` flows out of the gridded domain, this array is used to specify where to,
+            !! for reach length calculations
+        integer :: nInflows                                         !! Integer to store the number of inflows to this reach in
         real(dp) :: slope                                           !! Slope of reach [m/m]
         real(dp) :: Q_in                                            !! Inflow from upstream reach [m3/timestep]
         real(dp) :: Q_out                                           !! Outflow to the next reach [m3/timestep]
-        real(dp) :: Q_runoff                                        !! Runoff from hydrological model [m3/s]
-        real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Time series runoff data from file [m3/s]
-        real(dp), allocatable :: spmIn(:)                           !! Inflow SPM from upstream reach [kg/timestep]
-        real(dp), allocatable :: spmOut(:)                          !! Outflow SPM to next reach [kg/timestep]
+        real(dp) :: tmp_Q_out                                       !! Temporary outflow storage until timestep loop complete [m3/timestep]
+        real(dp) :: q_runoff                                        !! Runoff from hydrological model [m/timestep]
+        real(dp), allocatable :: q_runoff_timeSeries(:)             !! Time series runoff data from file [m/timestep]
+        real(dp), allocatable :: j_spm_in(:)                        !! Inflow SPM from upstream reach [kg/timestep]
+        real(dp), allocatable :: j_np_in(:,:,:)                     !! Inflow SPM from upstream reach [kg/timestep]
+        real(dp), allocatable :: j_spm_out(:)                       !! Outflow SPM to next reach [kg/timestep]
+        real(dp), allocatable :: j_np_out(:,:,:)                    !! Outflow SPM to next reach [kg/timestep]
+        real(dp), allocatable :: tmp_j_spm_out(:)                   !! Temporary outflow storage until timestep loop complete [kg/timestep]
+        real(dp), allocatable :: tmp_j_np_out(:,:,:)                !! Temporary outflow storage until timestep loop complete [kg/timestep]
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
+        real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NPs currently in reach [kg]
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
         real(dp), allocatable :: j_spm_runoff(:)                    !! Eroded soil runoff for current time step [kg/timestep]
+        real(dp), allocatable :: j_np_runoff(:,:,:)                 !! Eroded soil runoff for current time step [kg/timestep]
         real(dp) :: W                                               !! Width of reach [m]
         real(dp) :: D                                               !! Depth of water column [m]
         real(dp) :: v                                               !! Water velocity [m/s]
@@ -35,20 +64,34 @@ module spcRiverReach
         real(dp) :: bedArea                                         !! The bed sediment area in the reach [m2]
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
+        real(dp), allocatable :: C_np(:,:,:)                        !! NP mass concentration [kg/m3]
         real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux for a given timestep [kg/s]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
+        real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
+        real(dp), allocatable :: W_settle_np(:)                     !! NP settling velocity [m/s]
         real(dp) :: alpha_res                                       !! Maximum resuspendable particle size calibration param [-]
         real(dp) :: beta_res                                        !! Resuspension calibration factor [s2 kg-1]
         real(dp) :: n                                               !! Manning's roughness coefficient [-]
+        real(dp), allocatable :: T_water_timeSeries(:)              !! Water temperature time series [C]
+        real(dp) :: T_water                                         !! Water temperature on a given time step [C]
+        real(dp) :: alpha_hetero                                    !! Heteroaggregation attachment efficiency, 0-1 [-]
+        logical :: isHeadwater = .false.                            !! Is this `RiverReach` a headwater (no inflows)?
+        logical :: isGridCellInflow = .false.                       !! Is this `RiverReach` the inflow the `GridCell` its in
+        logical :: isGridCellOutflow = .false.                      !! Does the `RiverReach` outflow to another cell?
+        logical :: isDomainOutflow = .false.                        !! Does the `RiverReach` flow out of the gridded domain?
+        integer :: branch = 0                                       !! Which branch is this `RiverReach` on in the GridCell? 0 = not processed yet
+            !! TODO: Try and remove these; RiverReach shouldn't really know anything about
+            !! the GridCell - not very encapsulated
         class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         class(Reactor), allocatable :: reactor                      !! Contained Reactor object
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
-       ! Create/destory
+        ! Create/destory
         procedure(createRiverReach), deferred :: create
         procedure(destroyRiverReach), deferred :: destroy
         ! Simulators
         procedure(updateRiverReach), deferred :: update
+        procedure(finaliseUpdateRiverReach), deferred :: finaliseUpdate
         procedure(resuspensionRiverReach), deferred :: resuspension
         procedure(settlingRiverReach), deferred :: settling
         procedure(depositToBedRiverReach), deferred :: depositToBed
@@ -66,20 +109,28 @@ module spcRiverReach
         ! Getters
         procedure :: getVolume => getVolumeRiverReach
         procedure :: getQOut => getQOutRiverReach
-        procedure :: getSpmOut => getSpmOutRiverReach
+        procedure :: get_j_spm_out => get_j_spm_outRiverReach
+    end type
+      
+    !> Container type for `class(RiverReach)`, the actual type of the `RiverReach` class.
+    !! a variable of type `RiverReachElement` can be of any object type inheriting from the
+    !! `RiverReach` abstract base class.
+    type RiverReachElement                                          
+        class(RiverReach), allocatable :: item                      !! Polymorphic `RiverReach` object
     end type
 
     abstract interface
         !> Create this `RiverReach`
-        function createRiverReach(me, x, y, s, r, l, Q_runoff_timeSeries) result(res)
+        function createRiverReach(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries, gridCellArea) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! The `RiverReach` instance
-            integer :: x, y, s, r                                       !! `GridCell`, `SubRiver` and `RiverReach` identifiers
-            real(dp) :: l                                               !! The `RiverReach` length [m]
-            real(dp), allocatable :: Q_runoff_timeSeries(:)             !! Any initial runoff [m3/s]
-            type(Result) :: res                                         !! The Result object
+            integer :: x, y, rr                                         !! `GridCell` and `RiverReach` identifiers
+            real(dp) :: q_runoff_timeSeries(:)                          !! The runoff = quickflow + slowflow [m/timestep]
+            real(dp) :: T_water_timeSeries(:)                           !! Water temperature [C]
+            real(dp) :: gridCellArea                                    !! Area of the containing `GridCell`
+            type(Result) :: r                                           !! The Result object
         end function
 
         !> Destroy this `RiverReach`
@@ -91,16 +142,23 @@ module spcRiverReach
         end function
 
         !> Update this `RiverReach` on given time step
-        function updateRiverReach(me, Q_in, spmIn, t, j_spm_runoff) result(r)
+        function updateRiverReach(me, t, j_spm_runoff, j_np_runoff) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
-            real(dp) :: Q_in                                            !! Inflow to this reach [m3/timestep]
             integer :: t                                                !! What time step are we on?
-            real(dp) :: j_spm_runoff(:)		                            !! Eroded sediment runoff to this reach
-            real(dp) :: spmIn(C%nSizeClassesSpm)                        !! Inflow SPM to this reach [kg/timestep]
+            real(dp) :: j_spm_runoff(:)                                 !! Eroded sediment runoff to this reach [kg/timestep]
+            real(dp), optional :: j_np_runoff(:,:,:)                              !! Eroded NP runoff to this reach [kg/timestep]
             type(Result) :: r                                           !! The `Result` object
+        end function
+
+        !> Set temporary outflow variable to real outflow variables
+        function finaliseUpdateRiverReach(me) result(r)
+            use ResultModule, only: Result
+            import RiverReach
+            class(RiverReach) :: me
+            type(Result) :: r
         end function
 
         !> Resuspend sediment based on current river flow
@@ -197,12 +255,12 @@ module spcRiverReach
 
         !> Calculate the settling velocity of sediment particles for an individual
         !! size class
-        function calculateSettlingVelocity(Me, d, rho_spm, T) result(W_spm)
+        function calculateSettlingVelocity(Me, d, rho_particle, T) result(W_spm)
             use Globals
             import RiverReach
             class(RiverReach), intent(in) :: me                         !! The `RiverReach` instance
             real(dp), intent(in) :: d                                   !! Sediment particle diameter [m]
-            real(dp), intent(in) :: rho_spm                             !! Sediment particulate density [kg/m3]
+            real(dp), intent(in) :: rho_particle                        !! Sediment particulate density [kg/m3]
             real(dp), intent(in) :: T                                   !! Temperature [C]
             real(dp) :: W_spm                                           !! Calculated settling velocity [m/s]
         end function
@@ -219,7 +277,7 @@ module spcRiverReach
             real(dp), intent(in) :: M_prop(C%nTimeSteps)    !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]
             real(dp), intent(in) :: omega                   !! Stream power per unit bed area \( \omega \) [kg m-2]
             real(dp), intent(in) :: f_fr                    !! Friction factor \( f \) [-]
-            real(dp) :: j_res(C%nSizeClassesSpm)                 !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
+            real(dp) :: j_res(C%nSizeClassesSpm)            !! Calculated resuspension flux \( j_{\text{res}} \) [kg/s]
         end function
     end interface
 
@@ -240,9 +298,9 @@ module spcRiverReach
     end function
 
     !> Return the SPM discahrge.
-    function getSpmOutRiverReach(me) result(spmOut)
+    function get_j_spm_outRiverReach(me) result(j_spm_out)
         class(RiverReach) :: me
-        real(dp) :: spmOut(size(me%spmOut))
-        spmOut = me%spmOut
+        real(dp) :: j_spm_out(size(me%j_spm_out))
+        j_spm_out = me%j_spm_out
     end function
 end module

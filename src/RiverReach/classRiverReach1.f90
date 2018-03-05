@@ -13,16 +13,20 @@ module classRiverReach1
     !> `RiverReach1` object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
     type, public, extends(RiverReach) :: RiverReach1
-
       contains
+        ! Create/destroy
         procedure :: create => createRiverReach1
         procedure :: destroy => destroyRiverReach1
+        ! Simulators
         procedure :: update => updateRiverReach1
+        procedure :: finaliseUpdate => finaliseUpdateRiverReach1
         procedure :: resuspension => resuspensionRiverReach1
         procedure :: settling => settlingRiverReach1
         procedure :: depositToBed => depositToBedRiverReach1
+        ! Data handlers
         procedure :: setDefaults => setDefaultsRiverReach1
         procedure :: parseInputData => parseInputDataRiverReach1
+        ! Calculators
         procedure :: calculateWidth => calculateWidth1
         procedure :: calculateDepth => calculateDepth1
         procedure :: calculateVelocity => calculateVelocity1
@@ -35,15 +39,15 @@ module classRiverReach1
   contains
 
     !> Create this `RiverReach1`, parse input data and set up contained `BedSediment`
-    function createRiverReach1(me, x, y, s, r, l, Q_runoff_timeSeries) result(res)
+    function createRiverReach1(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries, gridCellArea) result(r)
         class(RiverReach1) :: me                                !! The `RiverReach1` instance.
         integer :: x                                            !! Containing `GridCell` x-position index.
         integer :: y                                            !! Containing `GridCell` y-position index.
-        integer :: s                                            !! Containing `SubRiver` index.
-        integer :: r                                            !! `RiverReach` index.
-        real(dp) :: l                                           !! Length of the `RiverReach` (without meandering).
-        real(dp), allocatable :: Q_runoff_timeSeries(:)         !! Any `GridCell` runoff (that has already been split to the correct `RiverReach` size)
-        type(Result) :: res                                     !! The Result object
+        integer :: rr                                           !! `RiverReach` index.
+        real(dp) :: q_runoff_timeSeries(:)                      !! Runoff time series [m/timestep]
+        real(dp) :: T_water_timeSeries(:)                       !! Water temperature time series [C]
+        real(dp) :: gridCellArea                                !! The area for the containing `GridCell` [m2]
+        type(Result) :: r                                       !! The Result object
         type(Result0D) :: D                                     ! Depth [m]
         type(Result0D) :: v                                     ! River velocity [m/s]
         type(Result0D) :: W                                     ! River width [m]
@@ -54,28 +58,46 @@ module classRiverReach1
         ! First, let's set the RiverReach's reference and the length
         me%x = x
         me%y = y
-        me%s = s
-        me%r = r
-        me%ref = trim(ref("RiverReach", x, y, s, r))
-        me%l = l
+        me%rr = rr
+        me%ref = trim(ref("RiverReach", x, y, rr))
+        me%gridCellArea = gridCellArea
+        allocate(me%q_runoff_timeSeries, source=q_runoff_timeSeries)    ! Runoff = slow flow + quick flow [m/timestep]
+        allocate(me%T_water_timeSeries, source=T_water_timeSeries)      ! Water temperature [C]
+
         ! Allocate the arrays of size classes and set SPM to 0 to begin with
-        allocate(me%spmIn(C%nSizeClassesSpm), &
-            me%spmOut(C%nSizeClassesSpm), &
+        allocate(me%j_spm_in(C%nSizeClassesSpm), &
+            me%j_spm_out(C%nSizeClassesSpm), &
+            me%tmp_j_spm_out(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
             me%j_spm_res(C%nSizeClassesSpm), &
             me%C_spm(C%nSizeClassesSpm), &
+            me%C_np(C%nSizeClassesNP, 4, C%nSizeClassesSpm), &
             me%k_settle(C%nSizeClassesSpm), &
+            me%W_settle_spm(C%nSizeClassesSpm), &
+            me%W_settle_np(C%nSizeClassesNP), &
             me%spmDep(C%nSizeClassesSpm), &
+            me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
+            me%j_np_in(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
+            me%j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
+            me%tmp_j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
+            me%j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
             stat=allst)
-        me%C_spm = 0                    ! Set SPM concentration and mass to 0 to begin with
+        me%C_spm = 0                    ! Set SPM, NP and flows to zero to begin with
+        me%C_np = 0
         me%m_spm = 0
-        allocate(me%Q_runoff_timeSeries, source=Q_runoff_timeSeries)    ! This reach's runoff
+        me%m_np = 0
+        me%j_spm_out = 0
+        me%j_np_out = 0
+        me%Q_out = 0
+        me%tmp_j_spm_out = 0
+        me%tmp_j_np_out = 0
+        me%tmp_Q_out = 0
         
         ! Set any defaults (no errors to be thrown)
         call me%setDefaults()
         
         ! Get data from the input data file
-        call res%addErrors( &
+        call r%addErrors( &
             .errors. me%parseInputData() &    
         )
 
@@ -85,13 +107,13 @@ module classRiverReach1
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
         allocate(BedSediment1::me%bedSediment)
-        call res%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
         
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
-        call res%addErrors(.errors. me%reactor%create(me%x, me%y))
+        call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
         
-        call res%addToTrace('Creating ' // trim(me%ref))
+        call r%addToTrace('Creating ' // trim(me%ref))
     end function
 
     !> Destroy this `RiverReach1`
@@ -101,7 +123,7 @@ module classRiverReach1
         ! TODO: Write some destroy logic
     end function
 
-    !> Update the RiverReach on this time step t, based on the inflow Q and SPM provided:
+    !> Update the RiverReach on this time step t:
     !! <ul>
     !!  <li>Masses/volumes updated according to inflows</li>
     !!  <li>Reach dimensions updated according to inflows</li>
@@ -109,29 +131,52 @@ module classRiverReach1
     !!  <li>Deposition to BedSediment removed</li>
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
-    function updateRiverReach1(me, Q_in, spmIn, t, j_spm_runoff) result(r)
+    function updateRiverReach1(me, t, j_spm_runoff, j_np_runoff) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
-        real(dp) :: Q_in                                    !! Inflow to this reach
-        real(dp) :: spmIn(C%nSizeClassesSpm)                !! Inflow SPM to this reach
-        real(dp) :: j_spm_runoff(:)		                    !! Eroded sediment runoff to this reach
         integer :: t                                        !! Current time step [s]
+        real(dp) :: j_spm_runoff(:)                         !! Eroded sediment runoff to this reach
+        real(dp), optional :: j_np_runoff(:,:,:)                      !! Eroded sediment runoff to this reach
         type(Result) :: r                                   !! `Result` object to return
+        real(dp) :: Q_in                                    ! Total inflow to this reach [m3/timestep]
+        real(dp) :: j_spm_in(C%nSizeClassesSpm)             ! Total SPM inflow to this reach [kg/timestep]
+        real(dp) :: j_np_in(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! Total NP inflow to this reach [kg/timestep]
         type(Result0D) :: D                                 ! Result object for depth
         integer :: n                                        ! Size class loop it  erator
         integer :: nDisp                                    ! Number of displacements to split reach into
         real(dp) :: dt                                      ! Length of each displacement [s]
-        integer :: i                                        ! Iterator for displacements
+        integer :: i                                        ! Iterator
         real(dp) :: dQ_in                                   ! Q_in for each displacement
-        real(dp) :: dSpmIn(C%nSizeClassesSpm)               ! spmIn for each displacement
+        real(dp) :: dj_spm_in(C%nSizeClassesSpm)            ! j_spm_in for each displacement
         real(dp) :: dSpmDep(C%nSizeClassesSpm)              ! Deposited SPM for each displacement
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
-        real(dp) :: dSpmOut(C%nSizeClassesSpm)              ! SPM outflow for the displacement
-
-        me%Q_runoff = me%Q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m3/timestep - TODO change to m/s]
-        me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff [kg/timestep]
-        me%Q_in = Q_in + me%Q_runoff                        ! Set this reach's inflow
-        me%spmIn = spmIn + me%j_spm_runoff                  ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
+        real(dp) :: dj_spm_out(C%nSizeClassesSpm)           ! SPM outflow for the displacement
+        
+        ! Initialise inflows to 0
+        Q_in = 0
+        me%j_spm_in = 0
+        me%j_np_in = 0
+        me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff of SPM [kg/timestep]
+        ! TODO Set j_np_runoff to NOT optional when GridCell has eroded NP to pass to this
+        if (present(j_np_runoff)) then
+            me%j_np_runoff = j_np_runoff                        ! Eroded soil runoff of NP [kg/timestep]
+        else
+            me%j_np_runoff = 0
+        end if
+        
+        ! Get the inflows to this reach first
+        do i = 1, me%nInflows
+            Q_in = Q_in + me%inflows(i)%item%Q_out
+            me%j_spm_in = me%j_spm_in + me%inflows(i)%item%j_spm_out
+            me%j_np_in = me%j_np_in + me%inflows(i)%item%j_np_out
+        end do
+        ! Add runoff from soil erosion
+        me%j_spm_in = me%j_spm_in + me%j_spm_runoff         ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
+        me%j_np_in = me%j_np_in + me%j_np_runoff            ! Inflow of NP from upstream reach + soil erosion [kg/timestep]
+        
+        me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
+        me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
+        me%Q_in = Q_in + me%q_runoff*me%gridCellArea        ! Set this reach's inflow, assuming all runoff ends up in river [m3/timestep]
 
         ! Calculate the depth, velocity, area and volume
         me%W = me%calculateWidth(me%Q_in/C%timeStep)
@@ -141,7 +186,7 @@ module classRiverReach1
         me%v = me%calculateVelocity(me%D, me%Q_in/C%timeStep, me%W)
         me%xsArea = me%calculateArea(me%D, me%W)            ! Calculate the cross-sectional area of the reach
         me%bedArea = me%W*me%l*me%f_m                       ! Calculate the BedSediment area
-        me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m)
+        me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m) ! Reach volume
 
         ! Set the resuspension flux me%j_spm_res and settling rate me%k_settle
         ! (but don't acutally resuspend/settle until we're looping through
@@ -157,16 +202,16 @@ module classRiverReach1
         nDisp = ceiling(me%Q_in/me%volume)                  ! Number of displacements
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
         dQ_in = me%Q_in/nDisp                               ! Inflow to the first displacement [m3]
-        dSpmIn = me%spmIn/nDisp                             ! SPM inflow to the first displacment [kg]
-        me%Q_out = 0                                        ! Reset Q_out for this time step
-        me%spmOut = 0                                       ! Reset spmOut for this time step
+        dj_spm_in = me%j_spm_in/nDisp                       ! SPM inflow to the first displacment [kg]
+        me%tmp_Q_out = 0                                    ! Reset Q_out for this time step
+        me%tmp_j_spm_out = 0                                ! Reset j_spm_out for this time step
         me%spmDep = 0                                       ! Reset deposited SPM for this time step
 
         ! Loop through the displacements
         do i = 1, nDisp
             ! Update SPM according to inflow for this displacement, then calculate
             ! new SPM concentration based on this and the dimensions
-            me%m_spm = me%m_spm + dSpmIn                    ! Add inflow SPM to SPM already in reach
+            me%m_spm = me%m_spm + dj_spm_in                    ! Add inflow SPM to SPM already in reach
             me%C_spm = me%m_spm/me%volume                   ! Update the SPM concentration
 
             ! TODO: Resuspended SPM must be taken from BedSediment
@@ -185,24 +230,57 @@ module classRiverReach1
 
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
             ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
-            dSpmOut = min(dQ_in*me%C_spm, me%m_spm)             ! Maximum of m_spm can be advected
-            me%m_spm = me%m_spm - dSpmOut                       ! Update the SPM mass after advection
+            dj_spm_out = min(dQ_in*me%C_spm, me%m_spm)          ! Maximum of m_spm can be advected
+            me%m_spm = me%m_spm - dj_spm_out                    ! Update the SPM mass after advection
             me%C_spm = me%m_spm/me%volume                       ! Update the concentration
 
             ! Sum the displacement outflows and mass for the final outflow
             ! Currently, Q_out = Q_in. Maybe abstraction etc will change this
-            me%Q_out = me%Q_out + dQ_in
-            me%spmOut = me%spmOut + dSpmOut
+            me%tmp_Q_out = me%tmp_Q_out + dQ_in
+            me%tmp_j_spm_out = me%tmp_j_spm_out + dj_spm_out
         end do
+        
+        ! HACK to set an input mass of NPs
+        if (t == 1) then
+            ! HACK: Set this from data
+            me%m_np = 0.13e-9*me%volume      ! kg/reach
+        end if
+        me%m_np = me%m_np + me%j_np_in      ! Add the inflow NP to the current mass, before passing to Reactor
+        
+        ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
+        call r%addErrors([ &
+            .errors. me%reactor%update( &
+                t, &
+                me%m_np, &
+                me%C_spm, &
+                me%T_water, &
+                me%W_settle_np, &
+                me%W_settle_spm, &
+                10.0_dp, &                    ! HACK: Where is the shear rate from?
+                me%volume, &
+                me%tmp_Q_out &
+            ) &
+        ])
+        ! Get the resultant transformed mass from the Reactor
+        me%m_np = me%reactor%m_np
+        ! Reactor only deals with transformations, not flows, so we must now
+        ! set an outflow based on the transformed mass
+        me%tmp_j_np_out = min(me%tmp_Q_out*(me%m_np/me%volume), me%m_np)
+        me%m_np = me%m_np - me%tmp_j_np_out
 
+        ! Set the final concentrations
+        me%C_spm = me%m_spm/me%volume
+        me%C_np = me%m_np/me%volume
+        
         ! Now add the settled SPM to the BedSediment
         ! TODO: Fractional composition errors trigger when calling BedSediment%deposit.
         ! Need to sort these out.
         ! call r%addErrors(.errors. me%depositToBed(me%spmDep))
 
         ! If there's no SPM left, add the "all SPM advected" warning
+        ! TODO Maybe the same for NPs
         do n = 1, C%nSizeClassesSpm
-            if (isZero(me%m_spm(n)) .and. me%spmIn(n) /= 0) then
+            if (isZero(me%m_spm(n)) .and. me%j_spm_in(n) /= 0) then
                 call r%addError(ErrorInstance( &
                     code = 500, &
                     message = "All SPM in size class " // trim(str(n)) // " (" // trim(str(C%d_spm(n)*1e6)) // &
@@ -212,10 +290,20 @@ module classRiverReach1
             end if 
         end do
         
-        ! Set the final SPM concentration
-        me%C_spm = me%m_spm/me%volume
         ! Add what we're doing here to the error trace
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
+    end function
+
+    !> Set temporary outflow variable to real outflow variables. This
+    !! method must be called after all RiverReach updates complete for
+    !! the timestep, else update() methods may use the wrong timestep's
+    !! outflows
+    function finaliseUpdateRiverReach1(me) result(r)
+        class(RiverReach1) :: me
+        type(Result) :: r
+        me%Q_out = me%tmp_Q_out
+        me%j_spm_out = me%tmp_j_spm_out
+        me%j_np_out = me%tmp_j_np_out
     end function
 
     !> Perform the resuspension simulation for a time step
@@ -277,16 +365,25 @@ module classRiverReach1
         type(Result) :: r                                   !! The `Result` object to return any errors
         type(FineSediment1) :: fineSediment                 ! Object to pass SPM to BedSediment in
         integer :: n                                        ! Size class iterator
-        real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
-        ! Loop through the size classes and calculate settling velocity
+        ! TODO: This isn't time dependent! Move out of update loop
+        ! SPM: Loop through the size classes and calculate settling velocity
         do n = 1, C%nSizeClassesSpm
-            settlingVelocity(n) = me%calculateSettlingVelocity( &
+            me%W_settle_spm(n) = me%calculateSettlingVelocity( &
                 C%d_spm(n), &
                 sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
-                C%T &
+                me%T_water &
             )
         end do
-        me%k_settle = settlingVelocity/me%D
+        me%k_settle = me%W_settle_spm/me%D
+
+        ! NP: Calculate this to pass to Reactor
+        do n = 1, C%nSizeClassesNP
+            me%W_settle_np(n) = me%calculateSettlingVelocity( &
+                C%d_np(n), &
+                4230.0_dp, &       ! HACK: rho_np, change this to account for different NP materials
+                me%T_water &
+            )
+        end do
     end function
 
     !> Send the given mass of settled SPM to the BedSediment
@@ -324,15 +421,26 @@ module classRiverReach1
         type(NcDataset) :: NC               ! NetCDF dataset
         type(NcVariable) :: var             ! NetCDF variable
         type(NcGroup) :: grp                ! NetCDF group
+        integer :: i                        ! Loop counter
+        integer, allocatable :: inflowArray(:,:) ! Temporary array for storing inflows from data file in
         
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
         ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
         grp = nc%getGroup("Environment")
-        grp = grp%getGroup(trim(ref("GridCell", me%x, me%y)))       ! Get the GridCell we're in
-        grp = grp%getGroup(trim(ref("SubRiver", me%x, me%y, me%s))) ! Get the SubRiver we're in
-		me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
+        grp = grp%getGroup(trim(ref("GridCell", me%x, me%y)))   ! Get the GridCell we're in
+        me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
+        
+        if (me%ncGroup%hasVariable("length")) then              ! Get the length of the reach, if present
+            var = me%ncGroup%getVariable("length")
+            call var%getData(me%l)
+        else
+            ! Otherwise, set to 0 and GridCell will deal with calculating length. Note that errors
+            ! might be thrown from GridCell if the reaches lengths within the GridCell are
+            ! not physically possible within the reach (e.g., too short).
+            me%l = 0                                            
+        end if
         
         var = me%ncGroup%getVariable("slope")                   ! Get the slope
         call var%getData(me%slope)
@@ -345,11 +453,74 @@ module classRiverReach1
         var = me%ncGroup%getVariable("beta_res")                ! Get the beta_res calibration factor for resuspension
         call var%getData(me%beta_res)
         ! TODO: Add checks for the above
+
+        if (me%ncGroup%hasVariable("alpha_hetero")) then
+            var = me%ncGroup%getVariable("alpha_hetero")
+            call var%getData(me%alpha_hetero)
+        else
+            call r%addError(ErrorInstance( &
+                code = 201, &
+                message = "Value for alpha_hetero not found in input file. " // &
+                            "Defaulting to that specified in config.nml.", &
+                isCritical = .false. &
+            ))
+            me%alpha_hetero = C%default_alpha_hetero
+        end if
         
+        ! ROUTING: Get the references to the inflow(s) RiverReaches and
+        ! store in inflowRefs(). Do some auditing as well.
+        if (me%ncGroup%hasVariable("inflows")) then
+            var = me%ncGroup%getVariable("inflows")
+            call var%getData(inflowArray)
+            ! There mustn't be more than 5 inflows to a reach (one from
+            ! each side/corner of the inflow GridCell)
+            if (size(inflowArray, 2) > 5) then
+                call r%addError(ErrorInstance(code=403))
+            end if
+            ! Set the number of inflows from the input inflowArray
+            allocate(me%inflowRefs(size(inflowArray, 2)))
+            me%nInflows = size(me%inflowRefs)
+            ! Loop through the inflow from data and store them at the object level
+            do i = 1, me%nInflows                               ! Loop through the inflows
+                me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
+                me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
+                me%inflowRefs(i)%rr = inflowArray(3,i)          ! Inflow RiverReach reference
+                ! Check the inflow is from a neighbouring RiverReach
+                if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
+                    call r%addError(ErrorInstance(code=401))
+                end if
+                ! Is this reach an inflow to the GridCell (i.e., are the inflows to this reach
+                ! from another GridCell)? We only need to check for the first inflow (i=1),
+                ! as the next bit checks that all inflows are from the same GridCell
+                if (i == 1 .and. (me%inflowRefs(i)%x /= me%x .or. me%inflowRefs(i)%y /= me%y)) then
+                    me%isGridCellInflow = .true.
+                end if
+                ! If there is more than one inflow to the reach, it must be
+                ! an inflow to the cell. Therefore, we need to check all
+                ! inflows are from the same cell
+                if (i > 1 .and. me%inflowRefs(i)%x /= me%inflowRefs(1)%x .and. me%inflowRefs(i)%y /= me%inflowRefs(1)%y) then
+                    call r%addError(ErrorInstance(code=402))
+                end if
+            end do
+        else
+        ! Else there mustn't be any inflows (i.e. it's a headwater)
+            allocate(me%inflowRefs(0))                          
+            me%nInflows = 0
+            me%isHeadwater = .true.
+        end if
+        ! Allocate inflows() array (the array of pointers) to the correct size
+        allocate(me%inflows(me%nInflows))
+        
+        ! If the data has an outflow to the model domain specified, set that
+        if (me%ncGroup%hasVariable("domainOutflow")) then
+            var = me%ncGroup%getVariable("domainOutflow")
+            call var%getData(me%domainOutflow)
+            me%isDomainOutflow = .true.
+        end if
         
         call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
-
+    
     !> Calculate the width \( W \) of the river based on the discharge:
     !! $$
     !!      W = 1.22Q^{0.557}
@@ -401,7 +572,7 @@ module classRiverReach1
         ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
         D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
         i = 1                                                                   ! Iterator for Newton solver
-        iMax = 10000                                                            ! Allow 10000 iterations
+        iMax = 100000                                                            ! Allow 10000 iterations
         epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
         alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
         f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
@@ -466,20 +637,20 @@ module classRiverReach1
     !!      \Delta = \frac{\rho_{\text{spm}}}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
-    function calculateSettlingVelocity1(me, d, rho_spm, T) result(W_spm)
+    function calculateSettlingVelocity1(me, d, rho_particle, T) result(W)
         class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance.
-        real(dp), intent(in) :: d                   !! Sediment particle diameter [m].
-        real(dp), intent(in) :: rho_spm             !! Sediment particle density [kg/m**3].
+        real(dp), intent(in) :: d                   !! Particle diameter [m].
+        real(dp), intent(in) :: rho_particle        !! Particle density [kg/m3].
         real(dp), intent(in) :: T                   !! Temperature [C].
-        real(dp) :: W_spm                           !! Calculated settling velocity [m/s].
+        real(dp) :: W                               !! Calculated settling velocity [m/s].
         real(dp) :: dStar                           ! Dimensionless particle diameter.
         ! Settling only occurs if SPM particle density is greater than density of water
-        if (rho_spm > C%rho_w(T)) then
-            dStar = ((rho_spm/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
-            W_spm = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                     ! Calculate the settling velocity
+        if (rho_particle > C%rho_w(T)) then
+            dStar = ((rho_particle/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
+            W = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                         ! Calculate the settling velocity
                 * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
         else
-            W_spm = 0.0_dp
+            W = 0.0_dp
         end if
     end function
 

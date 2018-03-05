@@ -72,13 +72,13 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "nRiverReaches", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "SoilProfile_1_1_1", "json" : "soil-profile.json" },
                         { "name" : "runoff", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "runoff.json" },
                         { "name" : "precip", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "precip-ceh-gear-seathwaite-2015.json" },
                         { "name" : "evap", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "evap.json" },
                         {
-                            "name" :  "SubRiver_1_1_1",
+                            "name" :  "RiverReach_1_1_1",
                             "type" : "group",
                             "data" : [
                                 { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 0 },
@@ -133,7 +133,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "nRiverReach", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
                         { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
@@ -143,7 +143,7 @@
                         { "name" : "precip", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "precip-ceh-gear-seathwaite-2015.json" },
                         { "name" : "evap", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "evap.json" },
                         {
-                            "name" :  "SubRiver_1_2_1",
+                            "name" :  "RiverReach_1_2_1",
                             "type" : "group",
                             "data" : [
                                 { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
@@ -193,7 +193,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 3 },
+                        { "name" : "nRiverReach", "type" : "variable", "datatype" : "i4", "data" : 3 },
                         { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
                         { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
@@ -203,7 +203,7 @@
                         { "name" : "evap", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "evap.json" },
                         { "name" : "SoilProfile_2_2_1", "json" : "soil-profile.json" },
                         {
-                            "name" :  "SubRiver_2_2_1",
+                            "name" :  "RiverReach_2_2_1",
                             "type" : "group",
                             "data" : [
                                 { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
@@ -246,7 +246,7 @@
                             ]
                         },
                         {
-                            "name" :  "SubRiver_2_2_2",
+                            "name" :  "RiverReach_2_2_2",
                             "type" : "group",
                             "data" : [
                                 { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
@@ -289,7 +289,7 @@
                             ]
                         },
                         {
-                            "name" :  "SubRiver_2_2_3",
+                            "name" :  "RiverReach_2_2_3",
                             "type" : "group",
                             "data" : [
                                 { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 2 },
@@ -348,7 +348,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "nRiverReach", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
                         { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
@@ -365,7 +365,7 @@
                             "data" : "runoff.json"
                         },
                         {
-                            "name" :  "SubRiver_2_3_1",
+                            "name" :  "RiverReach_2_3_1",
                             "type" : "group",
                             "data" : [
                                 { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 0 },
@@ -420,7 +420,7 @@
                     "data" : [
                         { "name" : "type", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "slope", "type" : "variable", "datatype" : "f8", "data" : 0.0005 },
-                        { "name" : "nSubRivers", "type" : "variable", "datatype" : "i4", "data" : 1 },
+                        { "name" : "nRiverReach", "type" : "variable", "datatype" : "i4", "data" : 1 },
                         { "name" : "usle_C", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "usle_C.json" },
                         { "name" : "usle_K", "type" : "variable", "datatype" : "f8", "data" : 0.032 },
                         { "name" : "usle_LS", "type" : "variable", "datatype" : "f8", "data" : 1 },
@@ -430,7 +430,7 @@
                         { "name" : "evap", "type" : "variable", "datatype" : "f8", "dimensions" : [ "nTimeSteps" ], "data" : "evap.json" },
                         { "name" : "SoilProfile_3_2_1", "json" : "soil-profile.json" },
                         {
-                            "name" :  "SubRiver_3_2_1",
+                            "name" :  "RiverReach_3_2_1",
                             "type" : "group",
                             "data" : [
                                 { "name" : "nInflows", "type" : "variable", "datatype" : "i4", "data" : 1 },
