@@ -14,3 +14,4 @@ The configuration file - specified in Globals.f08, currently `config.nml` - is u
     + `defaultSoilLayerDepth`: The default depth of soil layers [m].
 - `river`
     + `maxRiverReaches`: Maximum number of RiverReaches within a GridCell.
+    + `defaultMeanderingFactor`: The default meandering factor to increase `RiverReach` length by [-].
