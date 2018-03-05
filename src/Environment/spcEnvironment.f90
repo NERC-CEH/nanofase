@@ -17,6 +17,8 @@ module spcEnvironment
         procedure(destroyEnvironment), deferred :: destroy
         procedure(updateEnvironment), deferred :: update
         procedure(parseInputDataEnvironment), deferred :: parseInputData
+        ! Getters
+        procedure(get_m_npEnvironment), deferred :: get_m_np
     end type
 
     abstract interface
@@ -52,6 +54,13 @@ module spcEnvironment
             import Environment
             class(Environment) :: me
             type(Result) :: r
+        end function
+        
+        function get_m_npEnvironment(me) result(m_np)
+            use Globals
+            import Environment
+            class(Environment) :: me
+            real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)
         end function
     end interface
 end module

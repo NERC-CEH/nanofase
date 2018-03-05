@@ -19,6 +19,8 @@ module classEnvironment1
         procedure :: destroy => destroyEnvironment1
         procedure :: update => updateEnvironment1
         procedure :: parseInputData => parseInputDataEnvironment1
+        ! Getters
+        procedure :: get_m_np => get_m_npEnvironment1
     end type
 
   contains
@@ -159,6 +161,21 @@ module classEnvironment1
         me%ncGroup = nc%getGroup("Environment")             ! Get the Environment group
         var = me%ncGroup%getVariable("gridSize")            ! Get the grid size from the Environment
         call var%getData(me%gridSize)
+    end function
+    
+    function get_m_npEnvironment1(me) result(m_np)
+        class(Environment1) :: me
+        real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)
+        integer :: x, y, rr
+        m_np = 0
+        do y = 1, size(me%colGridCells, 2)
+            do x = 1, size(me%colGridCells, 1)
+                do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)
+                    m_np = m_np + me%colGridCells(x,y)%item%colRiverReaches(rr)%item%reactor%m_np
+                end do
+            end do
+        end do
+        
     end function
 
 end module
