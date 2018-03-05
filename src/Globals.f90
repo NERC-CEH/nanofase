@@ -51,8 +51,9 @@ module Globals
         integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
       contains
-        procedure :: rho_w
-        procedure :: nu_w
+        procedure :: rho_w      ! Density of water
+        procedure :: nu_w       ! Kinematic viscosity of water
+        procedure :: mu_w       ! Dynamic viscosity of water
     end type
 
     type(GlobalsType) :: C
@@ -207,6 +208,7 @@ module Globals
     !! $$
     !!      \nu_{\text{w}}(T,S) = \frac{1}{\rho_w(T,S)} 2.414\times 10^{-5} \cdot 10^{\frac{247.8}{(T+273.15)-140.0}}
     !! $$
+    !! Reference: [T. Al-Shemmeri](http://varunkamboj.typepad.com/files/engineering-fluid-mechanics-1.pdf)
     function nu_w(me, T, S)
         class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
         real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
@@ -217,5 +219,17 @@ module Globals
         else
             nu_w = (2.414e-5_dp * 10.0_dp**(247.8_dp/((T+273.15_dp)-140.0_dp)))/me%rho_w(T)
         end if
+    end function
+    
+    !> Calculate the dynamic viscosity of water \( \mu_w \) at a given temperature \( T \)
+    !! $$
+    !!      \nu_{\text{w}}(T,S) = 2.414\times 10^{-5} \cdot 10^{\frac{247.8}{(T+273.15)-140.0}}
+    !! $$
+    !! Reference: [T. Al-Shemmeri](http://varunkamboj.typepad.com/files/engineering-fluid-mechanics-1.pdf)
+    function mu_w(me, T)
+        class(GlobalsType), intent(in) :: me
+        real(dp), intent(in) :: T
+        real(dp) :: mu_w
+        mu_w = (2.414e-5_dp * 10.0_dp**(247.8_dp/((T+273.15_dp)-140.0_dp)))
     end function
 end module

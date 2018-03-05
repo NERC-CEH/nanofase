@@ -29,6 +29,7 @@ module spcRiverReach
         character(len=100) :: ref                                   !! Reference for this object, of the form RiverReach_x_y_s_r
         integer :: x                                                !! `GridCell` x position
         integer :: y                                                !! `GridCell` y position
+        real(dp) :: gridCellArea                                    !! `GridCell` area
         integer :: rr                                               !! `RiverReach` reference
         type(RiverReachRef), allocatable :: inflowRefs(:)           !! References to inflow `RiverReach`es
         type(RiverReachPointer), allocatable :: inflows(:)          !! Array of pointers to inflow `RiverReach`es
@@ -44,11 +45,16 @@ module spcRiverReach
         real(dp) :: q_runoff                                        !! Runoff from hydrological model [m/timestep]
         real(dp), allocatable :: q_runoff_timeSeries(:)             !! Time series runoff data from file [m/timestep]
         real(dp), allocatable :: j_spm_in(:)                        !! Inflow SPM from upstream reach [kg/timestep]
-        real(dp), allocatable :: j_spm_out(:)                          !! Outflow SPM to next reach [kg/timestep]
-        real(dp), allocatable :: tmp_j_spm_out(:)                      !! Temporary outflow storage until timestep loop complete [kg/timestep]
+        real(dp), allocatable :: j_np_in(:,:,:)                     !! Inflow SPM from upstream reach [kg/timestep]
+        real(dp), allocatable :: j_spm_out(:)                       !! Outflow SPM to next reach [kg/timestep]
+        real(dp), allocatable :: j_np_out(:,:,:)                    !! Outflow SPM to next reach [kg/timestep]
+        real(dp), allocatable :: tmp_j_spm_out(:)                   !! Temporary outflow storage until timestep loop complete [kg/timestep]
+        real(dp), allocatable :: tmp_j_np_out(:,:,:)                !! Temporary outflow storage until timestep loop complete [kg/timestep]
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
+        real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NPs currently in reach [kg]
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
         real(dp), allocatable :: j_spm_runoff(:)                    !! Eroded soil runoff for current time step [kg/timestep]
+        real(dp), allocatable :: j_np_runoff(:,:,:)                 !! Eroded soil runoff for current time step [kg/timestep]
         real(dp) :: W                                               !! Width of reach [m]
         real(dp) :: D                                               !! Depth of water column [m]
         real(dp) :: v                                               !! Water velocity [m/s]
@@ -58,6 +64,7 @@ module spcRiverReach
         real(dp) :: bedArea                                         !! The bed sediment area in the reach [m2]
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
+        real(dp), allocatable :: C_np(:,:,:)                        !! NP mass concentration [kg/m3]
         real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux for a given timestep [kg/s]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
@@ -114,7 +121,7 @@ module spcRiverReach
 
     abstract interface
         !> Create this `RiverReach`
-        function createRiverReach(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries) result(r)
+        function createRiverReach(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries, gridCellArea) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
@@ -122,6 +129,7 @@ module spcRiverReach
             integer :: x, y, rr                                         !! `GridCell` and `RiverReach` identifiers
             real(dp) :: q_runoff_timeSeries(:)                          !! The runoff = quickflow + slowflow [m/timestep]
             real(dp) :: T_water_timeSeries(:)                           !! Water temperature [C]
+            real(dp) :: gridCellArea                                    !! Area of the containing `GridCell`
             type(Result) :: r                                           !! The Result object
         end function
 
@@ -134,13 +142,14 @@ module spcRiverReach
         end function
 
         !> Update this `RiverReach` on given time step
-        function updateRiverReach(me, t, j_spm_runoff) result(r)
+        function updateRiverReach(me, t, j_spm_runoff, j_np_runoff) result(r)
             use Globals
             use ResultModule, only: Result
             import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             integer :: t                                                !! What time step are we on?
             real(dp) :: j_spm_runoff(:)                                 !! Eroded sediment runoff to this reach [kg/timestep]
+            real(dp), optional :: j_np_runoff(:,:,:)                              !! Eroded NP runoff to this reach [kg/timestep]
             type(Result) :: r                                           !! The `Result` object
         end function
 

@@ -19,5 +19,5 @@ defaultSoilLayerDepth = 0.1
 maxRiverReaches = 100
 defaultMeanderingFactor = 1.0
 defaultWaterTemperature = 10
-default_alpha_hetero = 0.1
+default_alpha_hetero = 0.01
 /

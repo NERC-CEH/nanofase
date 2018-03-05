@@ -103,7 +103,8 @@ module classGridCell1
                     me%y, &
                     rr, &
                     me%q_runoff_timeSeries, &
-                    me%T_water_timeSeries &
+                    me%T_water_timeSeries, &
+                    me%area &
                 ) &
             )
             ! If the RiverReach we just created is the head of a branch in this
@@ -414,6 +415,7 @@ module classGridCell1
         else
             me%q_runoff_timeSeries = 0
         end if
+        
         ! Get the time-dependent surface runoff (quickflow) [m/s]
         if (me%ncGroup%hasVariable("quickflow")) then
             var = me%ncGroup%getVariable("quickflow")
