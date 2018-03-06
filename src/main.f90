@@ -55,7 +55,7 @@ program main
                 end if
             end do
         end do
-        write(4, '(i4,A,F12.3,A,F12.3,A,F12.3,A,F12.3,A,F12.3,A,F12.3,A,F12.3)') t, ",", m_np_free, ",", sum(m_np_hetero), ",", sum(m_np_hetero(:,1)), ",", sum(m_np_hetero(:,2)), ",", &
+        write(4, '(i4,A,F12.6,A,F12.6,A,F12.6,A,F12.6,A,F12.6,A,F12.6,A,F12.6)') t, ",", m_np_free, ",", sum(m_np_hetero), ",", sum(m_np_hetero(:,1)), ",", sum(m_np_hetero(:,2)), ",", &
             sum(m_np_hetero(:,3)), ",", sum(m_np_hetero(:,4)), ",", sum(m_np_hetero(:,5))
     end do
 
