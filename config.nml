@@ -5,7 +5,7 @@ outputFile = "data/output.csv"
 
 &run
 timeStep = 86400,
-nTimeSteps = 10,
+nTimeSteps = 1095,
 epsilon = 1e-10,
 errorOutput = .false.
 defaultGridSize = 5000

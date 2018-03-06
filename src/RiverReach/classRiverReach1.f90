@@ -81,6 +81,7 @@ module classRiverReach1
             me%j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
             me%tmp_j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
             me%j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
+            me%npDep(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
             stat=allst)
         me%C_spm = 0                    ! Set SPM, NP and flows to zero to begin with
         me%C_np = 0
@@ -131,6 +132,7 @@ module classRiverReach1
     !!  <li>Deposition to BedSediment removed</li>
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
+    !! TODO Put this all into a mass transfer matrix
     function updateRiverReach1(me, t, j_spm_runoff, j_np_runoff) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
         integer :: t                                        !! Current time step [s]
@@ -141,7 +143,7 @@ module classRiverReach1
         real(dp) :: j_spm_in(C%nSizeClassesSpm)             ! Total SPM inflow to this reach [kg/timestep]
         real(dp) :: j_np_in(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! Total NP inflow to this reach [kg/timestep]
         type(Result0D) :: D                                 ! Result object for depth
-        integer :: n                                        ! Size class loop it  erator
+        integer :: n                                        ! Size class loop iterator
         integer :: nDisp                                    ! Number of displacements to split reach into
         real(dp) :: dt                                      ! Length of each displacement [s]
         integer :: i                                        ! Iterator
@@ -151,11 +153,13 @@ module classRiverReach1
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dj_spm_out(C%nSizeClassesSpm)           ! SPM outflow for the displacement
+        real(dp) :: fractionSpmDep(C%nSizeClassesSpm)       ! Fraction of SPM deposited on each time step [-]
         
         ! Initialise inflows to 0
         Q_in = 0
         me%j_spm_in = 0
         me%j_np_in = 0
+        fractionSpmDep = 0
         me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff of SPM [kg/timestep]
         ! TODO Set j_np_runoff to NOT optional when GridCell has eroded NP to pass to this
         if (present(j_np_runoff)) then
@@ -206,6 +210,7 @@ module classRiverReach1
         me%tmp_Q_out = 0                                    ! Reset Q_out for this time step
         me%tmp_j_spm_out = 0                                ! Reset j_spm_out for this time step
         me%spmDep = 0                                       ! Reset deposited SPM for this time step
+        me%npDep = 0                                        ! Reset deposited NP for this time step
 
         ! Loop through the displacements
         do i = 1, nDisp
@@ -224,6 +229,7 @@ module classRiverReach1
             dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)    ! Up to a maximum of the mass of SPM currently in reach
             me%m_spm = me%m_spm - dSpmDep
             me%spmDep = me%spmDep + dSpmDep                 ! Keep track of deposited SPM for this time step
+            fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm  ! Set the fraction of SPM deposited, for use in calculated heteroaggregated NP deposition
             me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
 
             ! Other stuff, like abstraction, to go here.
@@ -239,6 +245,15 @@ module classRiverReach1
             me%tmp_Q_out = me%tmp_Q_out + dQ_in
             me%tmp_j_spm_out = me%tmp_j_spm_out + dj_spm_out
         end do
+        
+        ! Use amount of settled SPM to get rid of heteroaggregated NPs, assuming
+        ! uniformly distributed amongst SPM
+        do n = 1, C%nSizeClassesSpm
+            me%npDep(:,:,n+2) = min(me%m_np(:,:,n+2)*fractionSpmDep(n), me%m_np(:,:,n+2))
+        end do
+        me%m_np = me%m_np - me%npDep
+        print *, "np", t, me%x, me%y, sum(me%npDep)
+        print *, "spm", t, me%x, me%y, sum(me%spmDep)
         
         ! HACK to set an input mass of NPs
         if (t == 1) then
@@ -258,7 +273,7 @@ module classRiverReach1
                 me%W_settle_spm, &
                 10.0_dp, &                    ! HACK: Where is the shear rate from?
                 me%volume, &
-                me%tmp_Q_out &
+                me%tmp_Q_out &                  ! TODO: Is this used?
             ) &
         ])
         ! Get the resultant transformed mass from the Reactor

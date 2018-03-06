@@ -293,6 +293,7 @@ module classGridCell1
         type(Result) :: r                                       !! `Result` object to return errors in
         integer :: rr                                           ! Loop counter
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
+        real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Loop through all SoilProfiles (only one for the moment), run their
@@ -307,11 +308,14 @@ module classGridCell1
                 ! Determine the proportion of this reach's length to the the total
                 ! river length in this GridCell
                 lengthRatio = me%colRiverReaches(rr)%item%l/sum(me%branchLengths)
+                ! HACK to set NP runoff to 1e-9 SPM runoff
+                j_np_runoff = lengthRatio*sum(me%erodedSediment)*1e-9
                 ! Update the reach for this timestep
                 call r%addErrors(.errors. &
                     me%colRiverReaches(rr)%item%update( &
                         t = t, &
-                        j_spm_runoff = me%erodedSediment*lengthRatio &
+                        j_spm_runoff = me%erodedSediment*lengthRatio, &
+                        j_np_runoff = j_np_runoff &
                     ) &
                 )
             end do

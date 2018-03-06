@@ -53,6 +53,7 @@ module spcRiverReach
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NPs currently in reach [kg]
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
+        real(dp), allocatable :: npDep(:,:,:)                       !! NP deposited on current time step [kg/timestep]
         real(dp), allocatable :: j_spm_runoff(:)                    !! Eroded soil runoff for current time step [kg/timestep]
         real(dp), allocatable :: j_np_runoff(:,:,:)                 !! Eroded soil runoff for current time step [kg/timestep]
         real(dp) :: W                                               !! Width of reach [m]
