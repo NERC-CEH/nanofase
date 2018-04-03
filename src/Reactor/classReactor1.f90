@@ -101,19 +101,6 @@ module classReactor1
             )
         end do
 
-        ! Same for free NPs
-        ! TODO: Only core for the moment, change this
-        !do n = 1, C%nSizeClassesNP
-        !    me%C_np_free_particle(n) = me%calculateParticleConcentration( &
-        !        me%m_np(n,1,1)/me%volume, &               ! mass concentration [kg/m3]
-        !        me%rho_np, &                                ! HACK for TiO2 [kg/m3]
-        !        C%d_np(n) &
-        !    )
-        !end do
-        
-        print *, ""
-        print *, "time: ", t
-
         ! Heteroaggregate NPs to SPM, which updates m_np accordingly
         call r%addErrors(.errors. me%heteroaggregation())
         
@@ -124,15 +111,15 @@ module classReactor1
     
     !> Perform the heteroaggregation calculation for this time step
     function heteroaggregationReactor1(me) result(r)
-        class(Reactor1) :: me
-        real(dp) :: beta(4,C%nSizeClassesSpm + 2)
-        type(Result) :: r
-        real(dp) :: k_coll(C%nSizeClassesNp,C%nSizeClassesSpm)
-        integer :: s, n
+        class(Reactor1) :: me                               !! This `Reactor1` instance
+        !real(dp) :: beta(4,C%nSizeClassesSpm + 2) 
+        type(Result) :: r                                   !! The `Result` object to return any errors in
+        real(dp) :: k_coll(C%nSizeClassesNp,C%nSizeClassesSpm)  ! Collision frequency [s-1]
+        integer :: s, n                                     ! Iterators for NM and SPM size classes
         real(dp) :: T(C%nSizeClassesNP, C%nSizeClassesSpm + 2, C%nSizeClassesSpm + 2)
-        real(dp) :: dm_hetero           !! Mass of NPs heteroaggregated on this timestep [kg/timestep]
+        real(dp) :: dm_hetero           ! Mass of NPs heteroaggregated on this timestep [kg/timestep]
 
-        ! Calculate the collision rate
+        ! Calculate the collision rate and then heteroaggregation rate constant
         k_coll = me%calculateCollisionRate( &
             me%T_water, &
             me%G, &
@@ -144,11 +131,6 @@ module classReactor1
                 me%k_hetero(n,s) = k_coll(n,s) * me%alpha_hetero * me%C_spm_particle(s)
             end do
         end do
-        
-        print *, "C_spm_particle: ", me%C_spm_particle(1)
-        print *, "m_np(1,1,1) before trans: ", me%m_np(1,1,1)
-        print *, "m_np(1,1,3) before trans: ", me%m_np(1,1,3)
-        
         
         do n = 1, C%nSizeClassesNP
             ! Calculate mass heteroaggregated (dm_hetero)
@@ -163,9 +145,6 @@ module classReactor1
                 me%m_np(n,1,s+2) = me%m_np(n,1,s+2) + dm_hetero                 ! Add that heteroaggregated NPs
             end do
         end do
-
-        print *, "m_np(1,1,1) after trans: ", me%m_np(1,1,1)
-        print *, "m_np(1,1,3) after trans: ", me%m_np(1,1,3)
 
         ! TODO: Use transformation matrix similar to below
         !! Construct transformation matrix

@@ -1,4 +1,4 @@
-# Conventions
+# Code conventions
 
 *Work in progress*
 
