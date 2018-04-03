@@ -163,7 +163,7 @@ module classRiverReach1
         me%j_spm_runoff = j_spm_runoff                      ! Eroded soil runoff of SPM [kg/timestep]
         ! TODO Set j_np_runoff to NOT optional when GridCell has eroded NP to pass to this
         if (present(j_np_runoff)) then
-            me%j_np_runoff = j_np_runoff                        ! Eroded soil runoff of NP [kg/timestep]
+            me%j_np_runoff = j_np_runoff                    ! Eroded soil runoff of NP [kg/timestep]
         else
             me%j_np_runoff = 0
         end if
@@ -178,6 +178,11 @@ module classRiverReach1
         me%j_spm_in = me%j_spm_in + me%j_spm_runoff         ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
         me%j_np_in = me%j_np_in + me%j_np_runoff            ! Inflow of NP from upstream reach + soil erosion [kg/timestep]
         
+        ! HACK: Set point source for (2,3) and (3,1), emitting every 10 days
+        if (mod(t,10) == 0 .and. ((me%x == 2 .and. me%y == 3) .or. (me%x == 3 .and. me%y == 1))) then
+            me%j_np_in = me%j_np_in + 1e-9*3e6             ! Add a fixed mass, roughly equal to conc of 1 ng/L and river volume of 3e6
+        end if
+                
         me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
         me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
         me%Q_in = Q_in + me%q_runoff*me%gridCellArea        ! Set this reach's inflow, assuming all runoff ends up in river [m3/timestep]
@@ -211,6 +216,9 @@ module classRiverReach1
         me%tmp_j_spm_out = 0                                ! Reset j_spm_out for this time step
         me%spmDep = 0                                       ! Reset deposited SPM for this time step
         me%npDep = 0                                        ! Reset deposited NP for this time step
+        
+        ! Add the inflow NP to the current mass
+        me%m_np = me%m_np + me%j_np_in
 
         ! Loop through the displacements
         do i = 1, nDisp
@@ -229,7 +237,10 @@ module classRiverReach1
             dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)    ! Up to a maximum of the mass of SPM currently in reach
             me%m_spm = me%m_spm - dSpmDep
             me%spmDep = me%spmDep + dSpmDep                 ! Keep track of deposited SPM for this time step
-            fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm  ! Set the fraction of SPM deposited, for use in calculated heteroaggregated NP deposition
+            ! Set the fraction of total SPM that is deposited (included resuspension),
+            ! for use in calculating heteroaggregated NP deposition
+            !fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm - me%j_spm_res*dt/me%m_spm
+            fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm
             me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
 
             ! Other stuff, like abstraction, to go here.
@@ -248,19 +259,17 @@ module classRiverReach1
         
         ! Use amount of settled SPM to get rid of heteroaggregated NPs, assuming
         ! uniformly distributed amongst SPM
+        ! TODO Resuspension also!
         do n = 1, C%nSizeClassesSpm
-            me%npDep(:,:,n+2) = min(me%m_np(:,:,n+2)*fractionSpmDep(n), me%m_np(:,:,n+2))
+            me%npDep(:,:,n+2) = min(me%m_np(:,:,n+2)*fractionSpmDep(n), me%m_np(:,:,n+2)) ! Rename m_np_dep
         end do
-        me%m_np = me%m_np - me%npDep
-        print *, "np", t, me%x, me%y, sum(me%npDep)
-        print *, "spm", t, me%x, me%y, sum(me%spmDep)
+        me%m_np = me%m_np - me%npDep                ! Remove deposited NPs
         
         ! HACK to set an input mass of NPs
-        if (t == 1) then
-            ! HACK: Set this from data
-            me%m_np = 0.13e-9*me%volume      ! kg/reach
-        end if
-        me%m_np = me%m_np + me%j_np_in      ! Add the inflow NP to the current mass, before passing to Reactor
+        !if (t == 1) then
+        !    ! HACK: Set this from data
+        !    me%m_np = 0.13e-9*me%volume      ! kg/reach
+        !end if
         
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         call r%addErrors([ &
@@ -290,7 +299,7 @@ module classRiverReach1
         ! Now add the settled SPM to the BedSediment
         ! TODO: Fractional composition errors trigger when calling BedSediment%deposit.
         ! Need to sort these out.
-        ! call r%addErrors(.errors. me%depositToBed(me%spmDep))
+        call r%addErrors(.errors. me%depositToBed(me%spmDep))
 
         ! If there's no SPM left, add the "all SPM advected" warning
         ! TODO Maybe the same for NPs
@@ -366,8 +375,8 @@ module classRiverReach1
             ! Remove the material from the bed sediment
             ! TODO: Not working - BedSediment throws memory errors
             ! TODO: Double check M_resus param for resuspend is really /m2
-            ! print *, me%j_spm_res*C%timeStep/me%bedArea
-            ! call r%addErrors(.errors. me%bedSediment%resuspend(me%j_spm_res*C%timeStep/me%bedArea))
+            !print *, me%j_spm_res*C%timeStep/me%bedArea
+            call r%addErrors(.errors. me%bedSediment%resuspend(me%j_spm_res*C%timeStep/me%bedArea))
         else
             me%j_spm_res = 0                                ! If there's no inflow
         end if

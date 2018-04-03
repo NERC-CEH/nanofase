@@ -166,7 +166,7 @@ module classBedSediment1
         real(dp) :: M_resusp(:)                                      !! Sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
         type(ResultFineSediment2D) :: r                              !! Returned `Result` object. Type = `FineSediment`
         type(FineSediment1), allocatable :: FS(:,:)                  ! LOCAL resuspended fine sediment. Index 1 = size class, Index 2 = layer
-!        type(FineSediment1), allocatable :: F                        ! LOCAL FineSediment object representing material that has been resuspended
+        type(FineSediment1), allocatable :: F                        ! LOCAL FineSediment object representing material that has been resuspended
         type(FineSediment1) :: tmpFineSediment(2)                    ! LOCAL temporary variable for storing return values
         type(FineSediment1), allocatable :: G                        ! LOCAL FineSediment object representing material to be resuspended
         type(ErrorInstance) :: er                                    ! LOCAL error instance
@@ -175,7 +175,7 @@ module classBedSediment1
         integer :: allst                                             ! LOCAL array allocation status
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
         type(ResultFineSediment1D) :: r1D                            ! LOCAL temporary variable for storing Result with 1D data in
-!       class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
+       class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
         !
         ! Notes
         ! -----------------------------------------------------------------------------------------
@@ -194,14 +194,14 @@ module classBedSediment1
                            )                                         ! create error instance
             return
         end if                                                       ! exit if a critical error has been thrown
-!        allocate(F, stat = allst)                                    ! set up FineSediment1 variable F
-!        if (allst /= 0) then
-!            r%AddError = ErrorInstance(code = 1, &
-!                               message = "Allocation error", &
-!                               trace = [Me%name // &
-!                                        "%resuspendSediment1%F"] &
-!                              )                                      ! create  if error thrown
-!        end if
+        allocate(F, stat = allst)                                    ! set up FineSediment1 variable F
+        if (allst /= 0) then
+            call r%AddError(ErrorInstance(code = 1, &
+                               message = "Allocation error", &
+                               trace = [Me%name // &
+                                        "%resuspendSediment1%F"] &
+                              ))                                      ! create  if error thrown
+        end if
         allocate(G, stat = allst)                                    ! set up FineSediment1 variable G
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
@@ -248,18 +248,18 @@ module classBedSediment1
                     end if
                     tmpFineSediment = .finesediment. r1D
                     FS(L, S) = tmpFineSediment(1)                    ! retrieve FineSediment object from result, contains sediment that was resuspended
-!                    allocate(data1D, source=r1D%getData())           ! Get the data from r0D to retrieve in select type
-!                    select type (data => data1D(1))                  ! Put the resuspended sediment into F
-!                        type is (FineSediment1)
-!                            F = data
-!                        class default
-!                    end select
-!                    call r%addErrors(.errors. &
-!                         FS(L, S)%set(Mf_in = F%M_f(), &
-!                                      Vw_in = F%V_w(), &
-!                                      f_comp_in = F%f_comp &
-!                                     ) &
-!                                    )                                ! set resuspended fine sediment mass, water volume and fractional composition
+                    allocate(data1D, source=r1D%getData())           ! Get the data from r0D to retrieve in select type
+                    select type (data => data1D(1))                  ! Put the resuspended sediment into F
+                        type is (FineSediment1)
+                            F = data
+                        class default
+                    end select
+                    call r%addErrors(.errors. &
+                         FS(L, S)%set(Mf_in = F%M_f(), &
+                                      Vw_in = F%V_w(), &
+                                      f_comp_in = F%f_comp &
+                                     ) &
+                                    )                                ! set resuspended fine sediment mass, water volume and fractional composition
                     if (r%hasCriticalError()) then
                         call r%addToTrace(tr)
                         return                                       ! exit if a critical error has been thrown
@@ -314,7 +314,7 @@ module classBedSediment1
         real(dp) :: V_f_b                                            ! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
         real(dp) :: V_w_b                                            ! LOCAL available water capacity in the receiving layer [m3 m-2]
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
-!        class(*), allocatable :: data1D(:)                           ! LOCAL temporary polymorphic data variable
+        class(*), allocatable :: data1D(:)                           ! LOCAL temporary polymorphic data variable
         ! -------------------------------------------------------------------------------
         !
         ! Notes
@@ -372,13 +372,13 @@ module classBedSediment1
             call r%addError(er)                                      ! add to Result
         end if
         if (r%hasCriticalError()) return                             ! exit if allocation error thrown
-!        do S = 1, Me%nSizeClasses                                    ! compose FineSediment1 objects from the inputs
-!            call r%addErrors(.errors. &
-!                 DS(S)%set(Mf_in = FS_dep(S)%M_f, &
-!                       f_comp_in = FS_dep(S)%f_comp &
-!                          ) &
-!                            )                                        ! populate DS with depositing sediment and its fractional composition
-!        end do
+        do S = 1, Me%nSizeClasses                                    ! compose FineSediment1 objects from the inputs
+            call r%addErrors(.errors. &
+                 DS(S)%set(Mf_in = FS_dep(S)%M_f(), &
+                       f_comp_in = FS_dep(S)%f_comp &
+                          ) &
+                            )                                        ! populate DS with depositing sediment and its fractional composition
+        end do
         do S = 1, Me%nSizeClasses
             call r%addError(FS_dep(S)%audit_comp())                  ! audits fractional composition of deposition, returns error instance
             if (r%hasCriticalError()) then                           ! if fcomp_audit throws a critical error
