@@ -466,6 +466,7 @@ module classRiverReach1
             me%l = 0                                            
         end if
         
+        ! TODO: Slope should default to GridCell slope if not present
         var = me%ncGroup%getVariable("slope")                   ! Get the slope
         call var%getData(me%slope)
         if (me%ncGroup%hasVariable("f_m")) then                 ! If there is a meandering factor, get that

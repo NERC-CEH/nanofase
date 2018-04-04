@@ -467,7 +467,7 @@ module classGridCell1
             ))
             me%n_river = 0.035
         end if
-        
+        ! Water temperature [C]
         if (me%ncGroup%hasVariable('T_water')) then
             var = me%ncGroup%getVariable('T_water')
             call var%getData(me%T_water_timeSeries)
