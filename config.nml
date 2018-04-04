@@ -11,6 +11,12 @@ errorOutput = .false.
 defaultGridSize = 5000
 /
 
+&global
+default_grid_size = 5000,
+default_distribution_sediment = [ 50, 30, 10, 7, 3 ],
+default_distribution_np = [ 50, 30, 10, 7, 3 ]
+/
+
 &soil
 defaultSoilLayerDepth = 0.1
 /

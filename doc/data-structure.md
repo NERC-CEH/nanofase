@@ -1,6 +1,6 @@
-# Data structure
+# Database structure
 
-Structure of data output from `Database` objects:
+Proposed structure of data output from `Database` objects:
 
 *Work in progress - `Database` objects not currently implemented.*
 
@@ -15,7 +15,6 @@ Structure of data output from `Database` objects:
         * `temperature`
         * GridCell[]
             - `type`
-            - `n_SubRivers(:)`
             - `runoff_timeseries(n_timesteps)`
             - SubRiver[]
                 + `n_inflows`

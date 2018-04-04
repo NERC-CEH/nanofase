@@ -213,9 +213,9 @@ module classSoilProfile1
         class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         real(dp)            :: mass                             !! The mass to split into size classes
         real(dp)            :: distribution(C%nSizeClassesSpm)  !! The resulting distribution
-        integer             :: i                                ! Loop iterator for size classes
-        do i = 1, C%nSizeClassesSpm
-            distribution(i) = mass*me%distributionSediment(i)*0.01
+        integer             :: s                                ! Loop iterator for size classes
+        do s = 1, C%nSizeClassesSpm
+            distribution(s) = mass*me%distributionSediment(s)*0.01
         end do
     end function
 
