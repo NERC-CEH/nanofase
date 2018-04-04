@@ -4,6 +4,8 @@ List of the parameters required in the input data, along with any defaults. See 
 
 The [convention](/doc/conventions.md) is that input data is parsed in an object's `parseInputData()` method. Format of the below list is `input_data_var_name[dimensions]`&#129146; `internalModelVarName`. If no `internalModelVarName` specified, it is the same of `input_data_var_name`. Required dimensions are given below the data. See [conventions](/doc/conventions.md) for variable naming conventions.
 
+*Note: SubRiver will eventually be removed and GridCells will directly contain RiverReaches, modifying this input file structure somewhat.*
+
 - **`global`**
     + `spm_size_classes[s]` &#129146; `spmSizeClasses`: Sizes of the binned SPM size classes.
     + `np_size_classes[n]` &#129146; `npSizeClasses`: Sizes of the binned NP size classes.
@@ -51,22 +53,24 @@ The [convention](/doc/conventions.md) is that input data is parsed in an object'
             - `alpha_hetero`: *Defaults to [`config%default_alpha_hetero`](/doc/config.md)*. Attachment efficiency for modelled NM [-].
             - `alpha_res`: **Required**. Calibration factor for maximum resuspendable particle size [-]. See [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub), parameter a<sub>7</sub>.
             - `beta_res`: **Required**. Calibration factor for resuspension [s2/kg]. See [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub), parameter a<sub>8</sub>.
-            - `f_m`: *Defaults to 1 (no meandering)*. Meandering factor such that actual river length = linear river length * f_m [-].
-            - `slope`: **Required**. Slope of the RiverReach [m/m]. *TODO: Should default to the GridCell slope, if not present.*
-            - `inflows[in][riverReachRef]`: *Defaults to no inflows*. An array of references to RiverReaches that inflow to this RiverReach, in the form [x, y, r] (e.g. RiverReach_1_2_3 is specified by [1, 2, 3]). See [spatial structure](/doc/spatial-structure.md) docs.
-            - `domain_outflow` &#129146; `domainOutflow`: *Defaults to no domain outflow*. Specify whether this GridCell is the outflow to the model domain by providing a GridCell reference that *would* form the outflow to this cell if it was in the model domain. If present, water, sediment and NM flows are permitted to exit the model domain via the boundary between this cell and the referenced GridCell. See [spatial structure](/doc/spatial-structure.md).
-            - **`BedSediment`**
-                + `n_layers` &#129146; `nLayers`: **Required**. Number of BedSedimentLayers in this BedSediment [-].
-                + `sediment_type` &#129146; *no internal variable - type dictates the class to be instantiated for the BedSediment object*: Integer representing the "type" of BedSediment to be simulated. Currently only one type available. Different types will encompass different algorithms and procedures [-].
-                + `layer_type[l]` &#129146; *no internal variable - type dictates the class to be instantiated for the BedSedimentLayer objects*: Integer array representing the "type" of each contained BedSedimentLayer to be simulated. Currently only one type available. Different types will encompass different algorithms and procedures [-].
-                + **`Layer_1`**
-                    * `capacity` &#129146; `C_total`: **Required**. Capacity of this layer [m<sup>3</sup>/m<sup>2</sup>].
-                    * `initial_mass[s]` &#129146; `M_f`: **Required**. Initial sediment masses [kg].
-                    * `porosity`: **Required**. Porosity of this layer [-].
-                    * **`fractional_compositions`**
-                        - *TODO: Simply fractional compositions in data file to be 2D array rather than group*
+            + `f_m`: *Defaults to 1 (no meandering)*. Meandering factor such that actual river length = linear river length * f_m [-].
+            + `slope`: **Required**. Slope of the RiverReach [m/m]. *TODO: Should default to the GridCell slope, if not present.*
+            + `inflows[in][riverReachRef]`: *Defaults to no inflows*. An array of references to RiverReaches that inflow to this RiverReach, in the form [x, y, r] (e.g. RiverReach_1_2_3 is specified by [1, 2, 3]).
+
+        * **`SubRiver_{x}_{y}_{s}`**
+            - `nInflows` : **Required**. Number of inflow SubRivers.
+            - `reachTypes` : **Required**. Type of RiverReaches contained in the SubRiver.
+            - **`inflow_{i}`**
+                + `gridX`: **Required**. GridCell x reference of inflow to this SubRiver.
+                + `gridY`: **Required**. GridCell y reference of inflow to this SubRiver.
+                + `subRiver`: **Required**. SubRiver reference of inflow to this SubRiver.
+            - **`RiverReach_{x}_{y}_{s}_{r}`**
+                + `slope` &#129146; `S`: **Required**. Slope of the RiverReach [m/m].
+                
+                + `alpha_res`: **Required**. Calibration factor for maximum resuspendable particle size [-]. See [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub), parameter a<sub>7</sub>.
+                + `beta_res`: **Required**. Calibration factor for resuspension [s2/kg]. See [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub), parameter a<sub>8</sub>.
+                + `spm(nTimeSteps,nSizeClassesSpm)` &#129146; `j_spm_runoff_timeSeries(nTimeSteps,nSizeClassesSpm)` : *Soon to be deprecated and obtained from SoilProfile calculations instead*. SPM runoff inflow to the reach [kg/s in data, kg/timestep in model].
+
 
 
     ## Dimensions
-
-    *TODO: Define the dimensions from above.*
