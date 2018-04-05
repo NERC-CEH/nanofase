@@ -246,8 +246,8 @@ module classSoilProfile1
         me%ncGroup = grp%getGroup(me%ref)                       ! Get this SoilProfile's group
 
         ! How many soil layers? Allocate colSoilLayers accordingly
-        if (me%ncGroup%hasVariable('nSoilLayers')) then
-            var = me%ncGroup%getVariable('nSoilLayers')
+        if (me%ncGroup%hasVariable('n_soil_layers')) then
+            var = me%ncGroup%getVariable('n_soil_layers')
             call var%getData(me%nSoilLayers)
             allocate(me%colSoilLayers(me%nSoilLayers))
         else
@@ -296,8 +296,8 @@ module classSoilProfile1
         end if
 
         ! Distribution used to split sediment mass into size classes
-        if (me%ncGroup%hasVariable('distributionSediment')) then
-            var = me%ncGroup%getVariable('distributionSediment')
+        if (me%ncGroup%hasVariable('distribution_sediment')) then
+            var = me%ncGroup%getVariable('distribution_sediment')
             call var%getData(me%distributionSediment)
             ! Check the distribution adds up to 100%
             call r%addError( &
@@ -506,11 +506,8 @@ module classSoilProfile1
                 message = "Value for usle_L_ch not found in input file. " &
             ))
         end if
-        ! Check if RUSLE2015's eroded sediment data has been provided, for comparison's sake
-        if (me%ncGroup%hasVariable('rusle2015_erodedSediment')) then
-            var = me%ncGroup%getVariable('rusle2015_erodedSediment')
-            call var%getData(me%rusle2015_erodedSediment)
-        end if
-        call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
+        
+        ! Add this procedure to the trace
+        call r%addToTrace('Parsing input data')
     end function
 end module

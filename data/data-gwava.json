@@ -4,15 +4,51 @@
 		"s" : 5,
 		"n" : 5,
 		"f" : 4,
-		"riverReachRef" : 3
+		"river_reach_ref" : 3
 	},
 	"global" : {
-		"spmSizeClasses[s]" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ],
-		"npSizeClasses[n]" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ],
-		"spmParticleDensities[f]" : [ 1500, 2600, 2600, 2600 ],
-		"defaultDistributionSediment[s]" : [ 50, 30, 10, 7, 3 ],
-		"defaultDistributionNP[n]" : [ 50, 30, 10, 7, 3 ],
-		"temperature[t]" : "[15...]"
+		"spm_size_classes[s]" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ],
+		"np_size_classes[n]" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ],
+		"spm_particle_densities[f]" : [ 1500, 2600, 2600, 2600 ],
+		"default_distribution_sediment[s]" : [ 50, 30, 10, 7, 3 ],
+		"default_distribution_np[n]" : [ 50, 30, 10, 7, 3 ],
+		"T_water[t]" : "[15...]"
 	},	
-	"Environment": "file::gwava.json"
+	"dimensions": {
+        "d": 2
+    },
+    "gridSize[d]": [1, 1],
+    "GridCell_1_1": {
+        "size[d]": [ [5000, 5000] ],
+        "type": 1,
+        "slope": 0.0005,
+        "SoilProfile_2_3_1": {
+			"n_soil_layers" : 1,
+			"WC_sat" : 0.8,
+			"WC_FC" : 0.5,
+			"K_s" : 1e-6,
+			"usle_C[t]" : "[0.1043...]",
+			"usle_K" : 0.032,
+			"usle_LS" : 1,
+			"usle_area_hru" : 0.1,
+			"usle_L_ch" : 500,
+			"distribution_sediment[s]" : [ 50, 30, 10, 7, 3 ],
+			"SoilLayer_1" : { "depth" : 0.1 }
+		},
+        "runoff[t]": "[1e-7...]",
+        "evap[t]": "[1e-12...]",
+        "precip[t]": "[1e-8...]",
+        "quickflow[t]": "[1e-7...]",
+        "dimensions": {
+            "r": 1
+        },
+        "reachTypes[r]": [1],
+        "nRiverReaches": 1,
+        "RiverReach_2_3_1": {
+            "BedSediment": "file::bed-sediment-compact.json",
+            "beta_res": 0.000001,
+            "alpha_res": 0.001,
+            "slope": 0.0005
+        }
+    },
 }

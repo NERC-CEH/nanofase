@@ -47,8 +47,8 @@ module classBedSediment1
         Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
-        tr = trim(Me%name) // "%createBedSediment1"                        ! procedure name as trace
-        var = Me%ncGroup%getVariable("nLayers")                      ! Get the number of BedSedimentLayers
+        tr = trim(Me%name) // "%createBedSediment1"                  ! procedure name as trace
+        var = Me%ncGroup%getVariable("n_layers")                     ! Get the number of BedSedimentLayers
         call var%getData(Me%nLayers)                                 ! retrieve into nLayers variable
         ! call r%addErrors(.errors. Me%setLayers(Me%nLayers))          ! set number of layers and allocate layer collection
         if (Me%nLayers <= 0) then                                    ! invalid number of layers
@@ -78,7 +78,7 @@ module classBedSediment1
                            )                                         ! add to Result
             return                                                   ! critical error, so return
         end if
-        var = Me%ncGroup%getVariable("layerType")                    ! Get the BedSedimentLayer type number
+        var = Me%ncGroup%getVariable("layer_type")                    ! Get the BedSedimentLayer type number
         call var%getData(bslType)                                    ! retrieve into bslType variable
         do L = 1, Me%nLayers                                         ! loop through each layer
             select case (bslType(L))                             ! loop through possible BedSedimentLayer types

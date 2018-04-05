@@ -87,7 +87,7 @@ module classBedSedimentLayer1
                                )                                     ! error if name is not provided
                 return                                               ! critical error, so exit here
             end if
-            var = layerGroup%getVariable("Capacity")                 ! Get the layer capacity [m3 m-2]
+            var = layerGroup%getVariable("capacity")                 ! Get the layer capacity [m3 m-2]
             call var%getData(Me%C_total)                             ! retrieve into C_total variable
             if (Me%C_total == 0) then                                ! CRITICAL ERROR HERE: C_total == 0
                 call r%addError(ErrorInstance( &
@@ -97,7 +97,7 @@ module classBedSedimentLayer1
                                             ) &
                                )
             end if
-            var = layerGroup%getVariable("InitialMass")              ! Get the sediment initial masses
+            var = layerGroup%getVariable("initial_mass")             ! Get the sediment initial masses
             call var%getData(M_f)                                    ! Put initial masses into local variable
             if (size(M_f) /= Me%nSizeClasses) then                   ! array of fine sediment masses must have correct size
                 call r%AddError(ErrorInstance( &
@@ -108,7 +108,7 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! create error instance
             end if
-            var = layerGroup%getVariable("Porosity")                 ! Get the porosity
+            var = layerGroup%getVariable("porosity")                 ! Get the porosity
             call var%getData(Porosity)                               ! Put porosity into local variable
             if (Porosity <= 0 .or. Porosity >= 1) then
             call r%AddError(ErrorInstance( &
@@ -120,7 +120,7 @@ module classBedSedimentLayer1
             end if
             if (r%hasCriticalError()) return                         ! exit if a critical error has occurred
             allocate(f_comp(Me%nSizeClasses, Me%nfComp))             ! allocate space for fractional compositions
-            grp = layerGroup%getGroup("fractionalCompositions")      ! get fractional composition group
+            grp = layerGroup%getGroup("fractional_compositions")     ! get fractional composition group
             ! SH: The fractional comps could be stored as 2D arrays in the NetCDF/JSON file
             ! to simplify this a bit
             allocate(f_comp_sc(Me%nfComp))
@@ -214,7 +214,7 @@ module classBedSedimentLayer1
                 return                                               ! exit, as a critical error has occurred
             end if
             ! TODO: Need to implement hasVariable check above (when we get Porosity from data file)
-            if (layerGroup%hasVariable("Porosity")) then             ! has a porosity value been supplied?
+            if (layerGroup%hasVariable("porosity")) then             ! has a porosity value been supplied?
                 fwr = Porosity / (1 - Porosity)                      ! yes, use porosity to compute factor for sediment:water ratio
             else                                                     !
                 fwr = (Me%C_total - .dp. Me%C_f_layer()) / .dp. Me%C_f_layer() ! no, so use C_total and C_f_layer to compute factor for

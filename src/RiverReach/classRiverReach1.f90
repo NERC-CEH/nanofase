@@ -537,8 +537,8 @@ module classRiverReach1
         allocate(me%inflows(me%nInflows))
         
         ! If the data has an outflow to the model domain specified, set that
-        if (me%ncGroup%hasVariable("domainOutflow")) then
-            var = me%ncGroup%getVariable("domainOutflow")
+        if (me%ncGroup%hasVariable("domain_outflow")) then
+            var = me%ncGroup%getVariable("domain_outflow")
             call var%getData(me%domainOutflow)
             me%isDomainOutflow = .true.
         end if

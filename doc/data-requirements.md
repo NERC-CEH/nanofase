@@ -14,6 +14,13 @@ The [convention](/doc/conventions.md) is that input data is parsed in an object'
 | `spm_particle_densities` &#129146; `spmParticleDensities` | f | &#10004; | - | Densities of the different SPM compositional fractions. |
 | `T_water` | t | &#10060; | `default_water_temperature` from [config.nml](/doc/config.md) | Temporally-explicit water temperature to be used if none supplied in spatially-explicit data. |
 
+### `Environment`
+
+| External name &#129146; Internal name | Dimension | Required | Default | Description |
+| ------ | --- | --- | --- | --- |
+| `grid_dimensions` &#129146; `gridDimensions` | d | &#10004; | - | The number of GridCells in the x and y direction [-]. |
+
+
 ### `Environment` > `GridCell_{x}_{y}`
 
 | External name &#129146; Internal name | Dimension | Required | Default | Description |
@@ -60,7 +67,7 @@ The [convention](/doc/conventions.md) is that input data is parsed in an object'
 
 | External name &#129146; Internal name | Dimension | Required | Default | Description |
 | ------ | --- | --- | --- | --- |
-| `depth` | - | &#10060; | `default_soillayer_depth` from [config.nml](/doc/config.md) | Depth of the SoilLayer [m]. |
+| `depth` | - | &#10060; | `default_soil_layer_depth` from [config.nml](/doc/config.md) | Depth of the SoilLayer [m]. |
 
 ### `Environment` > `GridCell_{x}_{y}` > `RiverReach_{x}_{y}_{r}`
 

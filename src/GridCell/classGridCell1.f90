@@ -388,8 +388,8 @@ module classGridCell1
         me%ncGroup = grp%getGroup(me%ref)               ! Get this GridCell's group
         ! Get the number of RiverReaches in this GridCell. If not present, nRiverReaches
         ! defaults to 0
-        if (me%ncGroup%hasVariable("nRiverReaches")) then
-            var = me%ncGroup%getVariable("nRiverReaches")                     
+        if (me%ncGroup%hasVariable("n_river_reaches")) then
+            var = me%ncGroup%getVariable("n_river_reaches")                     
             call var%getData(me%nRiverReaches)
         end if
         

@@ -52,9 +52,6 @@ module spcSoilProfile
         real(dp) :: usle_slp_sb                                     !! Slope of the subbasin [m m-1]
         real(dp) :: usle_slp_ch                                     !! Slope of the channel [m m-1]
         real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
-        real(dp), allocatable :: rusle2015_erodedSediment(:)
-            !! RUSLE2015 sediment yield for the containing `GridCell`, for 2010:
-            !! https://esdac.jrc.ec.europa.eu/content/soil-erosion-water-rusle2015
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
         integer, allocatable :: distributionSediment(:)             !! Distribution to split sediment into
 
