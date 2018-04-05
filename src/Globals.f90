@@ -157,6 +157,8 @@ module Globals
         var = grp%getVariable("defaultDistributionNP")      ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
         
+        ! TODO: Get default water temperature "T_water"
+
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
