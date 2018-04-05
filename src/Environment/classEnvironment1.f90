@@ -46,10 +46,10 @@ module classEnvironment1
         call r%addErrors(.errors. me%parseInputData())
         
         ! Set the size of Environment variable that holds the grid cells
-        allocate(me%colGridCells(me%gridSize(1),me%gridSize(2)))
+        allocate(me%colGridCells(me%gridDimensions(1),me%gridDimensions(2)))
         
-        do y = 1, me%gridSize(2)                                ! Loop through the y dimensions of the grid
-            do x = 1, me%gridSize(1)                            ! Loop through the x dimensions of the grid
+        do y = 1, me%gridDimensions(2)                                ! Loop through the y dimensions of the grid
+            do x = 1, me%gridDimensions(1)                            ! Loop through the x dimensions of the grid
                 gridCellRef = ref("GridCell", x, y)
                 ! Check if the GridCell is defined in the data file before creating
                 ! it and adding to colGridCells. If it doesn't exist, specify it is
@@ -87,8 +87,8 @@ module classEnvironment1
         ! - Also, point those inflows' outflow property to the correct reach.
         ! After this, all RiverReaches will point to their inflow(s) and outflow correctly.
         ! Most auditing is already done by RiverReach%parseInputData().
-        do y = 1, me%gridSize(2)
-            do x = 1, me%gridSize(1)
+        do y = 1, me%gridDimensions(2)
+            do x = 1, me%gridDimensions(1)
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
                     do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)  ! Loop through the reaches in this branch
                         associate (riverReach => me%colGridCells(x,y)%item%colRiverReaches(rr)%item)
@@ -159,8 +159,8 @@ module classEnvironment1
 
         nc = NcDataset(C%inputFile, "r")                    ! Open dataset as read-only
         me%ncGroup = nc%getGroup("Environment")             ! Get the Environment group
-        var = me%ncGroup%getVariable("gridSize")            ! Get the grid size from the Environment
-        call var%getData(me%gridSize)
+        var = me%ncGroup%getVariable("grid_dimensions")     ! Get the grid size from the Environment
+        call var%getData(me%gridDimensions)
     end function
     
     function get_m_npEnvironment1(me) result(m_np)

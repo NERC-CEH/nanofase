@@ -2,12 +2,6 @@
 
 Multimedia environmental fate model for engineered nanomaterials.
 
-
-Project links:
- - [Project website](http://nanofase.eu/).
- - [Facebook](https://www.facebook.com/nanofase/).
- - [Twitter](https://twitter.com/NanoFASE_EU).
-
 Model documentation:
  - [Model overview](doc/overview.md)
  - [Input data requirements](doc/data-requirements.md)
@@ -15,4 +9,9 @@ Model documentation:
  - [Conventions](doc/conventions.md)
 
 Other documentation:
- - [Git quickstart guide](doc/git-quickstart.md)# flow-direction-example
+ - [Git quickstart guide](doc/git-quickstart.md)
+
+Project links:
+ - [Project website](http://nanofase.eu/).
+ - [Facebook](https://www.facebook.com/nanofase/).
+ - [Twitter](https://twitter.com/NanoFASE_EU).

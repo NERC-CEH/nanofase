@@ -9,7 +9,7 @@ module spcEnvironment
 
     !> Abstract base class definition for `Environment`.
     type, public, abstract :: Environment
-        integer, allocatable                :: gridSize(:)          !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
+        integer, allocatable                :: gridDimensions(:)    !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
         type(GridCellElement), allocatable  :: colGridCells(:,:)    !! Array of `GridCellElement` objects to hold polymorphic `GridCell`s
         type(NcGroup)                       :: ncGroup              !! NetCDF group for this `Environment` object
       contains

@@ -68,16 +68,16 @@ module Globals
         real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n                                        ! Iterator for size classes
-        character(len=100) :: inputFile, outputFile         ! Input and output file paths
-        integer :: timeStep, nTimeSteps, maxRiverReaches, defaultGridSize
-        real(dp) :: epsilon, defaultSoilLayerDepth, defaultMeanderingFactor, defaultWaterTemperature, default_alpha_hetero
-        logical :: errorOutput
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
-        
-        namelist /data/ inputFile, outputFile
-        namelist /run/ timeStep, nTimeSteps, epsilon, errorOutput, defaultGridSize
-        namelist /soil/ defaultSoilLayerDepth
-        namelist /river/ maxRiverReaches, defaultMeanderingFactor, defaultWaterTemperature, default_alpha_hetero
+        ! Values from config file
+        character(len=100) :: input_file, output_file
+        integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
+        real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
+        logical :: error_output
+        namelist /data/ input_file, output_file
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, default_grid_size
+        namelist /soil/ default_soil_layer_depth
+        namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
 
         ! Open the config file and read the different config groups
         open(10, file="config.nml", status="old")
@@ -87,16 +87,17 @@ module Globals
         read(10, nml=river)
         close(10)
         ! Store this data in the Globals variable
-        C%inputFile = inputFile
-        C%outputFile = outputFile
-        C%timeStep = timeStep
-        C%nTimeSteps = nTimeSteps
+        C%inputFile = input_file
+        C%outputFile = output_file
+        C%timeStep = timestep
+        C%nTimeSteps = n_timesteps
         C%epsilon = epsilon
-        C%defaultGridSize = defaultGridSize
-        C%defaultSoilLayerDepth = defaultSoilLayerDepth
-        C%defaultMeanderingFactor = defaultMeanderingFactor
-        C%maxRiverReaches = maxRiverReaches
-        C%defaultWaterTemperature = defaultWaterTemperature
+        ! TODO: Change default grid size to array (x, y) so default can be rectangles
+        C%defaultGridSize = default_grid_size
+        C%defaultSoilLayerDepth = default_soil_layer_depth
+        C%defaultMeanderingFactor = default_meandering_factor
+        C%maxRiverReaches = max_river_reaches
+        C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
         
         ! General
@@ -136,25 +137,25 @@ module Globals
         errors(17) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
 
         ! Add custom errors to the error handler
-        call ERROR_HANDLER%init(errors=errors, on=errorOutput)
+        call ERROR_HANDLER%init(errors=errors, on=error_output)
 
         ! Get the sediment and nanoparticle size classes from data file
         C%dataset = NcDataset(C%inputFile, "r")             ! Open dataset as read-only
         grp = C%dataset%getGroup("global")                  ! Get the global variables group
-        var = grp%getVariable("spmSizeClasses")             ! Get the sediment size classes variable
+        var = grp%getVariable("spm_size_classes")           ! Get the sediment size classes variable
         call var%getData(spmSizeClasses)                    ! Get the variable's data
         allocate(C%d_spm, source=spmSizeClasses)            ! Allocate to class variable
-        var = grp%getVariable("npSizeClasses")              ! Get the sediment size classes variable
+        var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
         call var%getData(npSizeClasses)                     ! Get the variable's data
         allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
-        var = grp%getVariable("spmParticleDensities")       ! Get the sediment particle density variable
+        var = grp%getVariable("spm_particle_densities")     ! Get the sediment particle density variable
         call var%getData(spmFracComps)                      ! Get the variable's data
         allocate(C%d_pd, source=spmFracComps)               ! Allocate to class variable
         allocate(C%rho_spm, source=spmFracComps)
-        var = grp%getVariable("defaultDistributionSediment")! Get the default sediment size classes distribution
+        var = grp%getVariable("default_distribution_sediment") ! Get the default sediment size classes distribution
         call var%getData(C%defaultDistributionSediment)     ! Get the variable's data
         ! TODO: Check the distribution adds up to 100%
-        var = grp%getVariable("defaultDistributionNP")      ! Get the sediment size classes variable
+        var = grp%getVariable("default_distribution_np")    ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
         
         ! TODO: Get default water temperature "T_water"
