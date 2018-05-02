@@ -4,6 +4,7 @@ module spcRiverReach
     use mo_netcdf                                                   ! Input/output handling
     use ResultModule, only: Result, Result0D                        ! Error handling classes, required for
     use ErrorInstanceModule
+    use classPointSource
     use spcBedSediment
     use spcReactor
     implicit none
@@ -53,7 +54,7 @@ module spcRiverReach
         real(dp), allocatable :: m_spm(:)                           !! Mass of the SPM currently in reach [kg]
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NPs currently in reach [kg]
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
-        real(dp), allocatable :: npDep(:,:,:)                       !! NP deposited on current time step [kg/timestep]
+        real(dp), allocatable :: j_np_dep(:,:,:)                    !! NP deposited on current time step [kg/timestep]
         real(dp), allocatable :: j_spm_runoff(:)                    !! Eroded soil runoff for current time step [kg/timestep]
         real(dp), allocatable :: j_np_runoff(:,:,:)                 !! Eroded soil runoff for current time step [kg/timestep]
         real(dp) :: W                                               !! Width of reach [m]
@@ -85,6 +86,7 @@ module spcRiverReach
             !! the GridCell - not very encapsulated
         class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         class(Reactor), allocatable :: reactor                      !! Contained Reactor object
+        type(PointSource) :: pointSource                            !! Contained PointSource object (non-polymorphic)
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
         ! Create/destory

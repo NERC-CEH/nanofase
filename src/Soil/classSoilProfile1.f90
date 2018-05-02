@@ -56,7 +56,6 @@ module classSoilProfile1
         ! Allocate the object properties that need to be
         allocate(me%usle_C(C%nTimeSteps))
         allocate(me%usle_alpha_half(C%nTimeSteps))
-        allocate(me%rusle2015_erodedSediment(C%nTimeSteps))
         allocate(me%erodedSediment(C%nTimeSteps))
         allocate(me%distributionSediment(C%nSizeClassesSpm))
 

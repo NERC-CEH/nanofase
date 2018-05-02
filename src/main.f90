@@ -44,7 +44,7 @@ program main
                         m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_out
                         C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
-                        npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%npDep
+                        npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_dep
                         bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_sed_all()
                         spmRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
                         ! Write to the data file

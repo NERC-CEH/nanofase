@@ -12,6 +12,6 @@ Other documentation:
  - [Git quickstart guide](doc/git-quickstart.md)
 
 Project links:
- - [Project website](http://nanofase.eu/).
- - [Facebook](https://www.facebook.com/nanofase/).
- - [Twitter](https://twitter.com/NanoFASE_EU).
+ - [Project website](http://nanofase.eu/)
+ - [Facebook](https://www.facebook.com/nanofase/)
+ - [Twitter](https://twitter.com/NanoFASE_EU)

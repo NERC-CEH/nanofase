@@ -11,6 +11,19 @@ List of code style, formatting and naming conventions to follow. Semantics based
 - Limit line length to 120 characters.
 - Save Fortran files in UTF-8 encoding.
 
+## Comment tags: TODO, HACK, BUG
+Where possible, use the tags `TODO`, `HACK` and `BUG` in comments to indicate in the code where additional work is still required, where temporary fixes or additions have been made that should be replaced, or where there is a known bug in the code. [See here](https://en.wikipedia.org/wiki/Comment_%28computer_programming%29#Tags). Most IDEs allow searching for these tags. For example:
+
+```fortran
+! TODO Slope should default to GridCell slope if not present
+var = me%ncGroup%getVariable("slope")                   ! Get the slope
+```
+
+```fortran
+! HACK to set NP runoff to 1e-9 SPM runoff
+j_np_runoff = lengthRatio*sum(me%erodedSediment)*1e-9
+```
+
 ## Naming conventions
 Though Fortran is insensitive to case, it's still important to follow some sort of naming convention to improve code readability.
 - Use lowercase for all Fortran constructs (`do`, `subroutine`, `module`, etc).

@@ -2,14 +2,14 @@
 	"dimensions": {
 		"l" : 5
 	},
-	"nLayers" : 4,
-	"sedimentType" : 1,
-	"layerType[l]" : [ 1, 1, 1, 1, 1 ],
+	"n_layers" : 4,
+	"sediment_type" : 1,
+	"layer_type[l]" : [ 1, 1, 1, 1, 1 ],
 	"Layer_1" : {
-		"Capacity" : 0.01,
-		"InitialMass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
-		"Porosity" : 0.8,
-		"fractionalCompositions" : {
+		"capacity" : 0.01,
+		"initial_mass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
+		"porosity" : 0.8,
+		"fractional_compositions" : {
 			"f_s_1[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_2[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_3[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
@@ -18,10 +18,10 @@
 		}
 	},
 	"Layer_2" : {
-		"Capacity" : 0.01,
-		"InitialMass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
-		"Porosity" : 0.6,
-		"fractionalCompositions" : {
+		"capacity" : 0.01,
+		"initial_mass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
+		"porosity" : 0.6,
+		"fractional_compositions" : {
 			"f_s_1[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_2[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_3[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
@@ -30,10 +30,10 @@
 		}
 	},
 	"Layer_3" : {
-		"Capacity" : 0.01,
-		"InitialMass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
-		"Porosity" : 0.4,
-		"fractionalCompositions" : {
+		"capacity" : 0.01,
+		"initial_mass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
+		"porosity" : 0.4,
+		"fractional_compositions" : {
 			"f_s_1[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_2[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_3[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
@@ -42,10 +42,10 @@
 		}
 	},
 	"Layer_4" : {
-		"Capacity" : 0.01,
-		"InitialMass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
-		"Porosity" : 0.2,
-		"fractionalCompositions" : {
+		"capacity" : 0.01,
+		"initial_mass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
+		"porosity" : 0.2,
+		"fractional_compositions" : {
 			"f_s_1[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_2[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
 			"f_s_3[f]" : [ 0.3, 0.3, 0.3, 0.1 ],
