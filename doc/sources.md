@@ -13,7 +13,7 @@ The NanoFASE model seperates nanomaterial sources into two categories: *Point so
     - &#128461; `SeaSegment` - *not currently implemented*
         - `PointSource`
 
-As is [convention](/doc/conventions.md) for input data, units are SI units (kg).
+As is [convention](/doc/conventions.md) for input data, units are SI units (kg for point sources, kg/m2 for diffuse sources).
 
 ## `PointSource`
 
@@ -24,9 +24,11 @@ The [input data file](/doc/data-requirements.md) is responsible for specifying i
 A fixed mass source can be provided by the `fixed_mass` field:
 
 ```json
-"PointSource": {
-    "fixed_mass[state][form][n]": 0.001,
-    "fixed_mass_frequency": 10
+"RiverReach_1_1_1": {
+    "PointSource": {
+        "fixed_mass[state][form][n]": 0.001,
+        "fixed_mass_frequency": 10
+    }
 }
 ```
 
@@ -42,8 +44,10 @@ This fixed mass is input to the waterbody every `fixed_mass_frequency` days. So,
 A time-varying input can be specified by the `variable_mass` field:
 
 ```json
-"PointSorce": {
-    "variable_mass[state][form][n][t]" : 0.001
+"RiverReach_1_1_1": {
+    "PointSorce": {
+        "variable_mass[state][form][n][t]" : 0.001
+    }
 }
 ```
 
@@ -52,4 +56,18 @@ The extra dimension `t` represents time, and thus has length of the number of ti
 
 ## `DiffuseSource`
 
-*Diffuse sources aren't currently implemented. Check back soon!*
+Diffuse sources provide a way of inputting spatially-averaged nanomaterial inputs to an entire `GridCell`, most likely representing atmospheric deposition. The data structure for such source is simple; the data input file simply needs a time series of nanomaterial inputs (in units of kg/m2):
+
+```json
+"GridCell_1_1": {
+    "PointSource": {
+        "input_mass[state][form][n][t]" : 0.001
+    }
+}
+```
+
+The dimensions are the same as for the time-varying input of point sources.
+
+# Input size class, state and form
+
+It is likely that available input data will not discretise input masses into size class, state and form fractions, and so care must be taken when structuring the data file to account for this.
