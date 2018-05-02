@@ -11,14 +11,6 @@ module spcGridCell
     use classPointSource
     implicit none
 
-    ! TODO: Move these to Source classes
-    type PointSourceElement                                             ! container type for class(PointSource), the actual type of the PointSource class
-        class(PointSource), allocatable :: item                         ! a variable of type PointSource can be of any object type inheriting from the
-    end type                                                            ! PointSource superclass
-    type DiffuseSourceElement                                           ! container type for class(DiffuseSource), the actual type of the DiffuseSource class
-        class(DiffuseSource), allocatable :: item                       ! a variable of type DiffuseSource can be of any object type inheriting from the
-    end type                                                            ! DiffuseSource superclass
-
     !> Abstract base class `GridCell`. Extended classes are responsible
     !! for running creation and simulation procedures for `SoilProfile`
     !! and `RiverReach`es.
@@ -38,16 +30,14 @@ module spcGridCell
         type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
-        type(PointSourceElement), allocatable :: colPointSources(:)     !! Array of `PointSourceElement` objects to hold the point sources
-        type(DiffuseSourceElement) :: objDiffuseSource                  !! `DiffuseSourceElement` object to hold the diffuse source
+        type(DiffuseSource) :: diffuseSource                            !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
+        logical :: hasDiffuseSource = .false.                           !! Does this `GridCell` have a `DiffuseSource`?
         integer :: nRiverReaches = 0                                    !! Number of contained `SubRiver`s
         integer :: nSoilProfiles = 0                                    !! Number of contained `SoilProfile`s
-        integer :: nPointSources = 0                                    !! Number of contained `PointSource`s
         integer :: nBranches = 0                                        !! Number of river branches in the `GridCell`
         integer, allocatable :: nReachesInBranch(:)
             !! Number of reaches in each branch. Needed as different branches might have different numbers of reaches
             !! (and Fortran matrices must be rectangular)
-        logical :: DiffS                                                !! Yes=diffuse source present; NO=no diffuse source
         real(dp), allocatable :: q_runoff_timeSeries(:)                 !! Runoff = slow flow + quick flow, from the hydrological model [m/timestep]
         real(dp), allocatable :: q_quickflow_timeSeries(:)              !! Quick flow from the hydrological model [m/timestep]
         real(dp), allocatable :: q_evap_timeSeries(:)                   !! Evaporation time series [m/s]
@@ -61,6 +51,7 @@ module spcGridCell
         real(dp) :: n_river                                             !! Manning's roughness coefficient for the river
         real(dp), allocatable :: T_water_timeSeries(:)                  !! Water temperature [C]
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
+        real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! Input NPs from diffuse sources on this timestep [(kg/m2)/timestep]
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
       
     contains

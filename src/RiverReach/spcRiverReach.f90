@@ -87,6 +87,7 @@ module spcRiverReach
         class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
         class(Reactor), allocatable :: reactor                      !! Contained Reactor object
         type(PointSource) :: pointSource                            !! Contained PointSource object (non-polymorphic)
+        logical :: hasPointSource = .false.                         !! Does this `RiverReach` have a `PointSource`?
         type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
       contains
         ! Create/destory
