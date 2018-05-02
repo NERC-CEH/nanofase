@@ -151,23 +151,18 @@ module classReactor1
         !! TODO: Eventually this will be moved to update() function as it will
         !! deal with other processes
         !do n = 1, C%nSizeClassesNP
-        !    T(n,1,1) = 1 - sum(me%k_hetero(n,:))*C%timeStep*me%C_np_free_particle(n)   ! Amount removed from free NPs
+        !    T(n,1,1) = 1 - sum(me%k_hetero(n,:))*C%timeStep                         ! Amount removed from free NPs
         !    T(n,2,2) = 1                                                            ! Don't change bound concentration
         !******************* The below line isn't working because it's overwriting free and bound,
         !                   rather than looping over the SPM array elements.... +2 to s
         !    do s = 1, C%nSizeClassesSpm
-        !        T(n,s,s) = 1 + me%k_hetero(n,s)*C%timeStep*me%C_np_free_particle(n)    ! Amount to add to heteroaggregated NPs
+        !        T(n,s,s) = 1 + me%k_hetero(n,s)*C%timeStep                           ! Amount to add to heteroaggregated NPs
         !    end do
         !    me%m_np(n,:,:) = matmul(me%m_np(n,:,:),T(n,:,:))
         !end do
         !
         !print *, "m_np after trans: ", me%m_np(1,1,1)
         !print *, " "
-
-        ! Assume on each time step, 10% of free mass is transferred to heteroaggregated,
-        ! split equally between the size classes
-        ! beta(0) = [[0.9,0,0],[0,1,0],[0,0,1-(0.9/me%nSizeClassesSpm)]]
-        ! me%n_np = me%n_np
     end function
     
     !> Parse the input data for this Reactor

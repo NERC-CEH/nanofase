@@ -275,15 +275,8 @@ module classGridCell1
     function destroyGridCell1(Me) result(r)
         class(GridCell1) :: Me                              !! The `GridCell` instance.
         type(Result) :: r                                   !! The `Result` object
-        integer :: x                                  !! loop counter
-        
-        do x = 1, Me%nSoilProfiles
-            r = Me%colSoilProfiles(x)%item%destroy()        ! remove all SoilProfile objects and any contained objects
-        end do
-        do x = 1, Me%nPointSources
-            r = Me%colPointSources(x)%item%destroy()        ! remove all PointSource objects and any contained objects
-        end do
-        r = Me%objDiffuseSource%item%destroy()              ! remove the DiffuseSource object and any contained objects
+        integer :: x                                        ! Loop iterator
+        ! TODO: Is this method needed?
     end function
 
     !> Perform the simulations required for an individual time step
@@ -309,7 +302,7 @@ module classGridCell1
                 ! river length in this GridCell
                 lengthRatio = me%colRiverReaches(rr)%item%l/sum(me%branchLengths)
                 ! HACK to set NP runoff to 1e-9 SPM runoff
-                j_np_runoff = lengthRatio*sum(me%erodedSediment)*1e-9
+                j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
                 ! Update the reach for this timestep
                 call r%addErrors(.errors. &
                     me%colRiverReaches(rr)%item%update( &
@@ -319,27 +312,6 @@ module classGridCell1
                     ) &
                 )
             end do
-            
-
-            ! Loop through each RiverReach and run its update procedure
-            ! TODO: Aportion j_spm_runoff properly!
-            !do rr = 1, me%nRiverReaches
-            !    call r%addErrors(.errors. &
-            !        me%colRiverReaches(rr)%item%update( &
-            !            t = t, &
-            !            j_spm_runoff = me%erodedSediment/me%nRiverReaches &
-            !        ) &
-            !    )
-            !end do
-            !
-            ! Loop through each SubRiver and run its update procedure
-    !        do s = 1, me%nSubRivers
-    !            srR = me%colSubRivers(s)%item%update( &
-    !                t = t, &
-    !                j_spm_runoff = me%erodedSediment/me%nSubRivers &
-            !)
-    !            call r%addErrors(errors = .errors. srR)
-    !        end do
         end if
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))

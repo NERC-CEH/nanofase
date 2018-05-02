@@ -81,7 +81,7 @@ module classRiverReach1
             me%j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
             me%tmp_j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
             me%j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
-            me%npDep(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
+            me%j_np_dep(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
             stat=allst)
         me%C_spm = 0                    ! Set SPM, NP and flows to zero to begin with
         me%C_np = 0
@@ -113,6 +113,10 @@ module classRiverReach1
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
         call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
+        
+        ! Create the PointSource object to add any specific releases for this reach
+        ! (if they exist in the data)
+        call r%addErrors(.errors. me%pointSource%create(me%x, me%y, [trim(me%ref)]))
         
         call r%addToTrace('Creating ' // trim(me%ref))
     end function
@@ -178,10 +182,16 @@ module classRiverReach1
         me%j_spm_in = me%j_spm_in + me%j_spm_runoff         ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
         me%j_np_in = me%j_np_in + me%j_np_runoff            ! Inflow of NP from upstream reach + soil erosion [kg/timestep]
         
+        ! Get inputs from point source (if there is one): Run the update method, which sets
+        ! PointSource's j_np_pointsource variable for this time step. j_np_pointsource = 0
+        ! if there isn't a point source
+        call r%addErrors(.errors. me%pointSource%update(t))
+        me%j_np_in = me%j_np_in + me%pointSource%j_np_pointsource
+        
         ! HACK: Set point source for (2,3) and (3,1), emitting every 10 days
-        if (mod(t,10) == 0 .and. ((me%x == 2 .and. me%y == 3) .or. (me%x == 3 .and. me%y == 1))) then
-            me%j_np_in = me%j_np_in + 1e-9*3e6             ! Add a fixed mass, roughly equal to conc of 1 ng/L and river volume of 3e6
-        end if
+        !if (mod(t,10) == 0 .and. ((me%x == 2 .and. me%y == 3) .or. (me%x == 3 .and. me%y == 1))) then
+        !    me%j_np_in = me%j_np_in + 1e-9*3e6             ! Add a fixed mass, roughly equal to conc of 1 ng/L and river volume of 3e6
+        !end if
                 
         me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
         me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
@@ -214,8 +224,8 @@ module classRiverReach1
         dj_spm_in = me%j_spm_in/nDisp                       ! SPM inflow to the first displacment [kg]
         me%tmp_Q_out = 0                                    ! Reset Q_out for this time step
         me%tmp_j_spm_out = 0                                ! Reset j_spm_out for this time step
-        me%spmDep = 0                                       ! Reset deposited SPM for this time step
-        me%npDep = 0                                        ! Reset deposited NP for this time step
+        me%spmDep = 0                                       ! Reset deposited SPM for this time step TODO rename to j_spm_dep
+        me%j_np_dep = 0                                     ! Reset deposited NP for this time step
         
         ! Add the inflow NP to the current mass
         me%m_np = me%m_np + me%j_np_in
@@ -237,10 +247,10 @@ module classRiverReach1
             dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)    ! Up to a maximum of the mass of SPM currently in reach
             me%m_spm = me%m_spm - dSpmDep
             me%spmDep = me%spmDep + dSpmDep                 ! Keep track of deposited SPM for this time step
-            ! Set the fraction of total SPM that is deposited (included resuspension),
+            ! Set the fraction of total SPM that is deposited (including resuspension),
             ! for use in calculating heteroaggregated NP deposition
-            !fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm - me%j_spm_res*dt/me%m_spm
-            fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm
+            !fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm - me%j_spm_res*dt/me%m_spm       ! Includes resuspension
+            fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm                                  ! Doesn't include resuspension
             me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
 
             ! Other stuff, like abstraction, to go here.
@@ -258,18 +268,11 @@ module classRiverReach1
         end do
         
         ! Use amount of settled SPM to get rid of heteroaggregated NPs, assuming
-        ! uniformly distributed amongst SPM
-        ! TODO Resuspension also!
+        ! uniformly distributed amongst SPM. fractionSpmDep includes resuspension.
         do n = 1, C%nSizeClassesSpm
-            me%npDep(:,:,n+2) = min(me%m_np(:,:,n+2)*fractionSpmDep(n), me%m_np(:,:,n+2)) ! Rename m_np_dep
+            me%j_np_dep(:,:,n+2) = min(me%m_np(:,:,n+2)*fractionSpmDep(n), me%m_np(:,:,n+2))
         end do
-        me%m_np = me%m_np - me%npDep                ! Remove deposited NPs
-        
-        ! HACK to set an input mass of NPs
-        !if (t == 1) then
-        !    ! HACK: Set this from data
-        !    me%m_np = 0.13e-9*me%volume      ! kg/reach
-        !end if
+        me%m_np = me%m_np - me%j_np_dep                ! Remove deposited NPs
         
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         call r%addErrors([ &
@@ -362,7 +365,7 @@ module classRiverReach1
             omega = C%rho_w(C%T)*C%g*(me%Q_in/C%timeStep)*me%slope/me%W
             f_fr = 4*me%D/(me%W+2*me%D)
             ! Calculate the resuspension
-            ! TODO: Get actually mass of bed sediment
+            ! TODO: Get actual mass of bed sediment
             me%j_spm_res = me%calculateResuspension( &
                 beta = me%beta_res, &
                 L = me%l*me%f_m, &
@@ -442,7 +445,7 @@ module classRiverReach1
     function parseInputDataRiverReach1(me) result(r)
         class(RiverReach1) :: me            !! This `RiverReach1` instance
         type(Result) :: r                   !! The `Result` object to return, with any errors
-        type(NcDataset) :: NC               ! NetCDF dataset
+        type(NcDataset) :: nc               ! NetCDF dataset
         type(NcVariable) :: var             ! NetCDF variable
         type(NcGroup) :: grp                ! NetCDF group
         integer :: i                        ! Loop counter

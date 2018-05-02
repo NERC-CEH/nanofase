@@ -1,5 +1,5 @@
 {
-	"nSoilLayers" : 4,
+	"n_soil_layers" : 4,
 	"WC_sat" : 0.8,
 	"WC_FC" : 0.5,
 	"K_s" : 1e-6,
@@ -8,7 +8,7 @@
 	"usle_LS" : 1,
 	"usle_area_hru" : 0.1,
 	"usle_L_ch" : 500,
-	"distributionSediment[s]" : [ 50, 30, 10, 7, 3 ],
+	"distribution_sediment[s]" : [ 50, 30, 10, 7, 3 ],
 	"SoilLayer_1" : {
 		"depth" : 0.1
 	},
