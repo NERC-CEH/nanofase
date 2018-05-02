@@ -98,6 +98,14 @@ The [convention](/doc/conventions.md) is that input data is parsed in an object'
 | `porosity` | - | &#10004; | - | Porosity of this layer [-]. |
 | *TODO: Simplify fractional compositions in data file to be 2D array rather than group.* |
 
+### `Environment` > `GridCell_{x}_{y}` > `RiverReach_{x}_{y}_{r}` > `PointSource` and `Environment` > `GridCell_{x}_{y}` > `EstuaryReach_{x}_{y}_{r}` > `PointSource`
+
+| External name &#129146; Internal name | Dimension | Required | Default | Description |
+| ------ | --- | --- | --- | --- |
+| `fixed_mass`  &#129146; `fixedMass` | state, form, n | &#10060; | 0 | Fixed mass of nanomaterial to input on every `fixed_mass_frequency`th time step. |
+| `fixed_mass_frequency`  &#129146; `fixedMassFrequency` | - | &#10060; | 1 | How often should the `fixed_mass` be input to the waterbody? Every `fixed_mass_frequency` time steps. |
+| `variable_mass`  &#129146; `variableMass_timeSeries` | state, form, n, t | &#10060; | 0 | Time series of nanomaterial mass inputs. |
+
 
 ## Dimensions
 
