@@ -43,6 +43,7 @@ module classGridCell1
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%colSoilProfiles(1))
         allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
+        allocate(me%j_np_diffuseSource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
         me%q_runoff = 0                                 ! Default to no runoff
 
         ! Set the GridCell's position, whether it's empty and its name
@@ -54,6 +55,10 @@ module classGridCell1
         ! Only carry on if there's stuff to be simulated for this GridCell
         if (me%isEmpty .eqv. .false.) then
             r = me%parseInputData()                         ! Parse and store input data in this object
+
+            if (me%hasDiffuseSource) then
+                call r%addErrors(.errors. me%diffuseSource%create(me%x, me%y))
+            end if
 
             ! Create a soil profile and add to this GridCell
             call r%addErrors(.errors. &
@@ -289,14 +294,24 @@ module classGridCell1
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
+            ! Get any inputs from diffuse source
+            if (me%hasDiffuseSource) then
+                call r%addErrors(.errors. me%diffuseSource%update(t))
+                me%j_np_diffusesource = me%diffuseSource%j_np_diffusesource     ! [kg/m2/timestep]
+            else
+                me%j_np_diffuseSource = 0.0_dp          ! If no diffuse source, default to no input
+            end if
+
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
+            ! TODO Add DiffuseSource to soil profile
             r = me%colSoilProfiles(1)%item%update(t)
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Loop through the reaches and call their update methods for this
             ! timestep, providing them the eroded sediment split according
             ! to their length
+            ! TODO Add diffuse source to reaches
             do rr = 1, me%nRiverReaches
                 ! Determine the proportion of this reach's length to the the total
                 ! river length in this GridCell
@@ -358,6 +373,11 @@ module classGridCell1
         nc = NcDataset(C%inputFile, "r")
         grp = nc%getGroup("Environment")
         me%ncGroup = grp%getGroup(me%ref)               ! Get this GridCell's group
+        ! Check if this GridCell has a DiffuseSource. Defaults to .false.
+        if (me%ncGroup%hasGroup("DiffuseSource")) then
+            me%hasDiffuseSource = .true.
+        end if
+
         ! Get the number of RiverReaches in this GridCell. If not present, nRiverReaches
         ! defaults to 0
         if (me%ncGroup%hasVariable("n_river_reaches")) then

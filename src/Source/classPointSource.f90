@@ -11,7 +11,6 @@ module classPointSource
         character(:), allocatable :: parents(:)
             !! Array of character references to parent environmental compartments, e.g.
             !! ['GridCell_1_1', 'RiverReach_1_1_1']
-        logical :: exists = .true.      !! Does this PointSource exist in data?
         type(NcGroup) :: ncGroup        !! NetCDF group for this `PointSource` object
         integer :: fixedMassFrequency   !! Frequency of fixed mass releases; how many timesteps apart are releases? [timestep]
         real(dp), allocatable :: fixedMass(:,:,:)                   !! Fixed mass to be released according to fixedMassFrequency [kg]
@@ -48,8 +47,6 @@ module classPointSource
         me%fixedMass = 0.0_dp
         me%variableMass_timeSeries = 0.0_dp
         
-        
-        
         ! Parse the input data for this point source
         call r%addErrors(.errors. me%parseInputData())
         
@@ -63,15 +60,12 @@ module classPointSource
         type(Result) :: r
         
         me%j_np_pointsource = 0      ! Reset from the last timestep
-        
-        if (me%exists) then
-            ! Check if this is a timestep where the fixed mass is to be input
-            if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
-                me%j_np_pointsource = me%fixedMass
-            end if
-            ! Add this timestep's input from the variable mass input
-            me%j_np_pointsource = me%j_np_pointsource + me%variableMass_timeSeries(t,:,:,:)
+        ! Check if this is a timestep where the fixed mass is to be input
+        if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
+            me%j_np_pointsource = me%fixedMass
         end if
+        ! Add this timestep's input from the variable mass input
+        me%j_np_pointsource = me%j_np_pointsource + me%variableMass_timeSeries(t,:,:,:)
         
         call r%addToTrace("Updating PointSource on time step " // trim(str(t)))
     end function
@@ -92,36 +86,30 @@ module classPointSource
         do i = 1, size(me%parents)
             grp = grp%getGroup(trim(me%parents(i)))
         end do
-        if (grp%hasGroup("PointSource")) then
-            me%ncGroup = grp%getGroup("PointSource")    
-        else
-            me%exists = .false.                             ! If we can't find the data set, PointSource mustn't exist
+        ! The containing waterbody should have already checked this PointSource exists
+        me%ncGroup = grp%getGroup("PointSource")    
+        
+        ! If a fixed mass input has been specified
+        if (me%ncGroup%hasVariable("fixed_mass")) then
+            var = me%ncGroup%getVariable("fixed_mass")
+            call var%getData(me%fixedMass)
+            ! If a fixed mass frequency has been specified, use it, otherwise default to daily
+            if (me%ncGroup%hasVariable("fixed_mass_frequency")) then
+                var = me%ncGroup%getVariable("fixed_mass_frequency")
+                call var%getData(me%fixedMassFrequency)
+            else
+                call r%addError(ErrorInstance( &
+                    message = "Fixed mass input specified with no frequency of input. Defaulting to daily input.", &
+                    isCritical = .false. &
+                ))
+                me%fixedMassFrequency = 1
+            end if
         end if
         
-        ! Get data if this PointSource exists
-        if (me%exists) then
-            ! If a fixed mass input has been specified
-            if (me%ncGroup%hasVariable("fixed_mass")) then
-                var = me%ncGroup%getVariable("fixed_mass")
-                call var%getData(me%fixedMass)
-                ! If a fixed mass frequency has been specified, use it, otherwise default to daily
-                if (me%ncGroup%hasVariable("fixed_mass_frequency")) then
-                    var = me%ncGroup%getVariable("fixed_mass_frequency")
-                    call var%getData(me%fixedMassFrequency)
-                else
-                    call r%addError(ErrorInstance( &
-                        message = "Fixed mass input specified with no frequency of input. Defaulting to daily input.", &
-                        isCritical = .false. &
-                    ))
-                    me%fixedMassFrequency = 1.0_dp
-                end if
-            end if
-            
-            ! If a time series of inputs has been specified
-            if (me%ncGroup%hasVariable("variable_mass")) then
-                var = me%ncGroup%getVariable("variable_mass")
-                call var%getData(me%variableMass_timeSeries)
-            end if
+        ! If a time series of inputs has been specified
+        if (me%ncGroup%hasVariable("variable_mass")) then
+            var = me%ncGroup%getVariable("variable_mass")
+            call var%getData(me%variableMass_timeSeries)
         end if
         
         ! Add this procedure to the error trace

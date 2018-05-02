@@ -6,10 +6,9 @@ module classDiffuseSource
     type, public :: DiffuseSource
         integer :: x                                !! `GridCell` x reference
         integer :: y                                !! `GridCell` y reference
-        logical :: exists = .true.                  !! Does this PointSource exist in data?
         type(NcGroup) :: ncGroup                    !! NetCDF group for this `PointSource` object
-        real(dp), allocatable :: inputMass_timeSeries(:,:,:,:)  !! Time series of input nanomaterial masses
-        real(dp), allocatable :: j_np_diffusesource(:,:,:)      !! Nanomaterial input for a given time step [kg/timestep]
+        real(dp), allocatable :: inputMass_timeSeries(:,:,:,:)  !! Time series of input nanomaterial masses [kg/m2]
+        real(dp), allocatable :: j_np_diffusesource(:,:,:)      !! Nanomaterial input for a given time step [(kg/m2)/timestep]
 
       contains
         procedure :: create => createDiffuseSource
@@ -40,12 +39,8 @@ module classDiffuseSource
         class(DiffuseSource) :: me
         integer :: t
         type(Result) :: r
-        ! If there's data for this diffuse source, then get it for this time step
-        if (me%exists) then
-            me%j_np_diffusesource = me%inputMass_timeSeries(t)
-        else
-            me%j_np_diffusesource = 0
-        end if
+        ! Get this time step's input mass
+        me%j_np_diffusesource = me%inputMass_timeSeries(t)
     end function
 
     function parseInputDataDiffuseSource(me) result(r)
@@ -59,19 +54,14 @@ module classDiffuseSource
         nc = NcDataset(C%inputFile, "r")
         grp = nc%getGroup("Environment")
         grp = grp%getGroup(trim(ref("GridCell",me%x,me%y)))
-        if (grp%hasGroup("DiffuseSource")) then
-            me%ncGroup = grp%getGroup("DiffuseSource")    
+        ! Containing GridCell should already have checked if DiffuseSource present
+        me%ncGroup = grp%getGroup("DiffuseSource")
+        ! If a fixed mass input has been specified
+        if (me%ncGroup%hasVariable("input_mass")) then
+            var = me%ncGroup%getVariable("input_mass")
+            call var%getData(me%inputMass_timeSeries)
         else
-            me%exists = .false.             ! If we can't find the data set, DiffuseSource mustn't exist
-        end if
-
-        ! Get data if this PointSource exists
-        if (me%exists) then
-            ! If a fixed mass input has been specified
-            if (me%ncGroup%hasVariable("input_mass")) then
-                var = me%ncGroup%getVariable("input_mass")
-                call var%getData(me%inputMass_timeSeries)
-            end if
+            me%inputMass_timeSeries = 0.0_dp        ! Default to no input
         end if
     end function
 

@@ -98,9 +98,7 @@ module classRiverReach1
         call me%setDefaults()
         
         ! Get data from the input data file
-        call r%addErrors( &
-            .errors. me%parseInputData() &    
-        )
+        call r%addErrors(.errors. me%parseInputData())
 
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%n = C%n_river
@@ -114,9 +112,10 @@ module classRiverReach1
         allocate(Reactor1::me%reactor)
         call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
         
-        ! Create the PointSource object to add any specific releases for this reach
-        ! (if they exist in the data)
-        call r%addErrors(.errors. me%pointSource%create(me%x, me%y, [trim(me%ref)]))
+        ! Create the PointSource object, if this reach has one
+        if (me%hasPointSource) then
+            call r%addErrors(.errors. me%pointSource%create(me%x, me%y, [trim(me%ref)]))
+        end if
         
         call r%addToTrace('Creating ' // trim(me%ref))
     end function
@@ -185,8 +184,10 @@ module classRiverReach1
         ! Get inputs from point source (if there is one): Run the update method, which sets
         ! PointSource's j_np_pointsource variable for this time step. j_np_pointsource = 0
         ! if there isn't a point source
-        call r%addErrors(.errors. me%pointSource%update(t))
-        me%j_np_in = me%j_np_in + me%pointSource%j_np_pointsource
+        if (me%hasPointSource) then
+            call r%addErrors(.errors. me%pointSource%update(t))
+            me%j_np_in = me%j_np_in + me%pointSource%j_np_pointsource
+        end if
         
         ! HACK: Set point source for (2,3) and (3,1), emitting every 10 days
         !if (mod(t,10) == 0 .and. ((me%x == 2 .and. me%y == 3) .or. (me%x == 3 .and. me%y == 1))) then
@@ -458,6 +459,11 @@ module classRiverReach1
         grp = nc%getGroup("Environment")
         grp = grp%getGroup(trim(ref("GridCell", me%x, me%y)))   ! Get the GridCell we're in
         me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
+
+        ! Check if this reach has a point source. me%hasPointSource defaults to .false.
+        if (me%ncGroup%hasGroup("PointSource")) then
+            me%hasPointSource = .true.
+        end if
         
         if (me%ncGroup%hasVariable("length")) then              ! Get the length of the reach, if present
             var = me%ncGroup%getVariable("length")
