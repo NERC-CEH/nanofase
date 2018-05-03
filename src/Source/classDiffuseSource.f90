@@ -1,5 +1,6 @@
 module classDiffuseSource
     use Globals
+    use UtilModule
     use ResultModule
     implicit none
 
@@ -28,7 +29,7 @@ module classDiffuseSource
         me%y = y
         ! Allocate nanomaterial arrays
         allocate( &
-            me%input_mass(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
+            me%inputMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
             me%j_np_diffusesource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2) &
         )
         ! Parse the input data
@@ -40,7 +41,7 @@ module classDiffuseSource
         integer :: t
         type(Result) :: r
         ! Get this time step's input mass
-        me%j_np_diffusesource = me%inputMass_timeSeries(t)
+        me%j_np_diffusesource = me%inputMass_timeSeries(t,:,:,:)
     end function
 
     function parseInputDataDiffuseSource(me) result(r)
