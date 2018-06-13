@@ -8,6 +8,7 @@ module classPointSource
     type, public :: PointSource
         integer :: x                    !! GridCell x reference
         integer :: y                    !! GridCell y reference
+        integer :: s                    !! PointSource reference
         character(:), allocatable :: parents(:)
             !! Array of character references to parent environmental compartments, e.g.
             !! ['GridCell_1_1', 'RiverReach_1_1_1']
@@ -27,16 +28,18 @@ module classPointSource
     contains
     
     !> Initialise the PointSource object
-    function createPointSource(me, x, y, parents) result(r)
+    function createPointSource(me, x, y, s, parents) result(r)
         class(PointSource) :: me
         integer :: x
         integer :: y
+        integer :: s
         character(len=*) :: parents(:)
         type(Result) :: r
         
         allocate(me%parents, source=parents)
         me%x = x
         me%y = y
+        me%s = s
         ! Allocate some arrays
         allocate( &
             me%fixedMass(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
@@ -87,7 +90,11 @@ module classPointSource
             grp = grp%getGroup(trim(me%parents(i)))
         end do
         ! The containing waterbody should have already checked this PointSource exists
-        me%ncGroup = grp%getGroup("PointSource")    
+        if (me%s == 1 .and. grp%hasGroup("PointSource")) then
+            me%ncGroup = grp%getGroup("PointSource")
+        else
+            me%ncGroup = grp%getGroup("PointSource_" // trim(str(me%s)))
+        end if
         
         ! If a fixed mass input has been specified
         if (me%ncGroup%hasVariable("fixed_mass")) then

@@ -293,6 +293,7 @@ module classGridCell1
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
         ! Check that the GridCell is not empty before simulating anything
+        ! TODO Actual do something with the data from this diffuse source
         if (.not. me%isEmpty) then
             ! Get any inputs from diffuse source
             if (me%hasDiffuseSource) then
