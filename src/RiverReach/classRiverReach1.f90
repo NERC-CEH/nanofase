@@ -51,7 +51,7 @@ module classRiverReach1
         type(Result0D) :: D                                     ! Depth [m]
         type(Result0D) :: v                                     ! River velocity [m/s]
         type(Result0D) :: W                                     ! River width [m]
-        integer :: n                                            ! Loop iterator for SPM size classes
+        integer :: n, s                                         ! Loop iterator for SPM size classes and sources
         integer :: allst                                        ! Allocation status
         type(ErrorInstance) :: error                            ! To return errors
 
@@ -112,9 +112,14 @@ module classRiverReach1
         allocate(Reactor1::me%reactor)
         call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
         
-        ! Create the PointSource object, if this reach has one
-        if (me%hasPointSource) then
-            call r%addErrors(.errors. me%pointSource%create(me%x, me%y, [trim(me%ref)]))
+        ! Create the PointSource object(s), if this reach has any
+        do s = 1, size(me%pointSources)
+            call r%addErrors(.errors. me%pointSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
+        end do
+
+        ! Create the DiffuseSource object, if this reach has one
+        if (me%hasDiffuseSource) then
+            call r%addErrors(.errors. me%diffuseSource%create(me%x, me%y, [trim(me%ref)]))
         end if
         
         call r%addToTrace('Creating ' // trim(me%ref))
@@ -188,11 +193,12 @@ module classRiverReach1
             call r%addErrors(.errors. me%pointSource%update(t))
             me%j_np_in = me%j_np_in + me%pointSource%j_np_pointsource
         end if
-        
-        ! HACK: Set point source for (2,3) and (3,1), emitting every 10 days
-        !if (mod(t,10) == 0 .and. ((me%x == 2 .and. me%y == 3) .or. (me%x == 3 .and. me%y == 1))) then
-        !    me%j_np_in = me%j_np_in + 1e-9*3e6             ! Add a fixed mass, roughly equal to conc of 1 ng/L and river volume of 3e6
-        !end if
+
+        ! Get inputs from diffuse source (if there is one).
+        if (me%hasDiffuseSource) then
+            call r%addErrors(.errors. me%diffuseSource%update(t))
+            me%j_np_in = me%j_np_in + me%diffuseSource%j_np_diffusesource
+        end if
                 
         me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
         me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
@@ -449,7 +455,7 @@ module classRiverReach1
         type(NcDataset) :: nc               ! NetCDF dataset
         type(NcVariable) :: var             ! NetCDF variable
         type(NcGroup) :: grp                ! NetCDF group
-        integer :: i                        ! Loop counter
+        integer :: i = 2                    ! Loop counter
         integer, allocatable :: inflowArray(:,:) ! Temporary array for storing inflows from data file in
         
         ! Get the specific RiverReach parameters from data - only the stuff
@@ -460,9 +466,20 @@ module classRiverReach1
         grp = grp%getGroup(trim(ref("GridCell", me%x, me%y)))   ! Get the GridCell we're in
         me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
 
-        ! Check if this reach has a point source. me%hasPointSource defaults to .false.
-        if (me%ncGroup%hasGroup("PointSource")) then
+        ! Check if this reach has any point sources. me%hasPointSource defaults to .false.
+        ! Allocate me%pointSources accordingly
+        if (me%ncGroup%hasGroup("PointSource") .or. me%ncGroup%hasGroup("PointSource_1")) then
             me%hasPointSource = .true.
+            allocate(me%pointSources(1))
+            do while (me%ncGroup%hasGroup("PointSource_" // trim(str(i))))
+                allocate(me%pointSources(i))
+                i = i+1
+            end do
+        end if
+
+        ! Check if this reach has a diffuse source. me%hasDiffuseSource defaults to .false.
+        if (me%ncGroup%hasGroup("DiffuseSource")) then
+            me%hasDiffuseSource = .true.
         end if
         
         if (me%ncGroup%hasVariable("length")) then              ! Get the length of the reach, if present

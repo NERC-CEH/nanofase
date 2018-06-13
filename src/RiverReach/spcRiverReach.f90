@@ -84,11 +84,13 @@ module spcRiverReach
         integer :: branch = 0                                       !! Which branch is this `RiverReach` on in the GridCell? 0 = not processed yet
             !! TODO: Try and remove these; RiverReach shouldn't really know anything about
             !! the GridCell - not very encapsulated
-        class(BedSediment), allocatable :: bedSediment              !! Contained BedSediment object
-        class(Reactor), allocatable :: reactor                      !! Contained Reactor object
-        type(PointSource) :: pointSource                            !! Contained PointSource object (non-polymorphic)
+        class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
+        class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
+        type(PointSource), allocatable :: pointSources(:)           !! Contained `PointSource` objects (non-polymorphic)
         logical :: hasPointSource = .false.                         !! Does this `RiverReach` have a `PointSource`?
-        type(NcGroup) :: ncGroup                                    !! The NETCDF group for this RiverReach
+        type(DiffuseSource) :: diffuseSource                        !! Contained `DiffuseSource` object (non-polymorphic)
+        logical :: hasDiffuseSource = .false.                       !! Does this `RiverReach` have a `DiffuseSource`?
+        type(NcGroup) :: ncGroup                                    !! The NetCDF group for this `RiverReach`
       contains
         ! Create/destory
         procedure(createRiverReach), deferred :: create

@@ -19,10 +19,11 @@ module classDiffuseSource
 
     contains
 
-    function createDiffuseSource(me, x, y) result(r)
+    function createDiffuseSource(me, x, y, parents) result(r)
         class(DiffuseSource) :: me          !! This `DiffuseSource` object
         integer :: x                        !! The containing `GridCell` x reference
         integer :: y                        !! The containing `GridCell` y reference
+        character(len=*), optional :: parents(:)    !! Array of refs for parent environmental compartments
         type(Result) :: r                   !! The `Result` object to return any errors in
 
         me%x = x
@@ -32,6 +33,7 @@ module classDiffuseSource
             me%inputMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
             me%j_np_diffusesource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2) &
         )
+        if (.not. present(parents)) allocate(parents(0))    ! If no parents given (i.e. we're in a GridCell), set to empty
         ! Parse the input data
         call r%addErrors(.errors. me%parseInputData())        
     end function
@@ -54,7 +56,11 @@ module classDiffuseSource
         ! Open dataset and get this object's group
         nc = NcDataset(C%inputFile, "r")
         grp = nc%getGroup("Environment")
-        grp = grp%getGroup(trim(ref("GridCell",me%x,me%y)))
+        grp = grp%getGroup(trim(ref("GridCell", me%x ,me%y)))
+        ! Loop through the parent groups (if there are any)        
+        do i = 1, size(me%parents)
+            grp = grp%getGroup(trim(me%parents(i)))
+        end do
         ! Containing GridCell should already have checked if DiffuseSource present
         me%ncGroup = grp%getGroup("DiffuseSource")
         ! If a fixed mass input has been specified
