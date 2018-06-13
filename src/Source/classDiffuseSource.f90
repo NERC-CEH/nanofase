@@ -7,6 +7,7 @@ module classDiffuseSource
     type, public :: DiffuseSource
         integer :: x                                !! `GridCell` x reference
         integer :: y                                !! `GridCell` y reference
+        integer :: s                                !! Reference for this `DiffuseSource`
         type(NcGroup) :: ncGroup                    !! NetCDF group for this `PointSource` object
         real(dp), allocatable :: inputMass_timeSeries(:,:,:,:)  !! Time series of input nanomaterial masses [kg/m2]
         real(dp), allocatable :: j_np_diffusesource(:,:,:)      !! Nanomaterial input for a given time step [(kg/m2)/timestep]
@@ -19,15 +20,17 @@ module classDiffuseSource
 
     contains
 
-    function createDiffuseSource(me, x, y, parents) result(r)
+    function createDiffuseSource(me, x, y, s, parents) result(r)
         class(DiffuseSource) :: me          !! This `DiffuseSource` object
         integer :: x                        !! The containing `GridCell` x reference
         integer :: y                        !! The containing `GridCell` y reference
+        integer :: s                        !! Reference for this `DiffuseSource`
         character(len=*), optional :: parents(:)    !! Array of refs for parent environmental compartments
         type(Result) :: r                   !! The `Result` object to return any errors in
 
         me%x = x
         me%y = y
+        me%s = s
         ! Allocate nanomaterial arrays
         allocate( &
             me%inputMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
@@ -61,8 +64,13 @@ module classDiffuseSource
         do i = 1, size(me%parents)
             grp = grp%getGroup(trim(me%parents(i)))
         end do
-        ! Containing GridCell should already have checked if DiffuseSource present
-        me%ncGroup = grp%getGroup("DiffuseSource")
+        ! The containing waterbody should have already checked this PointSource exists
+        if (me%s == 1 .and. grp%hasGroup("DiffuseSource")) then
+            me%ncGroup = grp%getGroup("DiffuseSource")
+        else
+            me%ncGroup = grp%getGroup("DiffuseSource_" // trim(str(me%s)))
+        end if
+
         ! If a fixed mass input has been specified
         if (me%ncGroup%hasVariable("input_mass")) then
             var = me%ncGroup%getVariable("input_mass")
