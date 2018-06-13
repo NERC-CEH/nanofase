@@ -88,7 +88,7 @@ module spcRiverReach
         class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
         type(PointSource), allocatable :: pointSources(:)           !! Contained `PointSource` objects (non-polymorphic)
         logical :: hasPointSource = .false.                         !! Does this `RiverReach` have a `PointSource`?
-        type(DiffuseSource) :: diffuseSource                        !! Contained `DiffuseSource` object (non-polymorphic)
+        type(DiffuseSource), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects (non-polymorphic)
         logical :: hasDiffuseSource = .false.                       !! Does this `RiverReach` have a `DiffuseSource`?
         type(NcGroup) :: ncGroup                                    !! The NetCDF group for this `RiverReach`
       contains

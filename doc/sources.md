@@ -87,6 +87,17 @@ The dimensions are the same as for the time-varying input of point sources. Alte
 }
 ```
 
+### Multiple `DiffuseSource`s
+Similarly to `PointSource`, multiple diffuse sources can be specified in the input file by appending an integer reference to the source's group. This follows the same convention as for `PointSource`.
+
+```json
+"GridCell_1_1": {
+    "DiffuseSource_1": { ... },
+    "DiffuseSource_2": { ... },
+    "DiffuseSource_3": { ... }
+}
+```
+
 # Input size class, state and form
 
 It is likely that available input data will not discretise input masses into size class, state and form fractions, and so care must be taken when structuring the data file to account for this.:

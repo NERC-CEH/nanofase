@@ -117,10 +117,10 @@ module classRiverReach1
             call r%addErrors(.errors. me%pointSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
         end do
 
-        ! Create the DiffuseSource object, if this reach has one
-        if (me%hasDiffuseSource) then
-            call r%addErrors(.errors. me%diffuseSource%create(me%x, me%y, [trim(me%ref)]))
-        end if
+        ! Create the DiffuseSource object(s), if this reach has any
+        do s = 1, size(me%diffuseSources)
+            call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
+        end do
         
         call r%addToTrace('Creating ' // trim(me%ref))
     end function
@@ -154,7 +154,7 @@ module classRiverReach1
         integer :: n                                        ! Size class loop iterator
         integer :: nDisp                                    ! Number of displacements to split reach into
         real(dp) :: dt                                      ! Length of each displacement [s]
-        integer :: i                                        ! Iterator
+        integer :: i, s                                     ! Iterators
         real(dp) :: dQ_in                                   ! Q_in for each displacement
         real(dp) :: dj_spm_in(C%nSizeClassesSpm)            ! j_spm_in for each displacement
         real(dp) :: dSpmDep(C%nSizeClassesSpm)              ! Deposited SPM for each displacement
@@ -186,19 +186,20 @@ module classRiverReach1
         me%j_spm_in = me%j_spm_in + me%j_spm_runoff         ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
         me%j_np_in = me%j_np_in + me%j_np_runoff            ! Inflow of NP from upstream reach + soil erosion [kg/timestep]
         
-        ! Get inputs from point source (if there is one): Run the update method, which sets
-        ! PointSource's j_np_pointsource variable for this time step. j_np_pointsource = 0
-        ! if there isn't a point source
-        if (me%hasPointSource) then
-            call r%addErrors(.errors. me%pointSource%update(t))
-            me%j_np_in = me%j_np_in + me%pointSource%j_np_pointsource
+        ! Loop through point sources and get their inputs (if there are any):
+        ! Run the update method, which sets PointSource's j_np_pointsource variable
+        ! for this time step. j_np_pointsource = 0 if there isn't a point source
+        do s = 1, size(me%pointSources) then
+            call r%addErrors(.errors. me%pointSources(s)%update(t))
+            me%j_np_in = me%j_np_in + me%pointSources(s)%j_np_pointSource
+        end if
+        ! Same for diffuse sources
+        ! TODO What units will reach-specific diffuse source input data be in?
+        do s = 1, size(me%diffuseSources) then
+            call r%addErrors(.errors. me%diffuseSources(s)%update(t))
+            me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource
         end if
 
-        ! Get inputs from diffuse source (if there is one).
-        if (me%hasDiffuseSource) then
-            call r%addErrors(.errors. me%diffuseSource%update(t))
-            me%j_np_in = me%j_np_in + me%diffuseSource%j_np_diffusesource
-        end if
                 
         me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
         me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
@@ -455,7 +456,7 @@ module classRiverReach1
         type(NcDataset) :: nc               ! NetCDF dataset
         type(NcVariable) :: var             ! NetCDF variable
         type(NcGroup) :: grp                ! NetCDF group
-        integer :: i = 2                    ! Loop counter
+        integer :: i                        ! Loop counter
         integer, allocatable :: inflowArray(:,:) ! Temporary array for storing inflows from data file in
         
         ! Get the specific RiverReach parameters from data - only the stuff
@@ -467,19 +468,25 @@ module classRiverReach1
         me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
 
         ! Check if this reach has any point sources. me%hasPointSource defaults to .false.
-        ! Allocate me%pointSources accordingly
+        ! Allocate me%pointSources accordingly.
         if (me%ncGroup%hasGroup("PointSource") .or. me%ncGroup%hasGroup("PointSource_1")) then
             me%hasPointSource = .true.
             allocate(me%pointSources(1))
+            i = 2               ! Any extra point sources?
             do while (me%ncGroup%hasGroup("PointSource_" // trim(str(i))))
                 allocate(me%pointSources(i))
                 i = i+1
             end do
         end if
-
-        ! Check if this reach has a diffuse source. me%hasDiffuseSource defaults to .false.
-        if (me%ncGroup%hasGroup("DiffuseSource")) then
+        ! Same for diffuse source(s)
+        if (me%ncGroup%hasGroup("DiffuseSource") .or. me%ncGroup%hasGroup("DiffuseSource_1")) then
             me%hasDiffuseSource = .true.
+            allocate(me%diffuseSources(1))
+            i = 2               ! Any extra diffuse sources?
+            do while (me%ncGroup%hasGroup("DiffuseSource_") // trim(str(i)))
+                allocate(me%diffuseSources(i))
+                i = i+1
+            end do
         end if
         
         if (me%ncGroup%hasVariable("length")) then              ! Get the length of the reach, if present
