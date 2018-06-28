@@ -22,7 +22,7 @@ After you've made changes, add the changes to the "staging" area and commit them
 git add --a
 git commit -m "Commit message."
 ```
-The `--a` option signifies that *all* changes should be staged. The commit needs a commit message, which is specified after the `-m` option.
+The `--a` option signifies that *all* changes should be staged (`git add .` is an alternative command that can be used). The commit needs a commit message, which is specified after the `-m` option.
 
 These changes are now commited locally. To push to the Github repository:
 
