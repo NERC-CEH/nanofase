@@ -2,10 +2,13 @@
 
 Multimedia environmental fate model for engineered nanomaterials.
 
+[**Please read the model conventions!**](doc/conventions.md)
+
 Model documentation:
  - [Model overview](doc/overview.md)
  - [Input data requirements](doc/data-requirements.md)
  - [Config file options](doc/config.md)
+ - [Using the DataInterfacer class](doc/data-interfacer.md)
  - [Conventions](doc/conventions.md)
 
 Other documentation:
