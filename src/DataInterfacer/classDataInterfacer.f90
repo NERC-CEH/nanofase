@@ -118,7 +118,7 @@ module classDataInterfacer
         integer, optional                   :: default
         character(*), optional              :: defaultMessage       !! Override the "Defaulting to..." message
         logical, optional                   :: warnIfDefaulting     !! Should a warning be issued if var defaults? Defaults to false
-        logical, optional                   :: silentlyFail         !! If the variable isn't found, no absolutely nothing (default is overriden)
+        logical, optional                   :: silentlyFail         !! If the variable isn't found, do absolutely nothing (default is overriden)
         type(NcVariable)                    :: ncVar
         character(256)                      :: message
         type(Result)                        :: r
