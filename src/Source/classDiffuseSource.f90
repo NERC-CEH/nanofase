@@ -3,6 +3,7 @@ module classDiffuseSource
     use UtilModule
     use ResultModule
     implicit none
+    private
 
     type, public :: DiffuseSource
         integer :: x                                !! `GridCell` x reference
@@ -19,9 +20,18 @@ module classDiffuseSource
         procedure :: create => createDiffuseSource
         procedure :: update => updateDiffuseSource
         procedure :: parseInputData => parseInputDataDiffuseSource
+        procedure :: test
     end type
 
     contains
+
+    subroutine test(me)
+        class(DiffuseSource) :: me
+        print *, "starting DS test"
+        me%x = 0
+        print *, me%x
+        print *, "test completed"
+    end subroutine
 
     function createDiffuseSource(me, x, y, s, parents) result(r)
         class(DiffuseSource) :: me          !! This `DiffuseSource` object
@@ -31,17 +41,33 @@ module classDiffuseSource
         character(len=*), optional :: parents(:)    !! Array of refs for parent environmental compartments
         type(Result) :: r                   !! The `Result` object to return any errors in
 
+        call me%test()
+
+        print *, "starting to create diffuse source"
+
+        me%x = 0
+        print *, "me%x = 0"
+
         me%x = x
+        print *, "set x"
         me%y = y
+        print *, "set y"
         me%s = s
+        print *, "set x, y and s"
         ! Allocate nanomaterial arrays
-        allocate( &
-            me%inputMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
-            me%j_np_diffusesource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2) &
-        )
+        print *, allocated(me%inputMass_timeSeries)
+        print *, allocated(me%j_np_diffuseSource)
+
+        allocate(me%inputMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
+        allocate(me%j_np_diffusesource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
+
+        print *, "nm arrays allocated"
+
         if (.not. present(parents)) allocate(me%parents(0))    ! If no parents given (i.e. we're in a GridCell), set to empty
         ! Parse the input data
         call r%addErrors(.errors. me%parseInputData())        
+
+        print *, "finished creating diffuse source"
     end function
 
     function updateDiffuseSource(me, t) result(r)

@@ -187,9 +187,11 @@ module classReactor1
         
         do s = 1, C%nSizeClassesSpm
             do n = 1, C%nSizeClassesNp
-                k_coll(n,s) = (2*C%k_B*(T_water+273.15_dp)/(3*C%mu_w(T_water))) * (C%d_spm(s)/2 + C%d_np(n)/2)**2/((C%d_spm(s)/2)*(C%d_np(n)/2)) &
-                                + (4.0_dp/3.0_dp)*G*(C%d_np(n)/2 + C%d_spm(s)/2)**3 + C%pi*(C%d_spm(s)/2+C%d_np(n)/2)**2 * &
-                                abs(W_settle_np(n) - W_settle_spm(s))
+                k_coll(n,s) = (2*C%k_B*(T_water+273.15_dp)/(3*C%mu_w(T_water))) &
+                              * (C%d_spm(s)/2 + C%d_np(n)/2)**2/((C%d_spm(s)/2)*(C%d_np(n)/2)) &
+                              + (4.0_dp/3.0_dp)*G*(C%d_np(n)/2 + C%d_spm(s)/2)**3 &
+                              + C%pi*(C%d_spm(s)/2+C%d_np(n)/2)**2 &
+                              * abs(W_settle_np(n) - W_settle_spm(s))
             end do
         end do
         

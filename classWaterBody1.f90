@@ -1,31 +1,31 @@
-!> Module containing the `RiverReach1` class definition
-module classRiverReach1
+!> Module containing the `WaterBody1` class definition
+module classWaterBody1
     use mo_netcdf
     use Globals
     use UtilModule
     use ResultModule
     use ErrorInstanceModule
-    use spcRiverReach
+    use spcWaterBody
     use classBedSediment1
     use classReactor1
     implicit none
 
-    !> `RiverReach1` object is responsible for sediment transport along river and
+    !> `WaterBody1` object is responsible for sediment transport along river and
     !! sediment deposition to bed sediment.
-    type, public, extends(RiverReach) :: RiverReach1
+    type, public, extends(WaterBody) :: WaterBody1
       contains
         ! Create/destroy
-        procedure :: create => createRiverReach1
-        procedure :: destroy => destroyRiverReach1
+        procedure :: create => createWaterBody1
+        procedure :: destroy => destroyWaterBody1
         ! Simulators
-        procedure :: update => updateRiverReach1
-        procedure :: finaliseUpdate => finaliseUpdateRiverReach1
-        procedure :: resuspension => resuspensionRiverReach1
-        procedure :: settling => settlingRiverReach1
-        procedure :: depositToBed => depositToBedRiverReach1
+        procedure :: update => updateWaterBody1
+        procedure :: finaliseUpdate => finaliseUpdateWaterBody1
+        procedure :: resuspension => resuspensionWaterBody1
+        procedure :: settling => settlingWaterBody1
+        procedure :: depositToBed => depositToBedWaterBody1
         ! Data handlers
-        procedure :: setDefaults => setDefaultsRiverReach1
-        procedure :: parseInputData => parseInputDataRiverReach1
+        procedure :: setDefaults => setDefaultsWaterBody1
+        procedure :: parseInputData => parseInputDataWaterBody1
         ! Calculators
         procedure :: calculateWidth => calculateWidth1
         procedure :: calculateDepth => calculateDepth1
@@ -38,12 +38,12 @@ module classRiverReach1
 
   contains
 
-    !> Create this `RiverReach1`, parse input data and set up contained `BedSediment`
-    function createRiverReach1(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries, gridCellArea) result(r)
-        class(RiverReach1) :: me                                !! The `RiverReach1` instance.
+    !> Create this `WaterBody1`, parse input data and set up contained `BedSediment`
+    function createWaterBody1(me, x, y, rr, q_runoff_timeSeries, T_water_timeSeries, gridCellArea) result(r)
+        class(WaterBody1) :: me                                !! The `WaterBody1` instance.
         integer :: x                                            !! Containing `GridCell` x-position index.
         integer :: y                                            !! Containing `GridCell` y-position index.
-        integer :: rr                                           !! `RiverReach` index.
+        integer :: rr                                           !! `WaterBody` index.
         real(dp) :: q_runoff_timeSeries(:)                      !! Runoff time series [m/timestep]
         real(dp) :: T_water_timeSeries(:)                       !! Water temperature time series [C]
         real(dp) :: gridCellArea                                !! The area for the containing `GridCell` [m2]
@@ -55,11 +55,11 @@ module classRiverReach1
         integer :: allst                                        ! Allocation status
         type(ErrorInstance) :: error                            ! To return errors
 
-        ! First, let's set the RiverReach's reference and the length
+        ! First, let's set the WaterBody's reference and the length
         me%x = x
         me%y = y
         me%rr = rr
-        me%ref = trim(ref("RiverReach", x, y, rr))
+        me%ref = trim(ref("WaterBody", x, y, rr))
         me%gridCellArea = gridCellArea
         allocate(me%q_runoff_timeSeries, source=q_runoff_timeSeries)    ! Runoff = slow flow + quick flow [m/timestep]
         allocate(me%T_water_timeSeries, source=T_water_timeSeries)      ! Water temperature [C]
@@ -103,41 +103,37 @@ module classRiverReach1
         ! TODO: Where should Manning's n come from? From Constants for the moment:
         me%n = C%n_river
 
-        ! Create the BedSediment for this RiverReach
+        ! Create the BedSediment for this WaterBody
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        ! TODO: Sort out BedSediment errors
-        allocate(BedSediment1::me%bedSediment)
-        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        ! TODO: Sort of BedSediment errors
+        !allocate(BedSediment1::me%bedSediment)
+        !call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
         
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
         call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
         
         ! Create the PointSource object(s), if this reach has any
-        if (me%hasPointSource) then
-            do s = 1, size(me%pointSources)
-                call r%addErrors(.errors. me%pointSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
-            end do
-        end if
+        do s = 1, size(me%pointSources)
+            call r%addErrors(.errors. me%pointSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
+        end do
 
         ! Create the DiffuseSource object(s), if this reach has any
-        if (me%hasDiffuseSource) then
-            do s = 1, size(me%diffuseSources)
-                call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
-            end do
-        end if
+        do s = 1, size(me%diffuseSources)
+            call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
+        end do
         
         call r%addToTrace('Creating ' // trim(me%ref))
     end function
 
-    !> Destroy this `RiverReach1`
-    function destroyRiverReach1(me) result(r)
-        class(RiverReach1) :: me                            !! This `RiverReach1` instance
+    !> Destroy this `WaterBody1`
+    function destroyWaterBody1(me) result(r)
+        class(WaterBody1) :: me                            !! This `WaterBody1` instance
         type(Result) :: r                                   !! The `Result` object
         ! TODO: Write some destroy logic
     end function
 
-    !> Update the RiverReach on this time step t:
+    !> Update the WaterBody on this time step t:
     !! <ul>
     !!  <li>Masses/volumes updated according to inflows</li>
     !!  <li>Reach dimensions updated according to inflows</li>
@@ -146,8 +142,8 @@ module classRiverReach1
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
     !! TODO Put this all into a mass transfer matrix
-    function updateRiverReach1(me, t, j_spm_runoff, j_np_runoff) result(r)
-        class(RiverReach1) :: me                            !! This `RiverReach1` instance
+    function updateWaterBody1(me, t, j_spm_runoff, j_np_runoff) result(r)
+        class(WaterBody1) :: me                            !! This `WaterBody1` instance
         integer :: t                                        !! Current time step [s]
         real(dp) :: j_spm_runoff(:)                         !! Eroded sediment runoff to this reach
         real(dp), optional :: j_np_runoff(:,:,:)                      !! Eroded sediment runoff to this reach
@@ -194,20 +190,16 @@ module classRiverReach1
         ! Loop through point sources and get their inputs (if there are any):
         ! Run the update method, which sets PointSource's j_np_pointsource variable
         ! for this time step. j_np_pointsource = 0 if there isn't a point source
-        if (me%hasPointSource) then
-            do s = 1, size(me%pointSources)
-                call r%addErrors(.errors. me%pointSources(s)%update(t))
-                me%j_np_in = me%j_np_in + me%pointSources(s)%j_np_pointSource
-            end do
-        end if
+        do s = 1, size(me%pointSources)
+            call r%addErrors(.errors. me%pointSources(s)%update(t))
+            me%j_np_in = me%j_np_in + me%pointSources(s)%j_np_pointSource
+        end do
         ! Same for diffuse sources
         ! TODO What units will reach-specific diffuse source input data be in?
-        if (me%hasDiffuseSource) then
-            do s = 1, size(me%diffuseSources)
-                call r%addErrors(.errors. me%diffuseSources(s)%update(t))
-                me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource
-            end do
-        end if
+        do s = 1, size(me%diffuseSources)
+            call r%addErrors(.errors. me%diffuseSources(s)%update(t))
+            me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource
+        end do
 
                 
         me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
@@ -317,6 +309,8 @@ module classRiverReach1
         me%C_np = me%m_np/me%volume
         
         ! Now add the settled SPM to the BedSediment
+        ! TODO: Fractional composition errors trigger when calling BedSediment%deposit.
+        ! Need to sort these out.
         call r%addErrors(.errors. me%depositToBed(me%spmDep))
 
         ! If there's no SPM left, add the "all SPM advected" warning
@@ -326,7 +320,7 @@ module classRiverReach1
                 call r%addError(ErrorInstance( &
                     code = 500, &
                     message = "All SPM in size class " // trim(str(n)) // " (" // trim(str(C%d_spm(n)*1e6)) // &
-                            " um) advected from RiverReach.", &
+                            " um) advected from WaterBody.", &
                     isCritical = .false.) &
                 )
             end if 
@@ -337,11 +331,11 @@ module classRiverReach1
     end function
 
     !> Set temporary outflow variable to real outflow variables. This
-    !! method must be called after all RiverReach updates complete for
+    !! method must be called after all WaterBody updates complete for
     !! the timestep, else update() methods may use the wrong timestep's
     !! outflows
-    function finaliseUpdateRiverReach1(me) result(r)
-        class(RiverReach1) :: me
+    function finaliseUpdateWaterBody1(me) result(r)
+        class(WaterBody1) :: me
         type(Result) :: r
         me%Q_out = me%tmp_Q_out
         me%j_spm_out = me%tmp_j_spm_out
@@ -350,8 +344,8 @@ module classRiverReach1
 
     !> Perform the resuspension simulation for a time step
     !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
-    function resuspensionRiverReach1(me) result(r)
-        class(RiverReach1) :: me                                !! This `RiverReach1` instance
+    function resuspensionWaterBody1(me) result(r)
+        class(WaterBody1) :: me                                !! This `WaterBody1` instance
         type(Result) :: r                                       !! The Result object to return
         real(dp) :: d_max                                       ! Maximum resuspendable particle size
         real(dp) :: M_prop(C%nSizeClassesSpm)                   ! Proportion of size class that can be resuspended
@@ -402,8 +396,8 @@ module classRiverReach1
     end function
 
     !> Perform the settling simulation for a time step
-    function settlingRiverReach1(me) result(r)
-        class(RiverReach1) :: me                            !! This `RiverReach1` instance
+    function settlingWaterBody1(me) result(r)
+        class(WaterBody1) :: me                            !! This `WaterBody1` instance
         type(Result) :: r                                   !! The `Result` object to return any errors
         type(FineSediment1) :: fineSediment                 ! Object to pass SPM to BedSediment in
         integer :: n                                        ! Size class iterator
@@ -429,51 +423,36 @@ module classRiverReach1
     end function
 
     !> Send the given mass of settled SPM to the BedSediment
-    function depositToBedRiverReach1(me, spmDep) result(r)
-        class(RiverReach1)  :: me                           !! This RiverReach1 instance
+    function depositToBedWaterBody1(me, spmDep) result(r)
+        class(WaterBody1)  :: me                           !! This WaterBody1 instance
         real(dp)            :: spmDep(C%nSizeClassesSpm)    !! The SPM to deposit [kg/reach]
         type(Result)        :: r                            !! The data object to return any errors in
-        type(Result0D)      :: depositRslt                  !! Result from the bed sediment's deposit procedure
-        real(dp)            :: V_water_toDeposit            !! Volume of water to deposit to bed sediment [m3/m2]
         type(FineSediment1) :: fineSediment(C%nSizeClassesSpm) ! FineSediment object to pass to BedSediment
         integer             :: n                            ! Loop iterator
         ! Create the FineSediment object and add deposited SPM to it
         ! (converting units of Mf_in to kg/m2), then give that object
         ! to the BedSediment
         ! TODO: Check units of deposited FS, are they /m2?
-        ! TODO: What f_comp should be input?
         do n = 1, C%nSizeClassesSpm
-            call r%addErrors(.errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n))))
-            call r%addErrors(.errors. fineSediment(n)%set( &
-                Mf_in=spmDep(n)/me%bedArea, &
-                f_comp_in=C%defaultFractionalComp/100.0_dp &
-            ))
+            call r%addErrors([ &
+                .errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n))), &
+                .errors. fineSediment(n)%set(Mf_in=spmDep(n)/me%bedArea) &
+            ])
         end do
-        ! Deposit the fine sediment to the bed sediment
-        depositRslt = me%bedSediment%deposit(fineSediment)
-        ! Retrieve the amount of water to be taken from the reach
-        V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
-        print *, V_water_toDeposit
-        ! Subtract that volume for the reach (as a depth)
-        ! TODO: Subtracting the water doesn't have any effect at the moment,
-        ! since the depth is recalculting based on hydrology at the start
-        ! of every time step.
-        me%D = me%D - V_water_toDeposit
-        ! Add any errors that occured in the deposit procedure
-        call r%addErrors(.errors. depositRslt)
+        !call r%addErrors(.errors. me%bedSediment%deposit(fineSediment))
         call r%addToTrace("Depositing SPM to BedSediment")
     end function
     
     !> Set any defaults from config.nml file (accessed in Globals). Should be
     !! called before input data in parsed.
-    subroutine setDefaultsRiverReach1(me)
-        class(RiverReach1) :: me            !! This `RiverReach` instance
+    subroutine setDefaultsWaterBody1(me)
+        class(WaterBody1) :: me            !! This `WaterBody` instance
         me%f_m = C%defaultMeanderingFactor
     end subroutine
     
     !> Obtain and store in object properties data from the input file
-    function parseInputDataRiverReach1(me) result(r)
-        class(RiverReach1) :: me            !! This `RiverReach1` instance
+    function parseInputDataWaterBody1(me) result(r)
+        class(WaterBody1) :: me            !! This `WaterBody1` instance
         type(Result) :: r                   !! The `Result` object to return, with any errors
         type(NcDataset) :: nc               ! NetCDF dataset
         type(NcVariable) :: var             ! NetCDF variable
@@ -481,7 +460,7 @@ module classRiverReach1
         integer :: i                        ! Loop counter
         integer, allocatable :: inflowArray(:,:) ! Temporary array for storing inflows from data file in
         
-        ! Get the specific RiverReach parameters from data - only the stuff
+        ! Get the specific WaterBody parameters from data - only the stuff
         ! that doesn't depend on time
         ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
         nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
@@ -547,7 +526,7 @@ module classRiverReach1
             me%alpha_hetero = C%default_alpha_hetero
         end if
         
-        ! ROUTING: Get the references to the inflow(s) RiverReaches and
+        ! ROUTING: Get the references to the inflow(s) WaterBodyes and
         ! store in inflowRefs(). Do some auditing as well.
         if (me%ncGroup%hasVariable("inflows")) then
             var = me%ncGroup%getVariable("inflows")
@@ -564,8 +543,8 @@ module classRiverReach1
             do i = 1, me%nInflows                               ! Loop through the inflows
                 me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
                 me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
-                me%inflowRefs(i)%rr = inflowArray(3,i)          ! Inflow RiverReach reference
-                ! Check the inflow is from a neighbouring RiverReach
+                me%inflowRefs(i)%rr = inflowArray(3,i)          ! Inflow WaterBody reference
+                ! Check the inflow is from a neighbouring WaterBody
                 if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
                     call r%addError(ErrorInstance(code=401))
                 end if
@@ -611,7 +590,7 @@ module classRiverReach1
     !!  <li>[Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)</li>
     !! </ul>
     function calculateWidth1(me, Q) result(W)
-        class(RiverReach1), intent(in) :: me    !! The `RiverReach1` instance
+        class(WaterBody1), intent(in) :: me    !! The `WaterBody1` instance
         real(dp), intent(in) :: Q               !! `GridCell` discharge \( Q \) [m**3/s]
         real(dp) :: W                           !! The calculated width \( W \) [m]
         W = 1.22*Q**0.557                       ! Calculate the width
@@ -631,7 +610,7 @@ module classRiverReach1
     !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
     !! $$
     function calculateDepth1(me, W, S, Q) result(r)
-        class(RiverReach1), intent(in) :: me    !! The `RiverReach1` instance.
+        class(WaterBody1), intent(in) :: me    !! The `WaterBody1` instance.
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m3/s].
@@ -695,7 +674,7 @@ module classRiverReach1
     !!      v = \frac{Q}{WD}
     !! $$
     function calculateVelocity1(me, D, Q, W) result(v)
-        class(RiverReach1), intent(in) :: me    !! This `RiverReach1` instance
+        class(WaterBody1), intent(in) :: me    !! This `WaterBody1` instance
         real(dp), intent(in) :: D               !! River depth \( D \) [m]
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]
@@ -718,7 +697,7 @@ module classRiverReach1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
     function calculateSettlingVelocity1(me, d, rho_particle, T) result(W)
-        class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance.
+        class(WaterBody1), intent(in) :: me        !! The `WaterBody1` instance.
         real(dp), intent(in) :: d                   !! Particle diameter [m].
         real(dp), intent(in) :: rho_particle        !! Particle density [kg/m3].
         real(dp), intent(in) :: T                   !! Temperature [C].
@@ -739,7 +718,7 @@ module classRiverReach1
     !!      \mathbf{j}_{\text{res}} = \beta L W m_{\text{bed}} \mathbf{M}_{\text{prop}} \omega f
     !! $$
     function calculateResuspension1(me, beta, L, W, m_bed, M_prop, omega, f_fr) result(j_res)
-        class(RiverReach1), intent(in) :: me            !! This `RiverReach1` instance
+        class(WaterBody1), intent(in) :: me            !! This `WaterBody1` instance
         real(dp), intent(in) :: beta                    !! Calibration parameter \( \beta \) [s2 kg-1]
         real(dp), intent(in) :: L                       !! Reach length \( L = lf_{\text{m}} \) [m]
         real(dp), intent(in) :: W                       !! Reach width \( W \) [m]
@@ -751,12 +730,12 @@ module classRiverReach1
         j_res = beta*L*W*m_bed*M_prop*omega*f_fr
     end function
 
-    !> Calculate the volume of a RiverReach, assuming a rectangular profile:
+    !> Calculate the volume of a WaterBody, assuming a rectangular profile:
     !! $$
     !!      \text{volume} = DWlf_m
     !! $$
     function calculateVolume1(me, D, W, l, f_m) result(volume)
-        class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance
+        class(WaterBody1), intent(in) :: me        !! The `WaterBody1` instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
         real(dp), intent(in) :: l                   !! River length, without meandering [m]
@@ -765,13 +744,13 @@ module classRiverReach1
         volume = D*W*l*f_m
     end function
 
-    !> Calculate the area of a cross-section of the RiverReach, assuming
+    !> Calculate the area of a cross-section of the WaterBody, assuming
     !! a rectangular profile:
     !! $$
     !!      \text{area} = DW
     !! $$
     function calculateArea1(me, D, W) result(area)
-        class(RiverReach1), intent(in) :: me        !! The `RiverReach1` instance
+        class(WaterBody1), intent(in) :: me        !! The `WaterBody1` instance
         real(dp), intent(in) :: D                   !! River depth [m]
         real(dp), intent(in) :: W                   !! River width [m]
         real(dp) :: area                            !! The calculated area [m3]

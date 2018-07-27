@@ -9,6 +9,7 @@ module spcGridCell
     use spcEstuaryReach
     use classDiffuseSource
     use classPointSource
+    use classCrop
     implicit none
 
     !> Abstract base class `GridCell`. Extended classes are responsible
@@ -30,7 +31,7 @@ module spcGridCell
         type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
-        type(DiffuseSource) :: diffuseSource                            !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
+        type(DiffuseSource), allocatable :: diffuseSources(:)           !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
         logical :: hasDiffuseSource = .false.                           !! Does this `GridCell` have a `DiffuseSource`?
         integer :: nRiverReaches = 0                                    !! Number of contained `SubRiver`s
         integer :: nSoilProfiles = 0                                    !! Number of contained `SoilProfile`s
@@ -53,6 +54,19 @@ module spcGridCell
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
         real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! Input NPs from diffuse sources on this timestep [(kg/m2)/timestep]
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
+        ! Demands
+        logical :: hasDemands = .false.                                 !! Does this `GridCell` have any water demand data?
+        logical :: hasCrop = .false.                                    !! Does this `GridCell` have any crops?
+        logical :: hasLargeCity = .false.                               !! Does this `GridCell` have a large city?
+        real(dp) :: totalPopulation                                     !! Total population for the `GridCell` TODO what are the units?
+        real(dp) :: urbanPopulation                                     !! Urban population for the `GridCell` TODO what are the units?
+        real(dp) :: cattlePopulation = 0                                !! Cattle population for the `GridCell` TODO what are the units?
+        real(dp) :: sheepGoatPopulation = 0                             !! Sheep/goat population for the `GridCell` TODO what are the units?
+        real(dp) :: urbanDemandPerCapita = 0                            !! Urban demand per capita for the `GridCell` [l/day/capita]
+        real(dp) :: ruralDemandPerCapita = 0                            !! Cattle population for the `GridCell` [1/day/capita]
+        real(dp) :: industrialDemand = 0                                !! Industrial demand for `GridCell` [Mm3/day]
+        real(dp) :: surfaceWaterToTotalWaterRatio                       !! Ratio of surface to total water demand (same for all demands) [-]
+        type(Crop), allocatable :: crops(:)                             !! Crops present in this `GridCell`
       
     contains
         ! Creation/destruction

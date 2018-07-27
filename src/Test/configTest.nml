@@ -1,0 +1,28 @@
+&data
+input_file = "data/data-gwava.nc",
+output_file = "data/output.csv"
+/
+
+&run
+timestep = 86400,
+n_timesteps = 1095,
+epsilon = 1e-10,
+error_output = .true.
+/
+
+&global
+default_grid_size = 5000,
+default_distribution_sediment = [ 50, 30, 10, 7, 3 ],
+default_distribution_np = [ 50, 30, 10, 7, 3 ]
+/
+
+&soil
+default_soil_layer_depth = 0.1
+/
+
+&river
+max_river_reaches = 100
+default_meandering_factor = 1.0
+default_water_temperature = 10
+default_alpha_hetero = 0.01
+/

@@ -10,7 +10,7 @@ module Globals
 
     type, public :: GlobalsType
         ! Config
-        character(len=10)   :: configFile = 'config.nml'
+        character(len=10)   :: configFile = 'Test/configTest.nml'
         character(len=100)  :: inputFile
         character(len=100)  :: outputFile
         integer             :: timeStep                         !! The timestep to run the model on [s]
@@ -41,15 +41,14 @@ module Globals
         real(dp), allocatable :: d_spm_low(:)       !! Lower bound when treating each size class as distribution [m]
         real(dp), allocatable :: d_spm_upp(:)       !! Upper bound when treating each size class as distribution [m]
         real(dp), allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
-        ! TODO: Get rid of d_pd (probably references to it in BedSediment). Analogous to rho_spm.
+        ! TODO: Get rid of d_pd (probably references to it in BedSediment). Analagous to rho_spm.
         real(dp), allocatable :: d_pd(:)            !! Sediment particle densities [kg m-3]
         real(dp), allocatable :: rho_spm(:)         !! Sediment particle densities [kg m-3]
         integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
         integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
         integer :: nFracCompsSpm                    !! Number of sediment fractional compositions
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
-        integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
-        integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
+        integer, allocatable :: defaultDistributionNP(:)   !! Default imposed size distribution for NPs
 
       contains
         procedure :: rho_w      ! Density of water
@@ -72,34 +71,21 @@ module Globals
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
         ! Values from config file
         character(len=100) :: input_file, output_file
-        integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
-        integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
         logical :: error_output
-        namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
         namelist /data/ input_file, output_file
-        namelist /run/ timestep, n_timesteps, epsilon, error_output
-        namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, default_grid_size
         namelist /soil/ default_soil_layer_depth
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
 
         ! Open the config file and read the different config groups
-        open(10, file="c:\\code\\nanofase\\config.nml", status="old")
-        read(10, nml=allocatable_array_sizes)
-        ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
-        ! must be allocated before being read in to)
-        allocate(default_distribution_sediment(default_distribution_sediment_size))
-        allocate(default_distribution_np(default_distribution_np_size))
-        allocate(default_fractional_comp(default_fractional_comp_size))
-        ! Carry on reading in the different config groups
+        open(10, file="config.nml", status="old")
         read(10, nml=data)
         read(10, nml=run)
-        read(10, nml=global)
         read(10, nml=soil)
         read(10, nml=river)
         close(10)
-        
         ! Store this data in the Globals variable
         C%inputFile = input_file
         C%outputFile = output_file
@@ -108,15 +94,11 @@ module Globals
         C%epsilon = epsilon
         ! TODO: Change default grid size to array (x, y) so default can be rectangles
         C%defaultGridSize = default_grid_size
-        C%defaultDistributionSediment = default_distribution_sediment
-        C%defaultDistributionNP = default_distribution_np
-        C%defaultFractionalComp = default_fractional_comp
         C%defaultSoilLayerDepth = default_soil_layer_depth
         C%defaultMeanderingFactor = default_meandering_factor
         C%maxRiverReaches = max_river_reaches
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
-
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
@@ -195,8 +177,6 @@ module Globals
                 C%d_spm_upp(n) = 2*C%d_spm(n) - C%d_spm_low(n)                  ! Halfway between d_n and d_n+1
             end if
         end do
-        
-        
     end subroutine
 
     !> Calculate the density of water at a given temperature \( T \):

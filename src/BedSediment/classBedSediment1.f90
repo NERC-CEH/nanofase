@@ -293,11 +293,11 @@ module classBedSediment1
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (real(dp))`: returns water requirement from the water column [m3 m-2] real(dp)
-    function depositSediment1(Me, FS_dep) result (r)
+    function depositSediment1(Me, FS_dep) result(r)
         class(BedSediment1) :: Me                                    !! Self-reference
         type(FineSediment1) :: FS_dep(:)                             !! Depositing sediment by size class
         type(Result0D) :: r                                          !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
-        real(dp) :: V_w_tot                                          ! LOCAL water requirement from the water column [m3 m-2]
+        real(dp) :: V_w_tot = 0.0_dp                                 ! LOCAL water requirement from the water column [m3 m-2]
         type(ResultFineSediment0D) :: r0D                            ! LOCAL Result0D object to return data from addSediment method
         type(ResultFineSediment1D) :: r1D                            ! LOCAL ResultFineSediment1D object to return data from removeSediment method
         type(ErrorInstance) :: er                                    ! LOCAL ErrorInstance object for error handling
@@ -311,10 +311,13 @@ module classBedSediment1
         integer :: allst                                             ! LOCAL array allocation status
         real(dp) :: A_f_sed                                          ! LOCAL available fine sediment capacity for size class
         real(dp) :: tempV                                            ! LOCAL volume variable
-        real(dp) :: V_f_b                                            ! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
-        real(dp) :: V_w_b                                            ! LOCAL available water capacity in the receiving layer [m3 m-2]
+        real(dp) :: V_f_b = 0.0_dp                                   ! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
+        real(dp) :: V_w_b = 0.0_dp                                   ! LOCAL available water capacity in the receiving layer [m3 m-2]
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
+        class(*), allocatable :: data0D                              ! LOCAL temporary polymorphic data variable
         class(*), allocatable :: data1D(:)                           ! LOCAL temporary polymorphic data variable
+        type(ErrorInstance) :: tmpError
+
         ! -------------------------------------------------------------------------------
         !
         ! Notes
@@ -329,15 +332,13 @@ module classBedSediment1
         ! 2.    The FineSediment objects in FS_dep should not contain any water, but if they
         !       do it is not a problem as it will be overwritten.
         ! -------------------------------------------------------------------------------
+        V_w_tot = 0.0_dp                                            ! Initialise to zero
         tr = trim(Me%name) // "%DepositSediment1"                    ! object and procedure binding name as trace
         if (size(FS_dep) /= Me%nSizeClasses) &
             call r%addError(ErrorInstance( &
                             code = 1, &
-                            message = "The number of fine &
-                                       sediment masses does &
-                                       not equal the number &
-                                       of size classes", &
-                              trace = [tr] &
+                            message = "The number of fine sediment masses does not equal the number of size classes", &
+                            trace = [tr] &
                                          ) &
                            )                                         ! CRITICAL ERROR if size(FS_dep) <> nSizeClasses
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
@@ -372,18 +373,23 @@ module classBedSediment1
             call r%addError(er)                                      ! add to Result
         end if
         if (r%hasCriticalError()) return                             ! exit if allocation error thrown
+        
+        ! TODO (2018-07-17) What is DS actually used for? Can't find any more references to it.
+        
         do S = 1, Me%nSizeClasses                                    ! compose FineSediment1 objects from the inputs
+            ! TODO (2018-07-17) Added DS%create(name) to stop non-created errors. Does the name make any sense?
+            call r%addErrors(.errors. DS(S)%create("FineSediment_DS_class_" // trim(str(S))))
             call r%addErrors(.errors. &
                  DS(S)%set(Mf_in = FS_dep(S)%M_f(), &
                        f_comp_in = FS_dep(S)%f_comp &
                           ) &
-                            )                                        ! populate DS with depositing sediment and its fractional composition
+                            )                                       ! populate DS with depositing sediment and its fractional composition
         end do
         do S = 1, Me%nSizeClasses
-            call r%addError(FS_dep(S)%audit_comp())                  ! audits fractional composition of deposition, returns error instance
-            if (r%hasCriticalError()) then                           ! if fcomp_audit throws a critical error
-                call r%addToTrace(tr)                                ! add trace to all errors
-                return                                               ! and exit
+            call r%addError(FS_dep(S)%audit_comp())                 ! audits fractional composition of deposition, returns error instance
+            if (r%hasCriticalError()) then                          ! if fcomp_audit throws a critical error
+                call r%addToTrace(tr)                               ! add trace to all errors
+                return                                              ! and exit
             end if
         end do
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
@@ -397,6 +403,7 @@ module classBedSediment1
         do S = 1, Me%nSizeClasses
             A_f_sed = .dp. Me%Af_sediment(S)                         ! local copy of the capacity for this sediment size class in the whole bed
             if (FS_dep(S)%V_f() > A_f_sed) then                      ! do we need to bury sediment to create available capacity for deposition?
+                call r%addErrors(.errors. T%create("FineSediment_T"))   ! TODO 2018-07-17 Does this name make sense?
                 call r%addErrors(.errors. &
                              T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed, &
                                    Vw_in = 0.0_dp, &
@@ -449,14 +456,14 @@ module classBedSediment1
                                 call r%addToTrace(tr)                ! add trace to all errors
                                 return                               ! and exit
                             end if
-                            tmpFineSediment = .finesediment. r1D      ! assign T to return value from removeSediment
-                            T = tmpFineSediment(2)
-!                            allocate(data1D, source=r1D%getData())   ! getData(array_index) doesn't work, so must store data in another var before using select type
-!                            select type (data => data1D(2))          ! select type construct needed to get around casting constraints
-!                                type is (FineSediment1)
-!                                    T = data                         ! return sediment that could not be removed
-!                                class default                        ! no need to check for default, as type can only be FineSediment1
-!                            end select
+                            !tmpFineSediment = r1D%getDataAsFineSediment() ! assign T to return value from removeSediment
+                            !T = tmpFineSediment(2)
+                            allocate(data1D, source=r1D%getData())   ! getData(array_index) doesn't work, so must store data in another var before using select type
+                            select type (data => data1D(2))          ! select type construct needed to get around casting constraints
+                                type is (FineSediment1)
+                                    T = data                         ! return sediment that could not be removed
+                                class default                        ! no need to check for default, as type can only be FineSediment1
+                            end select
                         end associate
                     end If
                     L = L - 1                                        ! move up to next layer
@@ -505,8 +512,7 @@ module classBedSediment1
             end if
         end do
         do S = 1, Me%nSizeClasses                                    ! deposit sediment from the water column
-            L = Me%nLayers                                           ! start with the bottom layer and work upwards
-            do
+            do L = me%nLayers, 1, -1                                    ! start with the bottom layer and work upwards
                 associate(O => Me%colBedSedimentLayers(L)%item)      ! size class S in Layer L
                     if (.dp. O%A_f(S) > 0 .or. .dp. O%A_w(S) > 0) then ! if there is available capacity in this layer, add deposition here
                         V_w_b = FS_dep(S)%V_f() / .dp. O%volSLR()    ! the volume of water needed to maintain SLR in the "receiving" layer,
@@ -514,18 +520,18 @@ module classBedSediment1
                             FS_dep(S)%set(Vw_in = V_w_b))            ! if all deposition fits into this layer
                         r0D = O%addSediment(S, FS_dep(S))            ! add the fine sediment in deposition. r0D returns volumes that could not be added
                         call r%addErrors(.errors. r0D)               ! retrieve errors into main Result object
-                            if (r%hasCriticalError()) then           ! if addSediment throws a critical error
-                                call r%addToTrace(tr)                ! add trace to all errors
-                                return                               ! and exit
-                            end if
-                        select type (data => r0D%getData())          ! select type construct needed to get around casting constraints
+                        if (r%hasCriticalError()) then           ! if addSediment throws a critical error
+                            call r%addToTrace(tr)                ! add trace to all errors
+                            return                               ! and exit
+                        end if
+                        allocate(data0D, source=r0D%getData())
+                        select type (data => data0D)          ! select type construct needed to get around casting constraints
                             type is (FineSediment1)
                                 FS_dep(S) = data                     ! sediment not added
                             class default                            ! no need to check for default as type can only be FineSediment1
                         end select
                     end if
                     V_w_tot = V_w_tot + V_w_b - FS_dep(S)%V_w()      ! tally up V_w_b to compute water requirement to take from the water column
-                    L = L - 1
                 end associate
             end do
         end do
