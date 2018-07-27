@@ -7,7 +7,7 @@ module classFineSediment1
     implicit none                                                    ! force declaration of all variables
     !> Definition of `FineSediment1` class. Nonpolymorphic.
     type, public :: FineSediment1
-        character(len=256) :: name                                   !! A name for the object
+        character(len=256) :: name = "Undefined BedSediment"         !! A name for the object
         real(dp), private :: M_f_l                                   !! LOCAL fine sediment mass [kg m-2]
         real(dp), private :: V_w_l                                   !! LOCAL volume of water associated with fine sediment [m3 m-2]
         real(dp), allocatable :: f_comp(:)                           !! Fractional composition [-]

@@ -45,6 +45,7 @@ module classEnvironment1
 
         call r%addErrors(.errors. me%parseInputData())
         
+
         ! Set the size of Environment variable that holds the grid cells
         allocate(me%colGridCells(me%gridDimensions(1),me%gridDimensions(2)))
         
@@ -93,6 +94,7 @@ module classEnvironment1
                     do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)  ! Loop through the reaches in this branch
                         associate (riverReach => me%colGridCells(x,y)%item%colRiverReaches(rr)%item)
                             do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
+                                print *, x, y
                                 ! Point this reach's inflow to the actual RiverReach
                                 riverReach%inflows(i)%item => &
                                     me%colGridCells(riverReach%inflowRefs(i)%x,riverReach%inflowRefs(i)%y) &

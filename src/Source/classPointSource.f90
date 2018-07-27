@@ -9,7 +9,7 @@ module classPointSource
         integer :: x                    !! GridCell x reference
         integer :: y                    !! GridCell y reference
         integer :: s                    !! PointSource reference
-        character(100), allocatable :: parents(:)
+        character(:), allocatable :: parents(:)
             !! Array of character references to parent environmental compartments, e.g.
             !! ['GridCell_1_1', 'RiverReach_1_1_1']
         type(NcGroup) :: ncGroup        !! NetCDF group for this `PointSource` object

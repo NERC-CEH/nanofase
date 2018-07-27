@@ -1,26 +1,33 @@
 !> Module containing `GridCell1` class.
 module classGridCell1
     use Globals
-    use UtilModule 
+    use UtilModule
     use mo_netcdf
+    use classDataInterfacer
     use ResultModule
     use ErrorInstanceModule
     use spcGridCell
     use classSoilProfile1
     use classRiverReach1
+    use classCrop
     implicit none
     !> `GridCell1` is responsible for running creation and simulation
     !! procedures for `SoilProfile` and `RiverReach`es.
     type, public, extends(GridCell) :: GridCell1
-      contains
+    contains
+        ! Create/destroy
         procedure :: create => createGridCell1
         procedure :: finaliseCreate => finaliseCreateGridCell1
         procedure :: destroy => destroyGridCell1
         procedure, private :: setBranchRouting
         procedure, private :: setRiverReachLengths
         procedure, private :: createRiverReaches
+        ! Simulators
         procedure :: update => updateGridCell1
         procedure :: finaliseUpdate => finaliseUpdateGridCell1
+        procedure :: demands => demandsGridCell1
+        procedure :: transfers => transfersGridCell1
+        ! Data handlers
         procedure :: parseInputData => parseInputDataGridCell1
         ! Getters
         procedure :: get_Q_out => get_Q_outGridCell1
@@ -34,11 +41,12 @@ module classGridCell1
 
     !> Create a GridCell with coordinates x and y.
     function createGridCell1(me, x, y, isEmpty) result(r)
-        class(GridCell1), target :: me                   !! The `GridCell1` instance.
-        type(Result)          :: r                    !! The `Result` object to return.
-        integer               :: x, y                 !! Location of the `GridCell`
-        logical, optional     :: isEmpty              !! Is anything to be simulated in this `GridCell`?
-        type(SoilProfile1)    :: soilProfile          ! The soil profile contained in this GridCell
+        class(GridCell1), target :: me              !! The `GridCell1` instance.
+        type(Result)          :: r                  !! The `Result` object to return.
+        integer               :: x, y               !! Location of the `GridCell`
+        logical, optional     :: isEmpty            !! Is anything to be simulated in this `GridCell`?
+        integer               :: s                  ! Iterator for `DiffuseSource`s
+        type(SoilProfile1)    :: soilProfile        ! The soil profile contained in this GridCell
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%colSoilProfiles(1))
@@ -56,8 +64,11 @@ module classGridCell1
         if (me%isEmpty .eqv. .false.) then
             r = me%parseInputData()                         ! Parse and store input data in this object
 
+            ! Create the DiffuseSource object(s), if this cell has any
             if (me%hasDiffuseSource) then
-                call r%addErrors(.errors. me%diffuseSource%create(me%x, me%y))
+                do s = 1, size(me%diffuseSources, 1)
+                    call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
+                end do
             end if
 
             ! Create a soil profile and add to this GridCell
@@ -289,18 +300,30 @@ module classGridCell1
         class(GridCell1) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
         type(Result) :: r                                       !! `Result` object to return errors in
+        integer :: s                                            ! Iterator for `DiffuseSource`s
         integer :: rr                                           ! Loop counter
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
         ! Check that the GridCell is not empty before simulating anything
         ! TODO Actual do something with the data from this diffuse source
         if (.not. me%isEmpty) then
+            ! Reset variables
+            me%j_np_diffuseSource = 0.0_dp
+            
+            ! Demands and transfers
+            call r%addErrors([ &
+                .errors. me%demands(), &
+                .errors. me%transfers() &
+            ])
+            
             ! Get any inputs from diffuse source
+            ! TODO Actually do something with these diffuse sources! Nothing is done
+            ! with me%j_np_diffuseSource currently
             if (me%hasDiffuseSource) then
-                call r%addErrors(.errors. me%diffuseSource%update(t))
-                me%j_np_diffusesource = me%diffuseSource%j_np_diffusesource     ! [kg/m2/timestep]
-            else
-                me%j_np_diffuseSource = 0.0_dp          ! If no diffuse source, default to no input
+                do s = 1, size(me%diffuseSources)
+                    call r%addErrors(.errors. me%diffuseSources(s)%update(t))
+                    me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(s)%j_np_diffuseSource     ! [kg/m2/timestep]
+                end do
             end if
 
             ! Loop through all SoilProfiles (only one for the moment), run their
@@ -351,6 +374,36 @@ module classGridCell1
         end if
         call r%addToTrace("Finalising update for " // trim(me%ref))
     end function
+    
+    !> Process the water demands for this `GridCell`
+    function demandsGridCell1(me) result(r)
+        class(GridCell1) :: me
+        type(Result) :: r
+        integer :: pcLossUrban = 0                      ! TODO where should this come from?
+        integer :: pcLossRural = 0                      ! TODO where should this come from?
+        integer :: pcLossLivestockConsumption = 10      ! TODO where should this come from?
+        real(dp) :: cattleDemandPerCapita = 140         ! TODO where should this come from?
+        real(dp) :: sheepGoatDemandPerCapita = 70       ! TODO where should this come from?
+        real(dp) :: totalUrbanDemand
+        real(dp) :: totalLivestockDemand
+        real(dp) :: totalRuralDemand
+        
+        ! TODO Population increase factor is excluded here - check this is okay?
+        ! I'm thinking that population increase can be factored into population
+        ! numbers in dataset instead
+        totalUrbanDemand = (me%urbanPopulation * me%urbanDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossUrban)   ! [Mm3/day]
+        totalLivestockDemand = ((me%cattlePopulation * cattleDemandPerCapita + me%sheepGoatPopulation * sheepGoatDemandPerCapita) &
+                                * 0.01_dp * pcLossLivestockConsumption * 1.0e-9) / (1.0_dp - 0.01_dp * pcLossRural)
+        totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossRural)
+        
+    end function
+    
+    !> Process the water abstractions and transferss for this `GridCell`
+    function transfersGridCell1(me) result(r)
+        class(GridCell1) :: me
+        type(Result) :: r
+        ! Transfer some water!
+    end function
 
     !> Get the data from the input file and set object properties
     !! accordingly, including allocation of arrays that depend on
@@ -361,7 +414,14 @@ module classGridCell1
         type(NcDataset)         :: nc                   ! NetCDF dataset
         type(NcVariable)        :: var                  ! NetCDF variable
         type(NcGroup)           :: grp                  ! NetCDF group
+        type(NcGroup)           :: demandsGrp           ! NetCDF group for water demands
         integer, allocatable    :: xySize(:)            ! The size of the GridCell
+        integer                 :: i                    ! Iterator
+        type(Result)            :: rslt                 ! Variable to store Result in
+        integer                 :: hasLargeCityInt      ! Integer representation of hasLargeCity logical
+        integer                 :: cropType             ! Temporary var to store crop type int in
+        real(dp)                :: cropArea             ! Temporary var to store crop area in
+        integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
         
         ! Allocate arrays to store flows in
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
@@ -369,109 +429,83 @@ module classGridCell1
         allocate(me%q_evap_timeSeries(C%nTimeSteps))
         allocate(me%q_precip_timeSeries(C%nTimeSteps))
         allocate(me%T_water_timeSeries(C%nTimeSteps))
-
-        ! Open the dataset (as read only)
-        nc = NcDataset(C%inputFile, "r")
-        grp = nc%getGroup("Environment")
-        me%ncGroup = grp%getGroup(me%ref)               ! Get this GridCell's group
-        ! Check if this GridCell has a DiffuseSource. Defaults to .false.
-        if (me%ncGroup%hasGroup("DiffuseSource")) then
+        
+        ! Set the data interfacer's group to the group for this GridCell
+        call r%addErrors(.errors. DATA%setGroup(['Environment', me%ref]))
+        
+        ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
+        ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
+        if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
             me%hasDiffuseSource = .true.
-        end if
-
-        ! Get the number of RiverReaches in this GridCell. If not present, nRiverReaches
-        ! defaults to 0
-        if (me%ncGroup%hasVariable("n_river_reaches")) then
-            var = me%ncGroup%getVariable("n_river_reaches")                     
-            call var%getData(me%nRiverReaches)
+            allocate(me%diffuseSources(1))
+            i = 2               ! Any extra diffuse sources?
+            do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
+                allocate(me%diffuseSources(i))
+                i = i+1
+            end do
         end if
         
-        ! Allocate the colRiverReaches array to the number of RiverReaches in the GridCell
+        ! Get the number of river reaches and allocate colRiverReaches. Defaults to 0
+        call r%addErrors(.errors. DATA%get('n_river_reaches', me%nRiverReaches, silentlyFail=.true.))
         allocate(me%colRiverReaches(me%nRiverReaches))
         
-        ! Get the size of the GridCell [m]
-        if (me%ncGroup%hasVariable("size")) then
-            var = me%ncGroup%getVariable("size")
-            call var%getData(xySize)
-            me%dx = xySize(1)                   ! Size in x direction
-            me%dy = xySize(2)                   ! Size in y direction
-        else
-            ! If not present, default to defaultGridSize from config
-            me%dx = C%defaultGridSize
-            me%dy = C%defaultGridSize
-        end if
-        ! Set the area based on this
-        me%area = me%dx*me%dy
+        ! Get the size of the GridCell [m]. Defaults to defaultGridSize from config
+        call r%addErrors(.errors. DATA%get('size', xySize, [C%defaultGridSize, C%defaultGridSize]))
+        me%dx = xySize(1)
+        me%dy = xySize(2)
+        me%area = me%dx*me%dy       ! Set the area based on this
         
-        ! Get the time-dependent runoff data from the file and put in array ready for use
-        ! If using HMF data, this is slow flow + quick flow. [m/s]
-        if (me%ncGroup%hasVariable("runoff")) then
-            var = me%ncGroup%getVariable("runoff")
-            call var%getData(me%q_runoff_timeSeries)                 
-            me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep  ! Convert to m/timestep
-        else
-            me%q_runoff_timeSeries = 0
-        end if
+        ! Get hydrology, topography and water data
+        call r%addErrors([ &
+            .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
+            .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
+            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &
+            .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
+            .errors. DATA%get('slope', me%slope), &
+            .errors. DATA%get('n_river', me%n_river, 0.035_dp, warnIfDefaulting=.true.), &
+            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.true.) &
+        ])
+        ! Convert to m/timestep
+        me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep      
+        me%q_quickflow_timeSeries = me%q_quickflow_timeSeries*C%timeStep
+        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep
+        me%q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep
         
-        ! Get the time-dependent surface runoff (quickflow) [m/s]
-        if (me%ncGroup%hasVariable("quickflow")) then
-            var = me%ncGroup%getVariable("quickflow")
-            call var%getData(me%q_quickflow_timeSeries)
-            me%q_quickflow_timeSeries = me%q_quickflow_timeSeries*C%timeStep    ! Convert to m/timestep
-        else
-            me%q_quickflow_timeSeries = 0
-        end if
-        ! Precipitation [m/s]
-        if (me%ncGroup%hasVariable("precip")) then
-            var = me%ncGroup%getVariable("precip")
-            call var%getData(me%q_precip_timeSeries)                 
-            me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep    ! Convert to m/timestep
-        else
-            me%q_precip_timeSeries = 0
-        end if
-        ! Evaporation [m/s]
-        if (me%ncGroup%hasVariable("evap")) then
-            var = me%ncGroup%getVariable("evap")
-            call var%getData(me%q_evap_timeSeries)                 
-            me%q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep       ! Convert to m/timestep
-        else
-            me%q_evap_timeSeries = 0
-        end if
-        ! Slope of the GridCell [m/m]
-        if (me%ncGroup%hasVariable('slope')) then
-            var = me%ncGroup%getVariable('slope')
-            call var%getData(me%slope)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for slope not found in input file." &
-            ))
-        end if
-        ! Manning's roughness coefficient [-]
-        if (me%ncGroup%hasVariable('n_river')) then
-            var = me%ncGroup%getVariable('n_river')
-            call var%getData(me%n_river)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for n_river not found in input file. " // &
-                            "Defaulting to 0.035 (natural streams and major rivers).", &
-                isCritical = .false. &
-            ))
-            me%n_river = 0.035
-        end if
-        ! Water temperature [C]
-        if (me%ncGroup%hasVariable('T_water')) then
-            var = me%ncGroup%getVariable('T_water')
-            call var%getData(me%T_water_timeSeries)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for T_water not found in input file. " // &
-                            "Defaulting to that specified in config.nml.", &
-                isCritical = .false. &
-            ))
-            me%T_water_timeSeries = C%defaultWaterTemperature
+        ! Try and set the group to the demands group. It will produce an error if group
+        ! doesn't exist - use this to set me%hasDemands to .false.
+        rslt = DATA%setGroup(['Environment', me%ref, 'demands'])
+        if (.not. rslt%hasError()) then
+            me%hasDemands = .true.
+            ! Now get the data from the group. These should all default to zero.
+            ! TODO What should the default surface water to total water ratio be?
+            call r%addErrors([ &
+                .errors. DATA%get('total_population', me%totalPopulation, 0.0_dp), &
+                .errors. DATA%get('urban_population', me%urbanPopulation, 0.0_dp), &
+                .errors. DATA%get('cattle_population', me%cattlePopulation, 0.0_dp), &
+                .errors. DATA%get('sheep_goat_population', me%sheepGoatPopulation, 0.0_dp), &
+                .errors. DATA%get('urban_demand', me%urbanDemandPerCapita, 0.0_dp), &
+                .errors. DATA%get('rural_demand', me%ruralDemandPerCapita, 0.0_dp), &
+                .errors. DATA%get('industrial_demand', me%industrialDemand, 0.0_dp), &
+                .errors. DATA%get('sw_to_tw_ratio', me%surfaceWaterToTotalWaterRatio, 0.42_dp, warnIfDefaulting=.true.), &
+                .errors. DATA%get('has_large_city', hasLargeCityInt, 0) &
+            ])
+            me%hasLargeCity = lgcl(hasLargeCityInt)     ! Convert int to bool
+            
+            ! Check if there are any crops to get. These will be retrieved iteratively
+            ! (i.e. crop_1, crop_2, crop_3). Then get the data for those crops and create
+            ! array of Crop objects in me%crops
+            i = 1
+            do while (DATA%grp%hasGroup("crop_" // trim(str(i))))
+                allocate(me%crops(i))
+                call r%addErrors(.errors. DATA%setGroup(['Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
+                call r%addErrors([ &
+                    .errors. DATA%get('crop_area', cropArea), &
+                    .errors. DATA%get('crop_type', cropType), &
+                    .errors. DATA%get('planting_month', cropPlantingMonth) &
+                ])
+                me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
+                i = i+1
+            end do
         end if
         
     end function

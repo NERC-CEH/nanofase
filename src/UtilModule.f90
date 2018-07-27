@@ -23,8 +23,24 @@ module UtilModule
         module procedure isZeroReal
         module procedure isZeroDp
     end interface
+    
+    interface isLessThanZero
+        module procedure isLessThanZeroReal
+        module procedure isLessThanZeroDp
+    end interface
 
-  contains
+    contains
+        !> Convert an integer to a logical value
+        function lgcl(i)
+            integer, intent(in) :: i
+            logical :: lgcl
+            if (i == 0) then
+                lgcl = .false.
+            else
+                lgcl = .true.
+            end if
+        end function
+    
         !> Convert an integer to a string
         function strFromInteger(i) result(str)
             integer, intent(in) :: i        !! The integer to convert to a string
@@ -144,6 +160,34 @@ module UtilModule
                 e = epsilon
             end if
             if (abs(value) < e) isZeroDp = .true.
+        end function
+        
+        function isLessThanZeroReal(value, epsilon)
+            real, intent(in) :: value
+            real(dp), intent(in), optional :: epsilon
+            real(dp) :: e
+            logical :: isLessThanZeroReal
+            isLessThanZeroReal = .false.
+            if (.not. present(epsilon)) then
+                e = C%epsilon
+            else
+                e = epsilon
+            end if
+            if (value <= -e) isLessThanZeroReal = .true.
+        end function
+        
+        function isLessThanZeroDp(value, epsilon)
+            real(dp), intent(in) :: value
+            real(dp), intent(in), optional :: epsilon
+            real(dp) :: e
+            logical :: isLessThanZeroDp
+            isLessThanZeroDp = .false.
+            if (.not. present(epsilon)) then
+                e = C%epsilon
+            else
+                e = epsilon
+            end if
+            if (value <= -e) isLessThanZeroDp = .true.
         end function
 
 
