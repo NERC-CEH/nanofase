@@ -187,15 +187,19 @@ module Globals
         ! Set the upper and lower bounds of each size class, if treated as a distribution
         do n = 1, C%nSizeClassesSpm
             ! Set the upper and lower limit of the size class's distributions
+            if (n == C%nSizeClassesSpm) then
+                C%d_spm_upp(n) = 1                                              ! failsafe overall upper size limit
+            else
+                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
+            end if                
+        end do
+        do n = 1, C%nSizeClassesSpm
             if (n == 1) then
                 C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
-                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
             else
-                C%d_spm_low(n) = C%d_spm(n) - (C%d_spm(n)-C%d_spm(n-1))/2       ! Halfway between d_n-1 and d_n
-                C%d_spm_upp(n) = 2*C%d_spm(n) - C%d_spm_low(n)                  ! Halfway between d_n and d_n+1
+                C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
             end if
-        end do
-        
+        end do        
         
     end subroutine
 

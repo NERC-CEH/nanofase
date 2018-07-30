@@ -1,10 +1,10 @@
 {
 	"dimensions": {
-		"l" : 5
+		"l" : 4
 	},
 	"n_layers" : 4,
 	"sediment_type" : 1,
-	"layer_type[l]" : [ 1, 1, 1, 1, 1 ],
+	"layer_type[l]" : [ 1, 1, 1, 1 ],
 	"Layer_1" : {
 		"capacity" : 0.01,
 		"initial_mass[s]" : [ 0.2, 0.2, 0.2, 0.2, 0.2 ],
