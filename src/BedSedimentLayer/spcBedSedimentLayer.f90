@@ -274,6 +274,7 @@ module spcBedSedimentLayer
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Mf_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
+            Mf_layer = 0
             do S = 1, Me%nSizeClasses
                 Mf_layer = Mf_layer + &
                             Me%colFineSediment(S)%M_f()              ! sum across all size classes
@@ -293,6 +294,7 @@ module spcBedSedimentLayer
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Cf_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
+            Cf_layer = 0
             do S = 1, Me%nSizeClasses
                 Cf_layer = Cf_layer +  Me%C_f(S)                     ! sum across all size classes
             end do
@@ -311,6 +313,7 @@ module spcBedSedimentLayer
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Vf_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
+            Vf_layer = 0                                             ! initialise local variable 
             do S = 1, Me%nSizeClasses
                 Vf_layer = Vf_layer + &
                             Me%colFineSediment(S)%V_f()              ! sum across all size classes
@@ -330,6 +333,7 @@ module spcBedSedimentLayer
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Vw_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
+            Vw_layer = 0
             do S = 1, Me%nSizeClasses
                 Vw_layer = Vw_layer + &
                             Me%colFineSediment(S)%V_w()              ! sum across all size classes
@@ -349,6 +353,7 @@ module spcBedSedimentLayer
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Cw_layer                                     ! LOCAL internal storage
             integer :: S                                             ! loop counter
+            Cw_layer = 0
             do S = 1, Me%nSizeClasses
                 Cw_layer = Cw_layer + Me%C_w_l(S)                    ! sum across all size classes
             end do
@@ -367,6 +372,7 @@ module spcBedSedimentLayer
             type(Result0D) :: r                                      !! Return value
             real(dp) :: Vm_layer                                     ! LOCAL internal storage
             integer :: S                                             ! loop counter
+            Vm_layer = 0                                             ! initialise local variable
             do S = 1, Me%nSizeClasses
                 Vm_layer = Vm_layer + &
                            Me%colFineSediment(S)%V_f() + &

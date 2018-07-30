@@ -251,32 +251,25 @@ module classRiverReach1
         do i = 1, nDisp
             ! Update SPM according to inflow for this displacement, then calculate
             ! new SPM concentration based on this and the dimensions
-            me%m_spm = me%m_spm + dj_spm_in                    ! Add inflow SPM to SPM already in reach
-            me%C_spm = me%m_spm/me%volume                   ! Update the SPM concentration
-
-            ! TODO: Resuspended SPM must be taken from BedSediment
-            ! Resuspend SPM for this displacment, based on resuspension flux previously calculated
-            me%m_spm = me%m_spm + me%j_spm_res*dt           ! SPM resuspended is resuspension flux * displacement length
-            me%C_spm = me%m_spm/me%volume                   ! Update the SPM concentration
-
+            ! Advect the SPM out of the reach at the outflow rate, until it has all gone
+            ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
+            dj_spm_out = min(dQ_in*me%C_spm, me%m_spm)      ! Maximum of m_spm can be advected
+            me%m_spm = me%m_spm - dj_spm_out                ! Update the SPM mass after advection
+            me%m_spm = me%m_spm + dj_spm_in                 ! Add inflow SPM to SPM already in reach
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             ! If we've removed all of the SPM, set to 0
             dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)    ! Up to a maximum of the mass of SPM currently in reach
+            fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm                                  ! Doesn't include resuspension
             me%m_spm = me%m_spm - dSpmDep
             me%spmDep = me%spmDep + dSpmDep                 ! Keep track of deposited SPM for this time step
             ! Set the fraction of total SPM that is deposited (including resuspension),
             ! for use in calculating heteroaggregated NP deposition
             !fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm - me%j_spm_res*dt/me%m_spm       ! Includes resuspension
-            fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm                                  ! Doesn't include resuspension
-            me%C_spm = max(me%m_spm/me%volume, 0.0)         ! Recalculate the concentration
-
+           ! TODO: Resuspended SPM must be taken from BedSediment
+            ! Resuspend SPM for this displacment, based on resuspension flux previously calculated
+            me%m_spm = me%m_spm + me%j_spm_res*dt           ! SPM resuspended is resuspension flux * displacement length
+            me%C_spm = me%m_spm/me%volume                   ! Update the SPM concentration
             ! Other stuff, like abstraction, to go here.
-
-            ! Advect the SPM out of the reach at the outflow rate, until it has all gone
-            ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
-            dj_spm_out = min(dQ_in*me%C_spm, me%m_spm)          ! Maximum of m_spm can be advected
-            me%m_spm = me%m_spm - dj_spm_out                    ! Update the SPM mass after advection
-            me%C_spm = me%m_spm/me%volume                       ! Update the concentration
 
             ! Sum the displacement outflows and mass for the final outflow
             ! Currently, Q_out = Q_in. Maybe abstraction etc will change this
@@ -453,10 +446,9 @@ module classRiverReach1
         depositRslt = me%bedSediment%deposit(fineSediment)
         ! Retrieve the amount of water to be taken from the reach
         V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
-        print *, V_water_toDeposit
         ! Subtract that volume for the reach (as a depth)
         ! TODO: Subtracting the water doesn't have any effect at the moment,
-        ! since the depth is recalculting based on hydrology at the start
+        ! since the depth is recalculted based on hydrology at the start
         ! of every time step.
         me%D = me%D - V_water_toDeposit
         ! Add any errors that occured in the deposit procedure

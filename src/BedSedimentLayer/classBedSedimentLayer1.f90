@@ -108,17 +108,19 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! create error instance
             end if
-            var = layerGroup%getVariable("porosity")                 ! Get the porosity
-            call var%getData(Porosity)                               ! Put porosity into local variable
-            if (Porosity <= 0 .or. Porosity >= 1) then
-            call r%AddError(ErrorInstance( &
+            if (layerGroup%hasVariable("porosity")) then             ! has a porosity value been supplied?
+                var = layerGroup%getVariable("porosity")             ! Get the porosity
+                call var%getData(Porosity)                           ! Put porosity into local variable
+                if (Porosity <= 0 .or. Porosity >= 1) then
+                    call r%AddError(ErrorInstance( &
                             code = 1, &
                             message = "Porosity is out of range", &
                             trace = [tr] &
                                          ) &
                            )                                         ! create error instance
-            end if
-            if (r%hasCriticalError()) return                         ! exit if a critical error has occurred
+                end if
+                if (r%hasCriticalError()) return                     ! exit if a critical error has occurred
+            end if                                                   ! sediment:water ratio
             allocate(f_comp(Me%nSizeClasses, Me%nfComp))             ! allocate space for fractional compositions
             grp = layerGroup%getGroup("fractional_compositions")     ! get fractional composition group
             ! SH: The fractional comps could be stored as 2D arrays in the NetCDF/JSON file
