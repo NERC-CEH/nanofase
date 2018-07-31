@@ -175,7 +175,7 @@ module classBedSediment1
         integer :: allst                                             ! LOCAL array allocation status
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
         type(ResultFineSediment1D) :: r1D                            ! LOCAL temporary variable for storing Result with 1D data in
-       class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
+        class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
         !
         ! Notes
         ! -----------------------------------------------------------------------------------------
@@ -200,7 +200,7 @@ module classBedSediment1
                                message = "Allocation error", &
                                trace = [Me%name // &
                                         "%resuspendSediment1%F"] &
-                              ))                                      ! create  if error thrown
+                              ))                                     ! create  if error thrown
         end if
         allocate(G, stat = allst)                                    ! set up FineSediment1 variable G
         if (allst /= 0) then

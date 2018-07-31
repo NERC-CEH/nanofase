@@ -229,7 +229,7 @@ module classRiverReach1
         ! displacements). This can be done now as settling/resuspension rates
         ! don't depend on anything that changes on each displacement
         call r%addErrors([ &
-            .errors. me%resuspension(), &                   ! Also removes SPM from BedSediment
+            .errors. me%resuspension(), &                   ! Doesn't remove SPM from BedSediment
             .errors. me%settling() &                        ! Doesn't remove SPM from BedSediment - done later
         ])
 
@@ -253,9 +253,9 @@ module classRiverReach1
             ! new SPM concentration based on this and the dimensions
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
             ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
-            dj_spm_out = min(dQ_in*me%C_spm, me%m_spm)      ! Maximum of m_spm can be advected
-            me%m_spm = me%m_spm - dj_spm_out                ! Update the SPM mass after advection
-            me%m_spm = me%m_spm + dj_spm_in                 ! Add inflow SPM to SPM already in reach
+            dj_spm_out = min(dQ_in*me%C_spm, me%m_spm)        ! Maximum of m_spm can be advected
+            me%m_spm = me%m_spm - dj_spm_out                  ! Update the SPM mass after advection
+            me%m_spm = me%m_spm + dj_spm_in/nDisp             ! Add inflow SPM to SPM already in reach
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             ! If we've removed all of the SPM, set to 0
             dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)    ! Up to a maximum of the mass of SPM currently in reach
@@ -644,7 +644,7 @@ module classRiverReach1
         ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
         D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
         i = 1                                                                   ! Iterator for Newton solver
-        iMax = 100000                                                            ! Allow 10000 iterations
+        iMax = 100000                                                           ! Allow 10000 iterations
         epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
         alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
         f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
@@ -654,7 +654,7 @@ module classRiverReach1
             f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q            ! f(D) based on D_{m-1}
             df = alpha * ((D_i)**(5.0_dp/3.0_dp) * (6*D_i + 5*W))/(3*D_i * (2*D_i + W)**(5.0_dp/3.0_dp))
             D_i = D_i - f/df                                                    ! Calculate D_i based on D_{m-1}
-            i = i+1
+            i = i + 1
         end do
 
         if (isnan(D_i)) then                                                    ! If method diverges (results in NaN)
