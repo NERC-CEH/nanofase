@@ -10,7 +10,6 @@ module Globals
 
     type, public :: GlobalsType
         ! Config
-        character(len=10)   :: configFile = 'config.nml'
         character(len=100)  :: inputFile
         character(len=100)  :: outputFile
         integer             :: timeStep                         !! The timestep to run the model on [s]
@@ -77,7 +76,8 @@ module Globals
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
         logical :: error_output
-        namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
+        namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
+                                            default_fractional_comp_size
         namelist /data/ input_file, output_file
         namelist /run/ timestep, n_timesteps, epsilon, error_output
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
@@ -85,7 +85,7 @@ module Globals
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
 
         ! Open the config file and read the different config groups
-        open(10, file="c:\\code\\nanofase\\config.nml", status="old")
+        open(10, file="config.nml", status="old")
         read(10, nml=allocatable_array_sizes)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
@@ -175,7 +175,6 @@ module Globals
         ! TODO: Check the distribution adds up to 100%
         var = grp%getVariable("default_distribution_np")    ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
-        
         ! TODO: Get default water temperature "T_water"
 
         ! Set the number of size classes
