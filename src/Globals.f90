@@ -69,6 +69,8 @@ module Globals
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n                                        ! Iterator for size classes
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
+        character(len=256) :: configFilePath
+        integer :: configFilePathLength
         ! Values from config file
         character(len=100) :: input_file, output_file
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
@@ -84,8 +86,15 @@ module Globals
         namelist /soil/ default_soil_layer_depth
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
 
+        ! Has a path to the config path been provided as a command line argument?
+        call get_command_argument(1, configFilePath, configFilePathLength)
         ! Open the config file and read the different config groups
-        open(10, file="config.nml", status="old")
+        if (configFilePathLength > 0) then
+            open(10, file=trim(configFilePath), status="old")
+        else
+            open(10, file="config.nml", status="old")
+        end if
+        
         read(10, nml=allocatable_array_sizes)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
