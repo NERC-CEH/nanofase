@@ -1,26 +1,26 @@
 !> Module for class definition for class representing an area of a crop.
 !! TODO: What crop info do we need from demands data? 
 module classCrop
-	use Globals
-	implicit none
+    use Globals
+    implicit none
     private
     
-    character(len=100) :: nameLookup(601:647) = ['wheat','maize','rice','barley','rye','millet','sorghum','soybeans', &
-        'sunflower','potatoes','sugarcane','sugar_beets','pulses','citrus','date_palm','cotton', &
+    character(len=100) :: nameLookup(601:647) = [character(len=16)::'wheat','maize','rice','barley','rye','millet', &
+        'sorghum','soybeans', 'sunflower','potatoes','sugarcane','sugar_beets','pulses','citrus','date_palm','cotton', &
         'others_perennial','grass','others_annual','wheat','others_annual','others_annual','others_annual','others_annual', &
         'wheat','maize','rice','barley','rye','millet', &
         'sorghum','soybeans','sunflower','potatoes','sugar_beets','rapeseed_canola','groundnut_peanut', &
         'pulses','grapes','cotton','others_annual','wheat','rye','others_annual','others_annual', &
         'others_annual','others_annual' &
     ]
-	
+    
     !> The `Crop` class represents an area of a crop of a
     !! specific type and planting month
-	type, public :: Crop
-		real(dp)            :: area
+    type, public :: Crop
+        real(dp)            :: area
         integer             :: typeInt
-		character(len=100)  :: name
-		integer             :: plantingMonth
+        character(len=100)  :: name
+        integer             :: plantingMonth
         
       contains
         procedure, private :: create => createCrop
@@ -52,5 +52,5 @@ module classCrop
         me%plantingMonth = plantingMonth
         me%name = nameLookup(me%typeInt)
     end subroutine
-	
-end module	
+    
+end module  

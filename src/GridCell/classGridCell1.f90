@@ -394,7 +394,8 @@ module classGridCell1
         totalUrbanDemand = (me%urbanPopulation * me%urbanDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossUrban)   ! [Mm3/day]
         totalLivestockDemand = ((me%cattlePopulation * cattleDemandPerCapita + me%sheepGoatPopulation * sheepGoatDemandPerCapita) &
                                 * 0.01_dp * pcLossLivestockConsumption * 1.0e-9) / (1.0_dp - 0.01_dp * pcLossRural)
-        totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossRural)
+        totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9) &
+                            / (1.0_dp - 0.01_dp * pcLossRural)
         
     end function
     
@@ -431,7 +432,7 @@ module classGridCell1
         allocate(me%T_water_timeSeries(C%nTimeSteps))
         
         ! Set the data interfacer's group to the group for this GridCell
-        call r%addErrors(.errors. DATA%setGroup(['Environment', me%ref]))
+        call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
         
         ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
@@ -473,7 +474,7 @@ module classGridCell1
         
         ! Try and set the group to the demands group. It will produce an error if group
         ! doesn't exist - use this to set me%hasDemands to .false.
-        rslt = DATA%setGroup(['Environment', me%ref, 'demands'])
+        rslt = DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands'])
         if (.not. rslt%hasError()) then
             me%hasDemands = .true.
             ! Now get the data from the group. These should all default to zero.
@@ -497,7 +498,8 @@ module classGridCell1
             i = 1
             do while (DATA%grp%hasGroup("crop_" // trim(str(i))))
                 allocate(me%crops(i))
-                call r%addErrors(.errors. DATA%setGroup(['Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
+                call r%addErrors(.errors. &
+                    DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
                 call r%addErrors([ &
                     .errors. DATA%get('crop_area', cropArea), &
                     .errors. DATA%get('crop_type', cropType), &
