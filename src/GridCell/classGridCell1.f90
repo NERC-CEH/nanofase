@@ -4,6 +4,7 @@ module classGridCell1
     use UtilModule
     use mo_netcdf
     use classDataInterfacer
+    use classLogger
     use ResultModule
     use ErrorInstanceModule
     use spcGridCell
@@ -96,6 +97,8 @@ module classGridCell1
 
         call r%addToTrace("Creating " // trim(me%ref))
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+        call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
     
     !> Create the RiverReaches contained in this GridCell, and begin to populate
@@ -355,6 +358,8 @@ module classGridCell1
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call LOG%toConsole("\tPerforming simulation for " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+        call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
 
     !> Set the outflow from the temporary outflow variables that were setting by the
