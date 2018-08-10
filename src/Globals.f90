@@ -10,8 +10,9 @@ module Globals
 
     type, public :: GlobalsType
         ! Config
-        character(len=100)  :: inputFile
-        character(len=100)  :: outputFile
+        character(len=256)  :: inputFile
+        character(len=256)  :: outputFile
+        character(len=256)  :: logFilePath
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
@@ -72,7 +73,7 @@ module Globals
         character(len=256) :: configFilePath
         integer :: configFilePathLength
         ! Values from config file
-        character(len=100) :: input_file, output_file
+        character(len=256) :: input_file, output_file, log_file_path
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
@@ -81,7 +82,7 @@ module Globals
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size
         namelist /data/ input_file, output_file
-        namelist /run/ timestep, n_timesteps, epsilon, error_output
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
@@ -112,6 +113,7 @@ module Globals
         ! Store this data in the Globals variable
         C%inputFile = input_file
         C%outputFile = output_file
+        C%logFilePath = log_file_path
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps
         C%epsilon = epsilon
