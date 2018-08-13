@@ -120,6 +120,7 @@ module classEnvironment1
         end do
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
+        call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors= .errors. r)          ! Trigger any errors present
         call LOG%toConsole('Creating the Environment: \x1B[32msuccess\x1B[0m')
     end function

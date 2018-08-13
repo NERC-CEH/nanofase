@@ -1,5 +1,6 @@
 module classLogger
     use UtilModule
+    use ErrorInstanceModule
     implicit none
 
     !> The `Logger` object is responsible to outputting messages
@@ -59,10 +60,43 @@ module classLogger
         if (me%logToFile) write(me%fileUnit, '(A)') timestamp() // ": " // message
     end subroutine
 
-    subroutine toFileLogger(me, message)
-        class(Logger) :: me
-        character(*) :: message
-        if (me%logToFile) write(me%fileUnit, '(A)') timestamp() // ": " // message
+    !> Log just to file. Takes either a message or any array of ErrorInstanaces.
+    !! The ErrorInstanaces are ignored if a message is supplied.
+    subroutine toFileLogger(me, message, errors)
+        class(Logger)                   :: me           !! This Logger instance
+        character(*), optional          :: message      !! The message to log
+        type(ErrorInstance), optional   :: errors(:)    !! Error messages to log
+        integer                         :: i, j
+        character(len=9)                :: messagePrefix
+        character(len=256)              :: outputMessage
+        character(len=512)              :: traceMessage
+        if (present(message)) then
+            if (me%logToFile) write(me%fileUnit, '(A)') timestamp() // ": " // message
+        else if (present(errors)) then
+            if (me%logToFile) then
+                do i=1, size(errors)
+                    if (errors(i)%isError()) then
+                        if (errors(i)%isCritical) then
+                            messagePrefix = "Error:"
+                        else
+                            messagePrefix = "Warning:"
+                        end if
+                        outputMessage = trim(messagePrefix) // " " // &
+                                        trim(errors(i)%message)
+
+                        if (size(errors(i)%trace)>0 .and. allocated(errors(i)%trace)) then
+                            traceMessage = "Trace: "
+                            do j=1, size(errors(i)%trace)
+                                traceMessage = trim(traceMessage) // " " // trim(errors(i)%trace(j))
+                                if (j<size(errors(i)%trace)) traceMessage = " " // trim(traceMessage) // " >"
+                            end do
+                            outputMessage = trim(outputMessage) // trim(traceMessage) // "."
+                        end if
+                        write(me%fileUnit, '(A)') timestamp() // ": " // trim(outputMessage)
+                    end if
+                end do
+            end if
+        end if
     end subroutine
 
     subroutine toConsoleLogger(me, message)

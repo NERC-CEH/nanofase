@@ -13,7 +13,7 @@ output_file = "data/output.csv"
 timestep = 86400,
 n_timesteps = 1095,
 epsilon = 1e-10,
-error_output = .false.
+error_output = .true.
 log_file_path = "log/"
 /
 
