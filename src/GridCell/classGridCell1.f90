@@ -96,6 +96,7 @@ module classGridCell1
         end if
 
         call r%addToTrace("Creating " // trim(me%ref))
+        call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
