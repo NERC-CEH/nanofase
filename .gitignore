@@ -5,12 +5,14 @@ Makefile
 # Compilation files
 *.stackdump
 
-# Compilation directories
+# Compilation directories and logs/cache
 doc/dist/
 doc/graph/
 doxygen/
 bin/
 obj/
+log/
+cache/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
