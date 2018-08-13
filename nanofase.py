@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+"""Simple command line interface for performing frequent tasks
+related to the NanoFASE model."""
 import sys
 import os
 

@@ -50,3 +50,17 @@ sudo apt-get install libnetcdff-dev
 
 If you're on Windows and not using Cygwin or MinGW, it's likely you will have to build from source. Good luck.
 
+## NanoFASE Command Line Interface
+The [nanofase.py](./nanofase.py) script provides an interface for running a number of frequently needed tasks related to the model. The script is simply a wrapper for shell commands, which are written to work on Bash terminals (Cygwin, MinGW, Linux etc). A number of these are in turn wrapper for the `make` command and rely on an appropriate Makefile being present - see the [example Makefile](./Makefile.example).
+
+See the script itself for a full list of command available, but here are a few examples:
+- `./nanofase.py compile` will compile the model using the Makefile
+- `./nanofase.py run` will run the model using `make run`
+- `./nanofase.py compile-run` will compile and then run the model
+- `./nanofase.py clean-log` will remove all log files from log/
+- `./nanofase.py clean-cache` will remove all cache files from cache/
+- `./nanofase.py clean-comp` will run the `make clean` command to remove compilation files
+- `./nanofase.py clean` will run all of the three above clean commands
+- `./nanofase.py view-log` will output the latest log file to the console
+- `./nanofase.py vi-log` will open the latest log file in Vim (providing it is installed)
+- `./nanofase.py subl-log` will open the latest log file in Sublime Text (providing it is installed and the `subl` command is in `$PATH`)
