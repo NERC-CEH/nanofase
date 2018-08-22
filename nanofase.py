@@ -63,8 +63,7 @@ if len(sys.argv) < 2:
         print("\t{0:20}\t{1}".format(option,detail['description']))
 
 else:
-    # What is the user asking us to do?
-    option = sys.argv[1]
-    print(options[option]['run-description'])
-    os.system(options[option]['cmd'])
+    option = sys.argv[1]                        # Get the command
+    print(options[option]['run-description'])   # Print out what we're doing
+    os.system(options[option]['cmd'])           # Run the command
 
