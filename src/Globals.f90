@@ -10,9 +10,9 @@ module Globals
 
     type, public :: GlobalsType
         ! Config
-        character(len=10)   :: configFile = 'config.nml'
-        character(len=100)  :: inputFile
-        character(len=100)  :: outputFile
+        character(len=256)  :: inputFile
+        character(len=256)  :: outputFile
+        character(len=256)  :: logFilePath
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
@@ -70,22 +70,32 @@ module Globals
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n                                        ! Iterator for size classes
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
+        character(len=256) :: configFilePath
+        integer :: configFilePathLength
         ! Values from config file
-        character(len=100) :: input_file, output_file
+        character(len=256) :: input_file, output_file, log_file_path
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
         logical :: error_output
-        namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
+        namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
+                                            default_fractional_comp_size
         namelist /data/ input_file, output_file
-        namelist /run/ timestep, n_timesteps, epsilon, error_output
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
 
+        ! Has a path to the config path been provided as a command line argument?
+        call get_command_argument(1, configFilePath, configFilePathLength)
         ! Open the config file and read the different config groups
-        open(10, file="c:\\code\\nanofase\\config.nml", status="old")
+        if (configFilePathLength > 0) then
+            open(10, file=trim(configFilePath), status="old")
+        else
+            open(10, file="config.nml", status="old")
+        end if
+        
         read(10, nml=allocatable_array_sizes)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
@@ -103,6 +113,7 @@ module Globals
         ! Store this data in the Globals variable
         C%inputFile = input_file
         C%outputFile = output_file
+        C%logFilePath = log_file_path
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps
         C%epsilon = epsilon
@@ -175,7 +186,6 @@ module Globals
         ! TODO: Check the distribution adds up to 100%
         var = grp%getVariable("default_distribution_np")    ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
-        
         ! TODO: Get default water temperature "T_water"
 
         ! Set the number of size classes
