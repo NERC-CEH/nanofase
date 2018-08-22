@@ -26,6 +26,7 @@ module classFineSediment1
         procedure, public :: IsEmpty => empty1                       ! check for presence of sediment and water
         procedure, public :: ClearAll => ClearAll1                   ! clear all fine sediment and water from the object
         procedure, public :: mix => Mix1                             ! mix this sediment into another
+        procedure, public :: repstat => ReportStatusToConsole        ! report the properties of this sediment layer to the console
     end type
 
     !> Result object with operator for FineSediment scalar data
@@ -54,14 +55,14 @@ module classFineSediment1
     end interface
 
   contains
-        !> **Function purpose**                                     <br>
+        !> **Function purpose**                                     
         !! Initialise a `FineSediment` object. Set the object name, number of compositional
         !! fractions, and particle density for each compositional fraction.
-        !!                                                          <br>
-        !! **Function inputs**                                      <br>
+        !!                                                          
+        !! **Function inputs**                                      
         !! `n (character)`: a name unambiguously identifying the object
-        !!                                                          <br>
-        !! **Function outputs/outcomes**                            <br>
+        !!                                                          
+        !! **Function outputs/outcomes**                            
         !! Initialised `FineSediment1` object. Returns `Result` object containing
         !! `ErrorInstance` if no object name has been provided.
         function createFineSediment1(Me, n) result(r)
@@ -72,6 +73,8 @@ module classFineSediment1
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL array allocation status
             character(len=256) :: allms                              ! LOCAL allocation message
+            
+            !integer :: x
         !
         ! Notes
         ! -------------------------------------------------------------------------------
@@ -90,28 +93,28 @@ module classFineSediment1
             allocate(Me%pd_comp(Me%nfComp), &
                 stat = allst, &
                 errmsg = allms)                                      ! allocate space for particle densities of compositional fractions
-            !if (allst /= 0) then
-            !    er = ErrorInstance(1, &
-            !                       "Allocation error: " // trim(allms), &
-            !                        trace = [trim(Me%name) // &
-            !    "%createBedSedimentLayer1%colFineSediment"] &
-            !                      )                                  ! create error
-            !    call r%addError(er)                                  ! add to Result
-            !    return                                               ! critical error, so exit
-            !end if
+            if (allst /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error: " // trim(allms), &
+                                    trace = [trim(Me%name) // &
+                "%createBedSedimentLayer1%colFineSediment"] &
+                                  )                                  ! create error
+                call r%addError(er)                                  ! add to Result
+                return                                               ! critical error, so exit
+            end if
             Me%pd_comp = C%d_pd                                      ! particle densities of compositional fractions from Global
             allocate(Me%f_comp(Me%nfComp), &
                 stat = allst, &
                 errmsg = allms)                                      ! allocate space for compositional fractions
-            !if (allst /= 0) then
-            !    er = ErrorInstance(1, &
-            !                       "Allocation error: " // trim(allms), &
-            !                        trace = [trim(Me%name) // &
-            !    "%createBedSedimentLayer1%colFineSediment"] &
-            !                      )                                  ! create error
-            !    call r%addError(er)                                  ! add to Result
-            !    return                                               ! critical error, so exit
-            !end if
+            if (allst /= 0) then
+                er = ErrorInstance(1, &
+                                   "Allocation error: " // trim(allms), &
+                                    trace = [trim(Me%name) // &
+                "%createBedSedimentLayer1%colFineSediment"] &
+                                  )                                  ! create error
+                call r%addError(er)                                  ! add to Result
+                return                                               ! critical error, so exit
+            end if
             me%isCreated = .true.                                    ! if we got this far, tag the object as created
         end function
         !> **Function purpose**                                     <br>
@@ -190,6 +193,9 @@ module classFineSediment1
             real(dp), intent(in), optional :: f_comp_in(:)           !! Input fractional composition. Optional; if not present, stored composition is used
             type(Result) :: r                                        !! `Result` object
             type(ErrorInstance) :: er                                ! LOCAL ErrorInstance object
+            
+            integer :: x
+            
             !
             ! Notes
             ! -------------------------------------------------------------------------------
@@ -375,7 +381,7 @@ module classFineSediment1
             integer :: X                                             ! LOCAL loop counter
             Me%M_f_l = 0                                             ! clear fine sediment mass
             Me%V_w_l = 0                                             ! clear water volume
-            do X = 1, Me%nfComp                                         ! clear fractional composition
+            do X = 1, Me%nfComp                                      ! clear fractional composition
                 Me%f_comp(X) = 0
             end do
         end subroutine
@@ -454,7 +460,7 @@ module classFineSediment1
                     return                                           ! and exit
                 end if
             end do
-            allocate(f_comp_mix(Me%nfComp), stat = allst)         ! allocate f_comp_mix
+            allocate(f_comp_mix(Me%nfComp), stat = allst)            ! allocate f_comp_mix
             if (allst /= 0) then
                 er = ErrorInstance(1, &
                             message = "Allocation error", &
@@ -476,53 +482,73 @@ module classFineSediment1
                                             ) &
                             )                                        ! set the properties of the returned FineSediment object
             if (r%hasCriticalError()) return                         ! exit if critical error thrown
-            r = ResultFS(data = FS)                                    ! feed FineSediment object into Result
-       end function
-
+            r = ResultFS(data = FS)                                  ! feed FineSediment object into Result
+        end function
+       !> **Sub purpose**
+       !! Report the properties of this object to the console
+       subroutine ReportStatusToConsole(Me, title)
+            class(FineSediment1) :: Me                               !! Self-reference
+            character(len=*), intent(in) :: title                    !! Title string, providing context
+            integer :: x                                             ! LOCAL loop counter
+            print *, "!"                                             ! new message marker
+            print *, title                                           ! print the title
+            print *, "fine sediment mass [kg/m2]:   ", Me%M_f_l
+            print *, "fine sediment volume [m3/m2]: ", Me%V_f()
+            print *, "water volume [m3/m2]:         ",Me%V_w()
+            print *, "particle densities of compositional fractions"
+            do x = 1, Me%nfComp
+                print *, "Fraction ", x, ":             ",  Me%pd_comp(x)
+            end do
+            print *, "particle density [kg/m3]:     ", Me%rho_part()
+            print *, "proportion of each compositional fractions"
+            do x = 1, Me%nfComp
+                print *, "Fraction ", x, ":             ",  Me%f_comp(x)
+            end do
+       end subroutine
 ! *********************************!
 !** ResultFineSediment extension **!
 !**********************************!
         !> Initialise the result object with 0D `FineSediment` data.
-        function init0DFS(data, error, errors) result(this)
-            type(ResultFineSediment0D)                  :: this         !! This `Result` object
+        function init0DFS(data, error, errors) result(Me)
+            type(ResultFineSediment0D)                  :: Me           !! This `Result` object
             type(FineSediment1), intent(in)             :: data         !! 0D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
             type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
 
-            ! Store the given data in this%data and set the errors
-            allocate(this%data, source=data)
-            call this%setErrors(error, errors)
+            ! Store the given data in Me%data and set the errors
+            allocate(Me%data, source=data)
+            call Me%setErrors(error, errors)
         end function
 
         !> Initialise the result object with 1D `FineSediment` data.
-        function init1DFS(data, error, errors) result(this)
-            type(ResultFineSediment1D)                  :: this         !! This Result object
+        function init1DFS(data, error, errors) result(Me)
+            type(ResultFineSediment1D)                  :: Me           !! This Result object
             type(FineSediment1), intent(in)             :: data(:)      !! 1D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
             type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
 
-            ! Store the given data in this%data and set the errors
-            allocate(this%data, source=data)
-            call this%setErrors(error, errors)
+            ! Store the given data in Me%data and set the errors
+            allocate(Me%data, source=data)
+            call Me%setErrors(error, errors)
         end function
 
         !> Initialise the result object with 2D `FineSediment` data.
-        function init2DFS(data, error, errors) result(this)
-            type(ResultFineSediment2D)                  :: this         !! This Result object
+        function init2DFS(data, error, errors) result(Me)
+            type(ResultFineSediment2D)                  :: Me           !! This Result object
             type(FineSediment1), intent(in)             :: data(:,:)    !! 2D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
             type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
 
-            ! Store the given data in this%data and set the errors
-            allocate(this%data, source=data)
-            call this%setErrors(error, errors)
+            ! Store the given data in Me%data and set the errors
+            allocate(Me%data, source=data)
+            call Me%setErrors(error, errors)
         end function
 
        !> Attempt to return the data as a scalar FineSediment1 object
-        function getDataAsFineSediment0D(this) result(data)
-            class(ResultFineSediment0D), intent(in) :: this     !! This Result object
+        function getDataAsFineSediment0D(Me) result(data)
+            class(ResultFineSediment0D), intent(in) :: Me       !! This Result object
             type(FineSediment1)                     :: data     !! The data as a `FineSediment1` object
-            select type (d => this%data)
+            select type (d => Me%data)
                 type is (FineSediment1)
                     data = d
                 class default
@@ -531,10 +557,10 @@ module classFineSediment1
         end function
 
         !> Attempt to return the data as a 1D FineSediment1 object array
-        function getDataAsFineSediment1D(this) result(data)
-            class(ResultFineSediment1D), intent(in) :: this                     !! This Result object
-            type(FineSediment1)                     :: data(size(this%data))    !! The data as a 1D `FineSediment1` array
-            select type (d => this%data)
+        function getDataAsFineSediment1D(Me) result(data)
+            class(ResultFineSediment1D), intent(in) :: Me                     !! This Result object
+            type(FineSediment1)                     :: data(size(Me%data))    !! The data as a 1D `FineSediment1` array
+            select type (d => Me%data)
                 type is (FineSediment1)
                     data = d
                 class default
@@ -543,11 +569,11 @@ module classFineSediment1
         end function
 
         !> Attempt to return the data as a 2D FineSediment1 object array
-        function getDataAsFineSediment2D(this) result(data)
-            class(ResultFineSediment2D), intent(in) :: this                         !! This Result object
-            type(FineSediment1)                     :: data(size(this%data,1), &
-                                                            size(this%data,2))      !! The data as a 1D `FineSediment1` array
-            select type (d => this%data)
+        function getDataAsFineSediment2D(Me) result(data)
+            class(ResultFineSediment2D), intent(in) :: Me                           !! This Result object
+            type(FineSediment1)                     :: data(size(Me%data,1), &
+                                                            size(Me%data,2))        !! The data as a 1D `FineSediment1` array
+            select type (d => Me%data)
                 type is (FineSediment1)
                     data = d
                 class default
