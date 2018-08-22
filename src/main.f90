@@ -29,9 +29,9 @@ program main
         logToConsole=.true., &
         logFilePath=C%logFilePath &
     )
-    call LOG%toConsole("-------------------------------------------")
-    call LOG%toConsole(" Welcome to the NanoFASE soil-water model! ")
-    call LOG%toConsole("-------------------------------------------\n")
+    call LOG%toConsole("--------------------------------")
+    call LOG%toConsole(" Welcome to the NanoFASE model! ")
+    call LOG%toConsole("--------------------------------\n")
     call DATA%init(C%inputFile)
     
     open(unit=2, file=C%outputFile)                                      ! Open the output data file
