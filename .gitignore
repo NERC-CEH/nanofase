@@ -13,6 +13,7 @@ bin/
 obj/
 log/
 cache/
+dll/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
