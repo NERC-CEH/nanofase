@@ -94,7 +94,6 @@ module classEnvironment1
                     do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)  ! Loop through the reaches in this branch
                         associate (riverReach => me%colGridCells(x,y)%item%colRiverReaches(rr)%item)
                             do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
-                                print *, x, y
                                 ! Point this reach's inflow to the actual RiverReach
                                 riverReach%inflows(i)%item => &
                                     me%colGridCells(riverReach%inflowRefs(i)%x,riverReach%inflowRefs(i)%y) &
@@ -121,7 +120,9 @@ module classEnvironment1
         end do
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
+        call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors= .errors. r)          ! Trigger any errors present
+        call LOG%toConsole('Creating the Environment: \x1B[32msuccess\x1B[0m')
     end function
 
     !> Destroy the `Environment` instance
@@ -137,6 +138,9 @@ module classEnvironment1
         integer :: t                                            !! Current time step
         type(Result) :: r                                       !! Return error(s) in `Result` object
         integer :: x, y, s
+
+        call LOG%log("Performing simulation for time step #" // trim(str(t)) // "...")
+
         ! Perform the main routing procedure
         do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
             do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns

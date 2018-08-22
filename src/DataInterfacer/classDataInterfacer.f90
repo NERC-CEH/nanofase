@@ -6,6 +6,7 @@ module classDataInterfacer
     use UtilModule
     use Globals
     use mo_netcdf
+    use classLogger, only: LOG
     implicit none
     
     type, public :: DataInterfacer
@@ -47,12 +48,33 @@ module classDataInterfacer
         procedure, private :: getVariableDp3DSpreadDefault
         procedure, private :: getVariableDp4DSpreadDefault
         ! Combine those methods so they can all be accessed by me%get
-        generic, public :: get => getVariableInt0D, getVariableInt1D, getVariableInt2D, getVariableInt3D, getVariableInt4D, &
-            getVariableInt1DSpreadDefault, getVariableInt2DSpreadDefault, getVariableInt3DSpreadDefault, getVariableInt4DSpreadDefault, &
-            getVariableReal0D, getVariableReal1D, getVariableReal2D, getVariableReal3D, getVariableReal4D, &
-            getVariableReal1DSpreadDefault, getVariableReal2DSpreadDefault, getVariableReal3DSpreadDefault, getVariableReal4DSpreadDefault, &
-            getVariableDp0D, getVariableDp1D, getVariableDp2D, getVariableDp3D, getVariableDp4D, &
-            getVariableDp1DSpreadDefault, getVariableDp2DSpreadDefault, getVariableDp3DSpreadDefault, getVariableDp4DSpreadDefault
+        generic, public :: get => getVariableInt0D, &
+            getVariableInt1D, &
+            getVariableInt2D, &
+            getVariableInt3D, &
+            getVariableInt4D, &
+            getVariableInt1DSpreadDefault, &
+            getVariableInt2DSpreadDefault, &
+            getVariableInt3DSpreadDefault, &
+            getVariableInt4DSpreadDefault, &
+            getVariableReal0D, &
+            getVariableReal1D, &
+            getVariableReal2D, &
+            getVariableReal3D, &
+            getVariableReal4D, &
+            getVariableReal1DSpreadDefault, &
+            getVariableReal2DSpreadDefault, &
+            getVariableReal3DSpreadDefault, &
+            getVariableReal4DSpreadDefault, &
+            getVariableDp0D, &
+            getVariableDp1D, &
+            getVariableDp2D, &
+            getVariableDp3D, &
+            getVariableDp4D, &
+            getVariableDp1DSpreadDefault, &
+            getVariableDp2DSpreadDefault, &
+            getVariableDp3DSpreadDefault, &
+            getVariableDp4DSpreadDefault
         
       end type
       
@@ -67,6 +89,7 @@ module classDataInterfacer
         me%inputFilePath = inputFilePath                ! Store the file path to the input dataset
         me%inputDataset = NcDataset(me%inputFilePath, "r")   ! Open dataset as read-only
         me%grp = me%inputDataset                        ! Initialise the current group as the input dataset
+        call LOG%log("Initialising DataInterfacer: success")
     end subroutine
 
     !> Destroy the NetCDF DataInterfacer

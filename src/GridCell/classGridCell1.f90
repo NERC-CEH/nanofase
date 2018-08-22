@@ -4,6 +4,7 @@ module classGridCell1
     use UtilModule
     use mo_netcdf
     use classDataInterfacer
+    use classLogger
     use ResultModule
     use ErrorInstanceModule
     use spcGridCell
@@ -95,7 +96,10 @@ module classGridCell1
         end if
 
         call r%addToTrace("Creating " // trim(me%ref))
+        call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+        call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
     
     !> Create the RiverReaches contained in this GridCell, and begin to populate
@@ -355,6 +359,8 @@ module classGridCell1
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call LOG%toConsole("\tPerforming simulation for " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+        call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
 
     !> Set the outflow from the temporary outflow variables that were setting by the
@@ -394,7 +400,8 @@ module classGridCell1
         totalUrbanDemand = (me%urbanPopulation * me%urbanDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossUrban)   ! [Mm3/day]
         totalLivestockDemand = ((me%cattlePopulation * cattleDemandPerCapita + me%sheepGoatPopulation * sheepGoatDemandPerCapita) &
                                 * 0.01_dp * pcLossLivestockConsumption * 1.0e-9) / (1.0_dp - 0.01_dp * pcLossRural)
-        totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossRural)
+        totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9) &
+                            / (1.0_dp - 0.01_dp * pcLossRural)
         
     end function
     
@@ -431,7 +438,7 @@ module classGridCell1
         allocate(me%T_water_timeSeries(C%nTimeSteps))
         
         ! Set the data interfacer's group to the group for this GridCell
-        call r%addErrors(.errors. DATA%setGroup(['Environment', me%ref]))
+        call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
         
         ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
@@ -473,7 +480,7 @@ module classGridCell1
         
         ! Try and set the group to the demands group. It will produce an error if group
         ! doesn't exist - use this to set me%hasDemands to .false.
-        rslt = DATA%setGroup(['Environment', me%ref, 'demands'])
+        rslt = DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands'])
         if (.not. rslt%hasError()) then
             me%hasDemands = .true.
             ! Now get the data from the group. These should all default to zero.
@@ -497,7 +504,8 @@ module classGridCell1
             i = 1
             do while (DATA%grp%hasGroup("crop_" // trim(str(i))))
                 allocate(me%crops(i))
-                call r%addErrors(.errors. DATA%setGroup(['Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
+                call r%addErrors(.errors. &
+                    DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
                 call r%addErrors([ &
                     .errors. DATA%get('crop_area', cropArea), &
                     .errors. DATA%get('crop_type', cropType), &

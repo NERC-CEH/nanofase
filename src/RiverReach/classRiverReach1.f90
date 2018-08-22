@@ -189,7 +189,7 @@ module classRiverReach1
             me%j_np_runoff = 0
         end if
         
-        ! Get the inflows to this reach first
+        ! Get the inflows from upstream reaches first
         do i = 1, me%nInflows
             Q_in = Q_in + me%inflows(i)%item%Q_out
             me%j_spm_in = me%j_spm_in + me%inflows(i)%item%j_spm_out
@@ -198,6 +198,11 @@ module classRiverReach1
         ! Add runoff from soil erosion
         me%j_spm_in = me%j_spm_in + me%j_spm_runoff         ! Inflow SPM from upstream reach + eroded soil runoff [kg/timestep]
         me%j_np_in = me%j_np_in + me%j_np_runoff            ! Inflow of NP from upstream reach + soil erosion [kg/timestep]
+        ! Add runoff from the hydrological model
+        me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
+        me%Q_in = Q_in + me%q_runoff*me%gridCellArea        ! Set this reach's inflow, assuming all runoff ends up in river [m3/timestep]
+        ! Water temperature
+        me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
         
         ! Loop through point sources and get their inputs (if there are any):
         ! Run the update method, which sets PointSource's j_np_pointsource variable
@@ -217,11 +222,6 @@ module classRiverReach1
             end do
         end if
 
-                
-        me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
-        me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
-        me%Q_in = Q_in + me%q_runoff*me%gridCellArea        ! Set this reach's inflow, assuming all runoff ends up in river [m3/timestep]
-
         ! Calculate the depth, velocity, area and volume
         me%W = me%calculateWidth(me%Q_in/C%timeStep)
         D = me%calculateDepth(me%W, me%slope, me%Q_in/C%timeStep)
@@ -233,7 +233,7 @@ module classRiverReach1
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m) ! Reach volume
 
         ! Set the resuspension flux me%j_spm_res and settling rate me%k_settle
-        ! (but don't acutally resuspend/settle until we're looping through
+        ! (but don't acutally settle until we're looping through
         ! displacements). This can be done now as settling/resuspension rates
         ! don't depend on anything that changes on each displacement
         call r%addErrors([ &
@@ -253,6 +253,7 @@ module classRiverReach1
         me%j_np_dep = 0                                     ! Reset deposited NP for this time step
         
         ! Add the inflow NP to the current mass
+        ! TODO this should be done in the displacements
         me%m_np = me%m_np + me%j_np_in
 
         ! Loop through the displacements
@@ -276,16 +277,11 @@ module classRiverReach1
             ! Set the fraction of total SPM that is deposited (including resuspension),
             ! for use in calculating heteroaggregated NP deposition
             !fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm - me%j_spm_res*dt/me%m_spm       ! Includes resuspension
-
-            !--------------------------------------------------------------------------------------------------------------------------------
             ! Resuspended SPM must be taken from BedSediment
             dj_spm_res = me%j_spm_res * dt                           ! the mass of sediment resuspending on each displacement [kg]
             call r%addErrors(.errors. &
                 me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! Removes SPM from BedSediment
             if (r%hasCriticalError()) return                         ! if a critical error has been thrown
-            !--------------------------------------------------------------------------------------------------------------------------------
-            
-            ! Resuspend SPM for this displacment, based on resuspension flux previously calculated
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             me%C_spm = me%m_spm / me%volume                          ! Update the SPM concentration
             ! Other stuff, like abstraction, to go here.
@@ -297,7 +293,7 @@ module classRiverReach1
         end do
         
         ! Use amount of settled SPM to get rid of heteroaggregated NPs, assuming
-        ! uniformly distributed amongst SPM. fractionSpmDep includes resuspension.
+        ! uniformly distributed amongst SPM. fractionSpmDep doesn't include resuspension.
         do n = 1, C%nSizeClassesSpm
             me%j_np_dep(:,:,n+2) = min(me%m_np(:,:,n+2)*fractionSpmDep(n), me%m_np(:,:,n+2))
         end do

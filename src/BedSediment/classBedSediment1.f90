@@ -510,6 +510,7 @@ module classBedSediment1
                             end if
                             !tmpFineSediment = r1D%getDataAsFineSediment() ! assign T to return value from removeSediment
                             !T = tmpFineSediment(2)
+                            if (allocated(data1D)) deallocate(data1D)
                             allocate(data1D, source=r1D%getData())   ! getData(array_index) doesn't work, so must store data in another var before using select type
                             select type (data => data1D(2))          ! select type construct needed to get around casting constraints
                                 type is (FineSediment1)
@@ -576,6 +577,7 @@ module classBedSediment1
                             call r%addToTrace(tr)                    ! add trace to all errors
                             return                                   ! and exit
                         end if
+                        if (allocated(data0D)) deallocate(data0D)
                         allocate(data0D, source=r0D%getData())
                         select type (data => data0D)                 ! select type construct needed to get around casting constraints
                             type is (FineSediment1)
