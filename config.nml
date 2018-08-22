@@ -5,13 +5,13 @@ default_fractional_comp_size = 4
 /
 
 &data
-input_file = "data/data-gwava.nc",
+input_file = "data/thames/thames-global.nc",
 output_file = "data/output.csv"
 /
 
 &run
 timestep = 86400,
-n_timesteps = 1095,
+n_timesteps = 365,
 epsilon = 1e-10,
 error_output = .true.
 log_file_path = "log/"

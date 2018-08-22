@@ -429,7 +429,10 @@ module classGridCell1
         integer                 :: cropType             ! Temporary var to store crop type int in
         real(dp)                :: cropArea             ! Temporary var to store crop area in
         integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
+        real                    :: start, finish
         
+        call cpu_time(start)                                                ! Simulation start time
+
         ! Allocate arrays to store flows in
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
         allocate(me%q_quickflow_timeSeries(C%nTimeSteps))
@@ -515,6 +518,9 @@ module classGridCell1
                 i = i+1
             end do
         end if
+
+        call cpu_time(finish)                                                   ! Simulation finish time
+        print *, 'Time taken to parse data for grid cell (s): ', finish-start   ! How long did it take?
         
     end function
 

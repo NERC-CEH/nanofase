@@ -7,6 +7,7 @@ module classRiverReach1
     use ErrorInstanceModule
     use spcRiverReach
     use classBedSediment1
+    use classLogger
     use classReactor1
     implicit none
 
@@ -128,6 +129,8 @@ module classRiverReach1
         end if
         
         call r%addToTrace('Creating ' // trim(me%ref))
+        call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+        call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
 
     !> Destroy this `RiverReach1`
@@ -473,7 +476,10 @@ module classRiverReach1
         type(NcGroup) :: grp                ! NetCDF group
         integer :: i                        ! Loop counter
         integer, allocatable :: inflowArray(:,:) ! Temporary array for storing inflows from data file in
-        
+        real                    :: start, finish
+
+        call cpu_time(start)                                                ! Simulation start time
+
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
         ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
@@ -590,6 +596,9 @@ module classRiverReach1
             call var%getData(me%domainOutflow)
             me%isDomainOutflow = .true.
         end if
+
+        call cpu_time(finish)                                                   ! Simulation finish time
+        print *, 'Time taken to parse data for ri ver reach (s): ', finish-start   ! How long did it take?
         
         call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
