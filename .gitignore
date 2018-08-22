@@ -65,6 +65,7 @@ Debug/
 *.vfproj*
 fort*
 *.fdz
+*.dmp
 
 # Temp files
 ~$*.docx
