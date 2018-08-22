@@ -418,10 +418,6 @@ module classGridCell1
     function parseInputDataGridCell1(me) result(r)
         class(GridCell1)        :: me                   !! This `GridCell1` object
         type(Result)            :: r                    !! The `Result` object
-        type(NcDataset)         :: nc                   ! NetCDF dataset
-        type(NcVariable)        :: var                  ! NetCDF variable
-        type(NcGroup)           :: grp                  ! NetCDF group
-        type(NcGroup)           :: demandsGrp           ! NetCDF group for water demands
         integer, allocatable    :: xySize(:)            ! The size of the GridCell
         integer                 :: i                    ! Iterator
         type(Result)            :: rslt                 ! Variable to store Result in
