@@ -89,7 +89,7 @@ module classDataInterfacer
         me%inputFilePath = inputFilePath                ! Store the file path to the input dataset
         me%inputDataset = NcDataset(me%inputFilePath, "r")   ! Open dataset as read-only
         me%grp = me%inputDataset                        ! Initialise the current group as the input dataset
-        call LOG%log("Initialising DataInterfacer: success")
+        call LOG%add("Initialising DataInterfacer: success")
     end subroutine
 
     !> Destroy the NetCDF DataInterfacer

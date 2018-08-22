@@ -14,7 +14,7 @@ module classLogger
 
       contains
         procedure :: init => initLogger
-        procedure :: log => logLogger
+        procedure :: add => addLogger
         procedure :: toFile => toFileLogger
         procedure :: toConsole => toConsoleLogger
     end type
@@ -53,7 +53,7 @@ module classLogger
     end subroutine
 
     !> Log to file (if enabled) and console
-    subroutine logLogger(me, message)
+    subroutine addLogger(me, message)
         class(Logger)       :: me
         character(*)        :: message
         if (me%logToConsole) print *, message
