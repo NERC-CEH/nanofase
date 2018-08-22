@@ -139,7 +139,7 @@ module classEnvironment1
         type(Result) :: r                                       !! Return error(s) in `Result` object
         integer :: x, y, s
 
-        call LOG%log("Performing simulation for time step #" // trim(str(t)) // "...")
+        call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
         ! Perform the main routing procedure
         do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
