@@ -345,7 +345,7 @@ module classWaterBody1
     !> Perform the resuspension simulation for a time step
     !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
     function resuspensionWaterBody1(me) result(r)
-        class(WaterBody1) :: me                                !! This `WaterBody1` instance
+        class(WaterBody1) :: me                                 !! This `WaterBody1` instance
         type(Result) :: r                                       !! The Result object to return
         real(dp) :: d_max                                       ! Maximum resuspendable particle size
         real(dp) :: M_prop(C%nSizeClassesSpm)                   ! Proportion of size class that can be resuspended
@@ -357,7 +357,7 @@ module classWaterBody1
             ! Calculate maximum resuspendable particle size and proportion of each
             ! size class that can be resuspended. Changes on each timestep as dependent
             ! on river depth
-            d_max = 9.994*sqrt(me%alpha_res*C%g*me%D*me%slope)**2.5208 
+            d_max = 9.994*sqrt(me%alpha_res*C%g*me%D*me%slope)**2.5208
             ! Calculate proportion of each size class that can be resuspended
             do n = 1, C%nSizeClassesSpm
                 ! Calculate the proportion of size class that can be resuspended
