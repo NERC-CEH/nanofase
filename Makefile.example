@@ -2,7 +2,6 @@ FC = gfortran
 FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument
 EXEC_FILE = main
 EXEC_PATH = ./bin/
-CONFIG_PATH = ./
 NETCDF = `nf-config --fflags --flibs`
 
 OBJ = vendor/feh/src/ErrorInstance.o \
@@ -60,15 +59,6 @@ VPATH = vendor/feh/src \
 	src/GridCell \
 	src/Environment
 
-# define make-goal
-# $(notdir $(1)).o: $(1).f90:
-# 	$(FC) -c $(FCFLAGS) $$< $(NETCDF)
-# endef
-
-# define make-test
-# 	@echo $1
-# endef
-
 # 	-O0 flag would be preferable but a GFortran bug causes character
 # 	length mismatch in array constructor errors with allocatable
 # 	character variables, even when they're the correct length. See
@@ -82,12 +72,10 @@ $(EXEC_FILE): $(OBJECTS)
 test:
 	$(foreach obj,$(OBJECTS),$(call make-test,$(obj)))
 run:
-	$(EXEC_PATH)$(EXEC_FILE)
+	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)config.nml
 j2n:
 	python vendor/json2netcdf/json2netcdf.py data/data.json data/data.nc
 j2n-compact:
 	python vendor/json2netcdf/json2netcdf-compact.py data/data-compact.json data/data-compact.nc
 clean:
 	rm -f *.mod *.o *.stackdump Debug/*.*
-
-$(foreach obj,$(OBJECTS),$(eval $(call make-goal,$(obj))))
