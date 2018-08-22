@@ -110,7 +110,7 @@ module classLogger
         integer             :: values(8)
         call date_and_time(values=values)
         write(timestamp, "(I4.4, A, I2.2, A, I2.2, A, I2.2, A, I2.2, A, I2.2)") &
-            values(1), "-", values(2), "-", values(3), "_", values(5), ":", values(6), ":", values(7)
+            values(1), "-", values(2), "-", values(3), "_", values(5), ".", values(6), ".", values(7)
     end function
 
 end module
