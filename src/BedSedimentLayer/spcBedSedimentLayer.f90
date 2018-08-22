@@ -194,7 +194,7 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)`: returns the result                       <br>
         !! `r` returns critical error 103 if `C_f < 0`
-        function GetCf(Me, s) result(C_f)
+        function GetCf(Me, s) result(r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer, intent(in) :: s                                 !! Size class for which to retrieve available capacity
             type(Result0D) :: r                                      !! Return value
@@ -245,12 +245,13 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result                        <br>
         !! `r` returns critical error if ratio cannot be computed
-        function GetvolSLR(Me) result(r)
+        function GetvolSLR(Me, S) result(r)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
+            integer :: S                                             !! size class for which volumetric SLR is to be computed
             type(Result0D) :: r                                      !! Return value
             real(dp) :: volSLR                                       ! LOCAL internal storage
-            if (Me%C_f_l(1) > 0 .and. Me%C_w_l(1) > 0) then
-                volSLR = Me%C_f_l(1) / Me%C_w_l(1)                   ! compute ratio
+            if (Me%C_f_l(S) > 0 .and. Me%C_w_l(S) > 0) then
+                volSLR = Me%C_f_l(S) / Me%C_w_l(S)                   ! compute ratio
                 r = Result(Data = volSLR)                            ! add to result object
             else
                 call r%addError(ErrorInstance(code = 1, &
@@ -296,7 +297,7 @@ module spcBedSedimentLayer
             integer :: S                                             ! LOCAL loop counter
             Cf_layer = 0
             do S = 1, Me%nSizeClasses
-                Cf_layer = Cf_layer +  Me%C_f(S)                     ! sum across all size classes
+                Cf_layer = Cf_layer + .dp. Me%C_f(S)                 ! sum across all size classes
             end do
             r = Result(data = Cf_layer)
         end function
