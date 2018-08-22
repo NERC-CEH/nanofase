@@ -291,8 +291,8 @@ module classBedSediment1
                     call G%repstat(trim(tstring))
 
                     call r%addErrors([ .errors. &
-                        FS(S, L)%create("FS_" // & trim(str(L)) // &
-                                        "_" // & trim(str(S)) &
+                        FS(S, L)%create("FS_" // trim(str(L)) // &
+                                        "_" // trim(str(S)) &
                                        ), &             
                                        .errors. &
                         FS(S, L)%set(Mf_in = F%M_f(), &
