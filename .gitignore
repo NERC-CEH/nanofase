@@ -14,6 +14,7 @@ obj/
 log/
 cache/
 dll/
+x64/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
