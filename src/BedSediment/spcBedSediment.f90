@@ -42,8 +42,9 @@ module spcBedSediment
         procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
         procedure, public :: Aw_sediment => Get_Aw_sediment          ! water available capacity for size class
         procedure, public :: Cw_sediment => Get_Cw_sediment          ! water capacity for size class
-        procedure, public :: Mf_sediment => Get_Mf_sediment          ! fine sediment mass for size class
-        procedure, public :: Mf_sed_all => Get_Mf_sed_all            ! fine sediment mass in all size classes
+        procedure, public :: Mf_bed_one_size => Get_Mf_bed_one_size  ! fine sediment mass in bed for a single size class
+        procedure, public :: Mf_bed_all => Get_Mf_bed_all            ! fine sediment mass in all size classes (single value)
+        procedure, public :: Mf_bed_by_size => Get_Mf_bed_by_size    ! fine sediment mass in all size classes (1D array by size)
     end type
     abstract interface
         !> **Function purpose:** <br>
@@ -236,7 +237,7 @@ contains
         Cf_sediment = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
             Cf_sediment = Cf_sediment + &
-                Me%colBedSedimentLayers(L)%item%C_f(S)               ! sum capacities for all layers
+                .dp. Me%colBedSedimentLayers(L)%item%C_f(S)          ! sum capacities for all layers
         end do
         r = Result(data = Cf_sediment)
     end function
@@ -338,14 +339,14 @@ contains
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
-    function Get_Mf_sediment(Me, S) result(r)
+    function Get_Mf_bed_one_size(Me, S) result(r)
         class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         type(Result0D) :: r                                          !! Return value
-        real(dp) :: Mf_sediment                                      ! LOCAL internal storage
+        real(dp) :: Mf                                               ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
         character(len=14) :: tr                                      ! LOCAL error trace
-        tr = trim(Me%name // "Get_Mf_sediment")
+        tr = trim(Me%name // "Get_Mf_bed_one_size")
         if (S < 0) then
             call r%addError(ErrorInstance( &
                             code = 103, &
@@ -367,34 +368,72 @@ contains
                            )                                         ! CRITICAL ERROR if S > nSizeClasses
         end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
-        Mf_sediment = 0
+        Mf  = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
-            Mf_sediment = Mf_sediment + &
+            Mf = Mf + &
                 Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
                                                                      ! sum masses for all layers. Not very elegant
         end do
-        r = Result(data = Mf_sediment)
+        r = Result(data = Mf)
     end function
     !> **Function purpose**                                         <br>
-    !! Return fine sediment mass for all size classes, in the whole sediment
+    !! Return fine sediment mass for all size classes, in the whole sediment, as a single value
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required
-    function Get_Mf_sed_all(Me) result(r)
+    function Get_Mf_bed_all(Me) result(r)
         class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
         type(Result0D) :: r                                          !! Return value
         type(Result0D) :: r_l                                        ! LOCAL internal storage
-        real(dp) :: Mf_sed_all                                       ! LOCAL internal storage
+        real(dp) :: Mf                                               ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
         character(len=14) :: tr                                      ! LOCAL error trace
-        tr = trim(Me%name // "Get_Mf_sediment")
-        Mf_sed_all = 0
+        tr = trim(Me%name // "Get_Mf_bed_size")
+        Mf = 0
         do L = 1, Me%nLayers                                         ! loop through each layer
             r_l = Me%colBedSedimentLayers(L)%item%M_f_layer()        ! get Result object for Layer L
             call r%addErrors(.errors. r_l)                           ! pull errors out of Result object
             if (r%hasCriticalError()) return                         ! exit if error thrown
-            Mf_sed_all = Mf_sed_all + .real. r_l                     ! sum masses across layers
+            Mf = Mf + .real. r_l                                     ! sum masses across layers
         end do
-        r = Result(data = Mf_sed_all)
+        r = Result(data = Mf)                                        ! return value
+    end function 
+    !> **function purpose**
+    !!
+    !!
+    !!
+    !!
+    function Get_Mf_bed_by_size(Me) result(r)
+        class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
+        type(Result1D) :: r                                          !! Return value
+        integer :: L                                                 ! LOCAL loop counter
+        integer :: S                                                 ! LOCAL loop counter
+        real(dp) :: Mf                                               ! LOCAL internal storage
+        real(dp) :: Mf_size(Me%nSizeClasses)                         ! LOCAL 1D array to hold masses by size fraction
+        character(len=14) :: tr                                      ! LOCAL error trace
+        tr = trim(Me%name // "Get_Mf_bed_by_size")
+        do S = 1, Me%nSizeClasses                                    ! for each size class
+            Mf = 0                                                   ! initialise sumnation of mass
+            do L = 1, Me%nLayers                                     ! loop through each layer
+            Mf = Mf + &
+                Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
+                                                                     ! sum masses across all layers. Not very elegant
+            end do
+            Mf_size(S) = Mf                                          ! assign to array for output
+        end do
+        r = Result(data = Mf_size)                                   ! return value
     end function
+                                ! Get the FineSediment objects from the Result1D object, temporarily
+                                !! store in array and then assign to U and T
+                                !tmpFineSediment = .finesediment. r1D
+                                !U = tmpFineSediment(1)               ! sediment removed - to be added to Layer L
+                                !T = tmpFineSediment(2)               ! sediment not removed - *** should be none ***
+                                !r0D = O%addSediment(S, U)            ! add the sediment in U to the "receiving" layer
+                                !! SL: r0D returns fine sediment that could not be added - *** should be none ***
+                                !call r%addErrors(.errors. r0D)       ! retrieve errors into main Result object
+                                !if (r%hasCriticalError()) then       ! if RemoveSediment throws a critical error
+                                !    call r%addToTrace(tr)            ! add trace to all errors
+                                !    return                           ! and exit
+                                !end if
+
 end module
