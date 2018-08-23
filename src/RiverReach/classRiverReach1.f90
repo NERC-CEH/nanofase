@@ -7,7 +7,8 @@ module classRiverReach1
     use ErrorInstanceModule
     use spcRiverReach
     use classBedSediment1
-    use classLogger
+    use classLogger, only: LOG
+    use classDataInterfacer, only: DATA
     use classReactor1
     implicit none
 
@@ -510,7 +511,7 @@ module classRiverReach1
         ! Set the data interfacer's group to the group for this reach
         call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
             'Environment', &
-            ref("GridCell", me%x, me%y),
+            ref("GridCell", me%x, me%y), &
             me%ref &
         ]))
 
@@ -548,9 +549,9 @@ module classRiverReach1
             .errors. DATA%get('f_m', me%f_m, 1.0_dp), &         ! Meandering factor
             .errors. DATA%get('alpha_res', me%alpha_res), &     ! Resuspension alpha parameter
             .errors. DATA%get('beta_res', me%beta_res), &       ! Resuspension beta parameter
-            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.) &
+            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.), &
                 ! alpha_hetero defaults to that specified in config.nml
-            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.)
+            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
 
