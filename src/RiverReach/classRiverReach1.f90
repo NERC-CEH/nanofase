@@ -515,6 +515,9 @@ module classRiverReach1
             me%ref &
         ]))
 
+        me%ncGroup = DATA%grp           ! HACK to get BedSediment to work with DataInterfacer
+            ! TODO This needs to be changed so BedSediment uses DataInterfacer
+
         ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
         if (DATA%grp%hasGroup("PointSource") .or. DATA%grp%hasGroup("PointSource_1")) then
