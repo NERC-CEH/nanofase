@@ -1,8 +1,11 @@
 FC = gfortran
 FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument
+DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow
 EXEC_FILE = main
 EXEC_PATH = ./bin/
 NETCDF = `nf-config --fflags --flibs`
+CONFIG_PATH = ./config/
+CONFIG_FILE = config.nml
 
 OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/feh/src/Result.o \
@@ -66,16 +69,14 @@ VPATH = vendor/feh/src \
 # 	https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran.
 # 	Solution is to use -O1 or higher.
 $(EXEC_FILE): $(OBJECTS)
-	$(FC) $(FCFLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
+	$(FC) $(FCFLAGS) $(DEBUGFLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
 %.o: %.f90
-	$(FC) -c $(FCFLAGS) $< $(NETCDF)
+	$(FC) -c $(FCFLAGS) $(DEBUGFLAGS) $< $(NETCDF)
 test:
 	$(foreach obj,$(OBJECTS),$(call make-test,$(obj)))
 run:
-	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)config.nml
-j2n:
-	python vendor/json2netcdf/json2netcdf.py data/data.json data/data.nc
-j2n-compact:
-	python vendor/json2netcdf/json2netcdf-compact.py data/data-compact.json data/data-compact.nc
+	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
+debug:
+	gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 clean:
 	rm -f *.mod *.o *.stackdump Debug/*.*
