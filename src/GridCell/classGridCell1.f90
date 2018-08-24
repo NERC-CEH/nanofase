@@ -98,6 +98,7 @@ module classGridCell1
         call r%addToTrace("Creating " // trim(me%ref))
         call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call r%clear()                  ! Clear errors from the Result object so they're not reported twice
         call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
@@ -172,6 +173,11 @@ module classGridCell1
                 call r%addErrors(.errors. me%setRiverReachLengths(b))
             end do
         end if
+        ! Trigger any errors
+        call r%addToTrace("Finalising creation of " // trim(me%ref))
+        call LOG%toFile(errors=.errors.r)
+        call ERROR_HANDLER%trigger(errors = .errors. r)
+        call r%clear()                  ! Clear errors from the Result object so they're not reported twice
     end function
     
     !> Recursively called function that sets the next elemet in the routedRiverReaches array,
@@ -207,7 +213,7 @@ module classGridCell1
                 me%routedRiverReaches(b,rr+1)%item => finalRiverReach%outflow%item
             end if
             ! Call recursively until me%isGridCellOutflow isn't satisfied
-            r = me%setBranchRouting(b,rr+1)
+            call r%addErrors(.errors. me%setBranchRouting(b,rr+1))
         else
             ! Once we've reached the final reach in the branch (i.e. the outflow
             ! from the GridCell), then set the number of branch to the current
@@ -226,10 +232,8 @@ module classGridCell1
         real(dp) :: specifiedLengths(me%nReachesInBranch(b))
         integer :: nReachesUnspecifiedLength        ! Number of reaches with unspecified length
         real(dp) :: unspecifiedLengths              ! Calculated length for reaches with unspecified length
-        
-        call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))  
+          
         nReachesUnspecifiedLength = 0               ! Initialise to zero
-        
         ! Use the x,y positions of inflow to the first reach and outflow from the
         ! last reach to calculate the straight-line length of the branch through
         ! the GridCell
@@ -244,7 +248,7 @@ module classGridCell1
                 ! Assume source is the centre of the GridCell
                 dx = abs(me%x - finalReach%outflow%item%x)*0.5*me%dx
                 dy = abs(me%y - finalReach%outflow%item%y)*0.5*me%dy
-            else if (.not. firstReach%isHeadwater .and. .not. associated(finalReach%outflow%item)) then
+            else if (.not. associated(finalReach%outflow%item)) then
                 ! Check if domainOutflow specified in data file, if not, trigger error
                 if (size(finalReach%domainOutflow) == 2) then
                     dx = abs(firstReach%inflows(1)%item%x - finalReach%domainOutflow(1))*0.5*me%dx
@@ -256,7 +260,8 @@ module classGridCell1
                         "Reaches must either be specified as inflow to downstream reach, " // &
                         "or have a model domain outflow specified.") &
                     )
-                    return
+                    call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))
+                    return              ! Get out of here early otherwise we'll get FPEs below!
                 end if
             end if
         end associate
@@ -274,6 +279,9 @@ module classGridCell1
         ! but keep all reach lengths the same - effectively letting specified lengths
         ! act as a meandering factor. Else, split up the "empty" space into the
         ! number of reaches that have unspecified length and give them that length
+        print *, specifiedLengths
+        print *, branchLength
+        print *, me%dx, me%dy, dx, dy
         if (sum(specifiedLengths) > branchLength) then
             call r%addError(ErrorInstance(code=405, isCritical=.false.))
             branchLength = sum(specifiedLengths)        ! Set the branch length to the specified length
@@ -333,7 +341,7 @@ module classGridCell1
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
-            r = me%colSoilProfiles(1)%item%update(t)
+            call r%addErrors(.errors. me%colSoilProfiles(1)%item%update(t))
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Loop through the reaches and call their update methods for this
@@ -356,9 +364,12 @@ module classGridCell1
                 )
             end do
         end if
+
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
+        call LOG%toFile(errors = .errors. r)            ! Log any errors to the output file
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call r%clear()                  ! Clear the errors so we're not reporting twice
         call LOG%toConsole("\tPerforming simulation for " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
