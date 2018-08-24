@@ -46,6 +46,9 @@ program main
         m_np_free = 0
         m_np_hetero = 0
         r = env%update(t)
+        call LOG%toFile(errors=.errors.r)                               ! Output any errors to the log file
+        call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
+
         ! TODO: Do something with Result object
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
             do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
