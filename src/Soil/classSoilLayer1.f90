@@ -3,6 +3,7 @@ module classSoilLayer1
     use Globals
     use UtilModule
     use spcSoilLayer
+    use classDataInterfacer, only: DATA
     implicit none
 
     !> `SoilLayer1` is responsible for routing percolated water through
@@ -113,34 +114,19 @@ module classSoilLayer1
     !! accordingly, including allocation of arrays that depend on
     !! input data
     function parseInputDataSoilLayer1(me) result(r)
-        class(SoilLayer1) :: me                         !! This SoilLayer1 instance
-        type(Result) :: r
-            !! The Result object to return any errors relating to the input data file
-        type(NcDataset) :: nc                           ! NetCDF dataset
-        type(NcVariable) :: var                         ! NetCDF variable
-        type(NcGroup) :: grp                            ! NetCDF group
+        class(SoilLayer1) :: me         !! This SoilLayer1 instance
+        type(Result) :: r               !! The Result object to return any errors relating to the input data file
 
-        ! Open the dataset
-        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
-        grp = nc%getGroup("Environment")                        ! Get the Environment group
-        grp = grp%getGroup(ref("GridCell",me%x,me%y))           ! Get the containing GridCell's group
-        grp = grp%getGroup(ref("SoilProfile",me%x,me%y,me%p))   ! Get the containing SoilProfile's group
+         ! Set the data interfacer's group to the group for this GridCell
+        call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
+            'Environment', &
+            ref('GridCell', me%x, me%y), &
+            ref("SoilProfile", me%x, me%y, me%p), &
+            "SoilLayer_" // trim(str(me%l)) &
+        ]))
+        ! Depth of this soil layer [m]
+        call r%addErrors(.errors. DATA%get('depth', me%depth, C%defaultSoilLayerDepth))
 
-        ! Check if this SoilLayer has a group, and if not, set default variables
-        if (grp%hasGroup("SoilLayer_" // trim(str(me%l)))) then
-            me%ncGroup = grp%getGroup("SoilLayer_" // trim(str(me%l)))  ! Get this SoilLayer's group
-
-            ! Get the depth of the SoilLayer, if present, otherwise default
-            ! without warning [m]
-            if (me%ncGroup%hasVariable('depth')) then
-                var = me%ncGroup%getVariable('depth')
-                call var%getData(me%depth)
-            else
-                me%depth = C%defaultSoilLayerDepth
-            end if
-        else
-            me%depth = C%defaultSoilLayerDepth
-        end if
     end function
 
 end module

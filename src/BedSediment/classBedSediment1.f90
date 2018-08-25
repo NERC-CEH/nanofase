@@ -37,6 +37,7 @@ module classBedSediment1
         type(NcVariable) :: var                                      ! LOCAL variable to retrieve NetCDF data from
         character(len=256) :: tr                                     ! LOCAL error trace
         character(len=16), parameter :: ms = "Allocation error"      ! LOCAL allocation error message
+        real :: start, finish
         
         integer :: M                                                 ! LOCAL loop counter for printing
         !
@@ -45,6 +46,7 @@ module classBedSediment1
         ! no notes
         ! ----------------------------------------------------------------------------------
         
+        call cpu_time(start)
         print *, 'creating BedSediment'
         
         Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
@@ -136,6 +138,9 @@ module classBedSediment1
             !end do
             
         end do
+        call cpu_time(finish)
+        print *, 'Time taken to create bed sediment (s): ', finish-start   ! How long did it take?
+
     end function
     !> **Function purpose**                                         <br>
     !! Deallocate all allocatable variables and call destroy methods for all
