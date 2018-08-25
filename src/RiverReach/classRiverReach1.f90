@@ -515,7 +515,6 @@ module classRiverReach1
             me%ref &
         ]))
 
-        ! HACK Set NetCDF to pass to BedSediment. Need to factor this out eventually
         me%ncGroup = DATA%grp
 
         ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
