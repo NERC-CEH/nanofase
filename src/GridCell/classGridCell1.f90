@@ -87,7 +87,7 @@ module classGridCell1
                 ) &
             )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
-            
+
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. r%hasCriticalError()) then
                 ! Add RiverReaches to the GridCell (if any are present in the data file)
@@ -98,6 +98,7 @@ module classGridCell1
         call r%addToTrace("Creating " // trim(me%ref))
         call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call r%clear()                  ! Clear errors from the Result object so they're not reported twice
         call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
@@ -111,7 +112,7 @@ module classGridCell1
         integer :: rr, b                        ! Iterator for reaches and branches
         type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
             ! Temporary array for appending to routedRiverReaches array
-        
+
         b = 0                                   ! No river branches to begin with
         ! Loop through all the reaches in this GridCell.
         ! Don't type check for the moment
@@ -172,6 +173,11 @@ module classGridCell1
                 call r%addErrors(.errors. me%setRiverReachLengths(b))
             end do
         end if
+        ! Trigger any errors
+        call r%addToTrace("Finalising creation of " // trim(me%ref))
+        call LOG%toFile(errors=.errors.r)
+        call ERROR_HANDLER%trigger(errors = .errors. r)
+        call r%clear()                  ! Clear errors from the Result object so they're not reported twice
     end function
     
     !> Recursively called function that sets the next elemet in the routedRiverReaches array,
@@ -207,7 +213,7 @@ module classGridCell1
                 me%routedRiverReaches(b,rr+1)%item => finalRiverReach%outflow%item
             end if
             ! Call recursively until me%isGridCellOutflow isn't satisfied
-            r = me%setBranchRouting(b,rr+1)
+            call r%addErrors(.errors. me%setBranchRouting(b,rr+1))
         else
             ! Once we've reached the final reach in the branch (i.e. the outflow
             ! from the GridCell), then set the number of branch to the current
@@ -226,10 +232,8 @@ module classGridCell1
         real(dp) :: specifiedLengths(me%nReachesInBranch(b))
         integer :: nReachesUnspecifiedLength        ! Number of reaches with unspecified length
         real(dp) :: unspecifiedLengths              ! Calculated length for reaches with unspecified length
-        
-        call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))  
+          
         nReachesUnspecifiedLength = 0               ! Initialise to zero
-        
         ! Use the x,y positions of inflow to the first reach and outflow from the
         ! last reach to calculate the straight-line length of the branch through
         ! the GridCell
@@ -244,18 +248,35 @@ module classGridCell1
                 ! Assume source is the centre of the GridCell
                 dx = abs(me%x - finalReach%outflow%item%x)*0.5*me%dx
                 dy = abs(me%y - finalReach%outflow%item%y)*0.5*me%dy
-            else if (.not. firstReach%isHeadwater .and. .not. associated(finalReach%outflow%item)) then
-                ! Check if domainOutflow specified in data file, if not, trigger error
-                if (size(finalReach%domainOutflow) == 2) then
-                    dx = abs(firstReach%inflows(1)%item%x - finalReach%domainOutflow(1))*0.5*me%dx
-                    dy = abs(firstReach%inflows(1)%item%y - finalReach%domainOutflow(2))*0.5*me%dy
+            ! If this is a domain outflow
+            else if (.not. associated(finalReach%outflow%item)) then
+                ! Check the reach has inflows
+                if (size(firstReach%inflows) > 0) then
+                    ! Check if domainOutflow specified in data file, if not, trigger error
+                    if (size(finalReach%domainOutflow) == 2) then
+                        dx = abs(firstReach%inflows(1)%item%x - finalReach%domainOutflow(1))*0.5*me%dx
+                        dy = abs(firstReach%inflows(1)%item%y - finalReach%domainOutflow(2))*0.5*me%dy
+                    else
+                        call r%addError(ErrorInstance( &
+                            code=404, &
+                            message=trim(finalReach%ref) // " outflow could not be determined. " // &
+                            "Reaches must either be specified as inflow to downstream reach, " // &
+                            "or have a model domain outflow specified.") &
+                        )
+                        call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))
+                        return              ! Get out of here early otherwise we'll get FPEs below!
+                    end if
+                ! If the reach has no inflows but is a domain outflow, there's not a lot we
+                ! can do for the moment (until we implement proper boundary conditions for inflows).
+                ! So, just remove all reaches from the grid cell.
+                ! TODO Set up proper inflow boundary conditions
                 else
-                    call r%addError(ErrorInstance( &
-                        code=404, &
-                        message=trim(finalReach%ref) // " outflow could not be determined. " // &
-                        "Reaches must either be specified as inflow to downstream reach, " // &
-                        "or have a model domain outflow specified.") &
-                    )
+                    deallocate(me%colRiverReaches)
+                    deallocate(me%routedRiverReaches)
+                    deallocate(me%nReachesInBranch)
+                    allocate(me%colRiverReaches(0))
+                    allocate(me%routedRiverReaches(0,0))
+                    allocate(me%nReachesInBranch(0))
                     return
                 end if
             end if
@@ -333,7 +354,7 @@ module classGridCell1
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
-            r = me%colSoilProfiles(1)%item%update(t)
+            call r%addErrors(.errors. me%colSoilProfiles(1)%item%update(t))
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Loop through the reaches and call their update methods for this
@@ -356,9 +377,12 @@ module classGridCell1
                 )
             end do
         end if
+
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
+        call LOG%toFile(errors = .errors. r)            ! Log any errors to the output file
         call ERROR_HANDLER%trigger(errors = .errors. r)
+        call r%clear()                  ! Clear the errors so we're not reporting twice
         call LOG%toConsole("\tPerforming simulation for " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
@@ -425,9 +449,6 @@ module classGridCell1
         integer                 :: cropType             ! Temporary var to store crop type int in
         real(dp)                :: cropArea             ! Temporary var to store crop area in
         integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
-        real                    :: start, finish
-        
-        call cpu_time(start)                                                ! Simulation start time
 
         ! Allocate arrays to store flows in
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
@@ -513,11 +534,7 @@ module classGridCell1
                 me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
                 i = i+1
             end do
-        end if
-
-        call cpu_time(finish)                                                   ! Simulation finish time
-        print *, 'Time taken to parse data for grid cell (s): ', finish-start   ! How long did it take?
-        
+        end if        
     end function
 
 !---------------!
