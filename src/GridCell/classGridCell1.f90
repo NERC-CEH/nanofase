@@ -248,20 +248,36 @@ module classGridCell1
                 ! Assume source is the centre of the GridCell
                 dx = abs(me%x - finalReach%outflow%item%x)*0.5*me%dx
                 dy = abs(me%y - finalReach%outflow%item%y)*0.5*me%dy
+            ! If this is a domain outflow
             else if (.not. associated(finalReach%outflow%item)) then
-                ! Check if domainOutflow specified in data file, if not, trigger error
-                if (size(finalReach%domainOutflow) == 2) then
-                    dx = abs(firstReach%inflows(1)%item%x - finalReach%domainOutflow(1))*0.5*me%dx
-                    dy = abs(firstReach%inflows(1)%item%y - finalReach%domainOutflow(2))*0.5*me%dy
+                ! Check the reach has inflows
+                if (size(firstReach%inflows) > 0) then
+                    ! Check if domainOutflow specified in data file, if not, trigger error
+                    if (size(finalReach%domainOutflow) == 2) then
+                        dx = abs(firstReach%inflows(1)%item%x - finalReach%domainOutflow(1))*0.5*me%dx
+                        dy = abs(firstReach%inflows(1)%item%y - finalReach%domainOutflow(2))*0.5*me%dy
+                    else
+                        call r%addError(ErrorInstance( &
+                            code=404, &
+                            message=trim(finalReach%ref) // " outflow could not be determined. " // &
+                            "Reaches must either be specified as inflow to downstream reach, " // &
+                            "or have a model domain outflow specified.") &
+                        )
+                        call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))
+                        return              ! Get out of here early otherwise we'll get FPEs below!
+                    end if
+                ! If the reach has no inflows but is a domain outflow, there's not a lot we
+                ! can do for the moment (until we implement proper boundary conditions for inflows).
+                ! So, just remove all reaches from the grid cell.
+                ! TODO Set up proper inflow boundary conditions
                 else
-                    call r%addError(ErrorInstance( &
-                        code=404, &
-                        message=trim(finalReach%ref) // " outflow could not be determined. " // &
-                        "Reaches must either be specified as inflow to downstream reach, " // &
-                        "or have a model domain outflow specified.") &
-                    )
-                    call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))
-                    return              ! Get out of here early otherwise we'll get FPEs below!
+                    deallocate(me%colRiverReaches)
+                    deallocate(me%routedRiverReaches)
+                    deallocate(me%nReachesInBranch)
+                    allocate(me%colRiverReaches(0))
+                    allocate(me%routedRiverReaches(0,0))
+                    allocate(me%nReachesInBranch(0))
+                    return
                 end if
             end if
         end associate
@@ -433,9 +449,6 @@ module classGridCell1
         integer                 :: cropType             ! Temporary var to store crop type int in
         real(dp)                :: cropArea             ! Temporary var to store crop area in
         integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
-        real                    :: start, finish
-        
-        call cpu_time(start)                                                ! Simulation start time
 
         ! Allocate arrays to store flows in
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
@@ -521,11 +534,7 @@ module classGridCell1
                 me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
                 i = i+1
             end do
-        end if
-
-        call cpu_time(finish)                                                   ! Simulation finish time
-        print *, 'Time taken to parse data for grid cell (s): ', finish-start   ! How long did it take?
-        
+        end if        
     end function
 
 !---------------!

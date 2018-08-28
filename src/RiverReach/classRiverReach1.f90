@@ -56,17 +56,12 @@ module classRiverReach1
         integer :: n, s                                         ! Loop iterator for SPM size classes and sources
         integer :: allst                                        ! Allocation status
         type(ErrorInstance) :: error                            ! To return errors
-
-        print *, 'Creating RiverReach'
         
         ! First, let's set the RiverReach's reference and the length
         me%x = x
         me%y = y
         me%rr = rr
         me%ref = trim(ref("RiverReach", x, y, rr))
-
-        print *, me%ref
-        
         me%gridCellArea = gridCellArea
         allocate(me%q_runoff_timeSeries, source=q_runoff_timeSeries)    ! Runoff = slow flow + quick flow [m/timestep]
         allocate(me%T_water_timeSeries, source=T_water_timeSeries)      ! Water temperature [C]
@@ -504,9 +499,6 @@ module classRiverReach1
         type(NcGroup) :: grp                ! NetCDF group
         integer :: i                        ! Loop counter
         integer, allocatable :: inflowArray(:,:) ! Temporary array for storing inflows from data file in
-        real                    :: start, finish
-
-        call cpu_time(start)                                                ! Simulation start time
 
         ! Set the data interfacer's group to the group for this reach
         call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
@@ -556,72 +548,6 @@ module classRiverReach1
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
-
-        ! ! Get the specific RiverReach parameters from data - only the stuff
-        ! ! that doesn't depend on time
-        ! ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
-        ! nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
-        ! grp = nc%getGroup("Environment")
-        ! grp = grp%getGroup(trim(ref("GridCell", me%x, me%y)))   ! Get the GridCell we're in
-        ! me%ncGroup = grp%getGroup(trim(me%ref))                 ! Store the NetCDF group in a variable
-
-        ! ! Check if this reach has any point sources. me%hasPointSource defaults to .false.
-        ! ! Allocate me%pointSources accordingly.
-        ! if (me%ncGroup%hasGroup("PointSource") .or. me%ncGroup%hasGroup("PointSource_1")) then
-        !     me%hasPointSource = .true.
-        !     allocate(me%pointSources(1))
-        !     i = 2               ! Any extra point sources?
-        !     do while (me%ncGroup%hasGroup("PointSource_" // trim(str(i))))
-        !         allocate(me%pointSources(i))
-        !         i = i+1
-        !     end do
-        ! end if
-        ! ! Same for diffuse source(s)
-        ! if (me%ncGroup%hasGroup("DiffuseSource") .or. me%ncGroup%hasGroup("DiffuseSource_1")) then
-        !     me%hasDiffuseSource = .true.
-        !     allocate(me%diffuseSources(1))
-        !     i = 2               ! Any extra diffuse sources?
-        !     do while (me%ncGroup%hasGroup("DiffuseSource_" // trim(str(i))))
-        !         allocate(me%diffuseSources(i))
-        !         i = i+1
-        !     end do
-        ! end if
-        
-        
-        ! if (me%ncGroup%hasVariable("length")) then              ! Get the length of the reach, if present
-        !     var = me%ncGroup%getVariable("length")
-        !     call var%getData(me%l)
-        ! else
-        !     ! Otherwise, set to 0 and GridCell will deal with calculating length. Note that errors
-        !     ! might be thrown from GridCell if the reaches lengths within the GridCell are
-        !     ! not physically possible within the reach (e.g., too short).
-        !     me%l = 0                                            
-        ! end if
-        ! ! TODO: Slope should default to GridCell slope if not present
-        ! var = me%ncGroup%getVariable("slope")                   ! Get the slope
-        ! call var%getData(me%slope)
-        ! if (me%ncGroup%hasVariable("f_m")) then                 ! If there is a meandering factor, get that
-        !     var = me%ncGroup%getVariable("f_m")                 ! If not, it defaults to 1 (no meandering) without warning
-        !     call var%getData(me%f_m)
-        ! end if
-        ! var = me%ncGroup%getVariable("alpha_res")               ! Get the alpha_res calibration factor for resuspension
-        ! call var%getData(me%alpha_res)
-        ! var = me%ncGroup%getVariable("beta_res")                ! Get the beta_res calibration factor for resuspension
-        ! call var%getData(me%beta_res)
-        ! ! TODO: Add checks for the above
-
-        ! if (me%ncGroup%hasVariable("alpha_hetero")) then
-        !     var = me%ncGroup%getVariable("alpha_hetero")
-        !     call var%getData(me%alpha_hetero)
-        ! else
-        !     call r%addError(ErrorInstance( &
-        !         code = 201, &
-        !         message = "Value for alpha_hetero not found in input file. " // &
-        !                     "Defaulting to that specified in config.nml.", &
-        !         isCritical = .false. &
-        !     ))
-        !     me%alpha_hetero = C%default_alpha_hetero
-        ! end if
         
         ! ROUTING: Get the references to the inflow(s) RiverReaches and
         ! store in inflowRefs(). Do some auditing as well.
@@ -672,9 +598,6 @@ module classRiverReach1
         end if
         ! Allocate inflows() array (the array of pointers) to the correct size
         allocate(me%inflows(me%nInflows))
-
-        call cpu_time(finish)                                                   ! Simulation finish time
-        print *, 'Time taken to parse data for river reach (s): ', finish-start   ! How long did it take?
         
         call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
