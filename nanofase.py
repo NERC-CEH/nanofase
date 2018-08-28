@@ -35,10 +35,20 @@ options = {
         "run-description": "Running the model (without compiling)",
         "cmd": "make run"
     },
+    "run-thames": {
+        "description": "Run the model (without compiling) using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
+        "run-description": "Running the model (without compiling) using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
+        "cmd": "make run CONFIG_FILE=thames.nml"
+    },
     "compile-run": {
         "description": "Compile the model using the makefile and then run",
         "run-description": "Compiling the model using the makefile and then running",
         "cmd": "make && make run"
+    },
+    "compile-run-thames": {
+        "description": "Compile the model using the makefile and then run using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
+        "run-description": "Compiling the model using the makefile and then running using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
+        "cmd": "make && make run CONFIG_FILE=thames.nml"
     },
     "view-log": {
         "description": "View the latest log file",

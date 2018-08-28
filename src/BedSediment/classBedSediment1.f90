@@ -45,8 +45,6 @@ module classBedSediment1
         ! no notes
         ! ----------------------------------------------------------------------------------
         
-        print *, 'creating BedSediment'
-        
         Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
         
         print *, Me%name

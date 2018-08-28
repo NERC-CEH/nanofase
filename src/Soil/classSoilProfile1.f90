@@ -6,6 +6,7 @@ module classSoilProfile1
     use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
+    use classDataInterfacer, only: DATA
     implicit none
 
     !> A `SoilProfile` class acts as a container for a collection of
@@ -51,7 +52,6 @@ module classSoilProfile1
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
 
         me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
-        call r%addToTrace("Creating " // trim(me%ref))      ! Add this procedure to the error trace
 
         ! Allocate the object properties that need to be
         allocate(me%usle_C(C%nTimeSteps))
@@ -84,6 +84,7 @@ module classSoilProfile1
             )
             call move_alloc(sl, me%colSoilLayers(l)%item)
         end do
+        call r%addToTrace("Creating " // trim(me%ref))      ! Add this procedure to the error trace
     end function
 
     !> Destroy this SoilProfile
@@ -231,100 +232,56 @@ module classSoilProfile1
         real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
         integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param
         real(dp), allocatable   :: usle_rsd(:)              ! Residue on soil surface [kg/ha]
+        real :: start, finish
 
+        call cpu_time(start)
         ! Allocate the data which are time series. These must be allocatable (as opposed to
         ! being declared that length) to work with the mo_netcdf getData() procedure.
         allocate(usle_C_min(C%nTimeSteps))
         allocate(usle_C_av(C%nTimeSteps))
         allocate(usle_rsd(C%nTimeSteps))
+        ! Set the data interfacer's group to this SoilProfile
+        call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
+            'Environment', &
+            ref('GridCell', me%x, me%y), &
+            me%ref &
+        ]))
+        ! Setup data and hydraulic properties
+        call r%addErrors([ &
+            .errors. DATA%get('n_soil_layers', me%nSoilLayers), &
+            .errors. DATA%get('WC_sat', me%WC_sat), &               ! Water content at saturation [m3/m3] TODO check between 0 and 1
+            .errors. DATA%get('WC_FC', me%WC_FC), &                 ! Water content at field capacity [m3/m3] TODO check between 0 and 1
+            .errors. DATA%get('K_s', me%K_s), &                     ! Saturated hydraulic conductivity [m/s]
+            .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
+        ])
+        allocate(me%colSoilLayers(me%nSoilLayers))
 
-        ! Open the dataset
-        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
-        grp = nc%getGroup("Environment")                        ! Get the Environment group
-        grp = grp%getGroup(ref("GridCell",me%x,me%y))           ! Get the containing GridCell's group
-        me%ncGroup = grp%getGroup(me%ref)                       ! Get this SoilProfile's group
+        ! Auditing
+        call r%addError( &
+            ERROR_HANDLER%equal( &
+                value = sum(me%distributionSediment), &
+                criterion = 100, &
+                message = "Specified size class distribution for sediments " &
+                            // "does not sum to 100%." &
+            ) &
+        )
 
-        ! How many soil layers? Allocate colSoilLayers accordingly
-        if (me%ncGroup%hasVariable('n_soil_layers')) then
-            var = me%ncGroup%getVariable('n_soil_layers')
-            call var%getData(me%nSoilLayers)
-            allocate(me%colSoilLayers(me%nSoilLayers))
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for nSoilLayers not found in input file." &
-            ))
-        end if
 
-        ! Water content at saturation [m3/m3]
-        ! TODO: Check between 0 and 1
-        if (me%ncGroup%hasVariable('WC_sat')) then
-            var = me%ncGroup%getVariable('WC_sat')
-            call var%getData(me%WC_sat)
-        else
-             call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for WC_sat (water content at saturation) not " // &
-                            "found in input file. " &
-            ))
-        end if
-
-        ! Water content at field capacity [m3/m3]
-        ! TODO: Check between 0 and 1
-        if (me%ncGroup%hasVariable('WC_FC')) then
-            var = me%ncGroup%getVariable('WC_FC')
-            call var%getData(me%WC_FC)
-        else
-             call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for WC_FC (water content at field capacity) not " // &
-                            "found in input file. " &
-            ))
-        end if
-
-        ! Saturated hydraulic conductivity [m/s]
-        if (me%ncGroup%hasVariable('K_s')) then
-            var = me%ncGroup%getVariable('K_s')
-            call var%getData(me%K_s)
-        else
-             call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for K_s (saturated hydraulic conductivity) not " // &
-                            "found in input file. " &
-            ))
-        end if
-
-        ! Distribution used to split sediment mass into size classes
-        if (me%ncGroup%hasVariable('distribution_sediment')) then
-            var = me%ncGroup%getVariable('distribution_sediment')
-            call var%getData(me%distributionSediment)
-            ! Check the distribution adds up to 100%
-            call r%addError( &
-                ERROR_HANDLER%equal( &
-                    value = sum(me%distributionSediment), &
-                    criterion = 100, &
-                    message = "Specified size class distribution for sediments " &
-                                // "does not sum to 100%." &
-                ) &
-            )
-        else                                                    ! Default to value specified in globals
-            me%distributionSediment = C%defaultDistributionSediment ! Should have been checked that it sums to 100%
-        end if
 
         ! -- SOIL EROSION DATA ---------------------------------------------------------!
         ! C     Cover and land management factor, defined as the ratio of soil loss
         !       from land cropped under specified conditions to the corresponding loss
         !       from clean-tilled, continuous flow. Should be time-dependent (as crop
         !       cover changes). [-]
-        if (me%ncGroup%hasVariable('usle_C')) then              ! First, check if time series of C-factors is available
-            var = me%ncGroup%getVariable('usle_C')
+        if (DATA%grp%hasVariable('usle_C')) then              ! First, check if time series of C-factors is available
+            var = DATA%grp%getVariable('usle_C')
             call var%getData(me%usle_C)
         else                                                    ! Else, we can estimate C
-            if (me%ncGroup%hasVariable('usle_C_min')) then      ! Use minimum C to estimate C
-                var = me%ncGroup%getVariable('usle_C_min')
+            if (DATA%grp%hasVariable('usle_C_min')) then      ! Use minimum C to estimate C
+                var = DATA%grp%getVariable('usle_C_min')
                 call var%getData(usle_C_min)
-            else if (me%ncGroup%hasVariable('usle_C_av')) then  ! Average annual C can be used to estimate minimum C
-                var = me%ncGroup%getVariable('usle_C_av')
+            else if (DATA%grp%hasVariable('usle_C_av')) then  ! Average annual C can be used to estimate minimum C
+                var = DATA%grp%getVariable('usle_C_av')
                 call var%getData(usle_C_av)
                 usle_C_min = 1.463*log(usle_C_av) + 0.1034
             else                                                ! If neither exist, default C_min to 1 (fallow soil)
@@ -336,8 +293,8 @@ module classSoilProfile1
                 ))
                 usle_C_min = 1
             end if
-            if (me%ncGroup%hasVariable('usle_rsd')) then        ! Residue on surface also needed to esimate C [kg/ha]
-                var = me%ncGroup%getVariable('usle_rsd')
+            if (DATA%grp%hasVariable('usle_rsd')) then        ! Residue on surface also needed to esimate C [kg/ha]
+                var = DATA%grp%getVariable('usle_rsd')
                 call var%getData(usle_rsd)
             else                                                ! Default to zero (no residue = no crops)
                 call r%addError(ErrorInstance( &
@@ -353,8 +310,8 @@ module classSoilProfile1
         end if
         ! K     Soil erodibility factor, which depends on soil structure and is treated as
         !       time-independent. [t ha h ha-1 MJ-1 mm-1]
-        if (me%ncGroup%hasVariable('usle_K')) then
-            var = me%ncGroup%getVariable('usle_K')
+        if (DATA%grp%hasVariable('usle_K')) then
+            var = DATA%grp%getVariable('usle_K')
             call var%getData(me%usle_K)
         else
             call r%addError(ErrorInstance( &
@@ -365,8 +322,8 @@ module classSoilProfile1
         ! P     Support practice factor, the ratio of soil loss with a specific support
         !       practice to the corresponding loss with up-and-down slope culture. Support
         !       practices: Contour tillage, strip-cropping, terrace systems. [-]
-        if (me%ncGroup%hasVariable('usle_P')) then
-            var = me%ncGroup%getVariable('usle_P')
+        if (DATA%grp%hasVariable('usle_P')) then
+            var = DATA%grp%getVariable('usle_P')
             call var%getData(me%usle_P)
         else
             call r%addError(ErrorInstance( &
@@ -378,8 +335,8 @@ module classSoilProfile1
             me%usle_P = 1
         end if
         ! LS    Topographic factor, a function of the terrain's topography. [-]
-        if (me%ncGroup%hasVariable('usle_LS')) then
-            var = me%ncGroup%getVariable('usle_LS')
+        if (DATA%grp%hasVariable('usle_LS')) then
+            var = DATA%grp%getVariable('usle_LS')
             call var%getData(me%usle_LS)
         else
             call r%addError(ErrorInstance( &
@@ -388,8 +345,8 @@ module classSoilProfile1
             ))
         end if
         ! CFRG  Coase fragment factor, CFRG = exp(0.035 * % rock in first soil layer). [-]
-        if (me%ncGroup%hasVariable('usle_rock')) then
-            var = me%ncGroup%getVariable('usle_rock')           ! % rock in top of soil profile [-]
+        if (DATA%grp%hasVariable('usle_rock')) then
+            var = DATA%grp%getVariable('usle_rock')           ! % rock in top of soil profile [-]
             call var%getData(usle_rock)
             me%usle_CFRG = exp(-0.052*usle_rock)                ! Coarse fragment factor [-]
         else
@@ -403,8 +360,8 @@ module classSoilProfile1
         end if
         ! Params affecting q_peak
         ! alpha_half        Fraction of daily rainfall happening in maximum half hour. [-]
-        if (me%ncGroup%hasVariable('usle_alpha_half')) then
-            var = me%ncGroup%getVariable('usle_alpha_half')
+        if (DATA%grp%hasVariable('usle_alpha_half')) then
+            var = DATA%grp%getVariable('usle_alpha_half')
             call var%getData(me%usle_alpha_half)
         else
             call r%addError(ErrorInstance( &
@@ -416,8 +373,8 @@ module classSoilProfile1
             me%usle_alpha_half = 0.33                           ! Defaults to 0.33
         end if
         ! Area of the HRU [ha]
-        if (me%ncGroup%hasVariable('usle_area_hru')) then
-            var = me%ncGroup%getVariable('usle_area_hru')
+        if (DATA%grp%hasVariable('usle_area_hru')) then
+            var = DATA%grp%getVariable('usle_area_hru')
             call var%getData(me%usle_area_hru)
         else
             call r%addError(ErrorInstance( &
@@ -426,10 +383,10 @@ module classSoilProfile1
             ))
         end if
         ! Subbassin area [km2]
-        if (me%ncGroup%hasVariable('usle_area_sb')) then
-            var = me%ncGroup%getVariable('usle_area_sb')
+        if (DATA%grp%hasVariable('usle_area_sb')) then
+            var = DATA%grp%getVariable('usle_area_sb')
             call var%getData(me%usle_area_sb)
-        else if (me%ncGroup%hasVariable('usle_area_hru')) then  ! Default to area_hru, if that is present
+        else if (DATA%grp%hasVariable('usle_area_hru')) then  ! Default to area_hru, if that is present
             call r%addError(ErrorInstance( &
                 code = 201, &
                 message = "Value for usle_area_sb not found in input file. " // &
@@ -444,8 +401,8 @@ module classSoilProfile1
             ))
         end if
         ! Subbasin slope length [m]
-        if (me%ncGroup%hasVariable('usle_L_sb')) then
-            var = me%ncGroup%getVariable('usle_L_sb')
+        if (DATA%grp%hasVariable('usle_L_sb')) then
+            var = DATA%grp%getVariable('usle_L_sb')
             call var%getData(me%usle_L_sb)
         else
             call r%addError(ErrorInstance( &
@@ -457,8 +414,8 @@ module classSoilProfile1
             me%usle_L_sb = 50
         end if
         ! Manning's coefficient for the subbasin. [-]
-        if (me%ncGroup%hasVariable('usle_n_sb')) then
-            var = me%ncGroup%getVariable('usle_n_sb')
+        if (DATA%grp%hasVariable('usle_n_sb')) then
+            var = DATA%grp%getVariable('usle_n_sb')
             call var%getData(me%usle_n_sb)
         else                                                    ! Default to 0.01 (fallow, no residue)
             call r%addError(ErrorInstance( &
@@ -470,8 +427,8 @@ module classSoilProfile1
             me%usle_n_sb = 0.01
         end if
         ! Slope of the subbasin [m/m]. Defaults to GridCell slope.
-        if (me%ncGroup%hasVariable('usle_slp_sb')) then
-            var = me%ncGroup%getVariable('usle_slp_sb')
+        if (DATA%grp%hasVariable('usle_slp_sb')) then
+            var = DATA%grp%getVariable('usle_slp_sb')
             call var%getData(me%usle_slp_sb)
         else                                                    ! Default to GridCell slope, if present
             call r%addError(ErrorInstance( &
@@ -483,8 +440,8 @@ module classSoilProfile1
             me%usle_slp_sb = me%slope
         end if
         !> Slope of the channel [m/m]. Defaults to GridCell slope.
-        if (me%ncGroup%hasVariable('usle_slp_ch')) then
-            var = me%ncGroup%getVariable('usle_slp_ch')
+        if (DATA%grp%hasVariable('usle_slp_ch')) then
+            var = DATA%grp%getVariable('usle_slp_ch')
             call var%getData(me%usle_slp_ch)
         else                                                ! Default to GridCell slope, if present
             call r%addError(ErrorInstance( &
@@ -496,8 +453,8 @@ module classSoilProfile1
             me%usle_slp_ch = me%slope
         end if
         !> Hillslope length of the channel [km]
-        if (me%ncGroup%hasVariable('usle_L_ch')) then
-            var = me%ncGroup%getVariable('usle_L_ch')
+        if (DATA%grp%hasVariable('usle_L_ch')) then
+            var = DATA%grp%getVariable('usle_L_ch')
             call var%getData(me%usle_L_ch)
         else
             call r%addError(ErrorInstance( &
@@ -508,5 +465,8 @@ module classSoilProfile1
         
         ! Add this procedure to the trace
         call r%addToTrace('Parsing input data')
+        call cpu_time(finish)
+        print *, 'Time taken to parse data for soil profile (s): ', finish-start   ! How long did it take?
+
     end function
 end module
