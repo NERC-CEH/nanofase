@@ -34,7 +34,7 @@ module classEnvironment1
         class(Environment1), target :: me
             !! This `Environment` instace. Must be target so `SubRiver`s can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
-        integer :: x, y, rr, i, b                               ! Iterators for GridCells, RiverReaches, inflows and branches
+        integer :: x, y, rr, i, b, ix, iy                       ! Iterators for GridCells, RiverReaches, inflows and branches
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
         logical :: isValidInflow = .true.                       ! Is inflow SubRiver is a neighbouring river
@@ -45,13 +45,15 @@ module classEnvironment1
         
         if (.not. r%hasCriticalError()) then    
 
-
             ! Set the size of Environment variable that holds the grid cells
             allocate(me%colGridCells(me%gridDimensions(1),me%gridDimensions(2)))
             
             do y = 1, me%gridDimensions(2)                                ! Loop through the y dimensions of the grid
                 do x = 1, me%gridDimensions(1)                            ! Loop through the x dimensions of the grid
                     gridCellRef = ref("GridCell", x, y)
+                    ! We need to reset the group to the Environment each time as the below loop
+                    ! sets the group to the grid cell group
+                    call r%addErrors(.errors. DATA%setGroup(['Environment']))
                     ! Check if the GridCell is defined in the data file before creating
                     ! it and adding to colGridCells. If it doesn't exist, specify it is
                     ! an empty GridCell.
@@ -61,9 +63,6 @@ module classEnvironment1
                         ! create, from the data file.
                         call r%addErrors(.errors. DATA%setGroup([character(len=100) :: 'Environment', trim(gridCellRef)]))
                         call r%addErrors(.errors. DATA%get('type', gridCellType, 1))
-                        ! gcGrp = me%ncGroup%getGroup(trim(gridCellRef))
-                        ! var = gcGrp%getVariable("type")
-                        ! call var%getData(gridCellType)
                         select case (gridCellType)
                             case (1)
                                 allocate(GridCell1::me%colGridCells(x,y)%item)  ! Allocate to type 1, GridCell1
@@ -84,6 +83,7 @@ module classEnvironment1
                     end if
                 end do
             end do
+
             
             ! Now we need to create links between RiverReaches, which wasn't possible before all GridCells
             ! and their RiverReaches were created:
@@ -94,18 +94,31 @@ module classEnvironment1
             do y = 1, me%gridDimensions(2)
                 do x = 1, me%gridDimensions(1)
                     if (.not. me%colGridCells(x,y)%item%isEmpty) then
-                        do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)  ! Loop through the reaches in this branch
+                        do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)  ! Loop through the reaches
                             associate (riverReach => me%colGridCells(x,y)%item%colRiverReaches(rr)%item)
                                 do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
-                                    ! Point this reach's inflow to the actual RiverReach
-                                    riverReach%inflows(i)%item => &
-                                        me%colGridCells(riverReach%inflowRefs(i)%x,riverReach%inflowRefs(i)%y) &
-                                            %item%colRiverReaches(riverReach%inflowRefs(i)%rr)%item
-                                    ! Set this inflow's outflow to this reach
-                                    riverReach%inflows(i)%item%outflow%item => riverReach
-                                    ! If this is a GridCell inflow, then set its inflows to be GridCell outflows
-                                    if (riverReach%isGridCellInflow) then
-                                        riverReach%inflows(i)%item%isGridCellOutflow = .true.  
+                                    ix = riverReach%inflowRefs(i)%x
+                                    iy = riverReach%inflowRefs(i)%y
+                                    ! Check the inflow specified exists in the model domain
+                                    if (ix > 0 .and. ix .le. me%gridDimensions(1) &
+                                        .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
+                                        ! Point this reach's inflow to the actual RiverReach
+                                        riverReach%inflows(i)%item => &
+                                            me%colGridCells(riverReach%inflowRefs(i)%x,riverReach%inflowRefs(i)%y) &
+                                                %item%colRiverReaches(riverReach%inflowRefs(i)%rr)%item
+                                        ! Set this inflow's outflow to this reach
+                                        riverReach%inflows(i)%item%outflow%item => riverReach
+                                        ! If this is a GridCell inflow, then set its inflows to be GridCell outflows
+                                        if (riverReach%isGridCellInflow) then
+                                            riverReach%inflows(i)%item%isGridCellOutflow = .true.  
+                                        end if
+                                    else
+                                        ! TODO For the moment, if the inflow doesn't exist in the
+                                        ! model domain, it is just ignored. In the future, it should
+                                        ! be implemented as a domain inflow of some sort
+                                        riverReach%nInflows = 0
+                                        deallocate(riverReach%inflows)
+                                        allocate(riverReach%inflows(0))
                                     end if
                                 end do
                             end associate

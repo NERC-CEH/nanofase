@@ -517,7 +517,7 @@ module classRiverReach1
 
         me%ncGroup = DATA%grp
 
-        ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
+        ! Check if this reach has/   any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
         if (DATA%grp%hasGroup("PointSource") .or. DATA%grp%hasGroup("PointSource_1")) then
             me%hasPointSource = .true.
@@ -631,32 +631,39 @@ module classRiverReach1
             ! each side/corner of the inflow GridCell)
             if (size(inflowArray, 2) > 5) then
                 call r%addError(ErrorInstance(code=403))
+            ! If there is an inflow group but nothing in it, this reach
+            ! must be a headwater
+            else if (size(inflowArray, 2) == 0) then
+                allocate(me%inflowRefs(0))                          
+                me%nInflows = 0
+                me%isHeadwater = .true.
+            else
+                ! Set the number of inflows from the input inflowArray
+                allocate(me%inflowRefs(size(inflowArray, 2)))
+                me%nInflows = size(me%inflowRefs)
+                ! Loop through the inflow from data and store them at the object level
+                do i = 1, me%nInflows                               ! Loop through the inflows
+                    me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
+                    me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
+                    me%inflowRefs(i)%rr = inflowArray(3,i)          ! Inflow RiverReach reference
+                    ! Check the inflow is from a neighbouring RiverReach
+                    if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
+                        call r%addError(ErrorInstance(code=401))
+                    end if
+                    ! Is this reach an inflow to the GridCell (i.e., are the inflows to this reach
+                    ! from another GridCell)? We only need to check for the first inflow (i=1),
+                    ! as the next bit checks that all inflows are from the same GridCell
+                    if (i == 1 .and. (me%inflowRefs(i)%x /= me%x .or. me%inflowRefs(i)%y /= me%y)) then
+                        me%isGridCellInflow = .true.
+                    end if
+                    ! If there is more than one inflow to the reach, it must be
+                    ! an inflow to the cell. Therefore, we need to check all
+                    ! inflows are from the same cell
+                    if (i > 1 .and. me%inflowRefs(i)%x /= me%inflowRefs(1)%x .and. me%inflowRefs(i)%y /= me%inflowRefs(1)%y) then
+                        call r%addError(ErrorInstance(code=402))
+                    end if
+                end do
             end if
-            ! Set the number of inflows from the input inflowArray
-            allocate(me%inflowRefs(size(inflowArray, 2)))
-            me%nInflows = size(me%inflowRefs)
-            ! Loop through the inflow from data and store them at the object level
-            do i = 1, me%nInflows                               ! Loop through the inflows
-                me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
-                me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
-                me%inflowRefs(i)%rr = inflowArray(3,i)          ! Inflow RiverReach reference
-                ! Check the inflow is from a neighbouring RiverReach
-                if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
-                    call r%addError(ErrorInstance(code=401))
-                end if
-                ! Is this reach an inflow to the GridCell (i.e., are the inflows to this reach
-                ! from another GridCell)? We only need to check for the first inflow (i=1),
-                ! as the next bit checks that all inflows are from the same GridCell
-                if (i == 1 .and. (me%inflowRefs(i)%x /= me%x .or. me%inflowRefs(i)%y /= me%y)) then
-                    me%isGridCellInflow = .true.
-                end if
-                ! If there is more than one inflow to the reach, it must be
-                ! an inflow to the cell. Therefore, we need to check all
-                ! inflows are from the same cell
-                if (i > 1 .and. me%inflowRefs(i)%x /= me%inflowRefs(1)%x .and. me%inflowRefs(i)%y /= me%inflowRefs(1)%y) then
-                    call r%addError(ErrorInstance(code=402))
-                end if
-            end do
         else
         ! Else there mustn't be any inflows (i.e. it's a headwater)
             allocate(me%inflowRefs(0))                          
