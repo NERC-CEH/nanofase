@@ -87,7 +87,7 @@ module classGridCell1
                 ) &
             )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
-            
+
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. r%hasCriticalError()) then
                 ! Add RiverReaches to the GridCell (if any are present in the data file)
@@ -112,7 +112,7 @@ module classGridCell1
         integer :: rr, b                        ! Iterator for reaches and branches
         type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
             ! Temporary array for appending to routedRiverReaches array
-        
+
         b = 0                                   ! No river branches to begin with
         ! Loop through all the reaches in this GridCell.
         ! Don't type check for the moment
@@ -279,9 +279,6 @@ module classGridCell1
         ! but keep all reach lengths the same - effectively letting specified lengths
         ! act as a meandering factor. Else, split up the "empty" space into the
         ! number of reaches that have unspecified length and give them that length
-        print *, specifiedLengths
-        print *, branchLength
-        print *, me%dx, me%dy, dx, dy
         if (sum(specifiedLengths) > branchLength) then
             call r%addError(ErrorInstance(code=405, isCritical=.false.))
             branchLength = sum(specifiedLengths)        ! Set the branch length to the specified length
