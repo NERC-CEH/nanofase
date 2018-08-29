@@ -109,7 +109,7 @@ module classRiverReach1
         ! TODO: Get the type of BedSediment from the data file, and check for allst
         ! TODO: Sort out BedSediment errors
         allocate(BedSediment1::me%bedSediment)
-        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        ! call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
         
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
@@ -278,8 +278,8 @@ module classRiverReach1
             !fractionSpmDep = fractionSpmDep + dSpmDep/me%m_spm - me%j_spm_res*dt/me%m_spm       ! Includes resuspension
             ! Resuspended SPM must be taken from BedSediment
             dj_spm_res = me%j_spm_res * dt                           ! the mass of sediment resuspending on each displacement [kg]
-            call r%addErrors(.errors. &
-                me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! Removes SPM from BedSediment
+            ! call r%addErrors(.errors. &
+                ! me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! Removes SPM from BedSediment
             if (r%hasCriticalError()) return                         ! if a critical error has been thrown
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             me%C_spm = me%m_spm / me%volume                          ! Update the SPM concentration
@@ -326,7 +326,7 @@ module classRiverReach1
         ! Now add the settled SPM to the BedSediment
         !---------------------------------------------------------------------------------------------------------------------
         ! THIS NEEDS TO BE MOVED INTO THE DISPLACEMENT LOOP
-        call r%addErrors(.errors. me%depositToBed(me%spmDep))
+        ! call r%addErrors(.errors. me%depositToBed(me%spmDep))
         !---------------------------------------------------------------------------------------------------------------------
         ! If there's no SPM left, add the "all SPM advected" warning
         ! TODO Maybe the same for NPs
@@ -391,20 +391,20 @@ module classRiverReach1
             f_fr = 4*me%D/(me%W+2*me%D)
             ! Calculate the resuspension
             ! TODO: [DONE REQUIRES CHECKING] Get masses of bed sediment by size fraction
-            r1D = Me%bedSediment%Mf_bed_by_size()                    ! retrieve bed masses [kg/m2] by size class
-            call r%addErrors(.errors. r1D)                           ! add any errors to trace
-            if (r%hasCriticalError()) then                           ! if call throws a critical error
-                call r%addToTrace(trim(Me%ref // "Getting bed sediment mass"))   ! add trace to all errors
-                return                                               ! and exit
-            end if
-            mbed = .dp. r1D                                          ! extract mbed from Result object (1D array => 1D array
+            ! r1D = Me%bedSediment%Mf_bed_by_size()                    ! retrieve bed masses [kg/m2] by size class
+            ! call r%addErrors(.errors. r1D)                           ! add any errors to trace
+            ! if (r%hasCriticalError()) then                           ! if call throws a critical error
+            !     call r%addToTrace(trim(Me%ref // "Getting bed sediment mass"))   ! add trace to all errors
+            !     return                                               ! and exit
+            ! end if
+            ! mbed = .dp. r1D                                          ! extract mbed from Result object (1D array => 1D array
             
             !me%beta_res = 1e-7
             
             Me%j_spm_res = Me%calculateResuspension( &
-                beta = Me%beta_res, &
-                L = Me%l*Me%f_m, &
-                W = Me%W, &
+                beta = me%beta_res, &
+                L = me%l*Me%f_m, &
+                W = me%W, &
                 m_bed = mbed, &
                 M_prop = M_prop, &
                 omega = omega, &
@@ -471,13 +471,15 @@ module classRiverReach1
         end do
         ! Deposit the fine sediment to the bed sediment
         depositRslt = Me%bedSediment%deposit(fineSediment)
-        ! Retrieve the amount of water to be taken from the reach
-        V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
-        ! Subtract that volume for the reach (as a depth)
-        ! TODO: Subtracting the water doesn't have any effect at the moment,
-        ! since the depth is recalculted based on hydrology at the start
-        ! of every time step.
-        me%D = me%D - V_water_toDeposit
+        if (.not. depositRslt%hasCriticalError()) then
+            ! Retrieve the amount of water to be taken from the reach
+            V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
+            ! Subtract that volume for the reach (as a depth)
+            ! TODO: Subtracting the water doesn't have any effect at the moment,
+            ! since the depth is recalculted based on hydrology at the start
+            ! of every time step.
+            me%D = me%D - V_water_toDeposit
+        end if
         ! Add any errors that occured in the deposit procedure
         call r%addErrors(.errors. depositRslt)
         call r%addToTrace("Depositing SPM to BedSediment")

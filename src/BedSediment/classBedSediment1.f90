@@ -275,6 +275,7 @@ module classBedSediment1
                         return                                       ! exit if a critical error has been thrown
                     end if
                 end associate
+                if (allocated(data1D)) deallocate(data1D)
                 allocate(data1D, source=r1D%getData())           ! Get the data from r1D to retrieve in select type
                 select type (data => data1D(1))                  ! Put the resuspended sediment into F
                     type is (FineSediment1)
@@ -323,7 +324,7 @@ module classBedSediment1
             end if
         end do
                 
-        error stop
+        ! error stop
                 
         call r%setData(FS)                                           ! copy output to Result
     end function
@@ -586,6 +587,7 @@ module classBedSediment1
                 end associate
             end do
         end do
+
 !        deallocate(T, stat = allst)                                  ! deallocate T
 !        if (allst /= 0) then
 !            er = ErrorInstance(code = 1, &

@@ -37,7 +37,7 @@ program main
     open(unit=2, file=C%outputFile)                                      ! Open the output data file
     open(unit=3, file='data/output_erosion.csv')
     open(unit=4, file='data/output_hetero_vs_free.csv')
-    write(2, '(A)') "t, x, y, rr, total_m_np, total_C_np, total_np_dep, total_m_sediment, total_np_runoff"
+    write(2, '(A)') "t, x, y, rr, total_m_np, total_C_np, total_np_dep, total_m_sediment, total_np_runoff, total_spm"
 
     call cpu_time(start)                                                ! Simulation start time
     r = env%create()                                                    ! Create the environment
@@ -68,9 +68,9 @@ program main
                         !write(2,'(i4,A,i2,A,i2,A,i2,A,F12.3,A,F12.3,A,F12.3,a,f12.3,a,f12.3)') t, ", ", x, ", ", y, ", ", rr, ", ", &
                         !    m_spm(1), ", ", m_spm(2), ", ", m_spm(3), ", ", m_spm(4), ", ", m_spm(5)
                         
-                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A)') t, ",", x, ",", y, ",", rr, ",", &
+                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A)') t, ",", x, ",", y, ",", rr, ",", &
                                 trim(str(sum(m_np))), ",", trim(str(sum(C_np))), ",", trim(str(sum(npDep))), &
-                                ",", trim(str(bedSedimentMass)), ",", trim(str(spmRunoff))
+                                ",", trim(str(bedSedimentMass)), ",", trim(str(spmRunoff)), ",", trim(str(sum(m_spm)))
                         
                         m_np_hetero = m_np_hetero + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &
