@@ -13,6 +13,8 @@ bin/
 obj/
 log/
 cache/
+dll/
+x64/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
@@ -65,6 +67,12 @@ Debug/
 *.vfproj*
 fort*
 *.fdz
+*.dmp
 
 # Temp files
 ~$*.docx
+
+# netCDF
+*.nc
+
+

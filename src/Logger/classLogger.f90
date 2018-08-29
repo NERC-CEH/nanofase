@@ -14,7 +14,7 @@ module classLogger
 
       contains
         procedure :: init => initLogger
-        procedure :: log => logLogger
+        procedure :: add => addLogger
         procedure :: toFile => toFileLogger
         procedure :: toConsole => toConsoleLogger
     end type
@@ -53,7 +53,7 @@ module classLogger
     end subroutine
 
     !> Log to file (if enabled) and console
-    subroutine logLogger(me, message)
+    subroutine addLogger(me, message)
         class(Logger)       :: me
         character(*)        :: message
         if (me%logToConsole) print *, message
@@ -110,7 +110,7 @@ module classLogger
         integer             :: values(8)
         call date_and_time(values=values)
         write(timestamp, "(I4.4, A, I2.2, A, I2.2, A, I2.2, A, I2.2, A, I2.2)") &
-            values(1), "-", values(2), "-", values(3), "_", values(5), ":", values(6), ":", values(7)
+            values(1), "-", values(2), "-", values(3), "_", values(5), ".", values(6), ".", values(7)
     end function
 
 end module

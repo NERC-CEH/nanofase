@@ -51,9 +51,9 @@ sudo apt-get install libnetcdff-dev
 If you're on Windows and not using Cygwin or MinGW, it's likely you will have to build from source. Good luck.
 
 ## NanoFASE Command Line Interface
-The [nanofase.py](./nanofase.py) script provides an interface for running a number of frequently needed tasks related to the model. The script is simply a wrapper for shell commands, which are written to work on Bash terminals (Cygwin, MinGW, Linux etc). A number of these are in turn wrapper for the `make` command and rely on an appropriate Makefile being present - see the [example Makefile](./Makefile.example).
+The [nanofase.py](./nanofase.py) script provides an interface for running a number of frequently needed tasks related to the model. The script is simply a wrapper for shell commands, which are written to work on Bash terminals (Cygwin, MinGW, Linux etc). A number of these are in turn wrappers for the `make` command and rely on an appropriate Makefile being present (and `make` being installed) - see the [example Makefile](./Makefile.example).
 
-See the script itself for a full list of command available, but here are a few examples:
+Run `./nanofase.py` without any options to see all available options, but here are a few examples:
 - `./nanofase.py compile` will compile the model using the Makefile
 - `./nanofase.py run` will run the model using `make run`
 - `./nanofase.py compile-run` will compile and then run the model
@@ -64,3 +64,8 @@ See the script itself for a full list of command available, but here are a few e
 - `./nanofase.py view-log` will output the latest log file to the console
 - `./nanofase.py vi-log` will open the latest log file in Vim (providing it is installed)
 - `./nanofase.py subl-log` will open the latest log file in Sublime Text (providing it is installed and the `subl` command is in `$PATH`)
+
+### Running the script
+Python must be installed to run the script. The script can be run either by `./nanofase.py` or `python nanofase.py`. The former requires the script by executable (`chmod u+x ./nanofase.py`) and your system be capable of interpreting the `#!` shebang to the Python interpretter.
+
+You might wanted to consider adding an alias to save having to type `./nanofase.py` each time you want to run the script. For example, adding `alias nf="/path/to/nanofase/dir/nanofase.py"` will make the script runable by `nf <option>` from any directory.
