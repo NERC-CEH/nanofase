@@ -219,22 +219,23 @@ module classBedSediment1
                            )                                         ! create error instance
             return
         end if                                                       ! exit if a critical error has been thrown
-        allocate(F, stat = allst)                                    ! set up FineSediment1 variable F
-        if (allst /= 0) then
-            call r%AddError(ErrorInstance(code = 1, &
-                               message = "Allocation error", &
-                               trace = [Me%name // &
-                                        "%resuspendSediment1%F"] &
-                              ))                                     ! create  if error thrown
-        end if
-        allocate(G, stat = allst)                                    ! set up FineSediment1 variable G
-        if (allst /= 0) then
-            call r%addError(ErrorInstance(code = 1, &
-                               message = "Allocation error", &
-                               trace = [Me%name // &
-                                        "%resuspendSediment1%G"] &
-                            ))                                      ! create  if error thrown
-        end if
+        !COMMENTED OUT 29/8/18
+        !allocate(F, stat = allst)                                    ! set up FineSediment1 variable F
+        !if (allst /= 0) then
+        !    call r%AddError(ErrorInstance(code = 1, &
+        !                       message = "Allocation error", &
+        !                       trace = [Me%name // &
+        !                                "%resuspendSediment1%F"] &
+        !                      ))                                     ! create  if error thrown
+        !end if
+        !allocate(G, stat = allst)                                    ! set up FineSediment1 variable G
+        !if (allst /= 0) then
+        !    call r%addError(ErrorInstance(code = 1, &
+        !                       message = "Allocation error", &
+        !                       trace = [Me%name // &
+        !                                "%resuspendSediment1%G"] &
+        !                    ))                                      ! create  if error thrown
+        !end if
         allocate(FS(Me%nSizeClasses, Me%nLayers), stat = allst)     ! set up FineSediment1 variable FS
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
@@ -244,21 +245,52 @@ module classBedSediment1
                               ))                                     ! create if error thrown
         end if
         if (r%hasCriticalError()) return                             ! exit if allocation error thrown
+        !COMMENTED OUT 29/8/18
+        !call r%addErrors(.errors. G%create("FineSediment"))          ! top layer: the temporary object G, with the resuspended mass [kg]
+        !if (r%hasCriticalError()) then
+        !    call r%addToTrace(tr)
+        !    return                                                   ! exit if a critical error has been thrown
+        !end if
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
-            call r%addErrors([ &
-                            .errors. G%create("FineSediment"), &     ! create FineSediment first so variables are allocated
-                            .errors. G%set(Mf_in = M_resusp(S)) &
-                            ])                                       ! top layer: set up the temporary object G, with the resuspended mass [kg]
+            !ADDED 29/8/18
+            allocate(F, stat = allst)                                ! set up FineSediment1 variable F
+            if (allst /= 0) then
+                call r%AddError(ErrorInstance(code = 1, &
+                                   message = "Allocation error", &
+                                   trace = [Me%name // &
+                                            "%resuspendSediment1%F"] &
+                                  ))                                 ! create  if error thrown
+            end if
+            allocate(G, stat = allst)                                ! set up FineSediment1 variable G
+            if (allst /= 0) then
+                call r%addError(ErrorInstance(code = 1, &
+                                   message = "Allocation error", &
+                                   trace = [Me%name // &
+                                            "%resuspendSediment1%G"] &
+                                ))                                   ! create  if error thrown
+            end if
+            call r%addErrors(.errors. G%create("FineSediment"))      ! top layer: the temporary object G, with the resuspended mass [kg]
+            if (r%hasCriticalError()) then
+                call r%addToTrace(tr)
+                return                                               ! exit if a critical error has been thrown
+            end if
+            !END OF ADDITION
+            call r%addErrors( .errors. G%set(Mf_in = M_resusp(S)))   ! set up the temporary object G, with the resuspended mass [kg]
             if (r%hasCriticalError()) then
                 call r%addToTrace(tr)
                 return                                               ! exit if a critical error has been thrown
             end if
             L = 1                                                    ! start with top layer
-            associate(O => Me%colBedSedimentLayers(L)%item)          ! association for brevity
-                do while (M_resusp(S) > 0 .and. L <= Me%nLayers)     ! loop through layers until all sediment resuspended or all layers considered
+            do while (M_resusp(S) > 0.000001 .and. L <= Me%nLayers)  ! loop through layers until all sediment resuspended or all layers considered
+                associate(O => Me%colBedSedimentLayers(L)%item)      ! association for brevity
+                    G%f_comp = O%colFineSediment(S)%f_comp           ! copy the fractional composition from the 
                     print *, "!"
                     print *, "Removing fine sediment of size class ", & 
                         S, " from layer ", L
+                    
+                    tstring = "G: sediment to be removed, passed to removal method"
+                    call G%repstat(trim(tstring))
+
                     ostring = "Sediment of size class "
                     write(tstring, "(I0)") S
                     ostring = ostring // trim(tstring)
@@ -266,64 +298,93 @@ module classBedSediment1
                     write (tstring, "(I0)") L
                     ostring = ostring // trim(tstring)
                     call O%colFineSediment(S)%repstat(trim(ostring))
-                    G%f_comp = O%colFineSediment(S)%f_comp           ! copy the fractional composition from the 
+
                     r1D = O%removeSediment(S, G)                     ! remove the resuspended sediment from the layer in question
+                    print *, "!"
+                    print *, "!"
+                    print *, "!"
+                    tstring = "CHECK ON G ON RETURN FROM REMOVESEDIMENT"
+                    call G%repstat(trim(tstring))
+                    print *, "!"
+                    print *, "!"
+                    print *, "!"
+
                     call r%addErrors(.errors. r1D)                   ! add any errors
                     if (r%hasCriticalError()) then
                         call r%addToTrace(tr)
                         return                                       ! exit if a critical error has been thrown
                     end if
-                    allocate(data1D, source=r1D%getData())           ! Get the data from r1D to retrieve in select type
-                    select type (data => data1D(1))                  ! Put the resuspended sediment into F
-                        type is (FineSediment1)
-                            F = data
+                end associate
+                allocate(data1D, source=r1D%getData())               ! Get the data from r1D to retrieve in select type
+                select type (data => data1D(1))                      ! Put the resuspended sediment into F
+                    type is (FineSediment1)
+                        F = data
                         class default
                     end select
-                    select type (data => data1D(2))                  ! Put the unresuspended sediment into G
-                        type is (FineSediment1)
-                            G = data
-                        class default
-                    end select
-                                    
-                    tstring = "Returns from %removeSediment: F"
-                    call F%repstat(trim(tstring))
-                    tstring = "Returns from %removeSediment: G"
-                    call G%repstat(trim(tstring))
-
-                    call r%addErrors([ .errors. &
-                        FS(S, L)%create("FS_" // & trim(str(L)) // &
-                                        "_" // & trim(str(S)) &
-                                       ), &             
-                                       .errors. &
-                        FS(S, L)%set(Mf_in = F%M_f(), &
-                                     Vw_in = F%V_w(), &
-                                     f_comp_in = F%f_comp &
-                                    ) &
-                                    ])                               ! create and set up FS(S, L)
-                    if (r%hasCriticalError()) then
-                        call r%addToTrace(tr)
-                        return                                       ! exit if a critical error has been thrown
-                    end if
-                                    
-                    tstring = "Returns from %removeSediment: FS(S, L)"
-                    call FS(S, L)%repstat(trim(tstring))
-
-                    M_resusp(S) = M_resusp(S) - F%M_f()              ! keep count of fine sediment that has been resuspended
+                select type (data => data1D(2))                      ! Put the unresuspended sediment into G
+                    type is (FineSediment1)
+                        G = data
+                    class default
+                end select
                     
-                    print *, M_resusp(S)
-                    
-                    L = L + 1                                        ! Repeat until all sediment has been resuspended
-                end do                                               ! resuspended, or sediment has been removed from all layers
-                if (M_resusp(S) > 0) then
-                    call r%addError(ErrorInstance(1, &
-                         "All sediment of size class " &
-                         // trim(str(S)) // " resuspended", &
-                         .false., &
-                         [tr] &
-                                                 ) &
-                                   )                                 ! warning (noncritical error) if bed has been stripped of size class S
+                tstring = "Returns from %removeSediment: F"
+                call F%repstat(trim(tstring))
+                tstring = "Returns from %removeSediment: G"
+                call G%repstat(trim(tstring))
+
+                M_resusp(S) = M_resusp(S) - F%M_f()                  ! keep count of fine sediment that has been resuspended
+                call r%addErrors([ .errors. &
+                    FS(S, L)%create("FS_" // trim(str(L)) // &
+                                    "_" // trim(str(S)) &
+                                    ), &             
+                                    .errors. &
+                    FS(S, L)%set(Mf_in = F%M_f(), &
+                                    Vw_in = F%V_w(), &
+                                    f_comp_in = F%f_comp &
+                                ) &
+                                ])                                   ! create and set up FS(S, L)
+                if (r%hasCriticalError()) then
+                    call r%addToTrace(tr)
+                    return                                           ! exit if a critical error has been thrown
                 end if
-            end associate
+                !ADDED 29/8/18
+                call r%addErrors([ .errors. F%destroy(), &
+                                   .errors. G%destroy() &
+                                ])                                   ! deallocate internal arrays of F and G
+                if (r%hasCriticalError()) then
+                    call r%addToTrace(tr)
+                    return                                           ! exit if a critical error has been thrown
+                end if
+                deallocate(F, stat=allst)                            ! destroy F
+                if (allst /= 0) then
+                    call r%addError(ErrorInstance(code = 1, &
+                                       message = "Deallocation error", &
+                                       trace = [Me%name // &
+                                                "%resuspendSediment1%F"] &
+                                    ))                               ! create  if error thrown
+                end if
+                deallocate(G, stat=allst)                            ! destroy G
+                if (allst /= 0) then
+                    call r%addError(ErrorInstance(code = 1, &
+                                       message = "Deallocation error", &
+                                       trace = [Me%name // &
+                                                "%resuspendSediment1%G"] &
+                                    ))                               ! create  if error thrown
+                end if
+                !END OF ADDITION
+                tstring = "Returns from %removeSediment: FS(S, L)"
+                call FS(S, L)%repstat(trim(tstring))
+                L = L + 1                                            ! Repeat until all sediment has been resuspended
+            end do                                                   ! resuspended, or sediment has been removed from all layers
+            if (M_resusp(S) > 0) then
+                call r%addError(ErrorInstance(1, &
+                     "All sediment of size class " &
+                     // trim(str(S)) // " resuspended", &
+                     .false., &
+                     [tr] &
+                                             ) &
+                               )                                     ! warning (noncritical error) if bed has been stripped of size class S
+            end if
         end do
                 
         error stop
