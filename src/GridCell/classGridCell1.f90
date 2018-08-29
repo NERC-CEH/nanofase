@@ -277,6 +277,7 @@ module classGridCell1
                     allocate(me%colRiverReaches(0))
                     allocate(me%routedRiverReaches(0,0))
                     allocate(me%nReachesInBranch(0))
+                    me%nRiverReaches = 0
                     return
                 end if
             end if
@@ -426,6 +427,7 @@ module classGridCell1
                                 * 0.01_dp * pcLossLivestockConsumption * 1.0e-9) / (1.0_dp - 0.01_dp * pcLossRural)
         totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9) &
                             / (1.0_dp - 0.01_dp * pcLossRural)
+        ! TODO See Virginie's email 29/08/2018
         
     end function
     
@@ -489,13 +491,13 @@ module classGridCell1
             .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &
             .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
             .errors. DATA%get('slope', me%slope), &
-            .errors. DATA%get('n_river', me%n_river, 0.035_dp, warnIfDefaulting=.true.), &
-            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.true.) &
+            .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
+            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature) &
         ])
         ! Convert to m/timestep
         me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep      
         me%q_quickflow_timeSeries = me%q_quickflow_timeSeries*C%timeStep
-        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep
+        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep / (1000.0 * 86400.0)
         me%q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep
         
         ! Try and set the group to the demands group. It will produce an error if group
