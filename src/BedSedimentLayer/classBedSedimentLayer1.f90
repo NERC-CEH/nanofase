@@ -540,7 +540,11 @@ module classBedSedimentLayer1
                     print *, "Adjusted volume of fine sediment to be removed [m3/m2]: ", V_f_SC_r
                     print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
                 else                                                 ! need to compute volume of water to be removed - equal proportion of water present as to sediment present
-                    V_w_SC_r = V_f_SC_r / .dp. Me%volSLR(S)          ! water volume to be removed, computed from the solid:liquid ratio for the layer
+                    if (G%V_w() == 0) then
+                        V_w_SC_r = V_f_SC_r / .dp. Me%volSLR(S)      ! water volume to be removed, computed from the solid:liquid ratio for the layer, if no value is supplied
+                    else
+                        V_w_SC_r = G%V_w()                           ! water volume as supplied
+                    end if
                 end if
                 print *, "!"
                 print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
@@ -554,9 +558,10 @@ module classBedSedimentLayer1
                     return                                           ! exit here
                 end if
                 call r%addErrors(.errors. G%set( &
-                                   Vf_in = V_f_SC_r_2 - V_f_SC_r &
+                                   Vf_in = V_f_SC_r_2 - V_f_SC_r, &
+                                   Vw_in =  0.00_dp &
                                                ) &
-                                )                                    ! setting G to return the sediment that could not be removed
+                                )                                    ! setting G to return the sediment that could not be removed, and reset the water requirement to zero
                 if (r%hasCriticalError()) then                       ! if a critical error has been thrown
                     call r%addToTrace(tr)                            ! add a trace message to any errors
                     return                                           ! exit here
