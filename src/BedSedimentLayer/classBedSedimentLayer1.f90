@@ -581,6 +581,7 @@ module classBedSedimentLayer1
                     return                                           ! exit here
                 end if
                 call F%repstat("Sediment removed")
+                call G%repstat("Sediment that could not be removed")
             end associate
             if (r%hasCriticalError()) then                           ! if a critical error has been thrown
                 call r%addToTrace(tr)                                ! add a trace message to any errors
