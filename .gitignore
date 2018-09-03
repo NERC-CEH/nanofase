@@ -5,16 +5,23 @@ Makefile
 # Compilation files
 *.stackdump
 
+<<<<<<< HEAD
 # Compilation directories and logs/cache
+=======
+# Compilation directories
+>>>>>>> 6c5f94e800068f1ee31cf0467c0c59e7a27a8604
 doc/dist/
 doc/graph/
 doxygen/
 bin/
 obj/
+<<<<<<< HEAD
 log/
 cache/
 dll/
 x64/
+=======
+>>>>>>> 6c5f94e800068f1ee31cf0467c0c59e7a27a8604
 
 # Directory for personal code snippets and any output.txt data file
 snip/
@@ -67,6 +74,7 @@ Debug/
 *.vfproj*
 fort*
 *.fdz
+<<<<<<< HEAD
 *.dmp
 
 # Temp files
@@ -76,3 +84,8 @@ fort*
 *.nc
 
 
+=======
+
+# Temp files
+~$*.docx
+>>>>>>> 6c5f94e800068f1ee31cf0467c0c59e7a27a8604

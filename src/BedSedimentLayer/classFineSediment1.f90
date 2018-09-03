@@ -75,8 +75,6 @@ module classFineSediment1
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL array allocation status
             character(len=256) :: allms                              ! LOCAL allocation message
-            
-            !integer :: x
         !
         ! Notes
         ! -------------------------------------------------------------------------------
@@ -197,9 +195,7 @@ module classFineSediment1
             real(dp), intent(in), optional :: f_comp_in(:)           !! Input fractional composition. Optional; if not present, stored composition is used
             type(Result) :: r                                        !! `Result` object
             type(ErrorInstance) :: er                                ! LOCAL ErrorInstance object
-            
             integer :: x
-            
             !
             ! Notes
             ! -------------------------------------------------------------------------------
