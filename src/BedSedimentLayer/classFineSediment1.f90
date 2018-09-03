@@ -24,6 +24,7 @@ module classFineSediment1
         procedure, public :: rho_part => pdens1                      ! returns the fine sediment particle density [kg m-3]
         procedure, public :: audit_comp => audit_fcomp1              ! check the fractional composition
         procedure, public :: IsEmpty => empty1                       ! check for presence of sediment and water
+        procedure, public :: IsNotEmpty => notempty1                 ! check for presence of sediment and water
         procedure, public :: ClearAll => ClearAll1                   ! clear all fine sediment and water from the object
         procedure, public :: mix => Mix1                             ! mix this sediment into another
         procedure, public :: repstat => ReportStatusToConsole1       ! report the properties of this sediment to the console
@@ -365,14 +366,29 @@ module classFineSediment1
         !! Check whether this object contains any sediment or water
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
-        !! Function returns .true./.false. depending on whether any sediment or water is
-        !! present or not
+        !! Function returns .true. if no sediment or water present, 
+        !! Function returns .false. otherwise
         function Empty1(Me) result(t)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             logical :: t
                 !! Return value. True: `V_f/M_f = V_w = 0`. False: `V_f/M_f > 0 .or. V_w > 0`
             t = .false.
             if (Me%M_f_l == 0 .and. Me%V_w_l == 0) t = .true.
+        end function
+        !> **Function purpose**                                     <br>
+        !! Check whether this object contains any sediment or water
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! Function returns .true./.false. depending on whether any sediment or water is
+        !! ABSENT or not
+        !! Function returns .true. if sediment or water present, 
+        !! Function returns .false. otherwise
+        function NotEmpty1(Me) result(t)
+            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+            logical :: t
+                !! Return value. True: `V_f/M_f = V_w = 0`. False: `V_f/M_f > 0 .or. V_w > 0`
+            t = .true.
+            if (Me%M_f_l == 0 .and. Me%V_w_l == 0) t = .false.
         end function
         !> **Subroutine purpose**                                   <br>
         !! Clear the sediment mass and water volume of this `FineSediment`

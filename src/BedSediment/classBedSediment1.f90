@@ -378,6 +378,7 @@ module classBedSediment1
         type(FineSediment1) :: FS_dep(:)                             !! Depositing sediment by size class
         type(Result0D) :: r                                          !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
         type(Result0D) :: r1                                         !! second `Result` object, for internal computations
+        type(Result) :: rx                                           !! TEMPORARY third `Result` object, for internal computations
         real(dp) :: V_w_tot = 0.0_dp                                 ! LOCAL water requirement from the water column [m3 m-2]
         type(ResultFineSediment0D) :: r0D                            ! LOCAL Result0D object to return data from addSediment method
         type(ResultFineSediment1D) :: r1D                            ! LOCAL ResultFineSediment1D object to return data from removeSediment method
@@ -534,7 +535,7 @@ module classBedSediment1
                                                                      ! no, so increase water removal requirement by the water capacity of this layer
                                                                      ! and decrease the count of remaining depositing fine sediment by the capacity
                             call r%addErrors(.errors. &
-                                 T%set(Vf_in = T%V_f() - .dp.O%C_f(S), &
+                                 T%set(Vf_in = T%V_f() - .dp. O%C_f(S), &
                                        Vw_in = T%V_w() + .dp. O%C_w(S) &
                                       ) &
                                             )
@@ -560,10 +561,12 @@ module classBedSediment1
                 
                 print *, "Burying fine sediment"
                 
-                call r%addErrors(.errors. &
-                     T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed &
-                          ) &
-                                )                                    ! reset the fine sediment burial requirement, still using temporary object T
+                rx = T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed)        ! temporary without error checking. rx is temporary Result, delete after debugging complete
+                
+                !call r%addErrors(.errors. &
+                !     T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed &
+                !          ) &
+                !                )                                    ! reset the fine sediment burial requirement, still using temporary object T
                 if (r%hasCriticalError()) return                     ! return if critical error thrown
                 
                 call T%repstat("Fine sediment requiring burial")
@@ -594,7 +597,7 @@ module classBedSediment1
                             
                         call T%repstat("Sediment not removed from the layer")
                         
-                    end If
+                    end if
                     L = L - 1                                        ! move up to next layer
                 end do                                               ! finished burial. temporary object T can be reused
                 
@@ -604,25 +607,23 @@ module classBedSediment1
                 
                 do L = Me%nLayers, 2, -1                             ! downward shift of fine sediment. Loop through the layers, starting at the bottom
                                                                      ! and working upwards
-                    
-                    print *, "Working with receiving layer ", L
-                    
                     assoc1 : associate &
                         (O => Me%colBedSedimentLayers(L)%item)       ! association to "receiving" layer L
                         A = L - 1                                    ! counter for donating layers - initially the layer above
-                    
-                    print *, "Donating layer ", A
-                    
                         call r%addErrors(.errors. &
                             T%set(Vf_in = .dp. O%A_f(S), &
                                   Vw_in = .dp. O%A_w(S) &
                                  ) &
                                         )                            ! set FineSediment object T to hold sediment requiring removal. Note f_comp has been set previously, no need to set again
                         
-                        call T%repstat("Available capacity in this layer")
-                        
-                        do while (A > 0 .or. &
-                                    T%IsEmpty() .eqv. .false.)       ! loop through "donating" layers, moving upwards
+                        !do while (A > 0 .or. &
+                        !            T%IsEmpty() .eqv. .false.)       ! loop through "donating" layers, moving upwards
+                        do while (A > 0 .and. T%IsNotEmpty())        ! loop through "donating" layers, moving upwards
+                    
+                            print *, "Receiving layer ", L
+                            print *, "Donating layer ", A
+                            call T%repstat("Available capacity in layer L")
+                    
                             assoc2 : associate (P => &
                             Me%colBedSedimentLayers(A)%item)         ! association to "donating" layer A
                             if (P%colFineSediment(S)%V_f() > 0) &
@@ -636,36 +637,40 @@ module classBedSediment1
                                     call r%addToTrace(tr)            ! add trace to all errors
                                     return                           ! and exit
                                 end if
-                                                                     ! Get the FineSediment objects from the Result1D object, assign to U and T
-                                if (allocated(data1D)) deallocate(data1D)
+                                                      
+                                print *, "Sediment removed from the donating layer"
+                                
+                                if (allocated(data1D)) &
+                                    deallocate(data1D)               ! Get the FineSediment objects from the Result1D object, assign to U and T
                                 ! TODO error checking code
-                               allocate(data1D, source=r1D%getData()) ! Get the data from r1D to retrieve in select type
-                               select type (data => data1D(1))       ! select type construct needed to get around casting constraints
+                                allocate(data1D, &
+                                   source=r1D%getData())             ! Get the data from r1D to retrieve in select type
+                                select type (data => data1D(1))      ! select type construct needed to get around casting constraints
                                     type is (FineSediment1)
                                         U = data                     ! sediment removed from the donating layer A
                                     class default                    ! no need to check for default, as type can only be FineSediment1
                                 end select
-                                deallocate(data1D)
-                                ! TODO error checking code
                                 select type (data => data1D(2))      ! select type construct needed to get around casting constraints
                                     type is (FineSediment1)
                                         T = data                     ! sediment that could not be removed from the donating layer A
                                     class default                    ! no need to check for default, as type can only be FineSediment1
                                 end select
                                     
-                                call U%repmass("Sediment removed from donating layer, to be added to receiving layer")    
-                                call T%repmass("Sediment not removed from donating layer")    
+                                call U%repstat("Sediment removed from donating layer, to be added to receiving layer")    
+                                call T%repstat("Sediment that could not be removed from donating layer")    
                                     
                                 r0D = O%addSediment(S, U)            ! add the sediment in U to the "receiving" layer L
+                                
+                                print *, "Sediment added to receiving layer"
+                                print *, "Adjusted layer sediment masses"
+                                call Me%repmass
+                                
                                 ! SL: r0D returns fine sediment that could not be added - *** should be none ***
                                 call r%addErrors(.errors. r0D)       ! retrieve errors into main Result object
                                 if (r%hasCriticalError()) then       ! if RemoveSediment throws a critical error
                                     call r%addToTrace(tr)            ! add trace to all errors
                                     return                           ! and exit
                                 end if
-                                
-                                call Me%repmass
-                                
                             end if
                             ! TODO: tally up removed sediment from U on each loop
                             A = A - 1                                ! shift up to next "donating" layer

@@ -464,6 +464,7 @@ module classRiverReach1
         end do
         ! Deposit the fine sediment to the bed sediment
         depositRslt = Me%bedSediment%deposit(fineSediment)
+        ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
         ! Retrieve the amount of water to be taken from the reach
         V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
         ! Subtract that volume for the reach (as a depth)
