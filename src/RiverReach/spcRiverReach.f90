@@ -68,7 +68,11 @@ module spcRiverReach
         real(dp) :: volume                                          !! The volume of water in the reach [m3]
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
         real(dp), allocatable :: C_np(:,:,:)                        !! NP mass concentration [kg/m3]
+<<<<<<< HEAD
         real(dp), allocatable :: k_spm_res(:)                       !! Resuspension rate for a given timestep [s-1]
+=======
+        real(dp), allocatable :: j_spm_res(:)                       !! Resuspension flux for a given timestep [kg/s]
+>>>>>>> 6c5f94e800068f1ee31cf0467c0c59e7a27a8604
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
         real(dp), allocatable :: W_settle_np(:)                     !! NP settling velocity [m/s]

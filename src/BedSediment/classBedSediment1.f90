@@ -38,7 +38,6 @@ module classBedSediment1
         type(NcVariable) :: var                                      ! LOCAL variable to retrieve NetCDF data from
         character(len=256) :: tr                                     ! LOCAL error trace
         character(len=16), parameter :: ms = "Allocation error"      ! LOCAL allocation error message
-        
         integer :: M                                                 ! LOCAL loop counter for printing
         !
         ! Notes

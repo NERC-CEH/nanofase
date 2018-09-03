@@ -55,17 +55,11 @@ module classRiverReach1
         integer :: n, s                                         ! Loop iterator for SPM size classes and sources
         integer :: allst                                        ! Allocation status
         type(ErrorInstance) :: error                            ! To return errors
-
-        print *, 'Creating RiverReach'
-        
         ! First, let's set the RiverReach's reference and the length
         me%x = x
         me%y = y
         me%rr = rr
         me%ref = trim(ref("RiverReach", x, y, rr))
-
-        print *, me%ref
-        
         me%gridCellArea = gridCellArea
         allocate(me%q_runoff_timeSeries, source=q_runoff_timeSeries)    ! Runoff = slow flow + quick flow [m/timestep]
         allocate(me%T_water_timeSeries, source=T_water_timeSeries)      ! Water temperature [C]
@@ -190,7 +184,7 @@ module classRiverReach1
         else
             me%j_np_runoff = 0
         end if
-        ! Get the inflows from upstream reaches first
+        ! Get the inflows to this reach first
         do i = 1, me%nInflows
             Q_in = Q_in + me%inflows(i)%item%Q_out
             me%j_spm_in = me%j_spm_in + me%inflows(i)%item%j_spm_out
@@ -221,8 +215,10 @@ module classRiverReach1
                 me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource
             end do
         end if
+        me%q_runoff = me%q_runoff_timeSeries(t)             ! Hydrological runoff for this time step [m/timestep]
+        me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
+        me%Q_in = Q_in + me%q_runoff*me%gridCellArea        ! Set this reach's inflow, assuming all runoff ends up in river [m3/timestep]
         ! Calculate the depth, velocity, area and volume
-        ! TODO C%timestep should be passed on setup and stored locally
         me%W = me%calculateWidth(me%Q_in/C%timeStep)
         D = me%calculateDepth(me%W, me%slope, me%Q_in/C%timeStep)
         me%D = .dp. D                                       ! Get real(dp) data from Result object
@@ -305,7 +301,8 @@ module classRiverReach1
             me%tmp_j_spm_out = me%tmp_j_spm_out + dj_spm_out
         end do
         ! Use amount of settled SPM to get rid of heteroaggregated NPs, assuming
-        ! uniformly distributed amongst SPM. fractionSpmDep doesn't include resuspension.
+        ! uniformly distributed amongst SPM. fractionSpmDep doesn't include resuspension???
+        ! TODO CHECK
         do n = 1, C%nSizeClassesSpm
             me%j_np_dep(:,:,n+2) = min(me%m_np(:,:,n+2)*fractionSpmDep(n), me%m_np(:,:,n+2))
         end do
@@ -336,10 +333,10 @@ module classRiverReach1
         me%C_spm = me%m_spm/me%volume
         me%C_np = me%m_np/me%volume
         
-        ! Now add the settled SPM to the BedSediment
         !---------------------------------------------------------------------------------------------------------------------
         ! THIS NEEDS TO BE MOVED INTO THE DISPLACEMENT LOOP
-        call r%addErrors(.errors. me%depositToBed(me%spmDep))
+        ! Now add the settled SPM to the BedSediment
+        ! call r%addErrors(.errors. me%depositToBed(me%spmDep))
         !---------------------------------------------------------------------------------------------------------------------
         ! If there's no SPM left, add the "all SPM advected" warning
         ! TODO Maybe the same for NPs
@@ -389,11 +386,11 @@ module classRiverReach1
             do n = 1, C%nSizeClassesSpm
                 ! Calculate the proportion of size class that can be resuspended
                 if (d_max < C%d_spm_low(n)) then
-                    M_prop(n) = 0                                    ! None can be resuspended
+                    M_prop(n) = 0                               ! None can be resuspended
                 else if (d_max > C%d_spm_upp(n)) then
-                    M_prop(n) = 1                                    ! All can be resuspended
+                    M_prop(n) = 1                               ! All can be resuspended
                 else
-                    M_prop(n) = (d_max - C%d_spm_low(n)) &           ! Only some can be resuspended
+                    M_prop(n) = (d_max - C%d_spm_low(n)) &      ! Only some can be resuspended
                         / (C%d_spm_upp(n) - C%d_spm_low(n))     
                 end if
             end do
@@ -415,7 +412,6 @@ module classRiverReach1
         end if
         call r%addToTrace('Calculating resuspension mass for ' // trim(me%ref))
     end function
-
     !> Perform the settling simulation for a time step
     function settlingRiverReach1(me) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
@@ -499,7 +495,6 @@ module classRiverReach1
         real                    :: start, finish
 
         call cpu_time(start)                                                ! Simulation start time
-
         ! Get the specific RiverReach parameters from data - only the stuff
         ! that doesn't depend on time
         ! TODO: Check these groups exist (hasGroup()). Move data extraction to database object.
@@ -616,9 +611,8 @@ module classRiverReach1
             call var%getData(me%domainOutflow)
             me%isDomainOutflow = .true.
         end if
-
-        call cpu_time(finish)                                                   ! Simulation finish time
-        print *, 'Time taken to parse data for ri ver reach (s): ', finish-start   ! How long did it take?
+        call cpu_time(finish)                                                     ! Simulation finish time
+        print *, 'Time taken to parse data for river reach (s): ', finish-start   ! How long did it take?
         
         call r%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
@@ -798,5 +792,4 @@ module classRiverReach1
         real(dp) :: area                            !! The calculated area [m3]
         area = D*W
     end function
-
 end module

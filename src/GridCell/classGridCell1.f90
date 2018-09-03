@@ -4,7 +4,10 @@ module classGridCell1
     use UtilModule
     use mo_netcdf
     use classDataInterfacer
+<<<<<<< HEAD
     use classLogger
+=======
+>>>>>>> 6c5f94e800068f1ee31cf0467c0c59e7a27a8604
     use ResultModule
     use ErrorInstanceModule
     use spcGridCell
@@ -429,10 +432,14 @@ module classGridCell1
         integer                 :: cropType             ! Temporary var to store crop type int in
         real(dp)                :: cropArea             ! Temporary var to store crop area in
         integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
+<<<<<<< HEAD
         real                    :: start, finish
         
         call cpu_time(start)                                                ! Simulation start time
 
+=======
+        
+>>>>>>> 6c5f94e800068f1ee31cf0467c0c59e7a27a8604
         ! Allocate arrays to store flows in
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
         allocate(me%q_quickflow_timeSeries(C%nTimeSteps))
@@ -442,7 +449,6 @@ module classGridCell1
         
         ! Set the data interfacer's group to the group for this GridCell
         call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
-        
         ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
         if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
@@ -518,7 +524,6 @@ module classGridCell1
                 i = i+1
             end do
         end if
-
         call cpu_time(finish)                                                   ! Simulation finish time
         print *, 'Time taken to parse data for grid cell (s): ', finish-start   ! How long did it take?
         

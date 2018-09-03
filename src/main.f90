@@ -33,7 +33,6 @@ program main
     call LOG%toConsole(" Welcome to the NanoFASE model! ")
     call LOG%toConsole("--------------------------------\n")
     call DATA%init(C%inputFile)
-    
     open(unit=2, file=C%outputFile)                                      ! Open the output data file
     open(unit=3, file='data/output_erosion.csv')
     open(unit=4, file='data/output_hetero_vs_free.csv')
@@ -58,7 +57,7 @@ program main
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_out
                         C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_dep
-                        bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
+                        bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_sed_all()
                         !bedSedimentMass = 0
                         spmRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
                         ! Write to the data file
