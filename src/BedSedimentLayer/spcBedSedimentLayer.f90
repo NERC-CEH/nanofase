@@ -42,7 +42,9 @@ module spcBedSedimentLayer
         AddSediment                                                  ! add fine sediment to the layer
         procedure(RemoveSedimentFromLayer), public, deferred :: &
         RemoveSediment                                               ! remove fine sediment from layer
-        procedure(clearAllFromLayer), public, deferred :: clearAll
+        procedure(clearAllFromLayer), public, deferred :: clearAll   ! set all fine sediment masses, all water volume and all fractional compositions to zero
+        procedure(ReportMassesToConsole), public, deferred :: &
+            repmass                                                  ! report all fine sediment masses to the console
     end type
     abstract interface
         !> **Function purpose**                                     <br>
@@ -114,9 +116,7 @@ module spcBedSedimentLayer
             class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(in) :: G                     !! Fine sediment to be removed
-            type(ResultFineSediment1D) :: r
-                !! The `Result` object. `Result%data(1)` = fine sediment that was removed;
-                !! `Result%data(2)` = fine sediment that could not be removed
+            type(ResultFineSediment1D) :: r                          !! The `Result` object = fine sediment that was removed AND fine sediment that could not be rmeoved
         end function
         !> **Subroutine purpose**                                   <br>
         !! Remove sediment of a specified size fraction, and associated water,
@@ -132,6 +132,20 @@ module spcBedSedimentLayer
         subroutine clearAllFromLayer(Me)
             import BedSedimentLayer
             class(BedSedimentLayer) :: Me                            !! This `BedSedimentLayer` object
+        end subroutine
+        !> **Function purpose**                                   
+        !! 1. Report the mass of fine sediment in each size fraction to the console
+        !! 2. report the total mass of fine sediment in the layer to the console
+        !!                                                          
+        !! **Function inputs**                                      
+        !! none
+        !!                                                          
+        !! **Function outputs/outcomes**                            
+        !! 
+        subroutine ReportMassesToConsole(Me)
+            import BedSedimentLayer
+            class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
+            integer :: n                                             !! LOCAL loop counter 
         end subroutine
     end interface
   contains
