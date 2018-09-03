@@ -22,7 +22,8 @@ module classBedSedimentLayer1
             addSediment => addSediment1                              ! add fine sediment to the layer
             procedure, public :: &
             removeSediment => removeSediment1                        ! remove fine sediment from layer
-            procedure, public :: clearAll => clearAllSediment1
+            procedure, public :: clearAll => clearAllSediment1       ! set all fine sediment masses, all water volume and all fractional compositions to zero
+            procedure, public :: repmass => ReportMassesToConsole1   ! print all fine sediment masses to the console
     end type
     contains
         !> **Function purpose**                                     <br>
@@ -74,13 +75,13 @@ module classBedSedimentLayer1
             !       occupied by water.
             ! -------------------------------------------------------------------------------
                                 
-            print *, 'Creating BedSedimentLayer'
+            !print *, 'Creating BedSedimentLayer'
                     
             Me%nSizeClasses = C%nSizeClassesSpm                      ! set number of size classes from global value
             Me%nfComp = C%nFracCompsSpm                              ! set number of fractional compositions from global value
             Me%name = trim(layerGroup%getName())                     ! This object's name = the netCDF group name (e.g., Layer_1)
                                 
-            print *, Me%name
+            !print *, Me%name
                     
             tr = trim(Me%name) // "%create"                          ! add name to trace string
             if (len_trim(Me%name) == 0) then
@@ -201,7 +202,8 @@ module classBedSedimentLayer1
             if (r%hasCriticalError()) return                         ! exit if allocation has thrown an error
             do S = 1, Me%nSizeClasses
                 call r%addErrors(.errors. &
-    Me%colFineSediment(S)%create(trim(ref(Me%name, "s", S))) &
+    Me%colFineSediment(S)%create(trim(ref(Me%name, "s", S)), &
+                                Me%nfComp) &
                                 )                                    ! set up FineSediment1 objects with name: layer name & _s_1, _s_2 etc
                 if (r%hasCriticalError()) then                       ! if a critical error has been thrown
                     call r%addToTrace(tr)                            ! add trace to Result
@@ -490,9 +492,7 @@ module classBedSedimentLayer1
             class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(in) :: G                     !! Fine sediment to be removed
-            type(ResultFineSediment1D) :: r
-                !! The Result object. `Result%data(1)` = fine sediment that was removed;
-                !! `Result%data(2)` = fine sediment that could not be removed
+            type(ResultFineSediment1D) :: r                          !! The Result object = fine sediment that was removed AND fine sediment that could not be removed
             type(FineSediment1) :: F                                 ! LOCAL returns fine sediment that was removed
             real(dp) :: V_f_SC                                       ! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     ! LOCAL fine sediment volume removed
@@ -564,7 +564,7 @@ module classBedSedimentLayer1
                 tr = trim(Me%name) //  "%removeSediment1%"           ! trace message
                 call O%repstat("Sediment in layer after removal")
                 call r%addErrors([ &
-                                .errors. F%create("a"), &            ! create and populate F, holding the removed sediment
+                                .errors. F%create("a", Me%nfComp), & ! create and populate F, holding the removed sediment
                                 .errors. F%set( &
                                     Vf_in = V_f_SC_r, &
                                     Vw_in = V_w_SC_r, &
@@ -581,7 +581,7 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                                ! add a trace message to any errors
                 return                                               ! exit here
             end if
-            call G%repstat("Sediment that was not removed")
+            !call G%repstat("Sediment that was not removed")
             r = ResultFS(data=[F,G])
         end function
         !> **Subroutine purpose**                                   <br>
@@ -601,5 +601,26 @@ module classBedSedimentLayer1
             do i = 1, size(Me%colFineSediment)
                 call Me%colFineSediment(i)%ClearAll()
             end do
+        end subroutine
+        !> **Function purpose**                                   
+        !! 1. Report the mass of fine sediment in each size fraction to the console
+        !! 2. report the total mass of fine sediment in the layer to the console
+        !!                                                          
+        !! **Function inputs**                                      
+        !! none
+        !!                                                          
+        !! **Function outputs/outcomes**                            
+        !! 
+        subroutine ReportMassesToConsole1(Me)
+            class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
+            integer :: n                                             !! LOCAL loop counter 
+            type(result0D) :: r                                      !! result object to hold return from M_f_layer derived property
+            print *, trim(Me%name)                                   !! the name of this layer
+            do n=1, Me%nSizeClasses
+                print *, "Size class ", n, " : ", &
+                    Me%colFineSediment(n)%M_f()                      ! print out mass of FS in each size class [kg/m2]
+            end do
+            r = Me%M_f_layer()
+            print *, "Total: ", .real. r                             ! print out mass of FS in layer [kg/m2]
         end subroutine
 end module
