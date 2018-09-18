@@ -520,7 +520,6 @@ module classBedSediment1
                                                                      ! removed to allow space for deposition, and the volume of water associated with the
                                                                      ! fine sediment
                 
-                call T%repstat("Sediment requiring burial")
                 
                 L = 1                                                ! loop through layers, downwards from the top
                 
@@ -553,6 +552,9 @@ module classBedSediment1
                                        Vw_in = T%V_w() + tempV &
                                       ) &
                                             )
+                                
+                            call T%repstat("Sediment requiring burial_2")
+                
                         end if
                     end associate
                     L = L + 1
@@ -615,6 +617,7 @@ module classBedSediment1
                                   Vw_in = .dp. O%A_w(S) &
                                  ) &
                                         )                            ! set FineSediment object T to hold sediment requiring removal. Note f_comp has been set previously, no need to set again
+                        !TODO ********************** set F_comp for T also *******************************
                         
                         !do while (A > 0 .or. &
                         !            T%IsEmpty() .eqv. .false.)       ! loop through "donating" layers, moving upwards
