@@ -464,6 +464,12 @@ module classRiverReach1
         end do
         ! Deposit the fine sediment to the bed sediment
         depositRslt = Me%bedSediment%deposit(fineSediment)
+        call r%addErrors(.errors. depositRslt)
+        ! ##############################################################
+        if (depositRslt%hasCriticalError()) then
+            call r%addToTrace("Depositing SPM to BedSediment")
+            return
+        end if
         ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
         ! Retrieve the amount of water to be taken from the reach
         V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
@@ -473,7 +479,6 @@ module classRiverReach1
         ! of every time step.
         me%D = me%D - V_water_toDeposit
         ! Add any errors that occured in the deposit procedure
-        call r%addErrors(.errors. depositRslt)
         call r%addToTrace("Depositing SPM to BedSediment")
     end function
     
