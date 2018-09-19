@@ -287,6 +287,8 @@ module classBedSediment1
                         return                                       ! exit if a critical error has been thrown
                     end if
                 end associate
+                ! ##########################################
+                if (allocated(data1D)) deallocate(data1D)
                 allocate(data1D, source=r1D%getData())               ! Get the data from r1D to retrieve in select type
                 select type (data => data1D(1))                      ! Put the resuspended sediment into F
                     type is (FineSediment1)
@@ -492,6 +494,10 @@ module classBedSediment1
                 end do
             end if
         end do
+
+        call r%addErrors(.errors. T%create("FineSediment_T", &
+                                                   Me%nfComp))
+
         do S = 1, Me%nSizeClasses
             A_f_sed = .dp. Me%Af_sediment(S)                         ! local copy of the capacity for this sediment size class in the whole bed
             
@@ -505,9 +511,7 @@ module classBedSediment1
                 
                 ! NOTIFY THAT SEDIMENT BURIAL IS NEEDED FOR THIS SIZE CLASS
                 print *, "Mass of depositing sediment exceeds capacity - burying sediment"
-                
-                call r%addErrors(.errors. T%create("FineSediment_T", &
-                                                   Me%nfComp))
+
                 ! TODO 2018-07-17 Does this name make sense?
                 call r%addErrors(.errors. &
                              T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed, &
@@ -689,7 +693,7 @@ module classBedSediment1
             end if
         end do
     
-        error stop
+        ! error stop
         
         do S = 1, Me%nSizeClasses                                    ! deposit sediment from the water column
             do L = me%nLayers, 1, -1                                 ! start with the bottom layer and work upwards
@@ -735,6 +739,9 @@ module classBedSediment1
 !            call r%addError(er)                                      ! add to Result
 !        end if
         r = Result(data = V_w_tot)                                   ! return Result object, with volume of water required from water column
+
+        call Me%repMass
+        error stop "hello"
     end function
     !> **Function purpose**                                   
     !! 1. Report the mass of fine sediment in each layer to the console
