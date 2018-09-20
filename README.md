@@ -17,7 +17,6 @@ Other documentation:
 Project links:
  - [Project website](http://nanofase.eu/)
  - [Facebook](https://www.facebook.com/nanofase/)
-<<<<<<< HEAD
  - [Twitter](https://twitter.com/NanoFASE_EU)
 
 ## Compiling and running
@@ -69,7 +68,4 @@ Run `./nanofase.py` without any options to see all available options, but here a
 ### Running the script
 Python must be installed to run the script. The script can be run either by `./nanofase.py` or `python nanofase.py`. The former requires the script by executable (`chmod u+x ./nanofase.py`) and your system be capable of interpreting the `#!` shebang to the Python interpretter.
 
-You might wanted to consider adding an alias to save having to type `./nanofase.py` each time you want to run the script. For example, adding `alias nf="/path/to/nanofase/dir/nanofase.py"` will make the script runable by `nf <option>` from any directory.
-=======
- - [Twitter](https://twitter.com/NanoFASE_EU)
->>>>>>> 6c5f94e800068f1ee31cf0467c0c59e7a27a8604
+You might want to consider adding an alias to save having to type `./nanofase.py` each time you want to run the script. For example, adding `alias nf="/path/to/nanofase/dir/nanofase.py"` will make the script runable by `nf <option>` from any directory.

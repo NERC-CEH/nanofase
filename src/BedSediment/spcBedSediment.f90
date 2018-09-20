@@ -413,7 +413,7 @@ contains
             Mf = Mf + .real. r_l                                     ! sum masses across layers
         end do
         r = Result(data = Mf)                                        ! return value
-    end function 
+    end function
     !> **function purpose**
     !!
     !!
@@ -439,7 +439,6 @@ contains
         end do
         r = Result(data = Mf_size)                                   ! return value
     end function
-    
                                 ! Get the FineSediment objects from the Result1D object, temporarily
                                 !! store in array and then assign to U and T
                                 !tmpFineSediment = .finesediment. r1D

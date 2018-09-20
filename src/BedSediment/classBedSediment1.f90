@@ -46,6 +46,9 @@ module classBedSediment1
         ! ----------------------------------------------------------------------------------
         
         Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
+        
+        print *, Me%name
+        
         Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
@@ -241,7 +244,7 @@ module classBedSediment1
             call r%addToTrace(tr)
             return                                                   ! exit if a critical error has been thrown
         end if
-        allocate(FS(Me%nSizeClasses, Me%nLayers), stat = allst)      ! set up FineSediment1 variable FS
+        allocate(FS(Me%nSizeClasses, Me%nLayers), stat = allst)     ! set up FineSediment1 variable FS
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
                                message = "Allocation error", &
@@ -250,6 +253,11 @@ module classBedSediment1
                               ))                                     ! create if error thrown
         end if
         if (r%hasCriticalError()) return                             ! exit if allocation error thrown
+            call r%addErrors(.errors. G%create("FineSediment"))      ! top layer: the temporary object G, with the resuspended mass [kg]
+            if (r%hasCriticalError()) then
+                call r%addToTrace(tr)
+                return                                               ! exit if a critical error has been thrown
+            end if
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
             call r%addErrors( .errors. G%set(Mf_in = M_resusp(S)))   ! set up the temporary object G, with the resuspended mass [kg]
             if (r%hasCriticalError()) then
@@ -282,7 +290,6 @@ module classBedSediment1
                         return                                       ! exit if a critical error has been thrown
                     end if
                 end associate
-                ! ##########################################
                 if (allocated(data1D)) deallocate(data1D)
                 allocate(data1D, source=r1D%getData())               ! Get the data from r1D to retrieve in select type
                 select type (data => data1D(1))                      ! Put the resuspended sediment into F
@@ -315,8 +322,6 @@ module classBedSediment1
                     call r%addToTrace(tr)
                     return                                           ! exit if a critical error has been thrown
                 end if
-                !tstring = "Returns from %removeSediment: FS(S, L)"
-                !call FS(S, L)%repstat(trim(tstring))
                 L = L + 1                                            ! Repeat until all sediment has been resuspended
             end do                                                   ! resuspended, or sediment has been removed from all layers
             if (M_resusp(S) > 0) then
@@ -354,7 +359,6 @@ module classBedSediment1
         !end if
                 
         !error stop
-                
         call r%setData(FS)                                           ! copy output to Result
     end function
     !> Compute deposition to bed sediment, including burial and downward shifting of fine sediment and water <br>
@@ -533,7 +537,7 @@ module classBedSediment1
                                                                      ! no, so increase water removal requirement by the water capacity of this layer
                                                                      ! and decrease the count of remaining depositing fine sediment by the capacity
                             call r%addErrors(.errors. &
-                                 T%set(Vf_in = T%V_f() - .dp. O%C_f(S), &
+                                 T%set(Vf_in = T%V_f() - .dp.O%C_f(S), &
                                        Vw_in = T%V_w() + .dp. O%C_w(S) &
                                       ) &
                                             )
