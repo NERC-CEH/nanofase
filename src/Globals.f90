@@ -86,7 +86,6 @@ module Globals
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
-
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
         ! Open the config file and read the different config groups
@@ -95,7 +94,6 @@ module Globals
         else
             open(10, file="config.nml", status="old")
         end if
-        
         read(10, nml=allocatable_array_sizes)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)

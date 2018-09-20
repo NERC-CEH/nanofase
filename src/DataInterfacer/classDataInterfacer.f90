@@ -75,7 +75,6 @@ module classDataInterfacer
             getVariableDp2DSpreadDefault, &
             getVariableDp3DSpreadDefault, &
             getVariableDp4DSpreadDefault
-        
       end type
       
       type(DataInterfacer) :: DATA

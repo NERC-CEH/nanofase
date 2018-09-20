@@ -33,7 +33,6 @@ program main
     call LOG%toConsole(" Welcome to the NanoFASE model! ")
     call LOG%toConsole("--------------------------------\n")
     call DATA%init(C%inputFile)
-    
     open(unit=2, file=C%outputFile)                                      ! Open the output data file
     open(unit=3, file='data/output_erosion.csv')
     open(unit=4, file='data/output_hetero_vs_free.csv')
