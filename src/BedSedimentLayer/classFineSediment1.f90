@@ -76,6 +76,8 @@ module classFineSediment1
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL array allocation status
             character(len=256) :: allms                              ! LOCAL allocation message
+            
+            !integer :: x
         !
         ! Notes
         ! -------------------------------------------------------------------------------
@@ -525,6 +527,7 @@ module classFineSediment1
                 print *, "Fraction ", x, ":             ",  Me%f_comp(x)
             end do
        end subroutine
+
        subroutine ReportMassToConsole1(Me, title)
             class(FineSediment1) :: Me                               !! Self-reference
             character(len=*), intent(in) :: title                    !! Title string, providing context

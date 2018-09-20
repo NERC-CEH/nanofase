@@ -277,7 +277,7 @@ module spcRiverReach
             use Globals
             import RiverReach
             class(RiverReach), intent(in) :: me               !! This `RiverReach` instance
-            real(dp), intent(in) :: beta  !! Calibration parameter \( \beta \) [s2 kg-1]
+            real(dp), intent(in) :: beta                      !! Calibration parameter \( \beta \) [s2 kg-1]
             real(dp), intent(in) :: L                         !! Reach length \( L = lf_{\text{m}} \) [m]
             real(dp), intent(in) :: W                         !! Reach width \( W \) [m]
             real(dp), intent(in) :: M_prop(C%nSizeClassesSPM) !! Proportion of this size class that is resuspenable \( M_{\text{prop}} \) [-]

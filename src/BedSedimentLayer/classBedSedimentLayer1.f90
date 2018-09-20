@@ -74,14 +74,10 @@ module classBedSedimentLayer1
             ! 2.    Specify M_f(:) only. Space not occupied by fine sediment is
             !       occupied by water.
             ! -------------------------------------------------------------------------------
-                                
-            !print *, 'Creating BedSedimentLayer'
                     
             Me%nSizeClasses = C%nSizeClassesSpm                      ! set number of size classes from global value
             Me%nfComp = C%nFracCompsSpm                              ! set number of fractional compositions from global value
             Me%name = trim(layerGroup%getName())                     ! This object's name = the netCDF group name (e.g., Layer_1)
-                                
-            !print *, Me%name
                     
             tr = trim(Me%name) // "%create"                          ! add name to trace string
             if (len_trim(Me%name) == 0) then
@@ -202,7 +198,7 @@ module classBedSedimentLayer1
             if (r%hasCriticalError()) return                         ! exit if allocation has thrown an error
             do S = 1, Me%nSizeClasses
                 call r%addErrors(.errors. &
-    Me%colFineSediment(S)%create(trim(ref(Me%name, "s", S)), &
+                                Me%colFineSediment(S)%create(trim(ref(Me%name, "s", S)), &
                                 Me%nfComp) &
                                 )                                    ! set up FineSediment1 objects with name: layer name & _s_1, _s_2 etc
                 if (r%hasCriticalError()) then                       ! if a critical error has been thrown

@@ -459,6 +459,7 @@ module classGridCell1
         
         ! Set the data interfacer's group to the group for this GridCell
         call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
+
         ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
         if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
