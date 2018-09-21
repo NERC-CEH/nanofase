@@ -433,12 +433,15 @@ module classWaterBody1
         ! (converting units of Mf_in to kg/m2), then give that object
         ! to the BedSediment
         ! TODO: Check units of deposited FS, are they /m2?
-        do n = 1, C%nSizeClassesSpm
-            call r%addErrors([ &
-                .errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n))), &
-                .errors. fineSediment(n)%set(Mf_in=spmDep(n)/me%bedArea) &
-            ])
-        end do
+        !COMMENTED OUT SL 31.8.18
+        !HAVE CHANGED DEFINION OF FINESEDIMENT1%CREATE TO REQUIRE PASSING OF NUMBER OF COMPOSITIONAL FRACTIONS
+        !BUT THIS VARAIBLE NOT DEFINED YET IN WATERBODY
+        !do n = 1, C%nSizeClassesSpm
+        !    call r%addErrors([ &
+        !        .errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n)), Me%nfComp), &
+        !        .errors. fineSediment(n)%set(Mf_in=spmDep(n)/me%bedArea) &
+        !    ])
+        !end do
         !call r%addErrors(.errors. me%bedSediment%deposit(fineSediment))
         call r%addToTrace("Depositing SPM to BedSediment")
     end function

@@ -13,7 +13,7 @@ module classCrop
         'pulses','grapes','cotton','others_annual','wheat','rye','others_annual','others_annual', &
         'others_annual','others_annual' &
     ]
-    
+
     !> The `Crop` class represents an area of a crop of a
     !! specific type and planting month
     type, public :: Crop
@@ -21,7 +21,7 @@ module classCrop
         integer             :: typeInt
         character(len=100)  :: name
         integer             :: plantingMonth
-        
+
       contains
         procedure, private :: create => createCrop
     end type
@@ -30,7 +30,7 @@ module classCrop
         procedure init
     end interface
     
-    contains
+  contains
     
     !> Interface to return a new `Crop` object
     function init(typeInt, area, plantingMonth)
@@ -52,5 +52,5 @@ module classCrop
         me%plantingMonth = plantingMonth
         me%name = nameLookup(me%typeInt)
     end subroutine
-    
-end module  
+
+end module
