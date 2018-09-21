@@ -19,6 +19,7 @@ module classSoilProfile1
         procedure :: update => updateSoilProfile1                   ! Update on every timestep (e.g., perform routing of water through soil)
         procedure :: percolate => percolateSoilProfile1             ! Percolate soil on a given time step
         procedure :: erode => erodeSoilProfile1                     ! Erode soil on a given time step
+        procedure :: erodeMUSLE => erodeMUSLESoilProfile1           ! Erode soil using MUSLE on a given time step
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
     end type
@@ -176,13 +177,10 @@ module classSoilProfile1
 
     !> Calculates soil erosion for this timestep, Updates this `GridCell`'s
     !! state variable `erodedSediment` accordingly.
-    function erodeSoilProfile1(me, t) result(r)
+    function erodeMUSLESoilProfile1(me, t) result(r)
         class(SoilProfile1) :: me               !! This `SoilProfile` instance
         integer             :: t                !! The current time step
         type(Result)        :: r                !! The `Result` object to return
-        type(NcDataset)     :: nc               ! NetCDF dataset
-        type(NcVariable)    :: var              ! NetCDF variable
-        type(NcGroup)       :: grp              ! NetCDF group
         real(dp)            :: t_conc           ! Time of concentration \( t_{\text{tc}} \)
         real(dp)            :: q_peak           ! Peak rainfall \( q_{\text{peak}} \)
         real(dp)            :: Q_surf_hru       ! Surface runoff for the whole HRU per day [m3/day]
@@ -204,6 +202,19 @@ module classSoilProfile1
         ! HRU we're doing the calculation for).
         me%erodedSediment = me%imposeSizeDistribution(S_tot*me%area/me%usle_area_hru)
         call r%addToTrace("Eroding soil on time step #" // trim(str(t)))
+    end function
+
+    function erodeSoilProfile1(me, t) result(rslt)
+        class(SoilProfile1) :: me
+        integer             :: t
+        type(Result)        :: rslt
+        real(dp)            :: usle_R
+        real(dp)            :: erodedSedimentTotal
+
+        ! TODO Carry on coding this. WE NEED THE JULIAN DAY NUMBER, SO THIS NEEDS
+        ! TO BE TAKEN INTO ACCOUNT IN INPUT DATA (i.e. we need dates, not just day numbers)
+        erodedSedimentTotal = me%usle_K * me%usle_C(t) * me%usle_P * me%usle_LS * me%usle_CFRG
+
     end function
 
     !> Impose a size class distribution on a total mass to split it up
@@ -266,7 +277,15 @@ module classSoilProfile1
             ) &
         )
 
-
+        ! -- RAINFALL EROSIVITY --------------------------------------------------------!
+        ! The defaults are those for central England
+        call r%addErrors([ &
+            .errors. DATA%get('erosivity_a1', me%erosivity_a1, 6.608_dp), &
+            .errors. DATA%get('erosivity_a2', me%erosivity_a2, 0.5_dp), &
+            .errors. DATA%get('erosivity_a3', me%erosivity_a3, 2.7_dp), &
+            .errors. DATA%get('erosivity_I30', me%erosivity_I30, 6.0_dp), &
+            .errors. DATA%get('erosivity_b', me%erosivity_b, 1.204_dp) &
+        ])
 
         ! -- SOIL EROSION DATA ---------------------------------------------------------!
         ! C     Cover and land management factor, defined as the ratio of soil loss
