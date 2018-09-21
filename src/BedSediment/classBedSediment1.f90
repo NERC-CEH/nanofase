@@ -253,11 +253,6 @@ module classBedSediment1
                               ))                                     ! create if error thrown
         end if
         if (r%hasCriticalError()) return                             ! exit if allocation error thrown
-            call r%addErrors(.errors. G%create("FineSediment"))      ! top layer: the temporary object G, with the resuspended mass [kg]
-            if (r%hasCriticalError()) then
-                call r%addToTrace(tr)
-                return                                               ! exit if a critical error has been thrown
-            end if
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
             call r%addErrors( .errors. G%set(Mf_in = M_resusp(S)))   ! set up the temporary object G, with the resuspended mass [kg]
             if (r%hasCriticalError()) then
