@@ -44,6 +44,14 @@ module spcSoilProfile
         real(dp) :: usle_LS                                         !! Topographic factor [-]
         real(dp) :: usle_P                                          !! Support practice factor [-]
         real(dp) :: usle_CFRG                                       !! Coarse fragment factor [-]
+        real(dp) :: erosivity_a1                                    !! Rainfall erosivity seasonal variability parameter
+        real(dp) :: erosivity_a2                                    !! Rainfall erosivity seasonal variability parameter
+        real(dp) :: erosivity_a3                                    !! Rainfall erosivity seasonal variability parameter
+        real(dp) :: erosivity_I30                                   !! Maximum half-hour rainfall [mm/hr]
+        real(dp) :: erosivity_b                                     !! Rainfall erosivity parameter
+
+        ! ------------------------------------
+        ! TODO Q_peak parameters - to be deprecated
         real(dp), allocatable :: usle_alpha_half(:)                 !! Fraction of rainfall falling during maximum half hour [-]
         real(dp) :: usle_area_hru                                   !! Area of the HRU corresponding to the containing `GridCell` [ha]
         real(dp) :: usle_area_sb                                    !! Area of the subbasin corresponding to the containing `GridCell` [km2]
@@ -52,6 +60,8 @@ module spcSoilProfile
         real(dp) :: usle_slp_sb                                     !! Slope of the subbasin [m m-1]
         real(dp) :: usle_slp_ch                                     !! Slope of the channel [m m-1]
         real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
+        !--------------------------------------
+
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
         integer, allocatable :: distributionSediment(:)             !! Distribution to split sediment into
 

@@ -95,7 +95,7 @@ module Globals
         else
             open(10, file="config.nml", status="old")
         end if
-        
+
         read(10, nml=allocatable_array_sizes)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
