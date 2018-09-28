@@ -37,6 +37,11 @@ module spcSoilProfile
         real(dp) :: WC_FC                                           !! Water content at field capacity [m3 m-3]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
         real(dp) :: V_buried
+        ! Soil texture. Sand + silt + clay = 100 %
+        integer :: sandContent                                      !! Sand content of the soil [%]
+        integer :: siltContent                                      !! Silt content of the soil [%]
+        integer :: clayContent                                      !! Clay content of the soil [%]
+        integer :: coarseFragContent                                !! Coarse fragment content of the soil [%]
             !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]

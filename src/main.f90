@@ -6,6 +6,7 @@ program main
     use classEnvironment1
     use classDataInterfacer, only: DATA
     use classLogger, only: LOG
+    use datetime_module
     implicit none
 
     real :: start, finish                                               ! Simulation start and finish times
@@ -20,6 +21,7 @@ program main
     real(dp) :: m_np_free
     real(dp) :: bedSedimentMass
     real(dp) :: spmRunoff
+    type(datetime) :: currentDate
 
     ! Set up global vars and constants, and initialise data interfacer.
     ! These vars are available globally
