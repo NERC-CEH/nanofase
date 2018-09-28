@@ -94,8 +94,10 @@ module classEnvironment1
             do y = 1, me%gridDimensions(2)
                 do x = 1, me%gridDimensions(1)
                     if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                        print *, size(me%colGridCells(x,y)%item%colRiverReaches)
                         do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)  ! Loop through the reaches
                             associate (riverReach => me%colGridCells(x,y)%item%colRiverReaches(rr)%item)
+                                print *, x, y, rr
                                 do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
                                     ix = riverReach%inflowRefs(i)%x
                                     iy = riverReach%inflowRefs(i)%y

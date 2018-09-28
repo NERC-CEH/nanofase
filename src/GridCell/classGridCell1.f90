@@ -277,6 +277,7 @@ module classGridCell1
                     allocate(me%colRiverReaches(0))
                     allocate(me%routedRiverReaches(0,0))
                     allocate(me%nReachesInBranch(0))
+                    me%nRiverReaches = 0
                     return
                 end if
             end if
@@ -355,6 +356,7 @@ module classGridCell1
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
             call r%addErrors(.errors. me%colSoilProfiles(1)%item%update(t))
+            if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Loop through the reaches and call their update methods for this
@@ -383,7 +385,6 @@ module classGridCell1
         call LOG%toFile(errors = .errors. r)            ! Log any errors to the output file
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear the errors so we're not reporting twice
-        call LOG%toConsole("\tPerforming simulation for " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
 

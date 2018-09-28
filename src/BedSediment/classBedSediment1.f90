@@ -735,7 +735,7 @@ module classBedSediment1
         r = Result(data = V_w_tot)                                   ! return Result object, with volume of water required from water column
 
         call Me%repMass
-        error stop "hello"
+        ! error stop "hello"
     end function
     !> **Function purpose**                                   
     !! 1. Report the mass of fine sediment in each layer to the console

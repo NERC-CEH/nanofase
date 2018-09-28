@@ -3,6 +3,7 @@ module classSoilProfile1
     use Globals                                                 ! Global definitions and constants
     use UtilModule                                              ! Useful functions
     use mo_netcdf                                               ! Input/output handling
+    use datetime_module
     use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
@@ -204,17 +205,40 @@ module classSoilProfile1
         call r%addToTrace("Eroding soil on time step #" // trim(str(t)))
     end function
 
+    !> Calculate the soil erosion for this timestep and updates this `GridCell`'s
+    !! `erodedSediment` property accordingly. Soil erosion based on RUSLE, with
+    !! R-factor derived from kinetic energy calculated by Davison method:
+    !! [Davison et al. 2005](https://doi.org/10.1016/j.scitotenv.2005.02.002).
+    !! Europe specific parameterisation include in a_1, a_2, a_3, I30 and b
+    !! parameters (provided by input data). K factor based on [modified Morgan
+    !! Finney](https://doi.org/10.1002/esp.1530) and in g/J. Using these units, R-factor
+    !! is simply equal to kinetic energy (J/m2) and sediment yield is in g/m2.
     function erodeSoilProfile1(me, t) result(rslt)
         class(SoilProfile1) :: me
         integer             :: t
         type(Result)        :: rslt
-        real(dp)            :: usle_R
+        real(dp)            :: E_k
+        real(dp)            :: K_MMF
         real(dp)            :: erodedSedimentTotal
+        type(datetime)      :: currentDate
+        integer             :: julianDay
 
-        ! TODO Carry on coding this. WE NEED THE JULIAN DAY NUMBER, SO THIS NEEDS
-        ! TO BE TAKEN INTO ACCOUNT IN INPUT DATA (i.e. we need dates, not just day numbers)
-        erodedSedimentTotal = me%usle_K * me%usle_C(t) * me%usle_P * me%usle_LS * me%usle_CFRG
+        ! TODO This function only works with daily timesteps
 
+        ! Convert the current date to Julian day number (https://en.wikipedia.org/wiki/Julian_day).
+        ! date2num converts to number of days since 0001-01-01, and 1721423 is the Julian day
+        ! number of 0001-01-01.
+        currentDate = C%startDate + timedelta(days=t)
+        julianDay = date2num(currentDate) + 1721423
+        ! Then calculate the kinetic energy [J/m2/day]. Precip in [mm/day].
+        E_k = (me%erosivity_a1 + me%erosivity_a2 * cos(julianDay * (2*C%pi/365) + me%erosivity_a3)) &
+                * (me%q_precip_timeSeries(t)*1.0e3)**me%erosivity_b
+        ! Now the modified MMF version of K, dependent on sand, silt and clay content [g/J]
+        K_MMF = 0.1*(me%clayContent/100.0_dp) + 0.3*(me%sandContent/100.0_dp) + 0.5*(me%siltContent/100.0_dp)
+        ! Total eroded sediment [g/m2/day]
+        erodedSedimentTotal = E_k * K_MMF * me%usle_C(t) * me%usle_P * me%usle_LS
+        ! Split this into a size distribution and convert to [kg/m2/day]
+        me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
     end function
 
     !> Impose a size class distribution on a total mass to split it up
@@ -243,9 +267,7 @@ module classSoilProfile1
         real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
         integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param
         real(dp), allocatable   :: usle_rsd(:)              ! Residue on soil surface [kg/ha]
-        real :: start, finish
 
-        call cpu_time(start)
         ! Allocate the data which are time series. These must be allocatable (as opposed to
         ! being declared that length) to work with the mo_netcdf getData() procedure.
         allocate(usle_C_min(C%nTimeSteps))
@@ -257,12 +279,16 @@ module classSoilProfile1
             ref('GridCell', me%x, me%y), &
             me%ref &
         ]))
-        ! Setup data and hydraulic properties
+        ! Setup data and soil hydraulic/texture properties
         call r%addErrors([ &
             .errors. DATA%get('n_soil_layers', me%nSoilLayers), &
             .errors. DATA%get('WC_sat', me%WC_sat), &               ! Water content at saturation [m3/m3] TODO check between 0 and 1
             .errors. DATA%get('WC_FC', me%WC_FC), &                 ! Water content at field capacity [m3/m3] TODO check between 0 and 1
             .errors. DATA%get('K_s', me%K_s), &                     ! Saturated hydraulic conductivity [m/s]
+            .errors. DATA%get('sand_content', me%sandContent), &
+            .errors. DATA%get('silt_content', me%siltContent), &
+            .errors. DATA%get('clay_content', me%clayContent), &
+            .errors. DATA%get('coarse_frag_content', me%coarseFragContent), &
             .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
         ])
         allocate(me%colSoilLayers(me%nSoilLayers))
@@ -283,7 +309,6 @@ module classSoilProfile1
             .errors. DATA%get('erosivity_a1', me%erosivity_a1, 6.608_dp), &
             .errors. DATA%get('erosivity_a2', me%erosivity_a2, 0.5_dp), &
             .errors. DATA%get('erosivity_a3', me%erosivity_a3, 2.7_dp), &
-            .errors. DATA%get('erosivity_I30', me%erosivity_I30, 6.0_dp), &
             .errors. DATA%get('erosivity_b', me%erosivity_b, 1.204_dp) &
         ])
 
@@ -484,8 +509,6 @@ module classSoilProfile1
         
         ! Add this procedure to the trace
         call r%addToTrace('Parsing input data')
-        call cpu_time(finish)
-        print *, 'Time taken to parse data for soil profile (s): ', finish-start   ! How long did it take?
 
     end function
 end module

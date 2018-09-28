@@ -1,5 +1,6 @@
 module Globals
     use mo_netcdf
+    use datetime_module
     use ErrorCriteriaModule
     use ErrorInstanceModule
     implicit none
@@ -13,6 +14,7 @@ module Globals
         character(len=256)  :: inputFile
         character(len=256)  :: outputFile
         character(len=256)  :: logFilePath
+        type(datetime)      :: startDate                        !! Datetime object representing the start date
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
@@ -73,7 +75,7 @@ module Globals
         character(len=256) :: configFilePath
         integer :: configFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, output_file, log_file_path
+        character(len=256) :: input_file, output_file, log_file_path, start_date, startDateStr
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
@@ -82,7 +84,7 @@ module Globals
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size
         namelist /data/ input_file, output_file
-        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
@@ -117,6 +119,8 @@ module Globals
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps
         C%epsilon = epsilon
+        startDateStr = start_date
+        C%startDate = strptime(startDateStr, "%Y-%m-%d")
         ! TODO: Change default grid size to array (x, y) so default can be rectangles
         C%defaultGridSize = default_grid_size
         C%defaultDistributionSediment = default_distribution_sediment
@@ -127,7 +131,6 @@ module Globals
         C%maxRiverReaches = max_river_reaches
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
-
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
