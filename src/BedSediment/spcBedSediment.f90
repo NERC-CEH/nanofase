@@ -18,14 +18,14 @@ module spcBedSediment
     !! shared by all `BedSediment` objects. Objects of this class cannot be instantiated,
     !! only objects of its subclasses
     type, abstract, public :: BedSediment
-        character(len=256) :: name                                  !! Name for this object, of the form *BedSediment_x_y_s_r*
-                                                                    ! define variables for 'has a' objects: BedSedimentLayer
-        class(BedSedimentLayerElement), allocatable :: &
-        colBedSedimentLayers(:)                                     !! Collection of `BedSedimentLayer` objects
-                                                                    ! properties
-        integer :: nSizeClasses                                     !! Number of fine sediment size classes
-        integer :: nLayers                                          !! Number of layers (`BedSedimentLayer` objects)
-        integer :: nfComp                                           !! number of fractional composition terms for sediment
+        character(len=256) :: name                                   !! Name for this object, of the form *BedSediment_x_y_s_r*
+                                                                     ! define variables for 'has a' objects: BedSedimentLayer
+        class(BedSedimentLayerElement), allocatable ::  &
+        colBedSedimentLayers(:)                                      !! Collection of `BedSedimentLayer` objects
+                                                                     ! properties
+        integer :: nSizeClasses                                      !! Number of fine sediment size classes
+        integer :: nLayers                                           !! Number of layers (`BedSedimentLayer` objects)
+        integer :: nfComp                                            !! number of fractional composition terms for sediment
         type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`
     contains
                                                                      ! deferred methods: must be defined in all subclasses
@@ -37,6 +37,8 @@ module spcBedSediment
             deposit                                                  ! deposit sediment from water column
         procedure(ResuspendSediment), public, deferred :: &
             resuspend                                                ! resuspend sediment to water column
+        procedure(ReportBedMassToConsole), public, deferred :: &
+            repMass                                                  ! report fine sediment masses to the console
                                                                      ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
         procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
@@ -149,6 +151,20 @@ module spcBedSediment
             real(dp) :: M_resusp(:)                                      !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
             type(ResultFineSediment2D) :: r                              !! Returned `Result` object
         end function
+        !> **Function purpose**                                   
+        !! 1. Report the mass of fine sediment in each layer to the console
+        !! 2. report the total mass of fine sediment in the sediment to the console
+        !!                                                          
+        !! **Function inputs**                                      
+        !! none
+        !!                                                          
+        !! **Function outputs/outcomes**                            
+        !! 
+        subroutine ReportBedMassToConsole(Me)
+            import BedSediment
+            class(BedSediment) :: Me                                     !! The `BedSediment` instance
+            integer :: n                                                 !! LOCAL loop counter 
+        end subroutine
     end interface
 contains
     !> **Function purpose**                                             <br>
@@ -397,7 +413,7 @@ contains
             Mf = Mf + .real. r_l                                     ! sum masses across layers
         end do
         r = Result(data = Mf)                                        ! return value
-    end function 
+    end function
     !> **function purpose**
     !!
     !!

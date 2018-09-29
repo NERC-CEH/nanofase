@@ -76,4 +76,3 @@ else:
     option = sys.argv[1]                        # Get the command
     print(options[option]['run-description'])   # Print out what we're doing
     os.system(options[option]['cmd'])           # Run the command
-
