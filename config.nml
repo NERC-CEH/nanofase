@@ -12,7 +12,8 @@ output_file = "data/output.csv"
 &run
 timestep = 86400,
 n_timesteps = 1095,
-epsilon = 1e-10,
+start_date = "2015-01-01",
+epsilon = 1e-30,
 error_output = .true.
 log_file_path = "log/"
 /

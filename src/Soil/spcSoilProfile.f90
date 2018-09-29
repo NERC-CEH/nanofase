@@ -37,6 +37,11 @@ module spcSoilProfile
         real(dp) :: WC_FC                                           !! Water content at field capacity [m3 m-3]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
         real(dp) :: V_buried
+        ! Soil texture. Sand + silt + clay = 100 %
+        integer :: sandContent                                      !! Sand content of the soil [%]
+        integer :: siltContent                                      !! Silt content of the soil [%]
+        integer :: clayContent                                      !! Clay content of the soil [%]
+        integer :: coarseFragContent                                !! Coarse fragment content of the soil [%]
             !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]
@@ -44,6 +49,14 @@ module spcSoilProfile
         real(dp) :: usle_LS                                         !! Topographic factor [-]
         real(dp) :: usle_P                                          !! Support practice factor [-]
         real(dp) :: usle_CFRG                                       !! Coarse fragment factor [-]
+        real(dp) :: erosivity_a1                                    !! Rainfall erosivity seasonal variability parameter
+        real(dp) :: erosivity_a2                                    !! Rainfall erosivity seasonal variability parameter
+        real(dp) :: erosivity_a3                                    !! Rainfall erosivity seasonal variability parameter
+        real(dp) :: erosivity_I30                                   !! Maximum half-hour rainfall [mm/hr]
+        real(dp) :: erosivity_b                                     !! Rainfall erosivity parameter
+
+        ! ------------------------------------
+        ! TODO Q_peak parameters - to be deprecated
         real(dp), allocatable :: usle_alpha_half(:)                 !! Fraction of rainfall falling during maximum half hour [-]
         real(dp) :: usle_area_hru                                   !! Area of the HRU corresponding to the containing `GridCell` [ha]
         real(dp) :: usle_area_sb                                    !! Area of the subbasin corresponding to the containing `GridCell` [km2]
@@ -52,6 +65,8 @@ module spcSoilProfile
         real(dp) :: usle_slp_sb                                     !! Slope of the subbasin [m m-1]
         real(dp) :: usle_slp_ch                                     !! Slope of the channel [m m-1]
         real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
+        !--------------------------------------
+
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
         integer, allocatable :: distributionSediment(:)             !! Distribution to split sediment into
 

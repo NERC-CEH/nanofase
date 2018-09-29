@@ -24,9 +24,11 @@ module classFineSediment1
         procedure, public :: rho_part => pdens1                      ! returns the fine sediment particle density [kg m-3]
         procedure, public :: audit_comp => audit_fcomp1              ! check the fractional composition
         procedure, public :: IsEmpty => empty1                       ! check for presence of sediment and water
+        procedure, public :: IsNotEmpty => notempty1                 ! check for presence of sediment and water
         procedure, public :: ClearAll => ClearAll1                   ! clear all fine sediment and water from the object
         procedure, public :: mix => Mix1                             ! mix this sediment into another
-        procedure, public :: repstat => ReportStatusToConsole        ! report the properties of this sediment layer to the console
+        procedure, public :: repstat => ReportStatusToConsole1       ! report the properties of this sediment to the console
+        procedure, public :: repmass => ReportMassToConsole1         ! report the fine sediment mass of this sediment to the console
     end type
 
     !> Result object with operator for FineSediment scalar data
@@ -65,9 +67,10 @@ module classFineSediment1
         !! **Function outputs/outcomes**                            
         !! Initialised `FineSediment1` object. Returns `Result` object containing
         !! `ErrorInstance` if no object name has been provided.
-        function createFineSediment1(Me, n) result(r)
+        function createFineSediment1(Me, n, nfC) result(r)
             class(FineSediment1) :: Me                               !! Self-reference
             character(len=*) :: n                                    !! A name identifier for the object; identifies this object uniquely
+            integer :: nfC                                           !! number of compositional fractions to be created 
             type(Result) :: r                                        !! `Result` object
             type(ErrorInstance) :: er                                ! LOCAL to store errors in
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
@@ -93,8 +96,7 @@ module classFineSediment1
                 return                                               ! critical error, so exit here
             end if
             Me%name = n                                              ! set object name
-            Me%nfComp = C%nFracCompsSpm                              ! set number of compositional fractions from Global
-
+            Me%nfComp = nfC                                          ! set number of compositional fractions
             allocate(Me%pd_comp(Me%nfComp), &
                 stat = allst, &
                 errmsg = allms)                                      ! allocate space for particle densities of compositional fractions
@@ -143,7 +145,9 @@ module classFineSediment1
             ! -------------------------------------------------------------------------------
             tr = Me%name // &
                 "%destroyFineSediment1"                              ! trace message
-            deallocate(Me%f_comp, stat = allst)                      ! deallocate f_comp
+            !if (allocated(Me%f_comp)) print *, "f_comp is allocated ", size(Me%f_comp)
+            !if (allocated(Me%pd_comp)) print *, "pd_comp is allocated ", size (Me%pd_comp)
+            deallocate(Me%pd_comp, stat = allst)                     ! deallocate pd_comp
             if (allst /= 0) then
                 er = ErrorInstance(1, &
                                    ms, &
@@ -152,7 +156,7 @@ module classFineSediment1
                                   )                                  ! create warning if error thrown
                 call r%addError(er)                                  ! add to Result
             end if
-            deallocate(Me%pd_comp, stat = allst)                     ! deallocate pd_comp
+            deallocate(Me%f_comp, stat = allst)                      ! deallocate f_comp
             if (allst /= 0) then
                 er = ErrorInstance(1, &
                                    ms, &
@@ -198,9 +202,7 @@ module classFineSediment1
             real(dp), intent(in), optional :: f_comp_in(:)           !! Input fractional composition. Optional; if not present, stored composition is used
             type(Result) :: r                                        !! `Result` object
             type(ErrorInstance) :: er                                ! LOCAL ErrorInstance object
-            
             integer :: x
-            
             !
             ! Notes
             ! -------------------------------------------------------------------------------
@@ -255,6 +257,10 @@ module classFineSediment1
                     end if
                 end if
                 if (present(f_comp_in)) then
+                    !print *,"Setting FineSediment f_comp"
+                    !print *,"Size of input array ", size(f_comp_in)
+                    !print *,"Number of size fractions property in this object ", Me%NFComp
+                    !print *,"Size of size fractions array in this object", size(Me%f_comp)
                     if (size(f_comp_in) /= Me%NFComp) then
                         er = ErrorInstance( &
                             code = 106, &
@@ -366,14 +372,29 @@ module classFineSediment1
         !! Check whether this object contains any sediment or water
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
-        !! Function returns .true./.false. depending on whether any sediment or water is
-        !! present or not
+        !! Function returns .true. if no sediment or water present, 
+        !! Function returns .false. otherwise
         function Empty1(Me) result(t)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             logical :: t
                 !! Return value. True: `V_f/M_f = V_w = 0`. False: `V_f/M_f > 0 .or. V_w > 0`
             t = .false.
             if (Me%M_f_l == 0 .and. Me%V_w_l == 0) t = .true.
+        end function
+        !> **Function purpose**                                     <br>
+        !! Check whether this object contains any sediment or water
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! Function returns .true./.false. depending on whether any sediment or water is
+        !! ABSENT or not
+        !! Function returns .true. if sediment or water present, 
+        !! Function returns .false. otherwise
+        function NotEmpty1(Me) result(t)
+            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+            logical :: t
+                !! Return value. True: `V_f/M_f = V_w = 0`. False: `V_f/M_f > 0 .or. V_w > 0`
+            t = .true.
+            if (Me%M_f_l == 0 .and. Me%V_w_l == 0) t = .false.
         end function
         !> **Subroutine purpose**                                   <br>
         !! Clear the sediment mass and water volume of this `FineSediment`
@@ -491,7 +512,7 @@ module classFineSediment1
         end function
        !> **Sub purpose**
        !! Report the properties of this object to the console
-       subroutine ReportStatusToConsole(Me, title)
+       subroutine ReportStatusToConsole1(Me, title)
             class(FineSediment1) :: Me                               !! Self-reference
             character(len=*), intent(in) :: title                    !! Title string, providing context
             integer :: x                                             ! LOCAL loop counter
@@ -509,6 +530,13 @@ module classFineSediment1
             do x = 1, Me%nfComp
                 print *, "Fraction ", x, ":             ",  Me%f_comp(x)
             end do
+       end subroutine
+
+       subroutine ReportMassToConsole1(Me, title)
+            class(FineSediment1) :: Me                               !! Self-reference
+            character(len=*), intent(in) :: title                    !! Title string, providing context
+            print *, title                                           ! print the title
+            print *, "fine sediment mass [kg/m2]:   ", Me%M_f_l
        end subroutine
 ! *********************************!
 !** ResultFineSediment extension **!

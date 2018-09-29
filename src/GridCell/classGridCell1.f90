@@ -356,6 +356,7 @@ module classGridCell1
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
             call r%addErrors(.errors. me%colSoilProfiles(1)%item%update(t))
+            if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Loop through the reaches and call their update methods for this
@@ -384,7 +385,6 @@ module classGridCell1
         call LOG%toFile(errors = .errors. r)            ! Log any errors to the output file
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear the errors so we're not reporting twice
-        call LOG%toConsole("\tPerforming simulation for " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
 
@@ -461,7 +461,7 @@ module classGridCell1
         
         ! Set the data interfacer's group to the group for this GridCell
         call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
-        
+
         ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
         if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
@@ -537,6 +537,7 @@ module classGridCell1
                 i = i+1
             end do
         end if        
+
     end function
 
 !---------------!
