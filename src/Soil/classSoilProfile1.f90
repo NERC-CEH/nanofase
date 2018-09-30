@@ -56,11 +56,12 @@ module classSoilProfile1
         me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
 
         ! Allocate the object properties that need to be
-        allocate(me%usle_C(C%nTimeSteps))
-        allocate(me%usle_alpha_half(C%nTimeSteps))
-        allocate(me%erodedSediment(C%nTimeSteps))
-        allocate(me%distributionSediment(C%nSizeClassesSpm))
-
+        allocate(me%usle_C(C%nTimeSteps), &
+            me%usle_alpha_half(C%nTimeSteps), &
+            me%erodedSediment(C%nTimeSteps), &
+            me%distributionSediment(C%nSizeClassesSpm), &
+            me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        ! Initialise variables
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
         me%p = p                                            ! SoilProfile index within the GridCell
@@ -70,7 +71,8 @@ module classSoilProfile1
         allocate(me%q_quickflow_timeSeries, source=q_quickflow_timeSeries)
         allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)
         allocate(me%q_evap_timeSeries, source=q_evap_timeSeries)
-        me%V_buried = 0                                     ! Volume of water "lost" from the bottom of SoilProfile
+        me%V_buried = 0.0_dp                                ! Volume of water "lost" from the bottom of SoilProfile
+        me%m_np = 0.0_dp                                    ! Nanomaterial mass
         
         ! Parse and store input data in this object's properties
         call r%addErrors(.errors. me%parseInputData())
@@ -84,7 +86,7 @@ module classSoilProfile1
             call r%addErrors(.errors. &
                 sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s) &
             )
-            call move_alloc(sl, me%colSoilLayers(l)%item)
+            call move_alloc(sl, me%colSoilLayers(l)%item)   ! This automatically deallocates sl
         end do
         call r%addToTrace("Creating " // trim(me%ref))      ! Add this procedure to the error trace
     end function
@@ -100,24 +102,27 @@ module classSoilProfile1
     !!  <li>Percolate soil through all SoilLayers</li>
     !!  <li>Erode sediment</li>
     !! </ul>
-    function updateSoilProfile1(me, t) result(r)
+    function updateSoilProfile1(me, t, j_np_diffuseSource) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         integer :: t                                            !! The current timestep
+        real(dp) :: j_np_diffuseSource(:,:,:)                   !! Diffuse source of NM for this timestep
         type(Result) :: r                                       !! Result object to return
         
         ! Set the timestep-specific object properties
         me%q_quickflow = me%q_quickflow_timeSeries(t)           ! Set the runoff (quickflow) for this timestep [m/s]
-        ! TODO: Q_runoff still in m3/s, change to m/s
+        ! TODO get rid of q_surf - not needed by soil erosion any more
         me%q_surf = 0.1*me%q_quickflow                          ! Surface runoff = 10% of quickflow [m/timestep]
         me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
         me%q_evap = me%q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
         me%q_in = max(me%q_precip - me%q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
             ! TODO: Should the minimum q_in be 0, or should evaporation be allowed to remove water from top soil layer?
+
+        ! Add NM from the diffuse source
+        me%m_np = me%m_np + j_np_diffuseSource*me%area          ! j_np_diffuseSource is in kg/m2/timestep
         
-        ! Perform percolation and erosion simluation, at the same
-        ! time adding any errors to the Result object
+        ! Perform percolation and erosion simluation
         call r%addErrors([ &
-            .errors. me%percolate(t), &
+            .errors. me%percolate(t, j_np_diffuseSource), &
             .errors. me%erode(t) &
         ])
 
@@ -130,24 +135,31 @@ module classSoilProfile1
     !! percolated and pooled flows between `SoilLayer`s. Pooled water from top
     !! `SoilLayer` forms surface runoff, and "lost" water from bottom `SoilLayer`
     !! is kept track of in `me%V_buried`
-    function percolateSoilProfile1(me, t) result(r)
+    function percolateSoilProfile1(me, t, j_np_diffuseSource) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile1` instance
         integer             :: t                                !! The current time step
+        real(dp)            :: j_np_diffuseSource(:,:,:)        !! Difffuse source of NM for this timestep
         type(Result)        :: r                                !! The `Result` object to return
         integer             :: l, i                             ! Loop iterator for SoilLayers
-        real(dp)            :: q_l_in                           ! Temporary inflow for a particular SoilLayer
+        real(dp)            :: q_l_in                           ! Temporary water inflow for a particular SoilLayer
+        real(dp)            :: m_l_np_in                        ! Temporary NM inflow for particular SoilLayer
 
-        ! Loop through SoilLayers and remove 
+        ! Loop through SoilLayers and percolate 
         do l = 1, me%nSoilLayers
-            if (l == 1) then                        ! If it's the first SoilLayer, Q_in will be from precip - ET
-                q_l_in = me%q_in
-            else                                    ! Else, get Q_in from previous layer's Q_perc
-                q_l_in = me%colSoilLayers(l-1)%item%V_perc
+            if (l == 1) then
+                 ! If it's the first SoilLayer, water and NM inflow will be from precip - ET
+                 ! and the diffuse source, respectively
+                q_l_in = me%q_in                                    ! [m3/m2/timestep]
+                m_np_l_in = j_np_diffuseSource*me%area              ! [kg/timestep]
+            else
+                ! Otherwise, they'll be from the layer above
+                q_l_in = me%colSoilLayers(l-1)%item%V_perc          ! [m3/m2/timestep]
+                m_np_l_in = me%colSoilLayers(l-1)%item%m_np_perc    ! [kg/timestep]
             end if
 
-            ! Run the percolation simulation for individual layer, setting V_perc, V_pool etc.
+            ! Run the percolation simulation for individual layer, setting V_perc, V_pool, m_np_perc etc.
             call r%addErrors(.errors. &
-                me%colSoilLayers(l)%item%update(t, q_l_in) &
+                me%colSoilLayers(l)%item%update(t, q_l_in, m_np_l_in) &
             )
             ! If there is pooled water, we must push up to the previous layer, recursively
             ! for each SoilLayer above this
@@ -156,7 +168,6 @@ module classSoilProfile1
                 if (me%colSoilLayers(l-i+1)%item%V_pool > 0) then
                     if (l-i == 0) then                          ! If it's the top soil layer, track how much pooled above soil
                         me%V_pool = me%colSoilLayers(l-i+1)%item%V_pool
-                        ! TODO: Think about how this relates to quickflow
                     else                                        ! Else, add pooled volume to layer above
                         call r%addErrors(.errors. &
                             me%colSoilLayers(l-i)%item%addPooledWater( &
