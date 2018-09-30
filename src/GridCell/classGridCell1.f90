@@ -326,36 +326,37 @@ module classGridCell1
         class(GridCell1) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
         type(Result) :: r                                       !! `Result` object to return errors in
-        integer :: s                                            ! Iterator for `DiffuseSource`s
+        integer :: i                                            ! Iterator
         integer :: rr                                           ! Loop counter
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
         ! Check that the GridCell is not empty before simulating anything
-        ! TODO Actual do something with the data from this diffuse source
         if (.not. me%isEmpty) then
             ! Reset variables
             me%j_np_diffuseSource = 0.0_dp
-            
-            ! Demands and transfers
-            call r%addErrors([ &
-                .errors. me%demands(), &
-                .errors. me%transfers() &
-            ])
             
             ! Get any inputs from diffuse source
             ! TODO Actually do something with these diffuse sources! Nothing is done
             ! with me%j_np_diffuseSource currently
             if (me%hasDiffuseSource) then
-                do s = 1, size(me%diffuseSources)
-                    call r%addErrors(.errors. me%diffuseSources(s)%update(t))
-                    me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(s)%j_np_diffuseSource     ! [kg/m2/timestep]
+                do i = 1, size(me%diffuseSources)
+                    call r%addErrors(.errors. me%diffuseSources(i)%update(t))
+                    me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
                 end do
             end if
+
+            ! Demands and transfers
+            call r%addErrors([ &
+                .errors. me%demands(), &
+                .errors. me%transfers() &
+            ])
 
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
-            call r%addErrors(.errors. me%colSoilProfiles(1)%item%update(t))
+            call r%addErrors( &
+                .errors. me%colSoilProfiles(1)%item%update(t, j_np_diffuseSource) &
+            )
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
@@ -441,7 +442,7 @@ module classGridCell1
     !> Get the data from the input file and set object properties
     !! accordingly, including allocation of arrays that depend on
     !! input data.
-    function parseInputDataGridCell1(me) result(r)
+    function    (me) result(r)
         class(GridCell1)        :: me                   !! This `GridCell1` object
         type(Result)            :: r                    !! The `Result` object
         integer, allocatable    :: xySize(:)            ! The size of the GridCell

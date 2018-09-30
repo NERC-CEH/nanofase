@@ -11,7 +11,6 @@ module classSoilLayer1
     type, public, extends(SoilLayer) :: SoilLayer1
       contains
         procedure :: create => createSoilLayer1
-        procedure :: destroy => destroySoilLayer1
         procedure :: update => updateSoilLayer1
         procedure :: addPooledWater => addPooledWaterSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
@@ -38,6 +37,11 @@ module classSoilLayer1
         me%l = l
         me%ref = ref("SoilLayer", x, y, p, l)
 
+        ! Allocate and initialise variables
+        me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)
+        me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
+        me%V_w = 0.0_dp                                 ! Set initial water content to 0 [m3/m2]
+
         ! Parse the input data into the object properties
         r = me%parseInputData()
 
@@ -45,40 +49,34 @@ module classSoilLayer1
         me%V_sat = WC_sat*me%depth
         me%V_FC = WC_FC*me%depth
         me%K_s = K_s                                    ! Hydraulic conductivity [m/s]
-        me%V_w = 0                                      ! Set initial water content to 0 [m3/m2]
 
-        ! Add this procedure to the Result trace
+        ! Add this procedure to error traces
         call r%addToTrace("Creating " // trim(me%ref))
-    end function
-
-    !> Destroy this `SoilLayer1`
-    function destroySoilLayer1(me) result(r)
-        class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
-        type(Result) :: r                               !! The `Result` object to return
     end function
 
     !> Update the `SoilLayer1` on a given time step, based on specified inflow.
     !! Calculate percolation to next layer and, if saturated, the amount
     !! to pool to the above layer (or surface runoff, if this is the top layer)
-    function updateSoilLayer1(me, t, Q_in) result(r)
+    function updateSoilLayer1(me, t, q_in, m_np_in) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer :: t                                    !! The current time step [s]
-        real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
+        real(dp) :: q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
+        real(dp) :: m_np_in                             !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         type(Result) :: r
             !! The `Result` object to return. Contains warning if all water on this time step removed.
 
         ! Set the inflow to this SoilLayer and store initial water in layer
-        me%Q_in = Q_in
+        me%q_in = q_in
         initial_V_w = me%V_w
 
         ! Setting volume of water, pooled water and excess water, based on inflow
-        if (me%V_w + me%Q_in < me%V_sat) then                      ! If water volume below V_sat after inflow
+        if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
             me%V_pool = 0                                       ! No pooled water
-            me%V_w = me%V_w + me%Q_in                              ! Update the volume based on inflow
+            me%V_w = me%V_w + me%q_in                           ! Update the volume based on inflow
             me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)         ! Volume of water above V_FC
-        else if (me%V_w + me%Q_in > me%V_sat) then                 ! Else, water pooled above V_sat
-            me%V_pool = me%V_w + me%Q_in - me%V_sat                ! Water pooled above V_sat
+        else if (me%V_w + me%q_in > me%V_sat) then              ! Else, water pooled above V_sat
+            me%V_pool = me%V_w + me%q_in - me%V_sat             ! Water pooled above V_sat
             me%V_w = me%V_sat                                   ! Volume of water must be V_sat
             me%V_excess = me%V_w - me%V_FC                      ! Volume must be above FC and so there is excess
         end if
