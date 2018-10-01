@@ -280,15 +280,20 @@ module classRiverReach1
             mbed = .dp. r1D                                          ! extract bed sediment mass [kg] by size fraction
                                                                      ! from Result object (1D array => 1D array)
             dj_spm_res = Me%k_spm_res * mbed * dt                    ! the mass of sediment resuspending on each displacement [kg]
+            
+            print *, "Bed sediment before resuspension"
             call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
+            
             call r%addErrors(.errors. &
                 me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
             if (r%hasCriticalError()) return                         ! if a critical error has been thrown
             
+            print *, "Bed sediment after resuspension"
             call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
             
             call r%addErrors(.errors. me%depositToBed(dspmDep))      ! add deposited SPM to BedSediment 
         
+            print *, "Bed sediment after deposition"
             call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
             
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
@@ -465,8 +470,8 @@ module classRiverReach1
         ! Deposit the fine sediment to the bed sediment
         depositRslt = Me%bedSediment%deposit(fineSediment)
         call r%addErrors(.errors. depositRslt)
-        ! ##############################################################
-        if (depositRslt%hasCriticalError()) then
+        if (r%hasCriticalError()) then
+            print *, "Error in DepositSediment"
             call r%addToTrace("Depositing SPM to BedSediment")
             return
         end if
