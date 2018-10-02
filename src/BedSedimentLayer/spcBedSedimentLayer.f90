@@ -138,7 +138,7 @@ module spcBedSedimentLayer
         !! `H (FineSediment1)` returns the sediment that was removed 
         function RemoveSedimentFromLayer(Me, S, G, H, d) result(r)
             use ResultModule, only: Result
-            use Globals 
+            use Globals, only: dp
             import BedSedimentLayer, FineSediment1         
             class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class

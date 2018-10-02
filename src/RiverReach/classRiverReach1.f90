@@ -55,6 +55,7 @@ module classRiverReach1
         integer :: n, s                                         ! Loop iterator for SPM size classes and sources
         integer :: allst                                        ! Allocation status
         type(ErrorInstance) :: error                            ! To return errors
+        character(len=256) :: allms                             ! LOCAL array allocation message
         ! First, let's set the RiverReach's reference and the length
         me%x = x
         me%y = y
@@ -97,6 +98,8 @@ module classRiverReach1
         ! Set any defaults (no errors to be thrown)
         call me%setDefaults()
         
+        if (r%hasCriticalError()) return                ! exit if allocation has thrown an error
+
         ! Get data from the input data file
         call r%addErrors(.errors. me%parseInputData())
 
@@ -105,10 +108,8 @@ module classRiverReach1
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        ! TODO: Sort out BedSediment errors
         allocate(BedSediment1::me%bedSediment)
         call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
-        
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
         call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
@@ -147,7 +148,6 @@ module classRiverReach1
     !!  <li>Deposition to BedSediment removed</li>
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
-    !! TODO Put this all into a mass transfer matrix
     function updateRiverReach1(me, t, j_spm_runoff, j_np_runoff) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
         integer :: t                                        !! Current time step [s]
@@ -255,7 +255,6 @@ module classRiverReach1
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
             ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
             !--------------------------------------------------------------------------------------------------------------------------------
-            !!!dj_spm_out = min(dQ_in*me%C_spm, me%m_spm)            ! Maximum of m_spm can be advected
             dj_spm_out = me%m_spm * dQ_in / me%volume                ! SPM loss as a fraction of reach volume moving downstream on this displacement
             !--------------------------------------------------------------------------------------------------------------------------------
             me%m_spm = me%m_spm - dj_spm_out                         ! Update the SPM mass after advection
@@ -285,16 +284,19 @@ module classRiverReach1
             call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
             
             call r%addErrors(.errors. &
-                me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
-            if (r%hasCriticalError()) return                         ! if a critical error has been thrown
+                Me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
+            if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
             
             print *, "Bed sediment after resuspension"
             call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
+            call print_matrix(Me%bedSediment%delta_sed)
             
-            call r%addErrors(.errors. me%depositToBed(dspmDep))      ! add deposited SPM to BedSediment 
+            call r%addErrors(.errors. Me%depositToBed(dspmDep))      ! add deposited SPM to BedSediment 
+            if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
         
             print *, "Bed sediment after deposition"
             call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
+            call print_matrix(Me%bedSediment%delta_sed)
             
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             me%C_spm = me%m_spm / me%volume                          ! Update the SPM concentration
