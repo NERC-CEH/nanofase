@@ -25,6 +25,7 @@ module spcBedSediment
                                                                      ! properties
         integer :: nSizeClasses                                      !! Number of fine sediment size classes
         integer :: nLayers                                           !! Number of layers (`BedSedimentLayer` objects)
+        real(dp), allocatable :: delta_sed(:,:,:)                    !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
         integer :: nfComp                                            !! number of fractional composition terms for sediment
         type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`
     contains
@@ -39,6 +40,8 @@ module spcBedSediment
             resuspend                                                ! resuspend sediment to water column
         procedure(ReportBedMassToConsole), public, deferred :: &
             repMass                                                  ! report fine sediment masses to the console
+        procedure(InitialiseMTCMatrix), public, deferred :: &
+            initMatrix                                               ! initialise mass transfer coefficient matrix
                                                                      ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
         procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
@@ -92,7 +95,6 @@ module spcBedSediment
             use Globals
             use ResultModule, only: Result0D
             import BedSediment, FineSediment1
-            ! TODO: replace D with real array to represent SPM *masses* only
             class(BedSediment) :: Me                                !! Self-reference
             type(FineSediment1) :: FS_dep(:)                        !! Depositing sediment by size class
             type(Result0D) :: r                                     !! Returned `Result` object
@@ -165,6 +167,20 @@ module spcBedSediment
             class(BedSediment) :: Me                                     !! The `BedSediment` instance
             integer :: n                                                 !! LOCAL loop counter 
         end subroutine
+        !> **Function purpose**
+        !! initialise the matrix of mass transfer coefficients for sediment deposition and resuspension
+        !!                                                          
+        !! **Function inputs**                                      
+        !! none (uses class-level variable array delta_sed(:,:,:)
+        !!                                                          
+        !! **Function outputs/outcomes**                            
+        !! delta_sed populated with initial values, all zero except for layer(x) ->layer(y) coefficients where x=y; these are set to unity
+        function InitialiseMTCMatrix(Me) result(r)
+            use ResultModule, only: Result
+            import BedSediment
+            class(BedSediment) :: Me                                     !! The `BedSediment` instance
+            type(Result) :: r                                            !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
+        end function
     end interface
 contains
     !> **Function purpose**                                             <br>

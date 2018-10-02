@@ -18,6 +18,7 @@ module classBedSediment1
         procedure, public :: deposit => DepositSediment1             ! deposit sediment from water column
         procedure, public :: resuspend => ResuspendSediment1         ! resuspend sediment to water column
         procedure, public :: repmass => ReportBedMassToConsole1      ! report mass of fine sediment in each layer to console [kg/m2]
+        procedure, public :: initmatrix => initialiseMatrix1         ! initialise mass transfer coefficient matrix
     end type
   contains
     !> **Function purpose**                                         <br>
@@ -44,13 +45,7 @@ module classBedSediment1
         ! ----------------------------------------------------------------------------------
         ! no notes
         ! ----------------------------------------------------------------------------------
-        
-        !print *, 'creating BedSediment'
-        
         Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
-        
-        !print *, Me%name
-        
         Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
@@ -77,6 +72,18 @@ module classBedSediment1
             return                                                   ! critical error, so return
         end if
         allocate(bslType(Me%nLayers), stat = allst)                  ! create bslType collection
+        if (allst /= 0) then
+            call r%addError(ErrorInstance(code = 1, &
+                                          message = ms, &
+                                          trace = [tr] &
+                                         ) &
+                           )                                         ! add to Result
+            return                                                   ! critical error, so return
+        end if
+        allocate(Me%delta_sed(Me%nLayers + 3, &
+                              Me%nLayers + 3, &
+                              Me%nSizeClasses), &
+            stat = allst)                                            ! allocate space for sediment mass transfer matrix
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
                                           message = ms, &
@@ -265,7 +272,10 @@ module classBedSediment1
                            )                                         ! create error instance for allocation error, and add to Result
         end if
         if (r%hasCriticalError()) return                             ! exit if a critical error has been thrown during allocation
-        do S = 1, Me%nSizeClasses                                    ! initialise the delta values
+        call r%addErrors(.errors. Me%initmatrix())                   ! initialise the overall matrix of mass transfer coefficients
+        if (r%hasCriticalError()) return                             ! exit if a critical error has been thrown
+
+        do S = 1, Me%nSizeClasses                                    ! initialise the delta_l_r values
             do L = 1, Me%nLayers
                 delta_l_r(L, S) = 0.0_dp
             end do
@@ -292,10 +302,6 @@ module classBedSediment1
                                                                      ! the amount present in the layer
                                                                      ! on return, G contains the fine sediment that was removed 
                     delta_l_r(L, S) = d_temp                         ! assign the delta for layer to resuspension
-                    
-                    ! TODO needs also to modify the delta_l_l element of the array where l=L, BUT we cannot do this at the moment.
-                    ! to do this, need to pass a complete array to both the resuspension and deposition routines and modify it directly.
-                    
                     if (r%hasCriticalError()) then                   ! if a critical error has been thrown
                         call r%addToTrace(tr)                        ! add the trace to the Result object
                         return                                       ! and exit
@@ -329,9 +335,13 @@ module classBedSediment1
             end if
         end do                                                       ! and loop to the next size class
         call r%setData(FS)                                           ! copy output to Result
-        do S = 1, Me%nSizeClasses
-            do L = 1, Me%nLayers
-                print *, delta_l_r(L, S)
+        do S = 1, Me%nSizeClasses                                    ! incorporate delta_l_r into the mass transfer coefficients matrix delta_sed
+            do L = 1, Me%nLayers                            
+                Me%delta_sed(2, L + 2, S) = &
+                    Me%delta_sed(2, L + 2, S) + delta_l_r(L, S)      ! element (L, S) of delta_l_r is added to element (2, L+2, S) of delta_sed
+                Me%delta_sed(L + 2, L + 2, S) = &
+                    Me%delta_sed(L + 2, L + 2, S) - delta_l_r(L, S)  ! element (L, S) of delta_l_r is subtracted from element(L+2, L+2, S) of delta_sed
+                                                                     ! this accounts for the loss of sediment from layers during resuspension
             end do
         end do
     end function
@@ -477,7 +487,6 @@ module classBedSediment1
                 delta_l_b(L, S) = 0.0_dp                             ! same layer transfers to unity
                 do LL = 1, Me%nLayers
                     delta_l_l(L, LL, S) = 0.0_dp
-                    if (L == LL) delta_l_l(L, LL, S) = 1.0_dp
                 end do
             end do
         end do
@@ -578,7 +587,8 @@ module classBedSediment1
                         end associate
                     end if
                     delta_l_b(L, S) = d_temp                         ! computation of delta for layer L to burial
-                    delta_l_l(L, L, S) = delta_l_l(L, L, S) - d_temp ! delta for loss of material to burial      
+                    delta_l_l(L, L, S) = -1 * d_temp                 ! delta for loss of material to burial
+                                                                     ! note that these are CHANGES in delta due to burial, not absolute values
                     L = L - 1                                        ! move up to next layer
                 end do                                               ! finished burial. temporary object T can be reused
                                                                      ! now we shift sediment downwards from upper layers to fill the hole created by burial
@@ -612,7 +622,8 @@ module classBedSediment1
                                     return                           ! and exit
                                 end if
                                     delta_l_l(A, L, S) = d_temp      ! delta for transfer of sediment from Layer A to Layer L
-                                    delta_l_l(A, A, S) = 1 - d_temp  ! delta for retention of sediment in Layer A
+                                    delta_l_l(A, A, S) = -1 * d_temp ! delta for retention of sediment in Layer A
+                                                                     ! note that these are CHANGES in delta due to transfer, not absolute values
                             end if
                             A = A - 1                                ! shift up to next "donating" layer
                             end associate assoc2
@@ -648,28 +659,60 @@ module classBedSediment1
         
         print *, "Final state of sediment..."
         call Me%repMass
-        do S = 1, Me%nSizeClasses
-            print *, delta_d_b(S)
-        end do
-        do S = 1, Me%nSizeClasses
+        do S = 1, Me%nSizeClasses                                    ! incorporate delta_d_b, delta_d_l, delta_l_b, delta_l_l into the mass transfer coefficients matrix delta_sed 
+            Me%delta_sed(Me%nLayers + 3, 1, S) = &
+                Me%delta_sed(Me%nLayers + 3, 1, S) + delta_d_b(S)    ! element (S) of delta_d_b is added to element (Layers+3, 1, S) of Me%delta_sed
             do L = 1, Me%nLayers
-                print *, delta_d_l(L, S)
-            end do
-        end do
-        do S = 1, Me%nSizeClasses
-            do L = 1, Me%nLayers
-                print *, delta_l_b(L, S)
-            end do
-        end do
-        do S = 1, Me%nSizeClasses
-            do L = 1, Me%nLayers
+                Me%delta_sed(L + 2, 1, S) = &
+                    Me%delta_sed(L + 2, 1, S) + delta_d_l(L, S)      ! element (L, S) of delta_d_l is added to element (L+2, 1, S) of Me%delta_sed
+                Me%delta_sed(Me%nLayers + 3, L + 2, S) = &
+                    Me%delta_sed(Me%nLayers + 3, L + 2, S) + &
+                    delta_l_b(L, S)                                  ! element (L, S) of delta_l_b is added to element (Layers+3, L+2, S) of Me%delta_sed
                 do LL = 1, Me%nLayers
-                    print *, delta_l_l(L, LL, S)
+                    Me%delta_sed(L + 2, LL + 2, S) = &
+                        Me%delta_sed(L + 2, LL + 2, S) + &
+                        delta_l_l(LL, L, S)                          ! element (LL, L, S) of delta_l_l is added to element (L+2, LL+2, S) of Me%delta_sed
                 end do
             end do
         end do
-        error stop "exited"
-        
+    end function
+    !> **Function purpose**
+    !! initialise the matrix of mass transfer coefficients for sediment deposition and resuspension
+    !!                                                          
+    !! **Function inputs**                                      
+    !! none (uses class-level variable array delta_sed(:,:,:)
+    !!                                                          
+    !! **Function outputs/outcomes**                            
+    !! delta_sed populated with initial values, all zero except for layer(x) ->layer(y) coefficients where x=y; these are set to unity
+    function initialiseMatrix1(Me) result(r)
+        class(BedSediment1) :: Me                                    !! The `BedSediment` instance
+        type(Result) :: r                                            !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
+        character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
+        integer :: L                                                 ! LOCAL loop counter for sediment layers
+        integer :: LL                                                ! LOCAL second loop counter for sediment layers
+        integer :: S                                                 ! LOCAL loop counter for size classes
+        tr = trim(Me%name) // "%initialiseMatrix1"                   ! object and procedure binding name as trace
+        if (size(Me%delta_sed, 1) /= Me%nLayers + 3 .or. &
+            size(Me%delta_sed, 2) /= Me%nLayers + 3.or. &
+            size(Me%delta_sed, 3) /= Me%nSizeClasses) then
+            call r%addError(ErrorInstance(1, &
+                     tr // "Array size error", .true., [tr] &
+                                         ) &
+                           )                                         ! create a critical error if there is an array size issue
+            return
+        end if
+        do S = 1, Me%nSizeClasses
+            do L = 1, Me%nLayers + 3
+                do LL = 1, Me%nLayers + 3
+                    Me%delta_sed(L, LL, S) = 0.0_dp                  ! initially set all values to a default of zero
+                end do
+            end do
+        end do
+        do S = 1, Me%nSizeClasses
+            do L = 1, Me%nLayers
+                Me%delta_sed(L + 2, L + 2, S) = 1.0_dp               ! set same layer transfer coefficients to a default of unity
+            end do
+        end do
     end function
     !> **Function purpose**                                   
     !! 1. Report the mass of fine sediment in each layer to the console

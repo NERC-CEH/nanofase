@@ -30,6 +30,27 @@ module UtilModule
     end interface
 
     contains
+        !> print a set of r x c matrices to the console
+        subroutine print_matrix(m)
+            real(dp), allocatable :: m(:,:,:)                        !! the passed matrix as a 2D array
+            real(dp), allocatable :: mm(:)                           ! LOCAL 1D temproary array
+            integer :: r                                             ! LOCAL number of rows in array
+            integer :: c                                             ! LOCAL number of columns in array
+            integer :: s                                             ! LOCAL third array dimension
+            integer :: n                                             ! LOCAL loop counter 
+            integer :: p                                             ! LOCAL loop counter 
+            r = size(m, 1)                                           ! number of rows
+            c = size(m, 2)                                           ! number of columns
+            s = size(m, 3)                                           ! third dimension
+            allocate(mm(c))             
+            do p = 1, s
+                do n = 1, r
+                    mm = m(n, 1:c, p)
+                    print '(20f15.10)', mm
+                end do
+                print *, ""
+            end do
+        end subroutine
         !> Convert an integer to a logical value
         function lgcl(i)
             integer, intent(in) :: i
