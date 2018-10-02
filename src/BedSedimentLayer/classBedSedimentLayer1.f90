@@ -757,11 +757,12 @@ module classBedSedimentLayer1
         !! in this alternative version, both objects returned via inout
         !! `G (FineSediment1)` returns the sediment that could not be removed
         !! `H (FineSediment1)` returns the sediment that was removed
-        function removeSediment2(Me, S, G, H) result(r)
+        function removeSediment2(Me, S, G, H, d) result(r)
             class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(inout) :: G                  !! Fine sediment to be removed, returns fine sediment that could not be removed
             type(FineSediment1), intent(inout) :: H                  !! Returns fine sediment that was removed
+            real(dp), intent(inout) :: d                             !! delta: the proportional mass of sediment removed in this operation
             type(Result) :: r                                        !! The Result object
             real(dp) :: V_f_SC                                       ! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     ! LOCAL fine sediment volume removed
@@ -798,15 +799,12 @@ module classBedSedimentLayer1
                 return                                               ! exit here
             end if
             associate (O => Me%colFineSediment(S))
+                d = O%M_f()                                          ! use d to store initial mass of fine sediment in the layer
                 V_f_SC = O%V_f()                                     ! static local copy of fine sediment volume
                 V_w_SC = O%V_w()                                     ! static local copy of water volume
                 if (V_f_SC_r > V_f_SC) then
                     V_f_SC_r = V_f_SC                                ! amount of sediment to be removed exceeds amount in layer, 
                     V_w_SC_r = V_w_SC                                ! so set volumes of sediment and water to be removed to the layer totals
-                    !print *, "!"
-                    !print *, "Volumes of fine sediment and water to be removed exceed that in layer."
-                    !print *, "Adjusted volume of fine sediment to be removed [m3/m2]: ", V_f_SC_r
-                    !print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
                 else                                                 ! need to compute volume of water to be removed - equal proportion of water present as to sediment present
                     if (G%V_w() == 0) then
                         V_w_SC_r = V_f_SC_r / .dp. Me%volSLR(S)      ! water volume to be removed, computed from the solid:liquid ratio for the layer, if no value is supplied
@@ -814,8 +812,6 @@ module classBedSedimentLayer1
                         V_w_SC_r = G%V_w()                           ! water volume as supplied
                     end if
                 end if
-                !print *, "!"
-                !print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
                 call r%addErrors(.errors. O%set( &
                                    Vf_in = V_f_SC - V_f_SC_r, &
                                    Vw_in = V_w_SC - V_w_SC_r &
@@ -835,7 +831,6 @@ module classBedSedimentLayer1
                     return                                           ! exit here
                 end if
                 tr = trim(Me%name) //  "%removeSediment1%"           ! trace message
-                !call O%repstat("Sediment in layer after removal")
                 call r%addErrors( & 
                                   .errors. H%set( &                  ! populate H, holding the removed sediment
                                     Vf_in = V_f_SC_r, &
@@ -847,13 +842,12 @@ module classBedSedimentLayer1
                     call r%addToTrace(tr)                            ! add a trace message to any errors
                     return                                           ! exit here
                 end if
-                !call H%repstat("Sediment removed")
-                !call G%repstat("Sediment that could not be removed")
             end associate
             if (r%hasCriticalError()) then                           ! if a critical error has been thrown
                 call r%addToTrace(tr)                                ! add a trace message to any errors
                 return                                               ! exit here
             end if
+            d = H%M_f() / d                                          ! update d to return the proportion of sediment removed
         end function
         !> **Subroutine purpose**                                   <br>
         !! Remove sediment of a specified size fraction, and associated water,
