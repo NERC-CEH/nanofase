@@ -59,8 +59,8 @@ module classDiffuseSource
     function parseInputDataDiffuseSource(me) result(r)
         class(DiffuseSource) :: me          !! This `DiffuseSource` object
         type(Result) :: r                   !! Result object to return with any errors
-        type(NcGroup) :: grp                ! NetCDF group
         integer :: i                        ! Loop iterator
+        real(dp), allocatable :: atmosphericInput(:,:) ! Atmospheric input, only core, free NPs
 
         ! Get the GridCell group, followed by any parent groups (if there are any).
         ! Parent groups are things like SoilProfile.
@@ -83,6 +83,12 @@ module classDiffuseSource
         ! If a fixed mass input has been specified, get it.
         call r%addErrors(.errors. DATA%get('input_mass', me%inputMass_timeSeries, 0.0_dp))      ! [kg/m2/s]
         me%inputMass_timeSeries = me%inputMass_timeSeries*C%timeStep                            ! Convert to kg/m2/timestep
+
+        ! If an atmospheric fixed mass input has been specified, get it
+        if (DATA%grp%hasVariable('input_mass_atmospheric')) then
+            call r%addErrors(.errors. DATA%get('input_mass_atmospheric', atmosphericInput))     ! [kg/m2/s]
+            me%inputMass_timeSeries(:,:,1,1) = atmosphericInput                                 ! Only add to free, core NP
+        end if
     end function
 
 end module

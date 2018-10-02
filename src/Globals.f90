@@ -52,6 +52,7 @@ module Globals
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
+        integer :: npDim(3)                         !! Default dimensions for arrays of NM
 
       contains
         procedure :: rho_w      ! Density of water
@@ -76,13 +77,14 @@ module Globals
         integer :: configFilePathLength
         ! Values from config file
         character(len=256) :: input_file, output_file, log_file_path, start_date, startDateStr
-        integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
+        integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
+            default_np_forms, default_np_extra_states
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
         logical :: error_output
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
-                                            default_fractional_comp_size
+                                            default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
@@ -213,6 +215,12 @@ module Globals
                 C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
             end if
         end do        
+
+        ! Array to store default NM array dimensions:
+        !   1: NP size class
+        !   2: form (core, shell, coating, corona)
+        !   3: state (free, bound, heteroaggregated)
+        C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
         
     end subroutine
 

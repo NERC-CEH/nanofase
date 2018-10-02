@@ -23,6 +23,7 @@ module spcSoilProfile
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Nanomaterial
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
+        real(dp), allocatable :: m_np_buried(:,:,:)                 !! Cumulative mass of NM "lost" from the bottom `SoilLayer` [kg]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
         real(dp), allocatable :: q_quickflow_timeSeries(:)          !! Time series of runoff (quickflow) data [m3 m-2 s-1]
@@ -127,7 +128,7 @@ module spcSoilProfile
 
         !> Perform the `SoilProfile`'s simulation for one timestep
         function updateSoilProfile(me, t, j_np_diffuseSource) result(r)
-            use Globals
+            use Globals, only: dp
             import SoilProfile, Result
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current time step
@@ -137,6 +138,7 @@ module spcSoilProfile
 
         !> Percolate water through the `SoilProfile` for the current time step
         function percolateSoilProfile(me, t, j_np_diffuseSource) result(r)
+            use Globals, only: dp
             import SoilProfile, Result
             class(SoilProfile)  :: me                           !! This `SoilProfile` instance
             integer             :: t                            !! The current time step
@@ -155,7 +157,7 @@ module spcSoilProfile
         !> Impose a size class distribution on a total mass to split it up
         !! into separate size classes.
         function imposeSizeDistributionSoilProfile(me, mass) result(distribution)
-            use Globals
+            use Globals, only: dp, C
             import SoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             real(dp) :: mass                                    !! The mass to split into a distribution
