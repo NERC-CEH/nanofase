@@ -38,8 +38,10 @@ module classSoilLayer1
         me%ref = ref("SoilLayer", x, y, p, l)
 
         ! Allocate and initialise variables
-        me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)
+        allocate(me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        allocate(me%m_np_perc(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
         me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
+        me%m_np_perc = 0.0_dp                           ! Just to be on the safe side
         me%V_w = 0.0_dp                                 ! Set initial water content to 0 [m3/m2]
 
         ! Parse the input data into the object properties
@@ -61,7 +63,7 @@ module classSoilLayer1
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer :: t                                    !! The current time step [s]
         real(dp) :: q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
-        real(dp) :: m_np_in                             !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
+        real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         type(Result) :: r
             !! The `Result` object to return. Contains warning if all water on this time step removed.
@@ -69,6 +71,9 @@ module classSoilLayer1
         ! Set the inflow to this SoilLayer and store initial water in layer
         me%q_in = q_in
         initial_V_w = me%V_w
+
+        ! Add in the NM from the above layer/source
+        me%m_np = me%m_np + m_np_in                             ! [kg]
 
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
@@ -84,12 +89,20 @@ module classSoilLayer1
         me%V_perc = min(me%V_excess * &                          
                         (1-exp(-C%timeStep*me%K_s/(me%V_sat-me%V_FC))), &   ! Up to a maximum of V_w
                         me%V_w)
-        me%V_w = me%V_w - me%V_perc                              ! Get rid of the percolated water
+        ! Use this to calculate the amount of nanomaterial percolated as a fraction of that in layer,
+        ! then remove this and the water. Check if (near) zero to avoid FPE.
+        if (isZero(me%V_perc)) then
+            me%m_np_perc = 0.0_dp
+        else
+            me%m_np_perc = (me%V_perc/me%V_w)*me%m_np               ! V_perc/V_w will be 1 at maximum
+        end if
+        me%m_np = me%m_np - me%m_np_perc                        ! Get rid of percolated NM
+        me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
 
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
         ! Error code 600 = "All water removed from SoilLayer"
-        if (abs(me%V_w) <= C%epsilon .and. initial_V_w > 0) then
+        if (isZero(me%V_w) .and. initial_V_w > 0) then
             call r%addError(ErrorInstance(600, isCritical=.false.))
         end if
 

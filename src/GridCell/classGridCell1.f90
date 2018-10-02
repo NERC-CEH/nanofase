@@ -355,7 +355,7 @@ module classGridCell1
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
             call r%addErrors( &
-                .errors. me%colSoilProfiles(1)%item%update(t, j_np_diffuseSource) &
+                .errors. me%colSoilProfiles(1)%item%update(t, me%j_np_diffuseSource) &
             )
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
@@ -442,7 +442,7 @@ module classGridCell1
     !> Get the data from the input file and set object properties
     !! accordingly, including allocation of arrays that depend on
     !! input data.
-    function    (me) result(r)
+    function parseInputDataGridCell1(me) result(r)
         class(GridCell1)        :: me                   !! This `GridCell1` object
         type(Result)            :: r                    !! The `Result` object
         integer, allocatable    :: xySize(:)            ! The size of the GridCell

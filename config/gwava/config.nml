@@ -1,7 +1,9 @@
 &allocatable_array_sizes
-default_distribution_sediment_size = 5,
+default_distribution_sediment_size = 5
 default_distribution_np_size = 5
 default_fractional_comp_size = 4
+default_np_forms = 4
+default_np_extra_states = 2
 /
 
 &data

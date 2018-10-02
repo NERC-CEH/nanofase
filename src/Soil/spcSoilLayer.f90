@@ -24,6 +24,7 @@ module spcSoilLayer
         real(dp) :: SOM                                             !! Soil organic matter content [% w/w]
         ! Nanomaterials
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in layer [kg]
+        real(dp), allocatable :: m_np_perc(:,:,:)                   !! Mass of NM percolating to layer below on given timestep [kg]
         ! Hydrology
         real(dp) :: Q_in                                            !! Inflow to this `SoilLayer` [m3 m-2 s-1]
         real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
@@ -74,7 +75,7 @@ module spcSoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             integer :: t                                    !! The current time step
             real(dp) :: q_in                                !! Water into the layer on this time step [m/timestep]
-            real(dp) :: m_np_in                             !! NM into the layer on this time step [kg/timestep]
+            real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step [kg/timestep]
             type(Result) :: r                               !! The `Result` object to return, with no data
         end function
 
