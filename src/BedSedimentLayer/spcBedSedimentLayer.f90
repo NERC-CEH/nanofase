@@ -5,6 +5,7 @@ module spcBedSedimentLayer
     use ErrorInstanceModule                                          ! generation of trace error messages
     use classFineSediment1                                           ! USEs all subclasses of FineSediment
     implicit none                                                    ! force declaration of all variables
+
     !> Abstract superclass definition for `BedSedimentLayer`
     !! defines the properties and methods shared by all `BedSedimentLayer` objects
     !! objects of this class cannot be instantiated, only objects of its subclasses
@@ -135,13 +136,15 @@ module spcBedSedimentLayer
         !! in this laternative version, both objects returned via inout
         !! `G (FineSediment1)` returns the sediment that could not be removed
         !! `H (FineSediment1)` returns the sediment that was removed 
-        function RemoveSedimentFromLayer(Me, S, G, H) result(r)
+        function RemoveSedimentFromLayer(Me, S, G, H, d) result(r)
             use ResultModule, only: Result
-            import BedSedimentLayer, FineSediment1
+            use Globals 
+            import BedSedimentLayer, FineSediment1         
             class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(inout) :: G                  !! Fine sediment to be removed, returns fine sediment that could not be removed
             type(FineSediment1), intent(inout) :: H                  !! Returns fine sediment that was removed
+            real(dp), intent(inout) :: d                             !! delta: the proportional mass of sediment removed in this operation
             type(Result) :: r                                        !! The Result object = fine sediment that was removed AND fine sediment that could not be removed
         end function
         !> **Function purpose**                                     <br>
