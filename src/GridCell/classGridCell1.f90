@@ -277,6 +277,7 @@ module classGridCell1
                     allocate(me%colRiverReaches(0))
                     allocate(me%routedRiverReaches(0,0))
                     allocate(me%nReachesInBranch(0))
+                    me%nRiverReaches = 0
                     return
                 end if
             end if
@@ -325,36 +326,38 @@ module classGridCell1
         class(GridCell1) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
         type(Result) :: r                                       !! `Result` object to return errors in
-        integer :: s                                            ! Iterator for `DiffuseSource`s
+        integer :: i                                            ! Iterator
         integer :: rr                                           ! Loop counter
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
         ! Check that the GridCell is not empty before simulating anything
-        ! TODO Actual do something with the data from this diffuse source
         if (.not. me%isEmpty) then
             ! Reset variables
             me%j_np_diffuseSource = 0.0_dp
-            
-            ! Demands and transfers
-            call r%addErrors([ &
-                .errors. me%demands(), &
-                .errors. me%transfers() &
-            ])
             
             ! Get any inputs from diffuse source
             ! TODO Actually do something with these diffuse sources! Nothing is done
             ! with me%j_np_diffuseSource currently
             if (me%hasDiffuseSource) then
-                do s = 1, size(me%diffuseSources)
-                    call r%addErrors(.errors. me%diffuseSources(s)%update(t))
-                    me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(s)%j_np_diffuseSource     ! [kg/m2/timestep]
+                do i = 1, size(me%diffuseSources)
+                    call r%addErrors(.errors. me%diffuseSources(i)%update(t))
+                    me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
                 end do
             end if
+
+            ! Demands and transfers
+            call r%addErrors([ &
+                .errors. me%demands(), &
+                .errors. me%transfers() &
+            ])
 
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
-            call r%addErrors(.errors. me%colSoilProfiles(1)%item%update(t))
+            call r%addErrors( &
+                .errors. me%colSoilProfiles(1)%item%update(t, me%j_np_diffuseSource) &
+            )
+            if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Loop through the reaches and call their update methods for this
@@ -383,7 +386,6 @@ module classGridCell1
         call LOG%toFile(errors = .errors. r)            ! Log any errors to the output file
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear the errors so we're not reporting twice
-        call LOG%toConsole("\tPerforming simulation for " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
 
@@ -426,6 +428,7 @@ module classGridCell1
                                 * 0.01_dp * pcLossLivestockConsumption * 1.0e-9) / (1.0_dp - 0.01_dp * pcLossRural)
         totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9) &
                             / (1.0_dp - 0.01_dp * pcLossRural)
+        ! TODO See Virginie's email 29/08/2018
         
     end function
     
@@ -486,11 +489,11 @@ module classGridCell1
         call r%addErrors([ &
             .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
             .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
-            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &
+            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
             .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
             .errors. DATA%get('slope', me%slope), &
-            .errors. DATA%get('n_river', me%n_river, 0.035_dp, warnIfDefaulting=.true.), &
-            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.true.) &
+            .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
+            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature) &
         ])
         ! Convert to m/timestep
         me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep      

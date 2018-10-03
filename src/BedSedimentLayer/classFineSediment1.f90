@@ -83,6 +83,10 @@ module classFineSediment1
         ! -------------------------------------------------------------------------------
         ! No notes.
         ! -------------------------------------------------------------------------------
+            ! HACK to get running without allocation errors. Does it make sense that
+            ! FineSediment objects can be recreated?
+            if (allocated(me%pd_comp)) deallocate(me%pd_comp)
+            if (allocated(me%f_comp)) deallocate(me%f_comp)
             if (len_trim(n) == 0) then
                 call r%addError(ErrorInstance( &
                              code = 1, &

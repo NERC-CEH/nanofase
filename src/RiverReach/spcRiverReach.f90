@@ -152,6 +152,7 @@ module spcRiverReach
         function updateRiverReach(me, t, j_spm_runoff, j_np_runoff) result(r)
             use Globals
             use ResultModule, only: Result
+            use UtilModule, only: print_matrix
             import RiverReach
             class(RiverReach) :: me                                     !! This `RiverReach` instance
             integer :: t                                                !! What time step are we on?

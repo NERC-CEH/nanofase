@@ -3,7 +3,7 @@
 The NanoFASE model seperates nanomaterial sources into two categories: *Point sources* and *diffuse sources*. The latter represents spatially-averaged depositions over an entire `GridCell` or portion of a `GridCell` (e.g. from atmospheric deposition to `GridCell`, from sewage sludge to a specific `RiverReach`), whilst the former provides an input of nanomaterials at a specific location along a waterbody. Thus, `DiffuseSource` objects are contained within `GridCell`s or reaches (`RiverReach` and `EstuaryReach`), whilst `PointSource` objects are contained only within surface waterbodies (e.g. `RiverReach`, `EstuaryReach`, `LakeSegment` or `SeaSegment`):
 
 - &#128461; `GridCell`
-    - &#128461; `DiffuseSource` - *not currently implemented*
+    - &#128461; `DiffuseSource`
     - &#128461; `RiverReach`
         - &#128461; `PointSource`
     - &#128461; `EstuaryReach` - *not currently implemented*
@@ -13,7 +13,7 @@ The NanoFASE model seperates nanomaterial sources into two categories: *Point so
     - &#128461; `SeaSegment` - *not currently implemented*
         - `PointSource`
 
-As is [convention](/doc/conventions.md) for input data, units are SI units (kg for point sources, kg/m2 for diffuse sources).
+As is [convention](/doc/conventions.md) for input data, units are SI units (kg for point sources, kg/m2/s for diffuse sources).
 
 ## `PointSource`
 
@@ -67,7 +67,7 @@ The `PointSource` group can be suffixed by an integer to allow extra point sourc
 
 ## `DiffuseSource`
 
-Diffuse sources provide a way of inputting spatially-averaged nanomaterial inputs to an entire `GridCell`, for example representing atmospheric deposition. The data structure for such source is simple; the data input file simply needs a time series of nanomaterial inputs (in units of kg/m2):
+Diffuse sources provide a way of inputting spatially-averaged nanomaterial inputs to an entire `GridCell`, for example representing atmospheric deposition. The data structure for such source is simple; the data input file simply needs a time series of nanomaterial inputs (in units of kg/m2/s - note the additional temporal unit compared to `PointSource`s):
 
 ```json
 "GridCell_1_1": {
@@ -98,6 +98,17 @@ Similarly to `PointSource`, multiple diffuse sources can be specified in the inp
 }
 ```
 
+### Atmospheric `DiffuseSource`s
+To reduce the amount of data stored in the input file, atmospheric deposition data that only comprises free, core particles can be input using the `input_mass_atmospheric[n][t]` key:
+
+```json
+"GridCell_1_1": {
+    "DiffuseSource": {
+        "input_mass_atmospheric[n][t]": 0.001
+    }
+}
+```
+
 # Input size class, state and form
 
-It is likely that available input data will not discretise input masses into size class, state and form fractions, and so care must be taken when structuring the data file to account for this.:
+It is likely that available input data will not discretise input masses into size class, state and form fractions, and so care must be taken when structuring the data file to account for this.

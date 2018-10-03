@@ -22,6 +22,9 @@ module spcSoilLayer
         real(dp) :: bdens                                           !! Bulk density [kg/m3]
         real(dp) :: pH                                              !! Porewater pH
         real(dp) :: SOM                                             !! Soil organic matter content [% w/w]
+        ! Nanomaterials
+        real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in layer [kg]
+        real(dp), allocatable :: m_np_perc(:,:,:)                   !! Mass of NM percolating to layer below on given timestep [kg]
         ! Hydrology
         real(dp) :: Q_in                                            !! Inflow to this `SoilLayer` [m3 m-2 s-1]
         real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
@@ -33,7 +36,6 @@ module spcSoilLayer
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
       contains
         procedure(createSoilLayer), deferred :: create              ! Create the SoilLayer object
-        procedure(destroySoilLayer), deferred :: destroy            ! Remove the SoilLayer object and all contained objects
         procedure(updateSoilLayer), deferred :: update              ! Update on every timestep (e.g., perform soil percolation)
         procedure(addPooledWaterSoilLayer), deferred :: addPooledWater  ! Add pooled water to this layer
         procedure(parseInputDataSoilLayer), deferred :: parseInputData ! Parse data from the input file for this SoilLayer
@@ -65,23 +67,15 @@ module spcSoilLayer
             type(Result) :: r                               !! The `Result` object to return
         end function
 
-        !> Destroy this `SoilLayer`
-        function destroySoilLayer(me) result(r)
-            use ResultModule, only: Result
-            use Globals, only: dp
-            import SoilLayer
-            class(SoilLayer) :: me                          !! This `SoilLayer` instance
-            type(Result) :: r                               !! The `Result` object to return
-        end function
-
         !> Update the `SoilLayer` on a given timestep
-        function updateSoilLayer(me, t, Q_in) result(r)
+        function updateSoilLayer(me, t, q_in, m_np_in) result(r)
             use ResultModule, only: Result
             use Globals, only: dp
             import SoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             integer :: t                                    !! The current time step
-            real(dp) :: Q_in                                !! Water into the layer on this time step [m3/s]
+            real(dp) :: q_in                                !! Water into the layer on this time step [m/timestep]
+            real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step [kg/timestep]
             type(Result) :: r                               !! The `Result` object to return, with no data
         end function
 

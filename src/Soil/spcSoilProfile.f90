@@ -21,6 +21,9 @@ module spcSoilProfile
         integer :: nSoilLayers                                !! Number of contained `SoilLayer`s
         real(dp) :: slope                                           !! The slope of the containing `GridCell`
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
+        ! Nanomaterial
+        real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
+        real(dp), allocatable :: m_np_buried(:,:,:)                 !! Cumulative mass of NM "lost" from the bottom `SoilLayer` [kg]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
         real(dp), allocatable :: q_quickflow_timeSeries(:)          !! Time series of runoff (quickflow) data [m3 m-2 s-1]
@@ -32,11 +35,17 @@ module spcSoilProfile
         real(dp), allocatable :: q_evap_timeSeries(:)               !! Time series of evapotranspiration data [m3 m-2 s-1]
         real(dp) :: q_evap                                          !! Evapotranspiration for this time step [m3 m-2 s-1]
         real(dp) :: q_in
-            !! Infiltration for this time step: \( Q_{\text{in}} = Q_{\text{precip}} - Q_{\text{evap}} \) [m3 m-2 s-1]
+            !! Infiltration for this time step: \( q_{\text{in}} = q_{\text{precip}} - q_{\text{evap}} \) [m3 m-2 s-1]
         real(dp) :: WC_sat                                          !! Water content at saturation [m3 m-3]
         real(dp) :: WC_FC                                           !! Water content at field capacity [m3 m-3]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
-        real(dp) :: V_buried
+        real(dp) :: V_buried                                        !! Volume of buried water (from the bottom `SoilLayer`) [m3 m-2]
+        ! Soil texture. Sand + silt + clay = 100 %
+        integer :: sandContent                                      !! Sand content of the soil [%]
+        integer :: siltContent                                      !! Silt content of the soil [%]
+        integer :: clayContent                                      !! Clay content of the soil [%]
+        integer :: coarseFragContent                                !! Coarse fragment content of the soil [%]
+        real(dp) :: porosity                                        !! Soil porosity [%]
             !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]
@@ -119,19 +128,22 @@ module spcSoilProfile
         end function
 
         !> Perform the `SoilProfile`'s simulation for one timestep
-        function updateSoilProfile(me, t) result(r)
-            use Globals
+        function updateSoilProfile(me, t, j_np_diffuseSource) result(r)
+            use Globals, only: dp
             import SoilProfile, Result
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current time step
+            real(dp) :: j_np_diffuseSource(:,:,:)               !! Difffuse source of NM for this timestep
             type(Result) :: r                                   !! `Result` object to return
         end function
 
         !> Percolate water through the `SoilProfile` for the current time step
-        function percolateSoilProfile(me, t) result(r)
+        function percolateSoilProfile(me, t, j_np_diffuseSource) result(r)
+            use Globals, only: dp
             import SoilProfile, Result
             class(SoilProfile)  :: me                           !! This `SoilProfile` instance
             integer             :: t                            !! The current time step
+            real(dp)            :: j_np_diffuseSource(:,:,:)    !! Difffuse source of NM for this timestep
             type(Result)        :: r                            !! The `Result` object to return
         end function
 
@@ -146,7 +158,7 @@ module spcSoilProfile
         !> Impose a size class distribution on a total mass to split it up
         !! into separate size classes.
         function imposeSizeDistributionSoilProfile(me, mass) result(distribution)
-            use Globals
+            use Globals, only: dp, C
             import SoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             real(dp) :: mass                                    !! The mass to split into a distribution
