@@ -1,5 +1,6 @@
 module Globals
     use mo_netcdf
+    use datetime_module
     use ErrorCriteriaModule
     use ErrorInstanceModule
     implicit none
@@ -13,6 +14,7 @@ module Globals
         character(len=256)  :: inputFile
         character(len=256)  :: outputFile
         character(len=256)  :: logFilePath
+        type(datetime)      :: startDate                        !! Datetime object representing the start date
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
@@ -50,6 +52,7 @@ module Globals
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
+        integer :: npDim(3)                         !! Default dimensions for arrays of NM
 
       contains
         procedure :: rho_w      ! Density of water
@@ -73,16 +76,17 @@ module Globals
         character(len=256) :: configFilePath
         integer :: configFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, output_file, log_file_path
-        integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
+        character(len=256) :: input_file, output_file, log_file_path, start_date, startDateStr
+        integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
+            default_np_forms, default_np_extra_states
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
         logical :: error_output
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
-                                            default_fractional_comp_size
+                                            default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file
-        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
@@ -117,6 +121,8 @@ module Globals
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps
         C%epsilon = epsilon
+        startDateStr = start_date
+        C%startDate = strptime(startDateStr, "%Y-%m-%d")
         ! TODO: Change default grid size to array (x, y) so default can be rectangles
         C%defaultGridSize = default_grid_size
         C%defaultDistributionSediment = default_distribution_sediment
@@ -127,7 +133,6 @@ module Globals
         C%maxRiverReaches = max_river_reaches
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
-
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
@@ -210,6 +215,12 @@ module Globals
                 C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
             end if
         end do        
+
+        ! Array to store default NM array dimensions:
+        !   1: NP size class
+        !   2: form (core, shell, coating, corona)
+        !   3: state (free, bound, heteroaggregated)
+        C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
         
     end subroutine
 

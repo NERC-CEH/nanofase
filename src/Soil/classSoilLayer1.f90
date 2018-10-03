@@ -11,9 +11,9 @@ module classSoilLayer1
     type, public, extends(SoilLayer) :: SoilLayer1
       contains
         procedure :: create => createSoilLayer1
-        procedure :: destroy => destroySoilLayer1
         procedure :: update => updateSoilLayer1
         procedure :: addPooledWater => addPooledWaterSoilLayer1
+        procedure :: attachment => attachmentSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
     end type
 
@@ -38,6 +38,13 @@ module classSoilLayer1
         me%l = l
         me%ref = ref("SoilLayer", x, y, p, l)
 
+        ! Allocate and initialise variables
+        allocate(me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        allocate(me%m_np_perc(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
+        me%m_np_perc = 0.0_dp                           ! Just to be on the safe side
+        me%V_w = 0.0_dp                                 ! Set initial water content to 0 [m3/m2]
+
         ! Parse the input data into the object properties
         r = me%parseInputData()
 
@@ -45,40 +52,37 @@ module classSoilLayer1
         me%V_sat = WC_sat*me%depth
         me%V_FC = WC_FC*me%depth
         me%K_s = K_s                                    ! Hydraulic conductivity [m/s]
-        me%V_w = 0                                      ! Set initial water content to 0 [m3/m2]
 
-        ! Add this procedure to the Result trace
+        ! Add this procedure to error traces
         call r%addToTrace("Creating " // trim(me%ref))
-    end function
-
-    !> Destroy this `SoilLayer1`
-    function destroySoilLayer1(me) result(r)
-        class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
-        type(Result) :: r                               !! The `Result` object to return
     end function
 
     !> Update the `SoilLayer1` on a given time step, based on specified inflow.
     !! Calculate percolation to next layer and, if saturated, the amount
     !! to pool to the above layer (or surface runoff, if this is the top layer)
-    function updateSoilLayer1(me, t, Q_in) result(r)
+    function updateSoilLayer1(me, t, q_in, m_np_in) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer :: t                                    !! The current time step [s]
-        real(dp) :: Q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
+        real(dp) :: q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
+        real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         type(Result) :: r
             !! The `Result` object to return. Contains warning if all water on this time step removed.
 
         ! Set the inflow to this SoilLayer and store initial water in layer
-        me%Q_in = Q_in
+        me%q_in = q_in
         initial_V_w = me%V_w
 
+        ! Add in the NM from the above layer/source
+        me%m_np = me%m_np + m_np_in                             ! [kg]
+
         ! Setting volume of water, pooled water and excess water, based on inflow
-        if (me%V_w + me%Q_in < me%V_sat) then                      ! If water volume below V_sat after inflow
-            me%V_pool = 0                                       ! No pooled water
-            me%V_w = me%V_w + me%Q_in                              ! Update the volume based on inflow
+        if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
+            me%V_pool = 0.0_dp                                  ! No pooled water
+            me%V_w = me%V_w + me%q_in                           ! Update the volume based on inflow
             me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)         ! Volume of water above V_FC
-        else if (me%V_w + me%Q_in > me%V_sat) then                 ! Else, water pooled above V_sat
-            me%V_pool = me%V_w + me%Q_in - me%V_sat                ! Water pooled above V_sat
+        else if (me%V_w + me%q_in > me%V_sat) then              ! Else, water pooled above V_sat
+            me%V_pool = me%V_w + me%q_in - me%V_sat             ! Water pooled above V_sat
             me%V_w = me%V_sat                                   ! Volume of water must be V_sat
             me%V_excess = me%V_w - me%V_FC                      ! Volume must be above FC and so there is excess
         end if
@@ -86,12 +90,22 @@ module classSoilLayer1
         me%V_perc = min(me%V_excess * &                          
                         (1-exp(-C%timeStep*me%K_s/(me%V_sat-me%V_FC))), &   ! Up to a maximum of V_w
                         me%V_w)
-        me%V_w = me%V_w - me%V_perc                              ! Get rid of the percolated water
+        ! Use this to calculate the amount of nanomaterial percolated as a fraction of that in layer,
+        ! then remove this and the water. Check if (near) zero to avoid FPE.
+        if (isZero(me%V_perc)) then
+            me%m_np_perc = 0.0_dp
+        else
+            me%m_np_perc = (me%V_perc/me%V_w)*me%m_np               ! V_perc/V_w will be 1 at maximum
+        end if
+        me%m_np = me%m_np - me%m_np_perc                        ! Get rid of percolated NM
+        me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
+
+        print *, me%l, me%V_perc, sum(me%m_np_perc(:,1,1))
 
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
         ! Error code 600 = "All water removed from SoilLayer"
-        if (abs(me%V_w) <= C%epsilon .and. initial_V_w > 0) then
+        if (isZero(me%V_w) .and. initial_V_w > 0) then
             call r%addError(ErrorInstance(600, isCritical=.false.))
         end if
 
@@ -108,6 +122,17 @@ module classSoilLayer1
 
         me%V_pool = max(me%V_w + V_pool - me%V_sat, 0.0)  ! Will the input pooled water result in pooled water for this layer?
         me%V_w = min(me%V_w + V_pool, me%V_sat)         ! Add pooled water, up to a maximum of V_sat
+    end function
+
+    !> TODO move this to a Reactor of some sort
+    function attachmentSoilLayer1(me) result(r)
+        class(SoilLayer1) :: me
+        type(Result) :: r
+
+        ! See http://nanofase.eu/show/Attachment%20rate%20calculation_1035 for first-order
+        ! attachment rate coefficient
+
+        ! TODO for Sofia setting constant attachment rate might be best...
     end function
 
     !> Get the data from the input file and set object properties

@@ -2,6 +2,7 @@ module classDiffuseSource
     use Globals
     use UtilModule
     use ResultModule
+    use classDataInterfacer
     implicit none
     private
 
@@ -20,19 +21,11 @@ module classDiffuseSource
         procedure :: create => createDiffuseSource
         procedure :: update => updateDiffuseSource
         procedure :: parseInputData => parseInputDataDiffuseSource
-        procedure :: test
     end type
 
-    contains
+  contains
 
-    subroutine test(me)
-        class(DiffuseSource) :: me
-        print *, "starting DS test"
-        me%x = 0
-        print *, me%x
-        print *, "test completed"
-    end subroutine
-
+    !> Create this DiffuseSource object and retrieve data from the input data.
     function createDiffuseSource(me, x, y, s, parents) result(r)
         class(DiffuseSource) :: me          !! This `DiffuseSource` object
         integer :: x                        !! The containing `GridCell` x reference
@@ -41,71 +34,60 @@ module classDiffuseSource
         character(len=*), optional :: parents(:)    !! Array of refs for parent environmental compartments
         type(Result) :: r                   !! The `Result` object to return any errors in
 
-        call me%test()
-
-        print *, "starting to create diffuse source"
-
-        me%x = 0
-        print *, "me%x = 0"
-
         me%x = x
-        print *, "set x"
         me%y = y
-        print *, "set y"
         me%s = s
-        print *, "set x, y and s"
         ! Allocate nanomaterial arrays
-        print *, allocated(me%inputMass_timeSeries)
-        print *, allocated(me%j_np_diffuseSource)
-
         allocate(me%inputMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
         allocate(me%j_np_diffusesource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
-
-        print *, "nm arrays allocated"
-
         if (.not. present(parents)) allocate(me%parents(0))    ! If no parents given (i.e. we're in a GridCell), set to empty
+
         ! Parse the input data
         call r%addErrors(.errors. me%parseInputData())        
-
-        print *, "finished creating diffuse source"
     end function
 
+    !> Update this diffuse source's NP flux for the current timestep.
     function updateDiffuseSource(me, t) result(r)
         class(DiffuseSource) :: me
         integer :: t
         type(Result) :: r
         ! Get this time step's input mass
-        me%j_np_diffusesource = me%inputMass_timeSeries(t,:,:,:)
+        me%j_np_diffusesource = me%inputMass_timeSeries(t,:,:,:)        ! [kg/m2/timestep]
     end function
 
+    !> Parse the input data to get input masses from this diffuse source.
     function parseInputDataDiffuseSource(me) result(r)
         class(DiffuseSource) :: me          !! This `DiffuseSource` object
         type(Result) :: r                   !! Result object to return with any errors
-        type(NcDataset) :: nc               ! NetCDF dataset
-        type(NcVariable) :: var             ! NetCDF variable
-        type(NcGroup) :: grp                ! NetCDF group
         integer :: i                        ! Loop iterator
-        ! Open dataset and get this object's group
-        nc = NcDataset(C%inputFile, "r")
-        grp = nc%getGroup("Environment")
-        grp = grp%getGroup(trim(ref("GridCell", me%x ,me%y)))
-        ! Loop through the parent groups (if there are any)        
+        real(dp), allocatable :: atmosphericInput(:,:) ! Atmospheric input, only core, free NPs
+
+        ! Get the GridCell group, followed by any parent groups (if there are any).
+        ! Parent groups are things like SoilProfile.
+        call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
+            'Environment', &
+            ref('GridCell', me%x, me%y) &
+        ]))
         do i = 1, size(me%parents)
-            grp = grp%getGroup(trim(me%parents(i)))
+            DATA%grp = DATA%grp%getGroup(trim(me%parents(i)))
         end do
-        ! The containing waterbody should have already checked this PointSource exists
-        if (me%s == 1 .and. grp%hasGroup("DiffuseSource")) then
-            me%ncGroup = grp%getGroup("DiffuseSource")
+
+        ! Get the DiffuseSource group. The containing object should have already
+        ! checked that it exists
+        if (me%s == 1 .and. DATA%grp%hasGroup("DiffuseSource")) then
+            DATA%grp = DATA%grp%getGroup("DiffuseSource")
         else
-            me%ncGroup = grp%getGroup("DiffuseSource_" // trim(str(me%s)))
+            DATA%grp = DATA%grp%getGroup("DiffuseSource_" // trim(str(me%s)))
         end if
 
-        ! If a fixed mass input has been specified
-        if (me%ncGroup%hasVariable("input_mass")) then
-            var = me%ncGroup%getVariable("input_mass")
-            call var%getData(me%inputMass_timeSeries)
-        else
-            me%inputMass_timeSeries = 0.0_dp        ! Default to no input
+        ! If a fixed mass input has been specified, get it.
+        call r%addErrors(.errors. DATA%get('input_mass', me%inputMass_timeSeries, 0.0_dp))      ! [kg/m2/s]
+        me%inputMass_timeSeries = me%inputMass_timeSeries*C%timeStep                            ! Convert to kg/m2/timestep
+
+        ! If an atmospheric fixed mass input has been specified, get it
+        if (DATA%grp%hasVariable('input_mass_atmospheric')) then
+            call r%addErrors(.errors. DATA%get('input_mass_atmospheric', atmosphericInput))     ! [kg/m2/s]
+            me%inputMass_timeSeries(:,:,1,1) = atmosphericInput                                 ! Only add to free, core NP
         end if
     end function
 

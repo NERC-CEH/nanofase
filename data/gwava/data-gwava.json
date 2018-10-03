@@ -1,0 +1,18 @@
+{
+	"dimensions": {
+		"t" : 1095,
+		"s" : 5,
+		"n" : 5,
+		"f" : 4,
+		"river_reach_ref" : 3
+	},
+	"global" : {
+		"spm_size_classes[s]" : [ 1e-6, 3e-6, 10e-6, 30e-6, 100e-6 ],
+		"np_size_classes[n]" : [ 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ],
+		"spm_particle_densities[f]" : [ 1500, 2600, 2600, 2600 ],
+		"default_distribution_sediment[s]" : [ 50, 30, 10, 7, 3 ],
+		"default_distribution_np[n]" : [ 50, 30, 10, 7, 3 ],
+		"T_water[t]" : 15
+	},	
+	"Environment": "file::gwava.json"
+}

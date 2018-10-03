@@ -1,7 +1,9 @@
 &allocatable_array_sizes
-default_distribution_sediment_size = 5,
+default_distribution_sediment_size = 5
 default_distribution_np_size = 5
 default_fractional_comp_size = 4
+default_np_forms = 4
+default_np_extra_states = 2
 /
 
 &data
@@ -12,6 +14,7 @@ output_file = "data/output.csv"
 &run
 timestep = 86400,
 n_timesteps = 1095,
+start_date = "2015-01-01",
 epsilon = 1e-10,
 error_output = .true.
 log_file_path = "log/"
