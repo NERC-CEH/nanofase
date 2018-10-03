@@ -11,10 +11,14 @@ program main
 
     real :: start, finish                                               ! Simulation start and finish times
     type(Result) :: r                                                   ! Result object
-    integer :: x, y, rr, t                                              ! Loop iterator
+    integer :: x, y, rr, t, i                                           ! Loop iterators
     real(dp) :: m_spm(5)
     type(Environment1) :: env                                           ! Environment object
     real(dp) :: m_np(5, 4, 7)
+    real(dp) :: m_np_l1(5, 4, 7)
+    real(dp) :: m_np_l2(5, 4, 7)
+    real(dp) :: m_np_l3(5, 4, 7)
+    real(dp) :: m_np_l4(5, 4, 7)
     real(dp) :: C_np(5, 4, 7)
     real(dp) :: npDep(5, 4, 7)
     real(dp) :: m_np_hetero(5, 5)
@@ -39,7 +43,9 @@ program main
     open(unit=2, file=C%outputFile)                                      ! Open the output data file
     open(unit=3, file='data/output_erosion.csv')
     open(unit=4, file='data/output_hetero_vs_free.csv')
+    open(unit=5, file='data/output_soil.csv')
     write(2, '(A)') "t, x, y, rr, total_m_np, total_C_np, total_np_dep, total_m_sediment, total_np_runoff, total_spm"
+    write(5, '(A)') "t, x, y, l1, l2, l3, l4"
 
     call cpu_time(start)                                                ! Simulation start time
     r = env%create()                                                    ! Create the environment
@@ -57,19 +63,17 @@ program main
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
                     write(3,*) t, ", ", x, ", ", y, ", ", &
                          sum(env%colGridCells(x,y)%item%erodedSediment)
-                    do rr = 1, env%colGridCells(x,y)%item%nRiverReaches ! Loop through the RiverReaches
+
+                    ! RiverReachs
+                    do rr = 1, env%colGridCells(x,y)%item%nRiverReaches
                         m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
                         m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_out
                         C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_dep
                         bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
-                        !bedSedimentMass = 0
                         spmRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
                         ! Write to the data file
-                        !write(2,'(i4,A,i2,A,i2,A,i2,A,F12.3,A,F12.3,A,F12.3,a,f12.3,a,f12.3)') t, ", ", x, ", ", y, ", ", rr, ", ", &
-                        !    m_spm(1), ", ", m_spm(2), ", ", m_spm(3), ", ", m_spm(4), ", ", m_spm(5)
-                        
                         write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A)') t, ",", x, ",", y, ",", rr, ",", &
                                 trim(str(sum(m_np))), ",", trim(str(sum(C_np))), ",", trim(str(sum(npDep))), &
                                 ",", trim(str(bedSedimentMass)), ",", trim(str(spmRunoff)), ",", trim(str(sum(m_spm)))
@@ -81,6 +85,13 @@ program main
                             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,1)) + &
                             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_out(:,1,1))
                     end do
+
+                    m_np_l1 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np
+                    m_np_l2 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%m_np
+                    m_np_l3 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%m_np
+                    m_np_l4 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(4)%item%m_np
+                    write(5,*) t, ", ", x, ", ", y, ", ", &
+                        sum(m_np_l1), ", ", sum(m_np_l2), ", ", sum(m_np_l3), ", ", sum(m_np_l4)
                 end if
             end do
         end do

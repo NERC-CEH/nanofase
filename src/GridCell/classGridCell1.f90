@@ -489,7 +489,7 @@ module classGridCell1
         call r%addErrors([ &
             .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
             .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
-            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &
+            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
             .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
             .errors. DATA%get('slope', me%slope), &
             .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
@@ -498,7 +498,7 @@ module classGridCell1
         ! Convert to m/timestep
         me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep      
         me%q_quickflow_timeSeries = me%q_quickflow_timeSeries*C%timeStep
-        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep / (1000.0 * 86400.0)
+        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep
         me%q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep
         
         ! Try and set the group to the demands group. It will produce an error if group

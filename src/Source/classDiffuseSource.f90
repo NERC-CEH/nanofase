@@ -52,7 +52,7 @@ module classDiffuseSource
         integer :: t
         type(Result) :: r
         ! Get this time step's input mass
-        me%j_np_diffusesource = me%inputMass_timeSeries(t,:,:,:)
+        me%j_np_diffusesource = me%inputMass_timeSeries(t,:,:,:)        ! [kg/m2/timestep]
     end function
 
     !> Parse the input data to get input masses from this diffuse source.

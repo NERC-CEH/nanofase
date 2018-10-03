@@ -45,6 +45,7 @@ module spcSoilProfile
         integer :: siltContent                                      !! Silt content of the soil [%]
         integer :: clayContent                                      !! Clay content of the soil [%]
         integer :: coarseFragContent                                !! Coarse fragment content of the soil [%]
+        real(dp) :: porosity                                        !! Soil porosity [%]
             !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]

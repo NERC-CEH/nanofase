@@ -66,7 +66,7 @@ module spcReactor
             real(dp) :: W_settle_np(C%nSizeClassesNP)   !! NP settling velocity [m/s]
             real(dp) :: W_settle_spm(C%nSizeClassesSpm) !! SPM settling velocity [m/s]
             real(dp) :: G                               !! Shear rate [s-1]
-            real(dp) :: volume                     !! `RiverReach` volume on this timestep [s-1]
+            real(dp) :: volume                          !! `RiverReach` volume on this timestep [s-1]
             real(dp) :: Q_out                           !! Outflow for the containing water body [m3/timestep]
             type(Result) :: r
         end function
