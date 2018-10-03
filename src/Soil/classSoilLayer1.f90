@@ -13,6 +13,7 @@ module classSoilLayer1
         procedure :: create => createSoilLayer1
         procedure :: update => updateSoilLayer1
         procedure :: addPooledWater => addPooledWaterSoilLayer1
+        procedure :: attachment => attachmentSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
     end type
 
@@ -77,7 +78,7 @@ module classSoilLayer1
 
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
-            me%V_pool = 0                                       ! No pooled water
+            me%V_pool = 0.0_dp                                  ! No pooled water
             me%V_w = me%V_w + me%q_in                           ! Update the volume based on inflow
             me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)         ! Volume of water above V_FC
         else if (me%V_w + me%q_in > me%V_sat) then              ! Else, water pooled above V_sat
@@ -99,6 +100,8 @@ module classSoilLayer1
         me%m_np = me%m_np - me%m_np_perc                        ! Get rid of percolated NM
         me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
 
+        print *, me%l, me%V_perc, sum(me%m_np_perc(:,1,1))
+
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
         ! Error code 600 = "All water removed from SoilLayer"
@@ -119,6 +122,17 @@ module classSoilLayer1
 
         me%V_pool = max(me%V_w + V_pool - me%V_sat, 0.0)  ! Will the input pooled water result in pooled water for this layer?
         me%V_w = min(me%V_w + V_pool, me%V_sat)         ! Add pooled water, up to a maximum of V_sat
+    end function
+
+    !> TODO move this to a Reactor of some sort
+    function attachmentSoilLayer1(me) result(r)
+        class(SoilLayer1) :: me
+        type(Result) :: r
+
+        ! See http://nanofase.eu/show/Attachment%20rate%20calculation_1035 for first-order
+        ! attachment rate coefficient
+
+        ! TODO for Sofia setting constant attachment rate might be best...
     end function
 
     !> Get the data from the input file and set object properties

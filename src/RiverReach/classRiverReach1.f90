@@ -109,7 +109,7 @@ module classRiverReach1
         ! TODO: Get the type of BedSediment from the data file, and check for allst
         ! TODO: Sort out BedSediment errors
         allocate(BedSediment1::me%bedSediment)
-        ! call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
         
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
@@ -130,7 +130,6 @@ module classRiverReach1
         end if
         
         call r%addToTrace('Creating ' // trim(me%ref))
-        call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
 

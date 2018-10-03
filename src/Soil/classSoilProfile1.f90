@@ -69,9 +69,9 @@ module classSoilProfile1
         me%slope = slope
         me%n_river = n_river
         me%area = area                                      ! Surface area
-        allocate(me%q_quickflow_timeSeries, source=q_quickflow_timeSeries)
-        allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)
-        allocate(me%q_evap_timeSeries, source=q_evap_timeSeries)
+        allocate(me%q_quickflow_timeSeries, source=q_quickflow_timeSeries)      ! [m/timestep]
+        allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)            ! [m/timestep]
+        allocate(me%q_evap_timeSeries, source=q_evap_timeSeries)                ! [m/timestep]
         me%V_buried = 0.0_dp                                ! Volume of water "lost" from the bottom of SoilProfile
         me%m_np_buried = 0.0_dp                             ! Mass of NM "lost" from the bottom of the SoilProfile
         me%m_np = 0.0_dp                                    ! Nanomaterial mass
@@ -111,7 +111,7 @@ module classSoilProfile1
         type(Result) :: r                                       !! Result object to return
         
         ! Set the timestep-specific object properties
-        me%q_quickflow = me%q_quickflow_timeSeries(t)           ! Set the runoff (quickflow) for this timestep [m/s]
+        me%q_quickflow = me%q_quickflow_timeSeries(t)           ! Set the runoff (quickflow) for this timestep [m/timestep] TODO check units
         ! TODO get rid of q_surf - not needed by soil erosion any more
         me%q_surf = 0.1*me%q_quickflow                          ! Surface runoff = 10% of quickflow [m/timestep]
         me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
@@ -128,6 +128,9 @@ module classSoilProfile1
             .errors. me%erode(t) &
         ])
 
+        ! Remove buried NM
+        me%m_np = me%m_np - me%m_np_buried
+
         ! Add this procedure to the Result object's trace                               
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
@@ -140,7 +143,7 @@ module classSoilProfile1
     function percolateSoilProfile1(me, t, j_np_diffuseSource) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile1` instance
         integer             :: t                                !! The current time step
-        real(dp)            :: j_np_diffuseSource(:,:,:)        !! Difffuse source of NM for this timestep
+        real(dp)            :: j_np_diffuseSource(:,:,:)        !! Difffuse source of NM for this timestep [kg/m2/s]
         type(Result)        :: r                                !! The `Result` object to return
         integer             :: l, i                             ! Loop iterator for SoilLayers
         real(dp)            :: q_l_in                           ! Temporary water inflow for a particular SoilLayer
@@ -245,7 +248,7 @@ module classSoilProfile1
         ! number of 0001-01-01.
         currentDate = C%startDate + timedelta(days=t)
         julianDay = date2num(currentDate) + 1721423
-        ! Then calculate the kinetic energy [J/m2/day]. Precip in [mm/day].
+        ! Then calculate the kinetic energy [J/m2/day]. Precip needs converting to [mm/day] from [m/timestep].
         E_k = (me%erosivity_a1 + me%erosivity_a2 * cos(julianDay * (2*C%pi/365) + me%erosivity_a3)) &
                 * (me%q_precip_timeSeries(t)*1.0e3)**me%erosivity_b
         ! Now the modified MMF version of K, dependent on sand, silt and clay content [g/J]
@@ -303,6 +306,7 @@ module classSoilProfile1
             .errors. DATA%get('sand_content', me%sandContent), &
             .errors. DATA%get('silt_content', me%siltContent), &
             .errors. DATA%get('clay_content', me%clayContent), &
+            .errors. DATA%get('porosity', me%porosity, 50.0_dp), &
             .errors. DATA%get('coarse_frag_content', me%coarseFragContent), &
             .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
         ])
