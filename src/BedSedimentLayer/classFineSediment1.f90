@@ -9,6 +9,7 @@ module classFineSediment1
     type, public :: FineSediment1
         character(len=256) :: name = "Undefined BedSediment"         !! A name for the object
         real(dp), private :: M_f_l                                   !! LOCAL fine sediment mass [kg m-2]
+        real(dp), private :: M_f_l_backup                            !! LOCAL backup copy of fine sediment mass [kg m-2]
         real(dp), private :: V_w_l                                   !! LOCAL volume of water associated with fine sediment [m3 m-2]
         real(dp), allocatable :: f_comp(:)                           !! Fractional composition [-]
         real(dp), allocatable :: pd_comp(:)                          !! LOCAL storage of fractional particle densities [kg m-3]
@@ -20,6 +21,8 @@ module classFineSediment1
         procedure, public :: set => setFS1                           ! set properties, using either fine sediment volume or mass
         procedure, public :: V_f => getFSVol1                        ! returns the fine sediment volume [m3 m-2]
         procedure, public :: M_f => getFSMass1                       ! returns the fine sediment mass [kg m-2]
+        procedure, public :: M_f_backup => getFSMassBackup1          ! returns the backup fine sediment mass [kg m-2]
+        procedure, public :: backup_M_f => setFSMassBackup1          ! back up the fine sediment mass [kg m-2]
         procedure, public :: V_w => getWVol1                         ! returns the water volume [kg m-2]
         procedure, public :: rho_part => pdens1                      ! returns the fine sediment particle density [kg m-3]
         procedure, public :: audit_comp => audit_fcomp1              ! check the fractional composition
@@ -310,6 +313,29 @@ module classFineSediment1
                                                                      ! Output: Mf = Fine sediment mass
             Mf = Me%M_f_l                                            ! fine sediment mass computation
         end function
+        !> **Function purpose**                                     <br>
+        !! PropertyGet: return the backup fine sediment mass [kg m-2]
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! Fine sediment mass [kg m-2]
+        function getFSMassBackup1(Me) result(Mf)
+            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+            real(dp) :: Mf                                           !! The return value
+                                                                     ! function to return the fine sediment mass [kg m-2]
+                                                                     ! Output: Mf = Fine sediment mass
+            Mf = Me%M_f_l_backup                                     ! fine sediment mass computation
+        end function
+        !> **Subroutine purpose**                                   <br>
+        !! back up the fine sediment mass [kg m-2]
+        !!                                                          <br>
+        !! **Function outputs/outcomes**                            <br>
+        !! none
+        subroutine setFSMassBackup1(Me)
+            class(FineSediment1), intent(inout) :: Me                !! Self-reference
+            real(dp) :: Mf                                           !! The return value
+                                                                     ! function to return the fine sediment mass [kg m-2]
+            Me%M_f_l_backup = Me%M_f_l                               ! fine sediment mass backup
+        end subroutine
         !> **Function purpose**                                     <br>
         !! PropertyGet: return the water volume [m3 m-2]
         !!                                                          <br>
