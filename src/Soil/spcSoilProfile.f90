@@ -24,6 +24,7 @@ module spcSoilProfile
         ! Nanomaterial
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
         real(dp), allocatable :: m_np_buried(:,:,:)                 !! Cumulative mass of NM "lost" from the bottom `SoilLayer` [kg]
+        real(dp), allocatable :: m_np_eroded(:,:,:)                 !! Mass of NM eroded on current timestep [kg]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
         real(dp), allocatable :: q_quickflow_timeSeries(:)          !! Time series of runoff (quickflow) data [m3 m-2 s-1]
@@ -46,6 +47,7 @@ module spcSoilProfile
         integer :: clayContent                                      !! Clay content of the soil [%]
         integer :: coarseFragContent                                !! Coarse fragment content of the soil [%]
         real(dp) :: porosity                                        !! Soil porosity [%]
+        real(dp) :: bulkDensity                                     !! Soil bulk density [kg/m3]
             !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]

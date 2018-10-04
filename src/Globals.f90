@@ -13,6 +13,7 @@ module Globals
         ! Config
         character(len=256)  :: inputFile
         character(len=256)  :: outputFile
+        character(len=256)  :: outputPath
         character(len=256)  :: logFilePath
         type(datetime)      :: startDate                        !! Datetime object representing the start date
         integer             :: timeStep                         !! The timestep to run the model on [s]
@@ -76,7 +77,7 @@ module Globals
         character(len=256) :: configFilePath
         integer :: configFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, output_file, log_file_path, start_date, startDateStr
+        character(len=256) :: input_file, output_file, output_path, log_file_path, start_date, startDateStr
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
             default_np_forms, default_np_extra_states
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
@@ -85,7 +86,7 @@ module Globals
         logical :: error_output
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
-        namelist /data/ input_file, output_file
+        namelist /data/ input_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth
@@ -117,6 +118,7 @@ module Globals
         ! Store this data in the Globals variable
         C%inputFile = input_file
         C%outputFile = output_file
+        C%outputPath = output_path
         C%logFilePath = log_file_path
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps

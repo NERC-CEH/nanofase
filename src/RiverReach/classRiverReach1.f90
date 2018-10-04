@@ -112,6 +112,7 @@ module classRiverReach1
         ! TODO: Get the type of BedSediment from the data file, and check for allst
         allocate(BedSediment1::me%bedSediment)
         call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
         call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
@@ -292,16 +293,19 @@ module classRiverReach1
                                                                      ! from Result object (1D array => 1D array)
             dj_spm_res = Me%k_spm_res * mbed * dt                    ! the mass of sediment resuspending on each displacement [kg]
             
-            print *, "Bed sediment before resuspension"
-            call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
+            ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
+            ! AND WITH REASONABLE RUNTIME
+
+            ! print *, "Bed sediment before resuspension"
+            ! call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
             
-            call r%addErrors(.errors. &
-                Me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
-            if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
+            ! call r%addErrors(.errors. &
+            !     Me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
+            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
             
-            print *, "Bed sediment after resuspension"
-            call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
-            call print_matrix(Me%bedSediment%delta_sed)
+            ! print *, "Bed sediment after resuspension"
+            ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
+            ! call print_matrix(Me%bedSediment%delta_sed)
             
             call r%addErrors(.errors. Me%depositToBed(dspmDep))      ! add deposited SPM to BedSediment 
             if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
@@ -502,6 +506,10 @@ module classRiverReach1
                 f_comp_in=C%defaultFractionalComp/100.0_dp &
             ))
         end do
+        
+        ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
+        ! AND WITH REASONABLE RUNTIME
+
         ! Deposit the fine sediment to the bed sediment
         depositRslt = Me%bedSediment%deposit(fineSediment)
         call r%addErrors(.errors. depositRslt)
@@ -518,6 +526,7 @@ module classRiverReach1
         ! since the depth is recalculated based on hydrology at the start
         ! of every time step.
         me%D = me%D - V_water_toDeposit
+
         ! Add any errors that occured in the deposit procedure
         call r%addToTrace("Depositing SPM to BedSediment")
     end function

@@ -72,4 +72,4 @@ Python must be installed to run the script. The script can be run either by `./n
 You might want to consider adding an alias to save having to type `./nanofase.py` each time you want to run the script. For example, adding `alias nf="/path/to/nanofase/dir/nanofase.py"` will make the script runable by `nf <option>` from any directory.
 =======
 You might wanted to consider adding an alias to save having to type `./nanofase.py` each time you want to run the script. For example, adding `alias nf="/path/to/nanofase/dir/nanofase.py"` will make the script runable by `nf <option>` from any directory.
->>>>>>> steve
+>>>>>>> 37aff9502a504663a68dd79917a6806709c58ae2
