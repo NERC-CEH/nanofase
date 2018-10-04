@@ -298,6 +298,11 @@ module classRiverReach1
             call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
             call print_matrix(Me%bedSediment%delta_sed)
             
+            call r%AddErrors(.errors. &
+                Me%bedSediment%getmatrix(dj_spm_dep/Me%bedArea, &
+                                         dj_spm_res/Me%bedArea))
+            call print_matrix(Me%bedSediment%delta_sed)
+            
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             me%C_spm = me%m_spm / me%volume                          ! Update the SPM concentration
             ! Other stuff, like abstraction, to go here.

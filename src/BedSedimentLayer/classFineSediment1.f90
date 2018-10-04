@@ -299,7 +299,11 @@ module classFineSediment1
             real(dp) :: Vf                                           !! The return value
                                                                      ! function to return the fine sediment volume [m3 m-2]
                                                                      ! Output: Vf = Fine sediment volume
-            Vf = Me%M_f_l / Me%rho_part()                            ! fine sediment volume computation
+            if (Me%M_f_l == 0) then
+                Vf = 0                                               ! failsafe for the absence of sediment   
+            else
+                Vf = Me%M_f_l / Me%rho_part()                        ! fine sediment volume computation
+            end if
         end function
         !> **Function purpose**                                     <br>
         !! PropertyGet: return the fine sediment mass [kg m-2]
