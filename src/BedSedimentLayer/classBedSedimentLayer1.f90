@@ -584,17 +584,20 @@ module classBedSedimentLayer1
             end if
             A_w_SC = .real. r0D                                      ! static local copy of water capacity
             associate(O => Me%colFineSediment(S))                    ! association for brevity
+                !
+                !call O%repstat("Depositing sediment into:")
+                !
                 M_f_SC = O%M_f()                                     ! fine sediment mass in layer
                 V_f_SC = O%V_f()                                     ! fine sediment volume in layer
                 V_w_SC = O%V_w()                                     ! water volume in layer
                 if (add_V_f > A_f_SC) then                           ! added volume exceeds the available capacity; cannot all be added
                     V_f_SC = Me%C_f_l(S)                             ! set fine sediment volume to capacity
-                    add_V_f = add_V_f - A_f_SC                       ! volume that could not be added
                     V_f_added = V_f_SC - A_f_SC                      ! volume added
+                    add_V_f = A_f_SC                                 ! volume that could not be added
                 else                                                 ! added volume does not exceed the fine sediment capacity; can all be added
                     V_f_SC = V_f_SC + add_V_f                        ! addition of fine sediment volume
-                    add_V_f = 0                                      ! return zero volume not added
                     V_f_added = add_V_f                              ! volume added
+                    add_V_f = 0                                      ! return zero volume not added
                 end if
                 if (add_V_w > A_w_SC) then                           ! added volume exceeds the available capacity; cannot all be added
                     V_w_SC = Me%C_w_l(S)                             ! set water volume to capacity
@@ -795,7 +798,7 @@ module classBedSedimentLayer1
                 return                                               ! exit here
             end if
             associate (O => Me%colFineSediment(S))
-                d = O%M_f()                                          ! use d to store initial mass of fine sediment in the layer
+                d = O%M_f_backup()                                   ! use d to store initial mass of fine sediment in the layer
                 V_f_SC = O%V_f()                                     ! static local copy of fine sediment volume
                 V_w_SC = O%V_w()                                     ! static local copy of water volume
                 if (V_f_SC_r > V_f_SC) then

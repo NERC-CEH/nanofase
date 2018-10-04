@@ -168,7 +168,7 @@ module classRiverReach1
         real(dp) :: dQ_in                                   ! Q_in for each displacement
         real(dp) :: dj_spm_in(C%nSizeClassesSpm)            ! j_spm_in for each displacement
         real(dp) :: dj_np_in(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! j_np_in for each displacement
-        real(dp) :: dSpmDep(C%nSizeClassesSpm)              ! Deposited SPM for each displacement
+        real(dp) :: dj_spm_dep(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dj_spm_out(C%nSizeClassesSpm)           ! SPM outflow for the displacement
@@ -267,20 +267,19 @@ module classRiverReach1
             me%m_spm = me%m_spm + dj_spm_in                          ! Add inflow SPM to SPM already in reach
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             ! If we've removed all of the SPM, set to 0
-            dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)         ! Up to a maximum of the mass of SPM currently in reach
-
-            do s = 1, C%nSizeClassesSpm
-                ! Check if dSpmDep (and thus me%m_spm) is zero to avoid numerical errors
-                ! SPM deposited doesn't include resuspension
+            dj_spm_dep = min(me%k_settle*dt*me%m_spm, me%m_spm)      ! Up to a maximum of the mass of SPM currently in reach
+            ! Check if dSpmDep (and thus me%m_spm) is zero to avoid numerical errors
+            ! SPM deposited doesn't include resuspension
+            do s = 1, C%nSizeClassesSpm 
                 if (isZero(dSpmDep(s))) then
                     fractionSpmDep(s) = fractionSpmDep(s)
                 else
                     fractionSpmDep(s) = fractionSpmDep(s) + dSpmDep(s)/me%m_spm(s)
                 end if
             end do
-
-            me%m_spm = me%m_spm - dSpmDep
-            me%spmDep = me%spmDep + dSpmDep                          ! Keep track of deposited SPM for this time step
+            fractionSpmDep = fractionSpmDep + dj_spm_dep/me%m_spm    ! Doesn't include resuspension
+            me%m_spm = me%m_spm - dj_spm_dep
+            me%spmDep = me%spmDep + dj_spm_dep                       ! Keep track of deposited SPM for this time step
             ! Set the fraction of total SPM that is deposited (including resuspension),
             ! for use in calculating heteroaggregated NP deposition
 
@@ -307,7 +306,7 @@ module classRiverReach1
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
             ! call print_matrix(Me%bedSediment%delta_sed)
             
-            call r%addErrors(.errors. Me%depositToBed(dspmDep))      ! add deposited SPM to BedSediment 
+            call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
             if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
         
             print *, "Bed sediment after deposition"
