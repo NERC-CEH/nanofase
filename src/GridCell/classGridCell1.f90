@@ -63,12 +63,14 @@ module classGridCell1
 
         ! Only carry on if there's stuff to be simulated for this GridCell
         if (me%isEmpty .eqv. .false.) then
+
             r = me%parseInputData()                         ! Parse and store input data in this object
 
             ! Create the DiffuseSource object(s), if this cell has any
             if (me%hasDiffuseSource) then
                 do s = 1, size(me%diffuseSources, 1)
-                    call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
+                    print *, me%x, me%y, s
+                    call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s))
                 end do
             end if
 
@@ -369,7 +371,8 @@ module classGridCell1
                 ! river length in this GridCell
                 lengthRatio = me%colRiverReaches(rr)%item%l/sum(me%branchLengths)
                 ! HACK to set NP runoff to 1e-9 SPM runoff
-                j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
+                ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
+                j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded
                 ! Update the reach for this timestep
                 call r%addErrors(.errors. &
                     me%colRiverReaches(rr)%item%update( &

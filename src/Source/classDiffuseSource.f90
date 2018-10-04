@@ -11,8 +11,8 @@ module classDiffuseSource
         integer :: y                                !! `GridCell` y reference
         integer :: s                                !! Reference for this `DiffuseSource`
         character(100), allocatable :: parents(:)
-            !! Array of character references to parent environmental compartments, e.g.
-            !! ['GridCell_1_1', 'RiverReach_1_1_1']
+            !! Array of character references to parent environmental compartments,
+            !! from GridCell up, e.g. ['RiverReach_1_1_1'].
         type(NcGroup) :: ncGroup                    !! NetCDF group for this `PointSource` object
         real(dp), allocatable :: inputMass_timeSeries(:,:,:,:)  !! Time series of input nanomaterial masses [kg/m2]
         real(dp), allocatable :: j_np_diffusesource(:,:,:)      !! Nanomaterial input for a given time step [(kg/m2)/timestep]
@@ -40,7 +40,11 @@ module classDiffuseSource
         ! Allocate nanomaterial arrays
         allocate(me%inputMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
         allocate(me%j_np_diffusesource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
-        if (.not. present(parents)) allocate(me%parents(0))    ! If no parents given (i.e. we're in a GridCell), set to empty
+        if (.not. present(parents)) then
+            allocate(me%parents(0))     ! If no parents given (i.e. we're in a GridCell), set to empty
+        else
+            me%parents = parents
+        end if
 
         ! Parse the input data
         call r%addErrors(.errors. me%parseInputData())        

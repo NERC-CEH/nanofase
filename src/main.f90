@@ -24,7 +24,7 @@ program main
     real(dp) :: m_np_hetero(5, 5)
     real(dp) :: m_np_free
     real(dp) :: bedSedimentMass
-    real(dp) :: spmRunoff
+    real(dp) :: npRunoff
     type(datetime) :: currentDate
 
     ! Set up global vars and constants, and initialise data interfacer.
@@ -40,12 +40,13 @@ program main
     call LOG%toConsole("--------------------------------\n")
     call DATA%init(C%inputFile)
 
-    open(unit=2, file=C%outputFile)                                      ! Open the output data file
-    open(unit=3, file='data/output_erosion.csv')
-    open(unit=4, file='data/output_hetero_vs_free.csv')
-    open(unit=5, file='data/output_soil.csv')
+    open(unit=2, file=trim(C%outputPath) // C%outputFile)                                      ! Open the output data file
+    open(unit=3, file=trim(C%outputPath) // 'output_erosion.csv')
+    open(unit=4, file=trim(C%outputPath) // 'output_hetero_vs_free.csv')
+    open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     write(2, '(A)') "t, x, y, rr, total_m_np, total_C_np, total_np_dep, total_m_sediment, total_np_runoff, total_spm"
-    write(5, '(A)') "t, x, y, l1, l2, l3, l4"
+    write(5, '(A,A)') "t, x, y, m_np_l1_free, m_np_l2_free, m_np_l3_free, m_np_l4_free,", &
+        "m_np_l1_att, m_np_l2_att, m_np_l3_att, m_np_l4_att"
 
     call cpu_time(start)                                                ! Simulation start time
     r = env%create()                                                    ! Create the environment
@@ -72,11 +73,11 @@ program main
                         C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_dep
                         bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
-                        spmRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
+                        npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
                         ! Write to the data file
                         write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A)') t, ",", x, ",", y, ",", rr, ",", &
                                 trim(str(sum(m_np))), ",", trim(str(sum(C_np))), ",", trim(str(sum(npDep))), &
-                                ",", trim(str(bedSedimentMass)), ",", trim(str(spmRunoff)), ",", trim(str(sum(m_spm)))
+                                ",", trim(str(bedSedimentMass)), ",", trim(str(npRunoff)), ",", trim(str(sum(m_spm)))
                         
                         m_np_hetero = m_np_hetero + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &
@@ -91,7 +92,9 @@ program main
                     m_np_l3 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%m_np
                     m_np_l4 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(4)%item%m_np
                     write(5,*) t, ", ", x, ", ", y, ", ", &
-                        sum(m_np_l1), ", ", sum(m_np_l2), ", ", sum(m_np_l3), ", ", sum(m_np_l4)
+                        sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
+                        sum(m_np_l4(:,1,1)), ", ", sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
+                        sum(m_np_l3(:,1,2)), ", ", sum(m_np_l4(:,1,2))
                 end if
             end do
         end do

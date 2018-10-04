@@ -19,12 +19,12 @@ module spcSoilLayer
         real(dp) :: depth                                           !! Layer depth [m]
         type(NcGroup) :: ncGroup                                    !! NetCDF group for this object
         ! Soil properties
-        real(dp) :: bdens                                           !! Bulk density [kg/m3]
         real(dp) :: pH                                              !! Porewater pH
         real(dp) :: SOM                                             !! Soil organic matter content [% w/w]
         ! Nanomaterials
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in layer [kg]
         real(dp), allocatable :: m_np_perc(:,:,:)                   !! Mass of NM percolating to layer below on given timestep [kg]
+        real(dp), allocatable :: m_np_eroded(:,:,:)                 !! Mass of NM eroded on given timestep [kg]
         ! Hydrology
         real(dp) :: Q_in                                            !! Inflow to this `SoilLayer` [m3 m-2 s-1]
         real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
@@ -38,6 +38,7 @@ module spcSoilLayer
         procedure(createSoilLayer), deferred :: create              ! Create the SoilLayer object
         procedure(updateSoilLayer), deferred :: update              ! Update on every timestep (e.g., perform soil percolation)
         procedure(addPooledWaterSoilLayer), deferred :: addPooledWater  ! Add pooled water to this layer
+        procedure(erodeSoilLayer), deferred :: erode                ! Erode NM from the top soil layer
         procedure(parseInputDataSoilLayer), deferred :: parseInputData ! Parse data from the input file for this SoilLayer
         ! Non-deferred procedures
         procedure :: setV_pool
@@ -88,6 +89,18 @@ module spcSoilLayer
             class(SoilLayer) :: me                          !! This `SoilLayer` instance
             real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
             type(Result) :: r                               !! The `Result` object to return, with no data
+        end function
+
+        !> Erode NM from this soil layer
+        function erodeSoilLayer(me, erodedSediment, bulkDensity, area) result(r)
+            use ResultModule, only: Result
+            use Globals, only: dp, C
+            import SoilLayer
+            class(SoilLayer) :: me
+            real(dp) :: erodedSediment(:)
+            real(dp)            :: bulkDensity
+            real(dp)            :: area
+            type(Result) :: r
         end function
 
         !> Parse the data input for this SoilLayer

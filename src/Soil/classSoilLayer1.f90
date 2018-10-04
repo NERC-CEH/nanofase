@@ -13,6 +13,7 @@ module classSoilLayer1
         procedure :: create => createSoilLayer1
         procedure :: update => updateSoilLayer1
         procedure :: addPooledWater => addPooledWaterSoilLayer1
+        procedure :: erode => erodeSoilLayer1
         procedure :: attachment => attachmentSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
     end type
@@ -41,8 +42,10 @@ module classSoilLayer1
         ! Allocate and initialise variables
         allocate(me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
         allocate(me%m_np_perc(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        allocate(me%m_np_eroded(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
         me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
         me%m_np_perc = 0.0_dp                           ! Just to be on the safe side
+        me%m_np_eroded = 0.0_dp
         me%V_w = 0.0_dp                                 ! Set initial water content to 0 [m3/m2]
 
         ! Parse the input data into the object properties
@@ -76,6 +79,9 @@ module classSoilLayer1
         ! Add in the NM from the above layer/source
         me%m_np = me%m_np + m_np_in                             ! [kg]
 
+        ! Attachment
+        call me%attachment()                                    ! Transfers free -> attached
+
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
             me%V_pool = 0.0_dp                                  ! No pooled water
@@ -95,12 +101,12 @@ module classSoilLayer1
         if (isZero(me%V_perc)) then
             me%m_np_perc = 0.0_dp
         else
-            me%m_np_perc = (me%V_perc/me%V_w)*me%m_np               ! V_perc/V_w will be 1 at maximum
+            ! Only free (porewater) particles will percolate, otherise m_np_perc is 0
+            me%m_np_perc = 0.0_dp
+            me%m_np_perc(:,1,1) = (me%V_perc/me%V_w)*me%m_np(:,1,1)     ! V_perc/V_w will be 1 at maximum
         end if
         me%m_np = me%m_np - me%m_np_perc                        ! Get rid of percolated NM
         me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
-
-        print *, me%l, me%V_perc, sum(me%m_np_perc(:,1,1))
 
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
@@ -125,14 +131,35 @@ module classSoilLayer1
     end function
 
     !> TODO move this to a Reactor of some sort
-    function attachmentSoilLayer1(me) result(r)
-        class(SoilLayer1) :: me
-        type(Result) :: r
+    subroutine attachmentSoilLayer1(me)
+        class(SoilLayer1)   :: me
+        real(dp)            :: k_att
+        real(dp)            :: dm_att(C%nSizeClassesNP)
+        ! HACK Set to attachment rate as in SB4N SI for the moment:
+        ! https://pubs.acs.org/doi/suppl/10.1021/es500548h/suppl_file/es500548h_si_001.pdf
+        k_att = 3.65e-3_dp              ! [s-1]
+        dm_att = min(k_att*C%timeStep*me%m_np(:,1,1), me%m_np(:,1,1))           ! Mass to move from free -> attached, max of the current mass
+        me%m_np(:,1,1) = me%m_np(:,1,1) - dm_att                                ! Remove from free
+        me%m_np(:,1,2) = me%m_np(:,1,2) + dm_att                                ! Add to attached (bound)
+    end subroutine
 
-        ! See http://nanofase.eu/show/Attachment%20rate%20calculation_1035 for first-order
-        ! attachment rate coefficient
-
-        ! TODO for Sofia setting constant attachment rate might be best...
+    !> Erode NM from this soil layer
+    !! TODO bulk density could be stored in this object, not passed
+    function erodeSoilLayer1(me, erodedSediment, bulkDensity, area) result(r)
+        class(SoilLayer1)   :: me
+        real(dp)            :: erodedSediment(:)
+        real(dp)            :: bulkDensity
+        real(dp)            :: area
+        type(Result)        :: r
+        real(dp)            :: m_soil_l1
+        real(dp)            :: propEroded
+        real(dp)            :: erodedNP(C%nSizeClassesNp)
+        ! Calculate the mass of the soil in this soil layer
+        m_soil_l1 = bulkDensity * area * me%depth
+        propEroded = sum(erodedSediment)/m_soil_l1
+        erodedNP = me%m_np(:,1,2)*propEroded                ! Only erode attached NM
+        me%m_np(:,1,2) = me%m_np(:,1,2) - erodedNP          ! Remove the eroded NM from the layer
+        me%m_np_eroded(:,1,2) = erodedNP
     end function
 
     !> Get the data from the input file and set object properties

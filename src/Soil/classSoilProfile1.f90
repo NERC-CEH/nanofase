@@ -61,7 +61,8 @@ module classSoilProfile1
             me%erodedSediment(C%nTimeSteps), &
             me%distributionSediment(C%nSizeClassesSpm), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)))
+            me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)))
         ! Initialise variables
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
@@ -75,6 +76,7 @@ module classSoilProfile1
         me%V_buried = 0.0_dp                                ! Volume of water "lost" from the bottom of SoilProfile
         me%m_np_buried = 0.0_dp                             ! Mass of NM "lost" from the bottom of the SoilProfile
         me%m_np = 0.0_dp                                    ! Nanomaterial mass
+        me%m_np_eroded = 0.0_dp
         
         ! Parse and store input data in this object's properties
         call r%addErrors(.errors. me%parseInputData())
@@ -124,11 +126,12 @@ module classSoilProfile1
         
         ! Perform percolation and erosion simluation
         call r%addErrors([ &
-            .errors. me%percolate(t, j_np_diffuseSource), &
-            .errors. me%erode(t) &
+            .errors. me%erode(t), &
+            .errors. me%percolate(t, j_np_diffuseSource) &
         ])
 
-        ! Remove buried NM
+        ! Remove buried NM (eroded NM removed in me%erode)
+        ! TODO unify where me%m_np is updated (or deprecate, see me%erode())
         me%m_np = me%m_np - me%m_np_buried
 
         ! Add this procedure to the Result object's trace                               
@@ -240,6 +243,10 @@ module classSoilProfile1
         real(dp)            :: erodedSedimentTotal
         type(datetime)      :: currentDate
         integer             :: julianDay
+        real(dp)            :: m_soil_l1
+        real(dp)            :: propEroded
+        real(dp)            :: erodedNP(C%nSizeClassesNp)
+        integer             :: i
 
         ! TODO This function only works with daily timesteps
 
@@ -257,6 +264,23 @@ module classSoilProfile1
         erodedSedimentTotal = E_k * K_MMF * me%usle_C(t) * me%usle_P * me%usle_LS
         ! Split this into a size distribution and convert to [kg/m2/day]
         me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
+        
+        ! The top soil layer deals with eroding NM
+        call rslt%addErrors(.errors. me%colSoilLayers(1)%item%erode(me%erodedSediment, me%bulkDensity, me%area))
+        ! Remove this eroded soil from the total m_np in the profile
+        ! TODO Depracate me%m_np for the whole profile, as it
+        ! means updating NM mass in both the profile and the individual layers
+
+        do i = 1, C%nSizeClassesNP
+            ! TODO think about this more
+            ! Transfer NM eroded from attached to heteroaggregated, by imposing the size distribution
+            ! as for eroded SPM. The logic here is that the soil the NM is attached to will end up
+            ! as SPM and thus the NM attached it will be heteroaggregated rather than attached/bound.
+            me%m_np_eroded(i,1,3:) = me%imposeSizeDistribution(me%colSoilLayers(1)%item%m_np_eroded(i,1,2))
+        end do
+
+        me%m_np_eroded(:,1,2) = me%colSoilLayers(1)%item%m_np_eroded(:,1,2)
+        me%m_np(:,1,2) = me%m_np(:,1,2) - me%m_np_eroded(:,1,2)     ! Remove the eroded NM from the soil
     end function
 
     !> Impose a size class distribution on a total mass to split it up
@@ -308,9 +332,11 @@ module classSoilProfile1
             .errors. DATA%get('clay_content', me%clayContent), &
             .errors. DATA%get('porosity', me%porosity, 50.0_dp), &
             .errors. DATA%get('coarse_frag_content', me%coarseFragContent), &
+            .errors. DATA%get('bulk_density', me%bulkDensity), &
             .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
         ])
         allocate(me%colSoilLayers(me%nSoilLayers))
+        me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from t/m3 to kg/m3
 
         ! Auditing
         call r%addError( &
