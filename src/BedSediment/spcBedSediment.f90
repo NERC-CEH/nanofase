@@ -42,6 +42,8 @@ module spcBedSediment
             repMass                                                  ! report fine sediment masses to the console
         procedure(InitialiseMTCMatrix), public, deferred :: &
             initMatrix                                               ! initialise mass transfer coefficient matrix
+        procedure(FinaliseMTCMatrix), public, deferred :: &
+            getMatrix                                                ! finalise mass transfer coefficient matrix
                                                                      ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
         procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
@@ -52,6 +54,30 @@ module spcBedSediment
         procedure, public :: Mf_bed_by_size => Get_Mf_bed_by_size    ! fine sediment mass in all size classes (1D array by size)
     end type
     abstract interface
+        !> **Function purpose**                                         <br>
+        !! Derive a mass transfer coefficient matrix
+        !!                                                              <br>
+        !! **Function inputs**
+        !! mtcmat: 3D matrix (layers + 3, layers + 3, size classes)
+        !! containing the absolute mass transfers for deposition, 
+        !! resuspension, layers and burial
+        !! djdep: deposition fluxes by size class [kg/m2]
+        !! djres: resuspension fluxes by size class [kg/m2]             <br>
+        !!
+        !! **Function outputs/outcomes**                                <br>
+        !! mtcmat: 3D matrix (layers + 3, layers + 3, size classes)
+        !! containing the mass transfers coefficients for deposition, 
+        !! resuspension, layers and burial
+        !! objects
+        function FinaliseMTCMatrix(Me, djdep, djres) result(r)
+            use ResultModule, only: Result
+            use Globals, only: dp
+            import BedSediment
+            class(BedSediment) :: Me                                 !! Self-reference
+            real(dp) :: djdep(:)                                     !! deposition fluxes by size class [kg/m2]
+            real(dp) :: djres(:)                                     !! resuspension fluxes by size class [kg/m2]
+            type(Result) :: r                                        !! Returned `Result` object
+        end function
         !> **Function purpose:** <br>
         !! Initialise a `BedSediment` object.
         !!                                                          <br>
@@ -146,11 +172,11 @@ module spcBedSediment
         !! r (ResultFineSediment2D) returns resuspended fine sediments
         !!
         !! ----------------------------------------------------------------------------------
-        function resuspendSediment(Me, M_resusp) result(r)
+        function resuspendSediment(Me, FS_resusp) result(r)
             use Globals
             import ResultFineSediment2D, BedSediment
             class(BedSediment) :: Me                                     !! Self-reference
-            real(dp) :: M_resusp(:)                                      !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+            real(dp) :: FS_resusp(:)                                     !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
             type(ResultFineSediment2D) :: r                              !! Returned `Result` object
         end function
         !> **Function purpose**                                   
