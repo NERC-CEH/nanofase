@@ -16,6 +16,7 @@ module classSoilLayer1
         procedure :: erode => erodeSoilLayer1
         procedure :: attachment => attachmentSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
+        procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer1
     end type
 
   contains
@@ -160,6 +161,11 @@ module classSoilLayer1
         erodedNP = me%m_np(:,1,2)*propEroded                ! Only erode attached NM
         me%m_np(:,1,2) = me%m_np(:,1,2) - erodedNP          ! Remove the eroded NM from the layer
         me%m_np_eroded(:,1,2) = erodedNP
+    end function
+
+    function calculateBioturbationRateSoilLayer1(me) result(bioturbationRate)
+        class(SoilLayer1) :: me
+        real(dp) :: bioturbationRate
     end function
 
     !> Get the data from the input file and set object properties

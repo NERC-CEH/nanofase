@@ -40,6 +40,7 @@ module spcSoilLayer
         procedure(addPooledWaterSoilLayer), deferred :: addPooledWater  ! Add pooled water to this layer
         procedure(erodeSoilLayer), deferred :: erode                ! Erode NM from the top soil layer
         procedure(parseInputDataSoilLayer), deferred :: parseInputData ! Parse data from the input file for this SoilLayer
+        procedure(calculateBioturbationRateSoilLayer), deferred :: calculateBioturbationRate
         ! Non-deferred procedures
         procedure :: setV_pool
     end type
