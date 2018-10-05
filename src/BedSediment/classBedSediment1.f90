@@ -642,8 +642,8 @@ module classBedSediment1
             end if
         end do
     
-        print *, "Sediment after burial"
-        call Me%repMass
+        ! print *, "Sediment after burial"
+        ! call Me%repMass
 
         do S = 1, Me%nSizeClasses                                    ! now add in the depositing sediment, work by size class
             M_f_dep = FS_dep(S)%M_f()                                ! store the total amount of sediment in this size class being deposited, for computation of deltas                 

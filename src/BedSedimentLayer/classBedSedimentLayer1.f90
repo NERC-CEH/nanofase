@@ -688,10 +688,10 @@ module classBedSedimentLayer1
                 if (V_f_SC_r > V_f_SC) then
                     V_f_SC_r = V_f_SC                                ! amount of sediment to be removed exceeds amount in layer, 
                     V_w_SC_r = V_w_SC                                ! so set volumes of sediment and water to be removed to the layer totals
-                    print *, "!"
-                    print *, "Volumes of fine sediment and water to be removed exceed that in layer."
-                    print *, "Adjusted volume of fine sediment to be removed [m3/m2]: ", V_f_SC_r
-                    print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
+                    ! print *, "!"
+                    ! print *, "Volumes of fine sediment and water to be removed exceed that in layer."
+                    ! print *, "Adjusted volume of fine sediment to be removed [m3/m2]: ", V_f_SC_r
+                    ! print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
                 else                                                 ! need to compute volume of water to be removed - equal proportion of water present as to sediment present
                     if (G%V_w() == 0) then
                         V_w_SC_r = V_f_SC_r / .dp. Me%volSLR(S)      ! water volume to be removed, computed from the solid:liquid ratio for the layer, if no value is supplied
@@ -699,8 +699,8 @@ module classBedSedimentLayer1
                         V_w_SC_r = G%V_w()                           ! water volume as supplied
                     end if
                 end if
-                print *, "!"
-                print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
+                ! print *, "!"
+                ! print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
                 call r%addErrors(.errors. O%set( &
                                    Vf_in = V_f_SC - V_f_SC_r, &
                                    Vw_in = V_w_SC - V_w_SC_r &

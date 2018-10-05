@@ -109,7 +109,7 @@ module classSoilProfile1
     function updateSoilProfile1(me, t, j_np_diffuseSource) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         integer :: t                                            !! The current timestep
-        real(dp) :: j_np_diffuseSource(:,:,:)                   !! Diffuse source of NM for this timestep
+        real(dp) :: j_np_diffuseSource(:,:,:)                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
         
         ! Set the timestep-specific object properties
@@ -146,7 +146,7 @@ module classSoilProfile1
     function percolateSoilProfile1(me, t, j_np_diffuseSource) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile1` instance
         integer             :: t                                !! The current time step
-        real(dp)            :: j_np_diffuseSource(:,:,:)        !! Difffuse source of NM for this timestep [kg/m2/s]
+        real(dp)            :: j_np_diffuseSource(:,:,:)        !! Difffuse source of NM for this timestep [kg/m2/timestep]
         type(Result)        :: r                                !! The `Result` object to return
         integer             :: l, i                             ! Loop iterator for SoilLayers
         real(dp)            :: q_l_in                           ! Temporary water inflow for a particular SoilLayer
@@ -276,7 +276,7 @@ module classSoilProfile1
             ! Transfer NM eroded from attached to heteroaggregated, by imposing the size distribution
             ! as for eroded SPM. The logic here is that the soil the NM is attached to will end up
             ! as SPM and thus the NM attached it will be heteroaggregated rather than attached/bound.
-            me%m_np_eroded(i,1,3:) = me%imposeSizeDistribution(me%colSoilLayers(1)%item%m_np_eroded(i,1,2))
+            me%m_np_eroded(i,1,3:) = me%imposeSizeDistribution(me%colSoilLayers(1)%item%m_np_eroded(i,1,2))     ! [kg/timestep]
         end do
 
         me%m_np_eroded(:,1,2) = me%colSoilLayers(1)%item%m_np_eroded(:,1,2)

@@ -17,7 +17,7 @@ timestep = 86400
 n_timesteps = 365
 start_date = "2015-01-01"
 epsilon = 1e-50,
-error_output = .true.
+error_output = .false.
 log_file_path = "log/"
 /
 

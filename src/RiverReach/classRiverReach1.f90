@@ -101,7 +101,6 @@ module classRiverReach1
         call me%setDefaults()
         
         if (r%hasCriticalError()) return                ! exit if allocation has thrown an error
-
         ! Get data from the input data file
         call r%addErrors(.errors. me%parseInputData())
 
@@ -123,14 +122,12 @@ module classRiverReach1
                 call r%addErrors(.errors. me%pointSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
             end do
         end if
-
         ! Create the DiffuseSource object(s), if this reach has any
         if (me%hasDiffuseSource) then
             do s = 1, size(me%diffuseSources)
                 call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
             end do
         end if
-        
         call r%addToTrace('Creating ' // trim(me%ref))
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
@@ -154,7 +151,7 @@ module classRiverReach1
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
         integer :: t                                        !! Current time step [s]
         real(dp) :: j_spm_runoff(:)                         !! Eroded sediment runoff to this reach
-        real(dp), optional :: j_np_runoff(:,:,:)            !! Eroded sediment runoff to this reach
+        real(dp), optional :: j_np_runoff(:,:,:)            !! Eroded sediment runoff to this reach [kg/timestep]
         type(Result) :: r                                   !! `Result` object to return
         type(Result1D) :: r1D                               ! Temporary `Result1D` object to hold return values in
         real(dp) :: Q_in                                    ! Total inflow to this reach [m3/timestep]
@@ -204,24 +201,6 @@ module classRiverReach1
         ! Water temperature
         me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
 
-        ! Loop through point sources and get their inputs (if there are any):
-        ! Run the update method, which sets PointSource's j_np_pointsource variable
-        ! for this time step. j_np_pointsource = 0 if there isn't a point source
-        if (me%hasPointSource) then
-            do s = 1, size(me%pointSources)
-                call r%addErrors(.errors. me%pointSources(s)%update(t))
-                me%j_np_in = me%j_np_in + me%pointSources(s)%j_np_pointSource
-            end do
-        end if
-        ! Same for diffuse sources
-        ! TODO What units will reach-specific diffuse source input data be in?
-        if (me%hasDiffuseSource) then
-            do s = 1, size(me%diffuseSources)
-                call r%addErrors(.errors. me%diffuseSources(s)%update(t))
-                me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource
-            end do
-        end if
-
         ! Calculate the depth, velocity, area and volume
         me%W = me%calculateWidth(me%Q_in/C%timeStep)
         D = me%calculateDepth(me%W, me%slope, me%Q_in/C%timeStep)
@@ -231,6 +210,23 @@ module classRiverReach1
         me%xsArea = me%calculateArea(me%D, me%W)            ! Calculate the cross-sectional area of the reach [m2]
         me%bedArea = me%W*me%l*me%f_m                       ! Calculate the BedSediment area [m2]
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m) ! Reach volume
+
+        ! Loop through point sources and get their inputs (if there are any):
+        ! Run the update method, which sets PointSource's j_np_pointsource variable
+        ! for this time step. j_np_pointsource = 0 if there isn't a point source
+        if (me%hasPointSource) then
+            do s = 1, size(me%pointSources)
+                call r%addErrors(.errors. me%pointSources(s)%update(t))
+                me%j_np_in = me%j_np_in + me%pointSources(s)%j_np_pointSource
+            end do
+        end if
+        ! Same for diffuse sources, convert j_np_diffuseSource from kg/m2/timestep to kg/reach/timestep
+        if (me%hasDiffuseSource) then
+            do s = 1, size(me%diffuseSources)
+                call r%addErrors(.errors. me%diffuseSources(s)%update(t))
+                me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource*me%bedArea
+            end do
+        end if
 
         ! Set the resuspension rate Me%k_spm_res and settling rate Me%k_settle
         ! (but don't acutally settle until we're looping through
@@ -268,16 +264,15 @@ module classRiverReach1
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             ! If we've removed all of the SPM, set to 0
             dj_spm_dep = min(me%k_settle*dt*me%m_spm, me%m_spm)      ! Up to a maximum of the mass of SPM currently in reach
-            ! Check if dSpmDep (and thus me%m_spm) is zero to avoid numerical errors
+            ! Check if dj_spm_dep (and thus me%m_spm) is zero to avoid numerical errors
             ! SPM deposited doesn't include resuspension
             do s = 1, C%nSizeClassesSpm 
-                if (isZero(dSpmDep(s))) then
+                if (isZero(dj_spm_dep(s))) then
                     fractionSpmDep(s) = fractionSpmDep(s)
                 else
-                    fractionSpmDep(s) = fractionSpmDep(s) + dSpmDep(s)/me%m_spm(s)
+                    fractionSpmDep(s) = fractionSpmDep(s) + dj_spm_dep(s)/me%m_spm(s)
                 end if
             end do
-            fractionSpmDep = fractionSpmDep + dj_spm_dep/me%m_spm    ! Doesn't include resuspension
             me%m_spm = me%m_spm - dj_spm_dep
             me%spmDep = me%spmDep + dj_spm_dep                       ! Keep track of deposited SPM for this time step
             ! Set the fraction of total SPM that is deposited (including resuspension),
@@ -306,12 +301,12 @@ module classRiverReach1
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
             ! call print_matrix(Me%bedSediment%delta_sed)
             
-            call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
-            if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
+            ! call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
+            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
         
-            print *, "Bed sediment after deposition"
-            call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
-            call print_matrix(Me%bedSediment%delta_sed)
+            ! print *, "Bed sediment after deposition"
+            ! call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
+            ! call print_matrix(Me%bedSediment%delta_sed)
             
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             ! Update the concentration. isZero check used to avoid numerical errors
@@ -513,8 +508,8 @@ module classRiverReach1
         depositRslt = Me%bedSediment%deposit(fineSediment)
         call r%addErrors(.errors. depositRslt)
         if (r%hasCriticalError()) then
-            print *, "Error in DepositSediment"
-            call r%addToTrace("Depositing SPM to BedSediment")
+            ! print *, "Error in DepositSediment"
+            ! call r%addToTrace("Depositing SPM to BedSediment")
             return
         end if
         ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
@@ -562,6 +557,7 @@ module classRiverReach1
             allocate(me%pointSources(1))
             i = 2               ! Any extra point sources?
             do while (DATA%grp%hasGroup("PointSource_" // trim(str(i))))
+                deallocate(me%pointSources)
                 allocate(me%pointSources(i))
                 i = i+1
             end do
