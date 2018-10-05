@@ -354,6 +354,18 @@ module classBedSediment1
                 end associate
             end do
         end do
+        
+        !do S = 1, Me%nSizeClasses
+        !    do L = 1, Me%nLayers
+        !        delta_l_r(L, S) = 0.0_dp                             ! initialise the delta_l_r values
+        !        associate(O => Me%colBedSedimentLayers(L)%item)      ! association for brevity
+        !                    print '(20f15.10)', &
+        !                        O%colFineSediment(S)%M_f_backup()
+        !        end associate
+        !    end do
+        !end do
+        !print *, ""
+
                                                                      ! main loop
                                                                      ! for each size class (1 to S), remove the required amount of fine sediment
                                                                      ! from the bed, by looping through each layer from top to bottom
@@ -586,7 +598,8 @@ module classBedSediment1
                                 O(L)%item%colFineSediment(S)%M_f()   ! delta l -> b
                             delta_l_l(L, L, S) = -1 * &
                                 O(L)%item%colFineSediment(S)%M_f()   ! delta l -> l
-                            call O(L)%item%clearAll()                ! fractional compositions from all layers for this size class
+                            call &
+                            O(L)%item%colFineSediment(S)%ClearAll()  ! fractional compositions from all layers for this size class
                         end do
                         delta_d_b(S) = dep_excess * &
                             FS_dep(S)%rho_part()                     ! delta for deposition to burial
