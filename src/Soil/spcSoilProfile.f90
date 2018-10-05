@@ -41,13 +41,14 @@ module spcSoilProfile
         real(dp) :: WC_FC                                           !! Water content at field capacity [m3 m-3]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
         real(dp) :: V_buried                                        !! Volume of buried water (from the bottom `SoilLayer`) [m3 m-2]
-        ! Soil texture. Sand + silt + clay = 100 %
+        ! Soil properties. Sand + silt + clay = 100 %
         integer :: sandContent                                      !! Sand content of the soil [%]
         integer :: siltContent                                      !! Silt content of the soil [%]
         integer :: clayContent                                      !! Clay content of the soil [%]
         integer :: coarseFragContent                                !! Coarse fragment content of the soil [%]
         real(dp) :: porosity                                        !! Soil porosity [%]
         real(dp) :: bulkDensity                                     !! Soil bulk density [kg/m3]
+        real(dp) :: earthwormDensity
             !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]
@@ -60,6 +61,8 @@ module spcSoilProfile
         real(dp) :: erosivity_a3                                    !! Rainfall erosivity seasonal variability parameter
         real(dp) :: erosivity_I30                                   !! Maximum half-hour rainfall [mm/hr]
         real(dp) :: erosivity_b                                     !! Rainfall erosivity parameter
+        real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
+        integer, allocatable :: distributionSediment(:)             !! Distribution to split sediment into
 
         ! ------------------------------------
         ! TODO Q_peak parameters - to be deprecated
@@ -73,8 +76,6 @@ module spcSoilProfile
         real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
         !--------------------------------------
 
-        real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
-        integer, allocatable :: distributionSediment(:)             !! Distribution to split sediment into
 
       contains
         procedure(createSoilProfile), deferred :: create                    ! Create the SoilProfile object
