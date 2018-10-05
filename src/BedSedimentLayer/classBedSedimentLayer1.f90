@@ -850,12 +850,11 @@ module classBedSedimentLayer1
             end if
         end function
         !> **Subroutine purpose**                                   <br>
-        !! Remove sediment of a specified size fraction, and associated water,
+        !! Remove sediment of all size classes, and associated water,
         !! from a bed sediment layer
         !!                                                          <br>
         !! **Subroutine inputs**                                    <br>
         !! `S (integer)`: the size class from which sediment is to be removed <br>
-        !! `G (FineSediment1)`: sediment to be removed
         !!                                                          <br>
         !! **Subroutine outcomes**                                  <br>
         !! Values of sediment mass, water volume and fractional composition set to zero

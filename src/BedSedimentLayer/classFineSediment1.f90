@@ -430,6 +430,7 @@ module classFineSediment1
             class(FineSediment1) :: Me                               !! The `FineSediment` instance
             integer :: X                                             ! LOCAL loop counter
             Me%M_f_l = 0                                             ! clear fine sediment mass
+            !Me%M_f_l_backup = 0                                      ! clear backup fine sediment mass
             Me%V_w_l = 0                                             ! clear water volume
             do X = 1, Me%nfComp                                      ! clear fractional composition
                 Me%f_comp(X) = 0
