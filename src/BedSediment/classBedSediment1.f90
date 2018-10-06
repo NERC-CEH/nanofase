@@ -47,8 +47,16 @@ module classBedSediment1
         integer :: LL                                                ! LOCAL loop counter
         integer :: S                                                 ! LOCAL loop counter
         
-        djdep(1) = 0.9_dp
+        !djdep(1) = 0.0001_dp
+        !djdep(2) = 0.0001_dp
+        !djdep(3) = 0.0001_dp
+        !djdep(4) = 0.0001_dp
+        !djdep(5) = 0.0001_dp
         djres(1) = 0.0_dp
+        djres(2) = 0.0_dp
+        djres(3) = 0.0_dp
+        djres(4) = 0.0_dp
+        djres(5) = 0.0_dp
         
         do S = 1, Me%nSizeClasses
             do L = 3, Me%nLayers + 3 
@@ -279,9 +287,11 @@ module classBedSediment1
         ! do the references to Me%nSizeClasses and Me%nLayers preclude making this a pure function?
         ! -----------------------------------------------------------------------------------------
         
-        do S = 1, Me%nSizeClasses
-            FS_resusp(S) = 0.0_dp
-        end do
+        FS_resusp(1) = 0.0_dp
+        FS_resusp(2) = 0.0_dp
+        FS_resusp(3) = 0.0_dp
+        FS_resusp(4) = 0.0_dp
+        FS_resusp(5) = 0.0_dp
         
         tr = trim(Me%name) // "%resuspendSediment1"                  ! error trace for this procedure
         if (size(FS_resusp) /= Me%nSizeClasses) then                 ! check for correct number of size classes
@@ -487,7 +497,11 @@ module classBedSediment1
         !       do it is not a problem as it will be overwritten.
         ! -------------------------------------------------------------------------------
         
-        call r%addErrors(.errors. FS_dep(1)%set(Mf_in = 0.9_dp))      
+        !call r%addErrors(.errors. FS_dep(1)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(2)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(3)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(4)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(5)%set(Mf_in = 0.0001_dp))      
         
         tr = trim(Me%name) // "%DepositSediment1"                    ! object and procedure binding name as trace
         if (size(FS_dep) /= Me%nSizeClasses) &
@@ -576,6 +590,7 @@ module classBedSediment1
             end if
         end do
         do S = 1, Me%nSizeClasses                                    ! initialise all delta values
+            delta_d_b(S) = 0.0_dp                                    ! interlayer and same layer transfers to zero  
             do L = 1, Me%nLayers                                     ! deposition and burial to zero
                 delta_d_l(L, S) = 0.0_dp                             ! interlayer and same layer transfers to zero  
                 delta_l_b(L, S) = 0.0_dp                             
@@ -740,6 +755,7 @@ module classBedSediment1
                 end if
             end if
         end do
+
         print *, "Sediment after burial"
         call Me%repMass
 
