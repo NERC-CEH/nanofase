@@ -166,6 +166,9 @@ module classSoilLayer1
     function calculateBioturbationRateSoilLayer1(me) result(bioturbationRate)
         class(SoilLayer1) :: me
         real(dp) :: bioturbationRate
+        real(dp) :: earthwormDensity = 0.01e8     ! [worms/m3]
+        real(dp) :: bioturb_alpha = 1.341e-14
+        bioturbationRate = (earthwormDensity * bioturb_alpha) / me%depth
     end function
 
     !> Get the data from the input file and set object properties

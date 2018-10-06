@@ -19,8 +19,82 @@ module classBedSediment1
         procedure, public :: resuspend => ResuspendSediment1         ! resuspend sediment to water column
         procedure, public :: repmass => ReportBedMassToConsole1      ! report mass of fine sediment in each layer to console [kg/m2]
         procedure, public :: initmatrix => initialiseMatrix1         ! initialise mass transfer coefficient matrix
+        procedure, public :: getmatrix => getMTCMatrix1              ! derives mass transfer coefficient matrix for sediment
     end type
-  contains
+    contains
+    !> **Function purpose**                                         <br>
+    !! Derive a mass transfer coefficient matrix
+    !!                                                              <br>
+    !! **Function inputs**
+    !! mtcmat: 3D matrix (layers + 3, layers + 3, size classes)
+    !! containing the absolute mass transfers for deposition, 
+    !! resuspension, layers and burial
+    !! djdep: deposition fluxes by size class [kg/m2]
+    !! djres: resuspension fluxes by size class [kg/m2]             <br>
+    !!
+    !! **Function outputs/outcomes**                                <br>
+    !! mtcmat: 3D matrix (layers + 3, layers + 3, size classes)
+    !! containing the mass transfers coefficients for deposition, 
+    !! resuspension, layers and burial
+    !! objects
+    function getMTCMatrix1(Me, djdep, djres) result(r)
+        class(BedSediment1) :: Me                                    !! Self-reference
+        real(dp) :: djdep(:)                                         !! deposition fluxes by size class [kg/m2]
+        real(dp) :: djres(:)                                         !! resuspension fluxes by size class [kg/m2]
+        type(Result) :: r                                            !! Returned `Result` object
+        real(dp) :: ml                                               ! LOCAL holds initial sediment layer masses [kg/m2]
+        integer :: L                                                 ! LOCAL loop counter
+        integer :: LL                                                ! LOCAL loop counter
+        integer :: S                                                 ! LOCAL loop counter
+        
+        !djdep(1) = 0.0001_dp
+        !djdep(2) = 0.0001_dp
+        !djdep(3) = 0.0001_dp
+        !djdep(4) = 0.0001_dp
+        !djdep(5) = 0.0001_dp
+        djres(1) = 0.0_dp
+        djres(2) = 0.0_dp
+        djres(3) = 0.0_dp
+        djres(4) = 0.0_dp
+        djres(5) = 0.0_dp
+        
+        do S = 1, Me%nSizeClasses
+            do L = 3, Me%nLayers + 3 
+                if (djdep(S) /= 0) then
+                    Me%delta_sed(L, 1, S) = &
+                        Me%delta_sed(L, 1, S) / djdep(S)             ! d -> l and d-> b
+                else
+                    Me%delta_sed(L, 1, S) = 0                        ! failsafe if no deposition
+                end if 
+            end do
+            do LL = 3, Me%nLayers + 2
+                if (djres(S) /= 0) then
+                    Me%delta_sed(2, LL, S) = &
+                        Me%delta_sed(2, LL, S) / djres(S)            ! l -> r
+                else
+                    Me%delta_sed(2, LL, S) = 0                       ! failsafe if no resuspension
+                end if
+            end do
+            do L = 3, Me%nLayers + 3
+                do LL = 3, Me%nLayers + 2
+                    ml = Me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
+                    if (ml /= 0) then
+                        if (L == LL) then
+                            if (Me%delta_sed(L, LL, S) /= 0) then 
+                                Me%delta_sed(L, LL, S) = &
+                                (ml + Me%delta_sed(L, LL, S)) / ml   ! l -> l where l=l ('same-layer' transfers) and there is a mass transfer out of the layer
+                            end if
+                        else
+                            Me%delta_sed(L, LL, S) = &
+                                Me%delta_sed(L, LL, S) / ml          ! l -> l wherel/=l (interlayer transfers)
+                        end if
+                    else
+                        Me%delta_sed(L, LL, S) = 0                   ! failsafe if no sediment initially in layer 
+                    end if
+                end do
+            end do
+        end do
+    end function
     !> **Function purpose**                                         <br>
     !! Initialise a BedSediment object.
     !!                                                              <br>
@@ -184,14 +258,14 @@ module classBedSediment1
     !! associated water
     !!                                                              <br>
     !! **Function inputs**
-    !! `M_resusp (real, dp)`: 1D array of fine sediment masses to be resuspended [kg m-2]
+    !! `FS_resusp (real, dp)`: 1D array of fine sediment masses to be resuspended [kg m-2]
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! Returns a warning if the resuspended mass in a size class exceeds the mass in the
     !! sediment bed. `r` returns resuspended fine sediments as type `ResultFineSediment2D`
-    function resuspendSediment1(Me, M_resusp) result(r)
+    function resuspendSediment1(Me, FS_resusp) result(r)
         class(BedSediment1) :: Me                                    !! Self-reference
-        real(dp) :: M_resusp(:)                                      !! Sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
+        real(dp) :: FS_resusp(:)                                      !! Sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
         type(ResultFineSediment2D) :: r                              !! Returned `Result` object. Type = `FineSediment`
         type(FineSediment1), allocatable :: FS(:,:)                  ! LOCAL resuspended fine sediment. Index 1 = size class, Index 2 = layer
         type(FineSediment1), allocatable :: F                        ! LOCAL FineSediment object representing material to be resuspended
@@ -213,12 +287,14 @@ module classBedSediment1
         ! do the references to Me%nSizeClasses and Me%nLayers preclude making this a pure function?
         ! -----------------------------------------------------------------------------------------
         
-        do S = 1, Me%nSizeClasses
-            M_resusp(S) = 0.0_dp
-        end do
+        FS_resusp(1) = 0.0_dp
+        FS_resusp(2) = 0.0_dp
+        FS_resusp(3) = 0.0_dp
+        FS_resusp(4) = 0.0_dp
+        FS_resusp(5) = 0.0_dp
         
         tr = trim(Me%name) // "%resuspendSediment1"                  ! error trace for this procedure
-        if (size(M_resusp) /= Me%nSizeClasses) then                  ! check for correct number of size classes
+        if (size(FS_resusp) /= Me%nSizeClasses) then                 ! check for correct number of size classes
             call r%addError(ErrorInstance( &
                             code = 1, &
                             message = "Number of resuspended &
@@ -288,34 +364,46 @@ module classBedSediment1
                 end associate
             end do
         end do
+        
+        !do S = 1, Me%nSizeClasses
+        !    do L = 1, Me%nLayers
+        !        delta_l_r(L, S) = 0.0_dp                             ! initialise the delta_l_r values
+        !        associate(O => Me%colBedSedimentLayers(L)%item)      ! association for brevity
+        !                    print '(20f15.10)', &
+        !                        O%colFineSediment(S)%M_f_backup()
+        !        end associate
+        !    end do
+        !end do
+        !print *, ""
+
                                                                      ! main loop
                                                                      ! for each size class (1 to S), remove the required amount of fine sediment
                                                                      ! from the bed, by looping through each layer from top to bottom
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
-            call r%addErrors( .errors. F%set(Mf_in = M_resusp(S)))   ! set up F with the mass of fine sediment in this size class to be resuspended [kg]
+            call r%addErrors( .errors. F%set(Mf_in = FS_resusp(S)))   ! set up F with the mass of fine sediment in this size class to be resuspended [kg]
             if (r%hasCriticalError()) then
                 call r%addToTrace(tr)
                 return                                               ! exit if a critical error has been thrown
             end if
             L = 1                                                    ! start with top layer
-            do while (M_resusp(S) > 0.000001 .and. L <= Me%nLayers)  ! loop through layers until all sediment resuspended or all layers considered
+            do while (FS_resusp(S) > 0.000001 .and. L <= Me%nLayers) ! loop through layers until all sediment resuspended or all layers considered
                 associate(O => Me%colBedSedimentLayers(L)%item)      ! association for brevity
                     call r%addErrors(.errors. &
                         F%set(f_comp_in = &
                             O%colFineSediment(S)%f_comp))            ! set the fractional composition of F to that of the sediment being resuspended  
                     call r%AddErrors(.errors. &
-                        O%removeSediment(S, F, G, d_temp))           ! remove the resuspended sediment from the layer in question 
+                        O%removeSediment(S, F, G))                   ! remove the resuspended sediment from the layer in question 
                                                                      ! on entry, F contains the fine sediment to be resuspended
                                                                      ! on return, F contains the fine sediment that could not be removed because it exceeded
                                                                      ! the amount present in the layer
                                                                      ! on return, G contains the fine sediment that was removed 
-                    delta_l_r(L, S) = d_temp                         ! assign the delta for layer to resuspension
+                    delta_l_r(L, S) = G%M_f()                        ! assign the delta for layer to resuspension
                     if (r%hasCriticalError()) then                   ! if a critical error has been thrown
                         call r%addToTrace(tr)                        ! add the trace to the Result object
                         return                                       ! and exit
                     end if
                 end associate
-                M_resusp(S) = M_resusp(S) - G%M_f()                  ! modify the amount of sediment in the size class still to be resuspended
+                FS_resusp(S) = FS_resusp(S) - delta_l_r(L, S)          ! modify the amount of sediment in the size class still to be resuspended
                 call r%addErrors([ .errors. &
                     FS(S, L)%create("FS_" // trim(str(L)) // &
                                     "_" // trim(str(S)), &
@@ -332,7 +420,7 @@ module classBedSediment1
                 end if
                 L = L + 1                                            ! increment the layer count
             end do                                                   ! and loop to the next layer
-            if (M_resusp(S) > 0) then
+            if (FS_resusp(S) > 0) then
                 call r%addError(ErrorInstance(1, &
                      "All sediment of size class " &
                      // trim(str(S)) // " resuspended", &
@@ -389,8 +477,7 @@ module classBedSediment1
         real(dp), allocatable :: delta_l_b(:,:)                      ! LOCAL deltas for layers to burial [-]. L x S array.
         real(dp), allocatable :: delta_l_l(:,:,:)                    ! LOCAL deltas for layers to layers [-]. L x L X S array.
         real(dp) :: M_f_la                                           ! LOCAL to store the mass of fine sediment in a layer, for computation of delta_l-b and delta_d-l
-        real(dp) :: M_f_dep                                          ! LOCAL to store the mass of fine sediment in deposition, for computation of delta_d_l
-        real(dp) :: d_temp                                           ! LOCAL to store the returned delta value from RemoveSediment
+        logical, allocatable :: IsEmpty(:)                           ! LOCAL .true. bed has been emptied completely to make space for depositing sediment
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
         class(*), allocatable :: data0D                              ! LOCAL temporary polymorphic data variable
         type(ErrorInstance) :: tmpError
@@ -410,7 +497,11 @@ module classBedSediment1
         !       do it is not a problem as it will be overwritten.
         ! -------------------------------------------------------------------------------
         
-        call r%addErrors(.errors. FS_dep(1)%set(Mf_in = 0.3_dp))      
+        !call r%addErrors(.errors. FS_dep(1)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(2)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(3)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(4)%set(Mf_in = 0.0001_dp))      
+        !call r%addErrors(.errors. FS_dep(5)%set(Mf_in = 0.0001_dp))      
         
         tr = trim(Me%name) // "%DepositSediment1"                    ! object and procedure binding name as trace
         if (size(FS_dep) /= Me%nSizeClasses) &
@@ -423,6 +514,15 @@ module classBedSediment1
         if (r%hasCriticalError()) then                               ! if a critical error has been thrown
             call r%addToTrace(tr)                                    ! add trace to Result
             return                                                   ! and exit
+        end if
+        allocate(IsEmpty(Me%nSizeClasses), stat = allst)             ! allocate IsEmpty
+        if (allst /= 0) then
+            call r%addError(ErrorInstance(code = 1, &
+                               message = "Allocation error", &
+                               trace = [Me%name] // &
+                                        "%depositSediment1%IsEmpty" &
+                                         ) &
+                           )                                         ! create error instance for allocation error, and add to Result
         end if
         allocate(T, stat = allst)                                    ! allocate T
         if (allst /= 0) then
@@ -490,13 +590,15 @@ module classBedSediment1
             end if
         end do
         do S = 1, Me%nSizeClasses                                    ! initialise all delta values
+            delta_d_b(S) = 0.0_dp                                    ! interlayer and same layer transfers to zero  
             do L = 1, Me%nLayers                                     ! deposition and burial to zero
-                delta_d_l(L, S) = 0.0_dp                             ! interlayer transfers to zero  
-                delta_l_b(L, S) = 0.0_dp                             ! same layer transfers to unity
+                delta_d_l(L, S) = 0.0_dp                             ! interlayer and same layer transfers to zero  
+                delta_l_b(L, S) = 0.0_dp                             
                 do LL = 1, Me%nLayers
                     delta_l_l(L, LL, S) = 0.0_dp
                 end do
             end do
+            IsEmpty(S) = .true.                                      ! set flag to initial value
         end do
         do S = 1, Me%nSizeClasses                                    ! loop through all size classes
             dep_excess = FS_dep(S)%V_f() - .dp. Me%Cf_sediment(S)    ! compute the difference between the volume of depositing material and the bed capacity [m3 m-2]
@@ -505,13 +607,20 @@ module classBedSediment1
                                                                      ! in this case, delta[l,n-b] = 1 for all layers, and delta[d-b] > 0.
             if (dep_excess > 0) &
                 then                                                 ! check whether the depositing sediment in each size class exceeds the total
-                do L = 1, Me%nLayers                                 ! capacity for that size fraction in the bed. If so, then remove all fine sediment, water and
-                    call Me%colBedSedimentLayers(L)%item%clearAll()  ! fractional compositions from all layers for this size class
-                end do
-                do L = 1, Me%nLayers
-                    delta_l_b(L, S) = 1                              ! deltas for layers to burial
-                end do
-                delta_d_b(S) = dep_excess / FS_dep(S)%M_f()          ! delta for deposition to burial
+                    associate(O => Me%colBedSedimentLayers)          ! association for brevity
+                        do L = 1, Me%nLayers                         ! capacity for that size fraction in the bed. If so, then remove all fine sediment, water and
+                            delta_l_b(L, S) = &
+                                O(L)%item%colFineSediment(S)%M_f()   ! delta l -> b
+                            delta_l_l(L, L, S) = -1 * &
+                                O(L)%item%colFineSediment(S)%M_f()   ! delta l -> l
+                            call &
+                            O(L)%item%colFineSediment(S)%ClearAll()  ! fractional compositions from all layers for this size class
+                        end do
+                        delta_d_b(S) = dep_excess * &
+                            FS_dep(S)%rho_part()                     ! delta for deposition to burial
+                    end associate
+            else
+                IsEmpty(S) = .false.                                 ! set flag to indicate that there is sediment in this layer    
             end if
         end do
         call r%addErrors(.errors. T%create("FineSediment_T", &
@@ -526,119 +635,124 @@ module classBedSediment1
                                                                      ! for each sediment size class, check whether the available capacity in the bed
                                                                      ! exceeds the amount of depositing sediment. If so, then bury sediment of this size class
                                                                      ! to provide the capacity for the depositing sediment
-            A_f_sed = .dp. Me%Af_sediment(S)                         ! local copy of the capacity for this sediment size class in the whole bed [m3 m-2]
-            V_f_burial = FS_dep(S)%V_f() 
-            V_f_burial = FS_dep(S)%V_f() - A_f_sed                   ! difference between volume of depositing sediment and available capacity
+            if (IsEmpty(S) == .false.) then                          ! only do if there is sediment of this size class in the bed
+                A_f_sed = .dp. Me%Af_sediment(S)                     ! local copy of the capacity for this sediment size class in the whole bed [m3 m-2]
+                V_f_burial = FS_dep(S)%V_f() 
+                V_f_burial = FS_dep(S)%V_f() - A_f_sed               ! difference between volume of depositing sediment and available capacity
                                                                      ! if > 0, then sediment needs to be buried to create capacity for deposition
-            if (V_f_burial > 0.0_dp) then                            ! do we need to bury sediment to create available capacity for deposition?
-                call r%addErrors(.errors. &
-                    T%set(Vf_in = V_f_burial, &
-                          Vw_in = 0.0_dp, &
-                          f_comp_in = FS_dep(S)%f_comp &
-                         ) &
-                                )                                    ! yes, so
+                if (V_f_burial > 0.0_dp) then                        ! do we need to bury sediment to create available capacity for deposition?
+                    call r%addErrors(.errors. &
+                        T%set(Vf_in = V_f_burial, &
+                              Vw_in = 0.0_dp, &
+                              f_comp_in = FS_dep(S)%f_comp &
+                             ) &
+                                    )                                ! yes, so
                                                                      ! set up temporary FineSediment object T with volume of fine sediment requiring burial
                                                                      ! to compute the volume of water requiring burial, we must loop through layers
                                                                      ! from the top, compute for each layer the volume of fine sediment that must be
                                                                      ! removed to allow space for deposition, and the volume of water associated with the
                                                                      ! fine sediment
-                L = Me%nLayers                                       ! loop through layers, upwards from the bottom
-                do while (T%V_f() > 0)                               ! use fine sediment volume in T as a counter. Through this loop, T holds the count of the  
+                    L = Me%nLayers                                   ! loop through layers, upwards from the bottom
+                    do while (T%V_f() > 0)                           ! use fine sediment volume in T as a counter. Through this loop, T holds the count of the  
                                                                      ! requirement for sediment burial that has not yet been accounted for by higher layers
-                    associate (O => Me%colBedSedimentLayers(L)%item) ! association to layer L
-                        if (T%V_f() > .dp. O%C_f(S)) then            ! does the depositing fine sediment fit into this layer,
+                        associate (O => &
+                            Me%colBedSedimentLayers(L)%item)         ! association to layer L
+                            if (T%V_f() > .dp. O%C_f(S)) then        ! does the depositing fine sediment fit into this layer,
                                                                      ! after accounting for the capacity in layers above?
                                                                      ! no, the depositing sediment will not fit into this layer
                                                                      ! so increase water removal requirement by the water capacity of this layer
                                                                      ! and decrease the count of remaining depositing fine sediment by the capacity
-                            call r%addErrors(.errors. &
-                                 T%set(Vf_in = T%V_f() - .dp.O%C_f(S), &
-                                       Vw_in = T%V_w() + .dp. O%C_w(S) &
-                                      ) &
-                                            )
-                        else                                         ! yes, depositing sediment fits into this layer
+                                call r%addErrors(.errors. &
+                                     T%set(Vf_in = T%V_f() - .dp. O%C_f(S), &
+                                           Vw_in = T%V_w() + .dp. O%C_w(S) &
+                                          ) &
+                                                )
+                            else                                     ! yes, depositing sediment fits into this layer
                                                                      ! so increase the water burial requirement by the amount required to maintain the SLR in this layer
                                                                      ! and set the count of fine sediment to zero, to jump out of the loop
-                            tempV = T%V_f() / .dp. O%volSLR(S)       ! temporary variable
-                            call r%addErrors(.errors. &
-                                 T%set(Vf_in = 0.0_dp, &
-                                       Vw_in = T%V_w() + tempV &
-                                      ) &
-                                            )
-                        end if
-                    end associate
-                    L = L - 1                                        ! decrement the layer count
-                end do                                               ! and loop
+                                tempV = T%V_f() / .dp. O%volSLR(S)   ! temporary variable
+                                call r%addErrors(.errors. &
+                                     T%set(Vf_in = 0.0_dp, &
+                                           Vw_in = T%V_w() + tempV &
+                                          ) &
+                                                )
+                            end if
+                        end associate
+                        L = L - 1                                    ! decrement the layer count
+                    end do                                           ! and loop
                                                                      ! now to actually bury fine sediment and water
                                                                      ! we still use the object T to hold the depositing material - firstly, its mass
                                                                      ! needs to be reset, as it was decremented to zero in the computation of the water requirement
-                call r%addErrors(.errors. &
-                     T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed &
-                          ) &
-                                )                                    ! reset the fine sediment burial requirement, still using object T
-                if (r%hasCriticalError()) return                     ! return if critical error thrown
+                    call r%addErrors(.errors. &
+                         T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed &
+                              ) &
+                                    )                                ! reset the fine sediment burial requirement, still using object T
+                    if (r%hasCriticalError()) return                 ! return if critical error thrown
                                                                      ! now we remove and bury material from the base of the sediment upwards, 
                                                                      ! to create sufficient space to accommodate deposited material
-                L = Me%nLayers                                       ! start with the bottom layer
-                do while (L > 0 .and. T%V_f() + T%V_w() > 0)         ! loop through each layer, while there is still material to bury
-                    if (T%V_f() > 0) Then
-                        associate(O => &
-                            Me%colBedSedimentLayers(L)%item)         ! association reference to layer L object
-                            call r%addErrors(.errors. &
-                                O%RemoveSediment(S, T, U, d_temp) &
-                                            )                        ! remove the sediment, return amount removed (U) and not removed (T), and any errors thrown
+                    L = Me%nLayers                                   ! start with the bottom layer
+                    do while (L > 0 .and. T%V_f() + T%V_w() > 0)     ! loop through each layer, while there is still material to bury
+                        if (T%V_f() > 0) Then
+                            associate(O => &
+                                Me%colBedSedimentLayers(L)%item)     ! association reference to layer L object
+                                call r%addErrors(.errors. &
+                                    O%RemoveSediment(S, T, U) &
+                                                )                    ! remove the sediment, return amount removed (U) and not removed (T), and any errors thrown
                             
-                            if (r%hasCriticalError()) then           ! if RemoveSediment throws a critical error
-                                call r%addToTrace(tr)                ! add trace to all errors
-                                return                               ! and exit
-                            end if
-                        end associate
-                    end if
-                    delta_l_b(L, S) = d_temp                         ! computation of delta for layer L to burial
-                    delta_l_l(L, L, S) = -1 * d_temp                 ! delta for loss of material to burial
-                                                                     ! note that these are CHANGES in delta due to burial, not absolute values
-                    L = L - 1                                        ! move up to next layer
-                end do                                               ! finished burial. temporary object T can be reused
-                                                                     ! now we shift sediment downwards from upper layers to fill the hole created by burial
-                do L = Me%nLayers, 2, -1                             ! downward shift of fine sediment. Loop through the layers, starting at the bottom
-                                                                     ! and working upwards
-                    assoc1 : associate &
-                        (O => Me%colBedSedimentLayers(L)%item)       ! association to "receiving" layer L
-                        A = L - 1                                    ! counter for "donating" layer - initially the layer above
-                        call r%addErrors(.errors. &
-                            T%set(Vf_in = .dp. O%A_f(S), &
-                                  Vw_in = .dp. O%A_w(S) &
-                                 ) &
-                                        )                            ! set FineSediment object T to hold the available capacity in the receiving layer i.e. the volumes that require shifting downwards
-                                                                     ! Note no need to set f_comp in T
-                        do while (A > 0 .and. T%IsNotEmpty())        ! loop through "donating" layers, moving upwards
-                            assoc2 : associate (P => &
-                            Me%colBedSedimentLayers(A)%item)         ! association to "donating" layer A
-                            if (P%colFineSediment(S)%V_f() > 0) &
-                                then                                 ! if there is sediment in the "donating" layer
-                                    call r%addErrors(.errors. &
-                                        P%RemoveSediment(S, T, U, &
-                                            d_temp))                 ! remove the sediment, return amounts removed (U) and not removed (T), the delta, and any errors thrown
-                                    if (r%hasCriticalError()) then   ! if RemoveSediment throws a critical error
-                                        call r%addToTrace(tr)        ! add trace to all errors
-                                        return                       ! and exit
-                                    end if
-                                    call r%addErrors(.errors. &
-                                        O%addSediment(S, U))         ! add the sediment in U to the "receiving" layer L
-                                if (r%hasCriticalError()) then       ! if AddSediment throws a critical error
+                                if (r%hasCriticalError()) then       ! if RemoveSediment throws a critical error
                                     call r%addToTrace(tr)            ! add trace to all errors
                                     return                           ! and exit
                                 end if
-                                    delta_l_l(A, L, S) = d_temp - &
-                                        delta_l_b(L, S)              ! delta for transfer of sediment from Layer A to Layer L, correcting for material previously buried
-                                    delta_l_l(A, A, S) = -1 * d_temp ! delta for retention of sediment in Layer A
-                                                                     ! note that these are CHANGES in delta due to transfer, not absolute values
-                            end if
-                            A = A - 1                                ! shift up to next "donating" layer
-                            end associate assoc2
-                        end do
-                    end associate assoc1
-                end do
+                                delta_l_b(L, S) = U%M_f()            ! delta for layer L to burial
+                                delta_l_l(L, L, S) = &
+                                    delta_l_l(L, L, S) - U%M_f()     ! delta for loss of sediment from L to burial
+                            end associate
+                        end if
+                                                                     ! note that these are CHANGES in delta due to burial, not absolute values
+                        L = L - 1                                    ! move up to next layer
+                    end do                                           ! finished burial. temporary object T can be reused
+                                                                     ! now we shift sediment downwards from upper layers to fill the hole created by burial
+                    do L = Me%nLayers, 2, -1                         ! downward shift of fine sediment. Loop through the layers, starting at the bottom
+                                                                     ! and working upwards
+                        assoc1 : associate &
+                            (O => Me%colBedSedimentLayers(L)%item)   ! association to "receiving" layer L
+                            A = L - 1                                ! counter for "donating" layer - initially the layer above
+                            call r%addErrors(.errors. &
+                                T%set(Vf_in = .dp. O%A_f(S), &
+                                      Vw_in = .dp. O%A_w(S) &
+                                     ) &
+                                            )                        ! set FineSediment object T to hold the available capacity in the receiving layer i.e. the volumes that require shifting downwards
+                                                                     ! Note no need to set f_comp in T
+                            do while (A > 0 .and. T%IsNotEmpty())    ! loop through "donating" layers, moving upwards
+                                assoc2 : associate (P => &
+                                Me%colBedSedimentLayers(A)%item)     ! association to "donating" layer A
+                                if (P%colFineSediment(S)%V_f() > 0) &
+                                    then                             ! if there is sediment in the "donating" layer
+                                        call r%addErrors(.errors. &
+                                        P%RemoveSediment(S, T, U))   ! remove the sediment, return amounts removed (U) and not removed (T), the delta, and any errors thrown
+                                        if (r%hasCriticalError()) then   ! if RemoveSediment throws a critical error
+                                            call r%addToTrace(tr)    ! add trace to all errors
+                                            return                   ! and exit
+                                        end if
+                                        delta_l_l(A, L, S) = &
+                                            delta_l_l(A, L, S) + &
+                                            U%M_f()                  ! delta for transfer of sediment from Layer A to Layer L, correcting for material previously buried
+                                        delta_l_l(A, A, S) = &
+                                            delta_l_l(A, A, S) - &
+                                            U%M_f()                  ! delta for retention of sediment in Layer A
+                                        call r%addErrors(.errors. &
+                                            O%addSediment(S, U))     ! add the sediment in U to the "receiving" layer L
+                                    if (r%hasCriticalError()) then   ! if AddSediment throws a critical error
+                                        call r%addToTrace(tr)        ! add trace to all errors
+                                        return                       ! and exit
+                                    end if
+                                end if
+                                A = A - 1                            ! shift up to next "donating" layer
+                                end associate assoc2
+                            end do
+                        end associate assoc1
+                    end do
+                end if
             end if
         end do
     
@@ -646,7 +760,6 @@ module classBedSediment1
         ! call Me%repMass
 
         do S = 1, Me%nSizeClasses                                    ! now add in the depositing sediment, work by size class
-            M_f_dep = FS_dep(S)%M_f()                                ! store the total amount of sediment in this size class being deposited, for computation of deltas                 
             do L = Me%nLayers, 1, -1                                 ! start with the bottom layer and work upwards
                 if (FS_dep(S)%M_f() > 0.0_dp) then
                     associate(O => Me%colBedSedimentLayers(L)%item)  ! size class S in Layer L
@@ -664,7 +777,7 @@ module classBedSediment1
                                 return                               ! and exit
                             end if
                             delta_d_l(L, S) = &
-                                (M_f_la - FS_dep(S)%M_f()) / M_f_dep ! delta_d_l for this layer: the mass of material deposited to this layer, divided by the total depostion
+                                M_f_la - FS_dep(S)%M_f()             ! delta_d_l: the mass of material deposited to this layer
                         end if
                         V_w_tot = V_w_tot + V_w_b - FS_dep(S)%V_w()  ! tally up V_w_b to compute water requirement to take from the water column
                     end associate
@@ -693,7 +806,7 @@ module classBedSediment1
     !! initialise the matrix of mass transfer coefficients for sediment deposition and resuspension
     !!                                                          
     !! **Function inputs**                                      
-    !! none (uses class-level variable array delta_sed(:,:,:)
+    !! none (uses class-level variable array delta_sed(:,:,:))
     !!                                                          
     !! **Function outputs/outcomes**                            
     !! delta_sed populated with initial values, all zero except for layer(x) ->layer(y) coefficients where x=y; these are set to unity
@@ -719,11 +832,6 @@ module classBedSediment1
                 do LL = 1, Me%nLayers + 3
                     Me%delta_sed(L, LL, S) = 0.0_dp                  ! initially set all values to a default of zero
                 end do
-            end do
-        end do
-        do S = 1, Me%nSizeClasses
-            do L = 1, Me%nLayers
-                Me%delta_sed(L + 2, L + 2, S) = 1.0_dp               ! set same layer transfer coefficients to a default of unity
             end do
         end do
     end function

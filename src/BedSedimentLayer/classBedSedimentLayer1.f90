@@ -592,8 +592,8 @@ module classBedSedimentLayer1
                 V_w_SC = O%V_w()                                     ! water volume in layer
                 if (add_V_f > A_f_SC) then                           ! added volume exceeds the available capacity; cannot all be added
                     V_f_SC = Me%C_f_l(S)                             ! set fine sediment volume to capacity
-                    V_f_added = V_f_SC - A_f_SC                      ! volume added
-                    add_V_f = A_f_SC                                 ! volume that could not be added
+                    V_f_added = A_f_SC                               ! volume added
+                    add_V_f = add_V_f - A_f_SC                       ! volume that could be added
                 else                                                 ! added volume does not exceed the fine sediment capacity; can all be added
                     V_f_SC = V_f_SC + add_V_f                        ! addition of fine sediment volume
                     V_f_added = add_V_f                              ! volume added
@@ -756,12 +756,11 @@ module classBedSedimentLayer1
         !! in this alternative version, both objects returned via inout
         !! `G (FineSediment1)` returns the sediment that could not be removed
         !! `H (FineSediment1)` returns the sediment that was removed
-        function removeSediment2(Me, S, G, H, d) result(r)
+        function removeSediment2(Me, S, G, H) result(r)
             class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(inout) :: G                  !! Fine sediment to be removed, returns fine sediment that could not be removed
             type(FineSediment1), intent(inout) :: H                  !! Returns fine sediment that was removed
-            real(dp), intent(inout) :: d                             !! delta: the proportional mass of sediment removed in this operation
             type(Result) :: r                                        !! The Result object
             real(dp) :: V_f_SC                                       ! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     ! LOCAL fine sediment volume removed
@@ -798,7 +797,6 @@ module classBedSedimentLayer1
                 return                                               ! exit here
             end if
             associate (O => Me%colFineSediment(S))
-                d = O%M_f_backup()                                   ! use d to store initial mass of fine sediment in the layer
                 V_f_SC = O%V_f()                                     ! static local copy of fine sediment volume
                 V_w_SC = O%V_w()                                     ! static local copy of water volume
                 if (V_f_SC_r > V_f_SC) then
@@ -846,15 +844,13 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                                ! add a trace message to any errors
                 return                                               ! exit here
             end if
-            d = H%M_f() / d                                          ! update d to return the proportion of sediment removed
         end function
         !> **Subroutine purpose**                                   <br>
-        !! Remove sediment of a specified size fraction, and associated water,
+        !! Remove sediment of all size classes, and associated water,
         !! from a bed sediment layer
         !!                                                          <br>
         !! **Subroutine inputs**                                    <br>
         !! `S (integer)`: the size class from which sediment is to be removed <br>
-        !! `G (FineSediment1)`: sediment to be removed
         !!                                                          <br>
         !! **Subroutine outcomes**                                  <br>
         !! Values of sediment mass, water volume and fractional composition set to zero
