@@ -301,8 +301,8 @@ module classRiverReach1
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
             ! call print_matrix(Me%bedSediment%delta_sed)
             
-            ! call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
-            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
+            call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
+            if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
         
             ! print *, "Bed sediment after deposition"
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
