@@ -30,6 +30,7 @@ default_fractional_comp = 30, 30, 30, 10
 
 &soil
 default_soil_layer_depth = 0.1
+include_bioturbation = .true.
 /
 
 &river

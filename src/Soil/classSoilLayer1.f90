@@ -155,9 +155,9 @@ module classSoilLayer1
         real(dp)            :: m_soil_l1
         real(dp)            :: propEroded
         real(dp)            :: erodedNP(C%nSizeClassesNp)
-        ! Calculate the mass of the soil in this soil layer
-        m_soil_l1 = bulkDensity * area * me%depth
-        propEroded = sum(erodedSediment)/m_soil_l1
+        
+        m_soil_l1 = bulkDensity * area * me%depth           ! Calculate the mass of the soil in this soil layer
+        propEroded = sum(erodedSediment)/m_soil_l1          ! Proportion of this that is eroded
         erodedNP = me%m_np(:,1,2)*propEroded                ! Only erode attached NM
         me%m_np(:,1,2) = me%m_np(:,1,2) - erodedNP          ! Remove the eroded NM from the layer
         me%m_np_eroded(:,1,2) = erodedNP

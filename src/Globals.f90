@@ -24,6 +24,7 @@ module Globals
         real(dp)            :: defaultMeanderingFactor = 1.0_dp !! Default river meandering factor, >1
         integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
         real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
+        logical             :: includeBioturbation              !! Should bioturbation be modelled?
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
@@ -83,13 +84,13 @@ module Globals
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
-        logical :: error_output
+        logical :: error_output, include_bioturbation
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
-        namelist /soil/ default_soil_layer_depth
+        namelist /soil/ default_soil_layer_depth, include_bioturbation
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
 
         ! Has a path to the config path been provided as a command line argument?
@@ -135,6 +136,7 @@ module Globals
         C%maxRiverReaches = max_river_reaches
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
+        C%includeBioturbation = include_bioturbation
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")

@@ -21,6 +21,7 @@ module classSoilProfile1
         procedure :: percolate => percolateSoilProfile1             ! Percolate soil on a given time step
         procedure :: erode => erodeSoilProfile1                     ! Erode soil on a given time step
         procedure :: erodeMUSLE => erodeMUSLESoilProfile1           ! Erode soil using MUSLE on a given time step
+        procedure :: bioturbation => bioturbationSoilProfile1       ! Bioturbate soil on a given time step
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
     end type
@@ -124,10 +125,11 @@ module classSoilProfile1
         ! Add NM from the diffuse source
         me%m_np = me%m_np + j_np_diffuseSource*me%area          ! j_np_diffuseSource is in kg/m2/timestep
         
-        ! Perform percolation and erosion simluation
+        ! Perform percolation, erosion and bioturbation simluations
         call r%addErrors([ &
             .errors. me%erode(t), &
-            .errors. me%percolate(t, j_np_diffuseSource) &
+            .errors. me%percolate(t, j_np_diffuseSource), &
+            .errors. me%bioturbation() &
         ])
 
         ! Remove buried NM (eroded NM removed in me%erode)
@@ -281,6 +283,27 @@ module classSoilProfile1
 
         me%m_np_eroded(:,1,2) = me%colSoilLayers(1)%item%m_np_eroded(:,1,2)
         me%m_np(:,1,2) = me%m_np(:,1,2) - me%m_np_eroded(:,1,2)     ! Remove the eroded NM from the soil
+    end function
+
+    !> Perform bioturbation on a time step by mixing calculated depth of two layers together
+    function bioturbationSoilProfile1(me) result(rslt)
+        class(SoilProfile1) :: me           !! This `SoilProfile1` instance
+        type(Result)        :: rslt         !! The `Result` object to return
+        integer             :: i            ! Iterator
+        real                :: fractionOfLayerToMix
+        ! Only model bioturbation if config file has asked us to
+        if (C%includeBioturbation) then
+            ! Perform bioturbation for each layer, except final layer
+            ! TODO set some proper boundary conditions
+            do i = 1, me%nSoilLayers - 1
+                fractionOfLayerToMix = me%colSoilLayers(i)%item%calculateBioturbationRate() * C%timeStep
+                ! Only attached NM are mixed
+                me%colSoilLayers(i)%item%m_np(:,1,2) = me%colSoilLayers(i)%item%m_np(:,1,2) &
+                    + fractionOfLayerToMix * (me%colSoilLayers(i+1)%item%m_np(:,1,2) - me%colSoilLayers(i)%item%m_np(:,1,2))
+                me%colSoilLayers(i+1)%item%m_np(:,1,2) = me%colSoilLayers(i+1)%item%m_np(:,1,2) &
+                    + fractionOfLayerToMix * (me%colSoilLayers(i)%item%m_np(:,1,2) - me%colSoilLayers(i+1)%item%m_np(:,1,2))
+            end do
+        end if
     end function
 
     !> Impose a size class distribution on a total mass to split it up

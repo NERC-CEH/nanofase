@@ -83,6 +83,7 @@ module spcSoilProfile
         procedure(updateSoilProfile), deferred :: update                    ! Perform simulation for given time step
         procedure(percolateSoilProfile), deferred :: percolate              ! Percolate water for given time step
         procedure(erodeSoilProfile), deferred :: erode                      ! Erode soil for given time step
+        procedure(bioturbationSoilProfile), deferred :: bioturbation        ! Bioturbate soil for a given time step
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
     end type
@@ -156,6 +157,12 @@ module spcSoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current timestep
             type(Result) :: r                                   !! `Result` object to return
+        end function
+
+        function bioturbationSoilProfile(me) result(rslt)
+            import SoilProfile, Result
+            class(SoilProfile)  :: me
+            type(Result)        :: rslt
         end function
 
         !> Impose a size class distribution on a total mass to split it up
