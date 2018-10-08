@@ -635,7 +635,7 @@ module classBedSediment1
                                                                      ! for each sediment size class, check whether the available capacity in the bed
                                                                      ! exceeds the amount of depositing sediment. If so, then bury sediment of this size class
                                                                      ! to provide the capacity for the depositing sediment
-            if (IsEmpty(S) == .false.) then                          ! only do if there is sediment of this size class in the bed
+            if (.not. IsEmpty(S)) then                               ! only do if there is sediment of this size class in the bed
                 A_f_sed = .dp. Me%Af_sediment(S)                     ! local copy of the capacity for this sediment size class in the whole bed [m3 m-2]
                 V_f_burial = FS_dep(S)%V_f() 
                 V_f_burial = FS_dep(S)%V_f() - A_f_sed               ! difference between volume of depositing sediment and available capacity
