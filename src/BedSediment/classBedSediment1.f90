@@ -60,7 +60,6 @@ module classBedSediment1
         do S = 1, Me%nSizeClasses
             do L = 3, Me%nLayers + 3 
                 if (.not. isZero(djdep(S)) .and. .not. isZero(Me%delta_sed(L, 1, S))) then
-                    print *, Me%delta_sed(L, 1, S), djdep(S)
                     Me%delta_sed(L, 1, S) = &
                         Me%delta_sed(L, 1, S) / djdep(S)             ! d -> l and d-> b
                 else

@@ -301,17 +301,17 @@ module classRiverReach1
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
             ! call print_matrix(Me%bedSediment%delta_sed)
             
-            call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
-            if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
+            ! call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
+            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
         
             ! print *, "Bed sediment after deposition"
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
             ! call print_matrix(Me%bedSediment%delta_sed)
             
-            call r%AddErrors(.errors. &
-                Me%bedSediment%getmatrix(dj_spm_dep/Me%bedArea, &
-                                         dj_spm_res/Me%bedArea))
-            call print_matrix(Me%bedSediment%delta_sed)
+            ! call r%AddErrors(.errors. &
+            !     Me%bedSediment%getmatrix(dj_spm_dep/Me%bedArea, &
+            !                              dj_spm_res/Me%bedArea))
+            ! call print_matrix(Me%bedSediment%delta_sed)
             
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             ! Update the concentration. isZero check used to avoid numerical errors

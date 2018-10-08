@@ -63,7 +63,8 @@ module classSoilProfile1
             me%distributionSediment(C%nSizeClassesSpm), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)))
+            me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_np_in(C%npDim(1), C%npDim(2), C%npDim(3)))
         ! Initialise variables
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
@@ -78,6 +79,7 @@ module classSoilProfile1
         me%m_np_buried = 0.0_dp                             ! Mass of NM "lost" from the bottom of the SoilProfile
         me%m_np = 0.0_dp                                    ! Nanomaterial mass
         me%m_np_eroded = 0.0_dp
+        me%m_np_in = 0.0_dp
         
         ! Parse and store input data in this object's properties
         call r%addErrors(.errors. me%parseInputData())
@@ -124,6 +126,7 @@ module classSoilProfile1
 
         ! Add NM from the diffuse source
         me%m_np = me%m_np + j_np_diffuseSource*me%area          ! j_np_diffuseSource is in kg/m2/timestep
+        me%m_np_in = j_np_diffuseSource*me%area
         
         ! Perform percolation, erosion and bioturbation simluations
         call r%addErrors([ &
@@ -191,9 +194,9 @@ module classSoilProfile1
             end do
         end do
 
-        ! Keep track of cumulative "lost" NM and water from the bottom soil layer
-        me%V_buried = me%V_buried + me%colSoilLayers(me%nSoilLayers)%item%V_perc
-        me%m_np_buried = me%m_np_buried + me%colSoilLayers(me%nSoilLayers)%item%m_np_perc
+        ! Keep track of "lost" NM and water from the bottom soil layer. Not cumulative.
+        me%V_buried = me%colSoilLayers(me%nSoilLayers)%item%V_perc
+        me%m_np_buried = me%colSoilLayers(me%nSoilLayers)%item%m_np_perc
 
         ! Add this procedure to the Result object's trace
         call r%addToTrace("Percolating water on time step #" // trim(str(t)))

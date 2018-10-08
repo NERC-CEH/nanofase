@@ -65,12 +65,15 @@ module classPointSource
         type(Result) :: r
         
         me%j_np_pointsource = 0      ! Reset from the last timestep
-        ! Check if this is a timestep where the fixed mass is to be input
-        if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
-            me%j_np_pointsource = me%fixedMass
+
+        if (C%includePointSources) then
+            ! Check if this is a timestep where the fixed mass is to be input
+            if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
+                me%j_np_pointsource = me%fixedMass
+            end if
+            ! Add this timestep's input from the variable mass input
+            me%j_np_pointsource = me%j_np_pointsource + me%variableMass_timeSeries(t,:,:,:)
         end if
-        ! Add this timestep's input from the variable mass input
-        me%j_np_pointsource = me%j_np_pointsource + me%variableMass_timeSeries(t,:,:,:)
         
         call r%addToTrace("Updating PointSource on time step " // trim(str(t)))
     end function

@@ -23,6 +23,7 @@ module spcSoilProfile
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Nanomaterial
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
+        real(dp), allocatable :: m_np_in(:,:,:)                     !! Mass of NM deposited to profile on a time step [kg]
         real(dp), allocatable :: m_np_buried(:,:,:)                 !! Cumulative mass of NM "lost" from the bottom `SoilLayer` [kg]
         real(dp), allocatable :: m_np_eroded(:,:,:)                 !! Mass of NM eroded on current timestep [kg]
         ! Hydrology and met

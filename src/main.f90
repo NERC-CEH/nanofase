@@ -20,6 +20,8 @@ program main
     real(dp) :: m_np_l3(5, 4, 7)
     real(dp) :: m_np_l4(5, 4, 7)
     real(dp) :: m_np_eroded(5, 4, 7)
+    real(dp) :: m_np_buried(5, 4, 7)
+    real(dp) :: m_np_in(5, 4, 7)
     real(dp) :: C_np(5, 4, 7)
     real(dp) :: npDep(5, 4, 7)
     real(dp) :: m_np_hetero(5, 5)
@@ -47,8 +49,8 @@ program main
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     write(2, '(A,A)') "t, x, y, rr, total_m_np_1, total_m_np_2, total_m_np_3, total_m_np_4, ", &
         "total_m_np_5, total_C_np, total_np_dep, total_np_runoff, total_spm"
-    write(5, '(A,A)') "t, x, y, m_np_l1_free, m_np_l2_free, m_np_l3_free, m_np_l4_free,", &
-        "m_np_l1_att, m_np_l2_att, m_np_l3_att, m_np_l4_att, m_np_eroded"
+    write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
+        "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in"
 
     call cpu_time(start)                                                ! Simulation start time
     r = env%create()                                                    ! Create the environment
@@ -105,10 +107,13 @@ program main
                     m_np_l3 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%m_np
                     m_np_l4 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(4)%item%m_np
                     m_np_eroded = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np_eroded
+                    m_np_buried = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_buried
+                    m_np_in = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_in
                     write(5,*) t, ", ", x, ", ", y, ", ", &
                         sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
                         sum(m_np_l4(:,1,1)), ", ", sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
-                        sum(m_np_l3(:,1,2)), ", ", sum(m_np_l4(:,1,2)), ", ", sum(m_np_eroded(:,1,2))
+                        sum(m_np_l3(:,1,2)), ", ", sum(m_np_l4(:,1,2)), ", ", sum(m_np_eroded(:,1,2)), ", ", &
+                        sum(m_np_buried), ", ", sum(m_np_in)
                 end if
             end do
         end do
