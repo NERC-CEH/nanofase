@@ -356,7 +356,11 @@ module classFineSediment1
             real(dp) :: Vw                                           !! The return value
                                                                      ! function to return the water volume [m3 m-2]
                                                                      ! Output: Vw = water volume
-            Vw = Me%V_w_l                                            ! water volume computation
+            if (isZero(Me%V_w_l)) then
+                Vw = 0.0_dp
+            else
+                Vw = Me%V_w_l
+            end if
         end function
         !> **Function purpose**                                     <br>
         !! Returns fine sediment particle density as a derived property

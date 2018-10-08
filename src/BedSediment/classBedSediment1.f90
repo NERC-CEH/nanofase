@@ -57,10 +57,10 @@ module classBedSediment1
         djres(3) = 0.0_dp
         djres(4) = 0.0_dp
         djres(5) = 0.0_dp
-        
         do S = 1, Me%nSizeClasses
             do L = 3, Me%nLayers + 3 
-                if (djdep(S) /= 0) then
+                if (.not. isZero(djdep(S)) .and. .not. isZero(Me%delta_sed(L, 1, S))) then
+                    print *, Me%delta_sed(L, 1, S), djdep(S)
                     Me%delta_sed(L, 1, S) = &
                         Me%delta_sed(L, 1, S) / djdep(S)             ! d -> l and d-> b
                 else
@@ -68,7 +68,7 @@ module classBedSediment1
                 end if 
             end do
             do LL = 3, Me%nLayers + 2
-                if (djres(S) /= 0) then
+                if (.not. isZero(djres(S)) .and. .not. isZero(Me%delta_sed(2, LL, S))) then
                     Me%delta_sed(2, LL, S) = &
                         Me%delta_sed(2, LL, S) / djres(S)            ! l -> r
                 else
@@ -78,9 +78,10 @@ module classBedSediment1
             do L = 3, Me%nLayers + 3
                 do LL = 3, Me%nLayers + 2
                     ml = Me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
-                    if (ml /= 0) then
+                    if (.not. isZero(ml)) then
                         if (L == LL) then
-                            if (Me%delta_sed(L, LL, S) /= 0) then 
+                            if (.not. isZero(Me%delta_sed(L, LL, S))) then 
+
                                 Me%delta_sed(L, LL, S) = &
                                 (ml + Me%delta_sed(L, LL, S)) / ml   ! l -> l where l=l ('same-layer' transfers) and there is a mass transfer out of the layer
                             end if
@@ -158,6 +159,7 @@ module classBedSediment1
                               Me%nLayers + 3, &
                               Me%nSizeClasses), &
             stat = allst)                                            ! allocate space for sediment mass transfer matrix
+        Me%delta_sed = 0.0_dp                                        ! initialise to zero
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
                                           message = ms, &
@@ -795,6 +797,9 @@ module classBedSediment1
                     Me%delta_sed(Me%nLayers + 3, L + 2, S) + &
                     delta_l_b(L, S)                                  ! element (L, S) of delta_l_b is added to element (Layers+3, L+2, S) of Me%delta_sed
                 do LL = 1, Me%nLayers
+                    if (isZero(Me%delta_sed(L + 2, LL + 2, S))) then
+                        Me%delta_sed(L + 2, LL + 2, S) = 0.0_dp
+                    end if
                     Me%delta_sed(L + 2, LL + 2, S) = &
                         Me%delta_sed(L + 2, LL + 2, S) + &
                         delta_l_l(LL, L, S)                          ! element (LL, L, S) of delta_l_l is added to element (L+2, LL+2, S) of Me%delta_sed
