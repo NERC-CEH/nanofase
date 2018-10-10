@@ -57,7 +57,7 @@ module spcRiverReach
         real(dp), allocatable :: spmDep(:)                          !! SPM deposited on current time step [kg/timestep]
         real(dp), allocatable :: j_np_dep(:,:,:)                    !! NP deposited on current time step [kg/timestep]
         real(dp), allocatable :: j_spm_runoff(:)                    !! Eroded soil runoff for current time step [kg/timestep]
-        real(dp), allocatable :: j_np_runoff(:,:,:)                 !! Eroded soil runoff for current time step [kg/timestep]
+        real(dp), allocatable :: j_np_runoff(:,:,:)                 !! Eroded soil runoff for current time step [kg/timestep]w
         real(dp) :: W                                               !! Width of reach [m]
         real(dp) :: D                                               !! Depth of water column [m]
         real(dp) :: v                                               !! Water velocity [m/s]

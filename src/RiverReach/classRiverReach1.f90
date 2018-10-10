@@ -172,6 +172,9 @@ module classRiverReach1
         real(dp) :: fractionSpmDep(C%nSizeClassesSpm)       ! Fraction of SPM deposited on each time step [-]
         real(dp) :: dj_spm_res(C%nSizeClassesSpm)           ! Mass of each sediment size class resuspended on each displacement [kg]
         real(dp) :: mbed(C%nSizeClassesSpm)                 ! mass of fine material in the sediment [kg]
+        real(dp) :: m_np_sediment_layers(7, C%nSizeClassesSpm, C%nSizeClassesNP)
+        real(dp) :: dj_np_dep(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)            ! HACK for NM mass in layers
+            ! 1st dimension: sediment layers + dep, res, bur. 2nd dimension: SPM size classes. 3rd dimension: NM size classes
 
         ! Initialise inflows to 0
         Q_in = 0
@@ -300,7 +303,7 @@ module classRiverReach1
             ! print *, "Bed sediment after resuspension"
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
             ! call print_matrix(Me%bedSediment%delta_sed)
-            
+
             ! call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
             ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
         
@@ -312,6 +315,32 @@ module classRiverReach1
             !     Me%bedSediment%getmatrix(dj_spm_dep/Me%bedArea, &
             !                              dj_spm_res/Me%bedArea))
             ! call print_matrix(Me%bedSediment%delta_sed)
+
+            ! if (t == 1) then
+            !     m_np_sediment_layers = 0
+            ! end if
+
+            ! HACK to get NM mass in sediment layers. Need to implement properly.
+            ! do s = 1, C%nSizeClassesSpm
+            !     if (isZero(dj_spm_dep(s)) .or. isZero(me%m_spm(s))) then
+            !         dj_np_dep(:,:,s) = 0.0_dp
+            !     else
+            !         dj_np_dep(:,:,s) = min(me%m_np(:,:,s+2)*(dj_spm_dep(s)/me%m_spm(s)), me%m_np(:,:,s+2))
+            !     end if
+            !     do n = 1, C%nSizeClassesNP
+            !         m_np_sediment_layers(1,s,n) = sum(dj_np_dep(n,:,s))
+            !     end do
+            ! end do
+            
+            ! do n = 1, C%nSizeClassesNP
+            !     do s = 1, C%nSizeClassesSpm
+            !         m_np_sediment_layers(:,s,n) = matmul(Me%bedSediment%delta_sed(:,:,s), m_np_sediment_layers(:,s,n))
+            !     end do
+            ! end do
+
+            ! print *, sum(m_np_sediment_layers(1,:,:)), sum(m_np_sediment_layers(2,:,:)), sum(m_np_sediment_layers(3,:,:))
+            ! if (t == 10) error stop
+
             
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             ! Update the concentration. isZero check used to avoid numerical errors

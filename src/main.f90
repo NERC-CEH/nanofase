@@ -29,6 +29,7 @@ program main
     real(dp) :: bedSedimentMass
     real(dp) :: npRunoff
     type(datetime) :: currentDate
+    real(dp) :: riverVolume
 
     ! Set up global vars and constants, and initialise data interfacer.
     ! These vars are available globally
@@ -47,8 +48,8 @@ program main
     open(unit=3, file=trim(C%outputPath) // 'output_erosion.csv')
     open(unit=4, file=trim(C%outputPath) // 'output_hetero_vs_free.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
-    write(2, '(A,A)') "t, x, y, rr, total_m_np_1, total_m_np_2, total_m_np_3, total_m_np_4, ", &
-        "total_m_np_5, total_C_np, total_np_dep, total_np_runoff, total_spm"
+    write(2, '(A,A)') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,", &
+        "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in"
 
@@ -78,8 +79,9 @@ program main
                         npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_dep
                         bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
                         npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
+                        riverVolume = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         ! Write to the data file
-                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
+                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
                             t, ",", &
                             x, ",", &
                             y, ",", &
@@ -92,7 +94,8 @@ program main
                             trim(str(sum(C_np))), ",", &
                             trim(str(sum(npDep))), ",", &
                             trim(str(npRunoff)), ",", &
-                            trim(str(sum(m_spm)))
+                            trim(str(sum(m_spm))), ",", &
+                            trim(str(riverVolume))
                         
                         m_np_hetero = m_np_hetero + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &

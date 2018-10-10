@@ -52,6 +52,8 @@ module spcBedSediment
         procedure, public :: Mf_bed_one_size => Get_Mf_bed_one_size  ! fine sediment mass in bed for a single size class
         procedure, public :: Mf_bed_all => Get_Mf_bed_all            ! fine sediment mass in all size classes (single value)
         procedure, public :: Mf_bed_by_size => Get_Mf_bed_by_size    ! fine sediment mass in all size classes (1D array by size)
+        procedure, public :: Mf_bed_by_layer => get_Mf_bed_by_layer  ! fine sediment mass as an array of all layers
+        procedure, public :: V_w_by_layer => get_V_w_by_layer        ! total water volume in each layer
     end type
     abstract interface
         !> **Function purpose**                                         <br>
@@ -455,6 +457,24 @@ contains
             Mf = Mf + .real. r_l                                     ! sum masses across layers
         end do
         r = Result(data = Mf)                                        ! return value
+    end function
+
+    function get_Mf_bed_by_layer(me) result(Mf)
+        class(BedSediment), intent(in) :: me
+        real(dp) :: Mf(me%nLayers)
+        integer :: i
+        do i = 1, me%nLayers
+            Mf(i) = .dp. me%colBedSedimentLayers(i)%item%M_f_layer()
+        end do
+    end function
+
+    function get_V_w_by_layer(me) result(V_w)
+        class(BedSediment), intent(in) :: me
+        real(dp) :: V_w(me%nLayers)
+        integer :: i
+        do i = 1, me%nLayers
+            V_w(i) = .dp. me%colBedSedimentLayers(i)%item%V_w_layer()
+        end do
     end function
     !> **function purpose**
     !!
