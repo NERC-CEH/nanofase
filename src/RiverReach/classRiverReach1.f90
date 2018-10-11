@@ -214,6 +214,11 @@ module classRiverReach1
         me%bedArea = me%W*me%l*me%f_m                       ! Calculate the BedSediment area [m2]
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m) ! Reach volume
 
+        ! HACK
+        if (me%volume < 10.0_dp) then
+            me%volume = 0.0_dp
+        end if
+
         ! Loop through point sources and get their inputs (if there are any):
         ! Run the update method, which sets PointSource's j_np_pointsource variable
         ! for this time step. j_np_pointsource = 0 if there isn't a point source
@@ -240,8 +245,12 @@ module classRiverReach1
             .errors. me%settling() &                        ! Me%settling computes settling rate [s-1] over complete timestep
         ])
         ! If Q_in for this timestep is bigger than the reach volume, then we need to
-        ! split into a number of displacements
-        nDisp = ceiling(me%Q_in/me%volume)                  ! Number of displacements
+        ! split into a number of displacements. If Q_in is zero, just have 1 displacement.
+        if (isZero(me%Q_in) .or. isZero(me%volume)) then
+            nDisp = 1
+        else
+            nDisp = ceiling(me%Q_in/me%volume)              ! Number of displacements
+        end if
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
         dQ_in = me%Q_in/nDisp                               ! Inflow to the first displacement [m3]
         dj_spm_in = me%j_spm_in/nDisp                       ! SPM inflow to the first displacment [kg]
@@ -260,7 +269,11 @@ module classRiverReach1
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
             ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
             !--------------------------------------------------------------------------------------------------------------------------------
-            dj_spm_out = min(me%m_spm * dQ_in / me%volume, me%m_spm) ! SPM loss as a fraction of reach volume moving downstream on this displacement
+            if (.not. isZero(me%volume)) then
+                dj_spm_out = min(me%m_spm * dQ_in / me%volume, me%m_spm) ! SPM loss as a fraction of reach volume moving downstream on this displacement
+            else
+                dj_spm_out = 0
+            end if
             !--------------------------------------------------------------------------------------------------------------------------------
             me%m_spm = me%m_spm - dj_spm_out                         ! Update the SPM mass after advection
             me%m_spm = me%m_spm + dj_spm_in                          ! Add inflow SPM to SPM already in reach
@@ -346,7 +359,7 @@ module classRiverReach1
             ! Update the concentration. isZero check used to avoid numerical errors
             ! from very small m_spm numbers.
             do s = 1, C%nSizeClassesSpm
-                if (isZero(me%m_spm(s))) then
+                if (isZero(me%m_spm(s)) .or. isZero(me%volume)) then
                     me%m_spm(s) = 0.0_dp
                     me%C_spm(s) = 0.0_dp
                 else
@@ -369,29 +382,43 @@ module classRiverReach1
         me%m_np = me%m_np - me%j_np_dep                ! Remove deposited NPs
         
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
-        call r%addErrors([ &
-            .errors. me%reactor%update( &
-                t, &
-                me%m_np, &
-                me%C_spm, &
-                me%T_water, &
-                me%W_settle_np, &
-                me%W_settle_spm, &
-                10.0_dp, &                    ! HACK: Where is the shear rate from?
-                me%volume, &
-                me%tmp_Q_out &                  ! TODO: Is this used?
-            ) &
-        ])
-        ! Get the resultant transformed mass from the Reactor
-        me%m_np = me%reactor%m_np
+        ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
+        ! what to really do if there are no flows
+        if (.not. isZero(me%volume)) then
+            call r%addErrors([ &
+                .errors. me%reactor%update( &
+                    t, &
+                    me%m_np, &
+                    me%C_spm, &
+                    me%T_water, &
+                    me%W_settle_np, &
+                    me%W_settle_spm, &
+                    10.0_dp, &                    ! HACK: Where is the shear rate from?
+                    me%volume, &
+                    me%tmp_Q_out &                  ! TODO: Is this used?
+                ) &
+            ])
+            ! Get the resultant transformed mass from the Reactor
+            me%m_np = me%reactor%m_np
+        end if
+        
         ! Reactor only deals with transformations, not flows, so we must now
         ! set an outflow based on the transformed mass
-        me%tmp_j_np_out = min(me%tmp_Q_out*(me%m_np/me%volume), me%m_np)
+        if (.not. isZero(me%volume)) then
+            me%tmp_j_np_out = min(me%tmp_Q_out*(me%m_np/me%volume), me%m_np)
+        else
+            me%tmp_j_np_out = 0.0_dp
+        end if
         me%m_np = me%m_np - me%tmp_j_np_out
 
-        ! Set the final concentrations
-        me%C_spm = me%m_spm/me%volume
-        me%C_np = me%m_np/me%volume
+        ! Set the final concentrations, checking that the river has a volume
+        if (.not. isZero(me%volume)) then
+            me%C_spm = me%m_spm/me%volume
+            me%C_np = me%m_np/me%volume
+        else
+            me%C_spm = 0.0_dp
+            me%C_np = 0.0_dp
+        end if
         
         !---------------------------------------------------------------------------------------------------------------------
         ! THIS NEEDS TO BE MOVED INTO THE DISPLACEMENT LOOP
@@ -784,7 +811,11 @@ module classRiverReach1
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]
         real(dp) :: v                           !! The calculated velocity \( v \) [m/s]
-        v = Q/(W*D)
+        if (isZero(Q) .or. isZero(W) .or. isZero(D)) then
+            v = 0.0_dp
+        else
+            v = Q/(W*D)
+        end if
     end function
 
     !> Calculate the settling velocity of sediment particles for an individual

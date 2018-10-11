@@ -44,3 +44,4 @@ default_alpha_hetero = 0.01
 
 &sources
 include_point_sources = .true.
+/

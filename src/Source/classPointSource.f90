@@ -67,8 +67,6 @@ module classPointSource
         me%j_np_pointsource = 0      ! Reset from the last timestep
 
         if (C%includePointSources) then
-            print *, "yep"
-            error stop
             ! Check if this is a timestep where the fixed mass is to be input
             if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
                 me%j_np_pointsource = me%fixedMass

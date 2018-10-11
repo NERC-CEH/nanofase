@@ -88,7 +88,7 @@ module Globals
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_k_att
-        logical :: error_output, include_bioturbation, include_point_sources, include_attachment
+        logical :: error_output, include_bioturbation, include_attachment, include_point_sources
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file, output_path
@@ -119,6 +119,7 @@ module Globals
         read(10, nml=global)
         read(10, nml=soil)
         read(10, nml=river)
+        read(10, nml=sources)
         close(10)
         
         ! Store this data in the Globals variable
