@@ -56,7 +56,8 @@ module classRiverReach1
         integer :: n, s                                         ! Loop iterator for SPM size classes and sources
         integer :: allst                                        ! Allocation status
         type(ErrorInstance) :: error                            ! To return errors
-        
+        character(len=256) :: allms                             ! LOCAL array allocation message
+
         ! First, let's set the RiverReach's reference and the length
         me%x = x
         me%y = y
@@ -99,6 +100,7 @@ module classRiverReach1
         ! Set any defaults (no errors to be thrown)
         call me%setDefaults()
         
+        if (r%hasCriticalError()) return                ! exit if allocation has thrown an error
         ! Get data from the input data file
         call r%addErrors(.errors. me%parseInputData())
 
@@ -107,10 +109,9 @@ module classRiverReach1
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        ! TODO: Sort out BedSediment errors
         allocate(BedSediment1::me%bedSediment)
-        ! call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
-        
+        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
         call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
@@ -121,16 +122,13 @@ module classRiverReach1
                 call r%addErrors(.errors. me%pointSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
             end do
         end if
-
         ! Create the DiffuseSource object(s), if this reach has any
         if (me%hasDiffuseSource) then
             do s = 1, size(me%diffuseSources)
                 call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
             end do
         end if
-        
         call r%addToTrace('Creating ' // trim(me%ref))
-        call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
 
@@ -149,12 +147,11 @@ module classRiverReach1
     !!  <li>Deposition to BedSediment removed</li>
     !!  <li>Water and SPM advected from the reach</li>
     !! </ul>
-    !! TODO Put this all into a mass transfer matrix
     function updateRiverReach1(me, t, j_spm_runoff, j_np_runoff) result(r)
         class(RiverReach1) :: me                            !! This `RiverReach1` instance
         integer :: t                                        !! Current time step [s]
         real(dp) :: j_spm_runoff(:)                         !! Eroded sediment runoff to this reach
-        real(dp), optional :: j_np_runoff(:,:,:)            !! Eroded sediment runoff to this reach
+        real(dp), optional :: j_np_runoff(:,:,:)            !! Eroded sediment runoff to this reach [kg/timestep]
         type(Result) :: r                                   !! `Result` object to return
         type(Result1D) :: r1D                               ! Temporary `Result1D` object to hold return values in
         real(dp) :: Q_in                                    ! Total inflow to this reach [m3/timestep]
@@ -168,13 +165,16 @@ module classRiverReach1
         real(dp) :: dQ_in                                   ! Q_in for each displacement
         real(dp) :: dj_spm_in(C%nSizeClassesSpm)            ! j_spm_in for each displacement
         real(dp) :: dj_np_in(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! j_np_in for each displacement
-        real(dp) :: dSpmDep(C%nSizeClassesSpm)              ! Deposited SPM for each displacement
+        real(dp) :: dj_spm_dep(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: settlingVelocity(C%nSizeClassesSpm)     ! Settling velocity for each size class
         real(dp) :: k_settle(C%nSizeClassesSpm)             ! Settling constant for each size class
         real(dp) :: dj_spm_out(C%nSizeClassesSpm)           ! SPM outflow for the displacement
         real(dp) :: fractionSpmDep(C%nSizeClassesSpm)       ! Fraction of SPM deposited on each time step [-]
         real(dp) :: dj_spm_res(C%nSizeClassesSpm)           ! Mass of each sediment size class resuspended on each displacement [kg]
         real(dp) :: mbed(C%nSizeClassesSpm)                 ! mass of fine material in the sediment [kg]
+        real(dp) :: m_np_sediment_layers(7, C%nSizeClassesSpm, C%nSizeClassesNP)
+        real(dp) :: dj_np_dep(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)            ! HACK for NM mass in layers
+            ! 1st dimension: sediment layers + dep, res, bur. 2nd dimension: SPM size classes. 3rd dimension: NM size classes
 
         ! Initialise inflows to 0
         Q_in = 0
@@ -204,24 +204,6 @@ module classRiverReach1
         ! Water temperature
         me%T_water = me%T_water_timeSeries(t)               ! Water temperature for this time step [C]
 
-        ! Loop through point sources and get their inputs (if there are any):
-        ! Run the update method, which sets PointSource's j_np_pointsource variable
-        ! for this time step. j_np_pointsource = 0 if there isn't a point source
-        if (me%hasPointSource) then
-            do s = 1, size(me%pointSources)
-                call r%addErrors(.errors. me%pointSources(s)%update(t))
-                me%j_np_in = me%j_np_in + me%pointSources(s)%j_np_pointSource
-            end do
-        end if
-        ! Same for diffuse sources
-        ! TODO What units will reach-specific diffuse source input data be in?
-        if (me%hasDiffuseSource) then
-            do s = 1, size(me%diffuseSources)
-                call r%addErrors(.errors. me%diffuseSources(s)%update(t))
-                me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource
-            end do
-        end if
-
         ! Calculate the depth, velocity, area and volume
         me%W = me%calculateWidth(me%Q_in/C%timeStep)
         D = me%calculateDepth(me%W, me%slope, me%Q_in/C%timeStep)
@@ -232,6 +214,28 @@ module classRiverReach1
         me%bedArea = me%W*me%l*me%f_m                       ! Calculate the BedSediment area [m2]
         me%volume = me%calculateVolume(me%D, me%W, me%l, me%f_m) ! Reach volume
 
+        ! HACK
+        if (me%volume < 10.0_dp) then
+            me%volume = 0.0_dp
+        end if
+
+        ! Loop through point sources and get their inputs (if there are any):
+        ! Run the update method, which sets PointSource's j_np_pointsource variable
+        ! for this time step. j_np_pointsource = 0 if there isn't a point source
+        if (me%hasPointSource) then
+            do s = 1, size(me%pointSources)
+                call r%addErrors(.errors. me%pointSources(s)%update(t))
+                me%j_np_in = me%j_np_in + me%pointSources(s)%j_np_pointSource
+            end do
+        end if
+        ! Same for diffuse sources, convert j_np_diffuseSource from kg/m2/timestep to kg/reach/timestep
+        if (me%hasDiffuseSource) then
+            do s = 1, size(me%diffuseSources)
+                call r%addErrors(.errors. me%diffuseSources(s)%update(t))
+                me%j_np_in = me%j_np_in + me%diffuseSources(s)%j_np_diffuseSource*me%bedArea
+            end do
+        end if
+
         ! Set the resuspension rate Me%k_spm_res and settling rate Me%k_settle
         ! (but don't acutally settle until we're looping through
         ! displacements). This can be done now as settling/resuspension rates
@@ -241,8 +245,12 @@ module classRiverReach1
             .errors. me%settling() &                        ! Me%settling computes settling rate [s-1] over complete timestep
         ])
         ! If Q_in for this timestep is bigger than the reach volume, then we need to
-        ! split into a number of displacements
-        nDisp = ceiling(me%Q_in/me%volume)                  ! Number of displacements
+        ! split into a number of displacements. If Q_in is zero, just have 1 displacement.
+        if (isZero(me%Q_in) .or. isZero(me%volume)) then
+            nDisp = 1
+        else
+            nDisp = ceiling(me%Q_in/me%volume)              ! Number of displacements
+        end if
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
         dQ_in = me%Q_in/nDisp                               ! Inflow to the first displacement [m3]
         dj_spm_in = me%j_spm_in/nDisp                       ! SPM inflow to the first displacment [kg]
@@ -261,27 +269,28 @@ module classRiverReach1
             ! Advect the SPM out of the reach at the outflow rate, until it has all gone
             ! TODO: Set dQ_out different to dQ_in based on abstraction etc.
             !--------------------------------------------------------------------------------------------------------------------------------
-            !!!dj_spm_out = min(dQ_in*me%C_spm, me%m_spm)            ! Maximum of m_spm can be advected
-            dj_spm_out = min(me%m_spm * dQ_in / me%volume, me%m_spm) ! SPM loss as a fraction of reach volume moving downstream on this displacement
+            if (.not. isZero(me%volume)) then
+                dj_spm_out = min(me%m_spm * dQ_in / me%volume, me%m_spm) ! SPM loss as a fraction of reach volume moving downstream on this displacement
+            else
+                dj_spm_out = 0
+            end if
             !--------------------------------------------------------------------------------------------------------------------------------
             me%m_spm = me%m_spm - dj_spm_out                         ! Update the SPM mass after advection
             me%m_spm = me%m_spm + dj_spm_in                          ! Add inflow SPM to SPM already in reach
             ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
             ! If we've removed all of the SPM, set to 0
-            dSpmDep = min(me%k_settle*dt*me%m_spm, me%m_spm)         ! Up to a maximum of the mass of SPM currently in reach
-
-            do s = 1, C%nSizeClassesSpm
-                ! Check if dSpmDep (and thus me%m_spm) is zero to avoid numerical errors
-                ! SPM deposited doesn't include resuspension
-                if (isZero(dSpmDep(s))) then
+            dj_spm_dep = min(me%k_settle*dt*me%m_spm, me%m_spm)      ! Up to a maximum of the mass of SPM currently in reach
+            ! Check if dj_spm_dep (and thus me%m_spm) is zero to avoid numerical errors
+            ! SPM deposited doesn't include resuspension
+            do s = 1, C%nSizeClassesSpm 
+                if (isZero(dj_spm_dep(s))) then
                     fractionSpmDep(s) = fractionSpmDep(s)
                 else
-                    fractionSpmDep(s) = fractionSpmDep(s) + dSpmDep(s)/me%m_spm(s)
+                    fractionSpmDep(s) = fractionSpmDep(s) + dj_spm_dep(s)/me%m_spm(s)
                 end if
             end do
-
-            me%m_spm = me%m_spm - dSpmDep
-            me%spmDep = me%spmDep + dSpmDep                          ! Keep track of deposited SPM for this time step
+            me%m_spm = me%m_spm - dj_spm_dep
+            me%spmDep = me%spmDep + dj_spm_dep                       ! Keep track of deposited SPM for this time step
             ! Set the fraction of total SPM that is deposited (including resuspension),
             ! for use in calculating heteroaggregated NP deposition
 
@@ -292,26 +301,65 @@ module classRiverReach1
             if (r%hasCriticalError()) return                        ! If getting bed throws error
             mbed = .dp. r1D                                          ! extract bed sediment mass [kg] by size fraction
                                                                      ! from Result object (1D array => 1D array)
-            dj_spm_res = me%k_spm_res * mbed * dt                    ! the mass of sediment resuspending on each displacement [kg]
+            dj_spm_res = Me%k_spm_res * mbed * dt                    ! the mass of sediment resuspending on each displacement [kg]
+            
+            ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
+            ! AND WITH REASONABLE RUNTIME
 
-            ! COMMENTED THE BEDSEDIMENT STUFF OUT TO GET WORKING WITHOUT ERRORS
-
+            ! print *, "Bed sediment before resuspension"
             ! call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
+            
             ! call r%addErrors(.errors. &
-            !     me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
-            ! if (r%hasCriticalError()) return                         ! if a critical error has been thrown
+            !     Me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
+            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
             
+            ! print *, "Bed sediment after resuspension"
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
-            
-            ! call r%addErrors(.errors. me%depositToBed(dspmDep))      ! add deposited SPM to BedSediment 
+            ! call print_matrix(Me%bedSediment%delta_sed)
+
+            ! call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
+            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
         
+            ! print *, "Bed sediment after deposition"
             ! call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
+            ! call print_matrix(Me%bedSediment%delta_sed)
+            
+            ! call r%AddErrors(.errors. &
+            !     Me%bedSediment%getmatrix(dj_spm_dep/Me%bedArea, &
+            !                              dj_spm_res/Me%bedArea))
+            ! call print_matrix(Me%bedSediment%delta_sed)
+
+            ! if (t == 1) then
+            !     m_np_sediment_layers = 0
+            ! end if
+
+            ! HACK to get NM mass in sediment layers. Need to implement properly.
+            ! do s = 1, C%nSizeClassesSpm
+            !     if (isZero(dj_spm_dep(s)) .or. isZero(me%m_spm(s))) then
+            !         dj_np_dep(:,:,s) = 0.0_dp
+            !     else
+            !         dj_np_dep(:,:,s) = min(me%m_np(:,:,s+2)*(dj_spm_dep(s)/me%m_spm(s)), me%m_np(:,:,s+2))
+            !     end if
+            !     do n = 1, C%nSizeClassesNP
+            !         m_np_sediment_layers(1,s,n) = sum(dj_np_dep(n,:,s))
+            !     end do
+            ! end do
+            
+            ! do n = 1, C%nSizeClassesNP
+            !     do s = 1, C%nSizeClassesSpm
+            !         m_np_sediment_layers(:,s,n) = matmul(Me%bedSediment%delta_sed(:,:,s), m_np_sediment_layers(:,s,n))
+            !     end do
+            ! end do
+
+            ! print *, sum(m_np_sediment_layers(1,:,:)), sum(m_np_sediment_layers(2,:,:)), sum(m_np_sediment_layers(3,:,:))
+            ! if (t == 10) error stop
+
             
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
             ! Update the concentration. isZero check used to avoid numerical errors
             ! from very small m_spm numbers.
             do s = 1, C%nSizeClassesSpm
-                if (isZero(me%m_spm(s))) then
+                if (isZero(me%m_spm(s)) .or. isZero(me%volume)) then
                     me%m_spm(s) = 0.0_dp
                     me%C_spm(s) = 0.0_dp
                 else
@@ -334,29 +382,43 @@ module classRiverReach1
         me%m_np = me%m_np - me%j_np_dep                ! Remove deposited NPs
         
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
-        call r%addErrors([ &
-            .errors. me%reactor%update( &
-                t, &
-                me%m_np, &
-                me%C_spm, &
-                me%T_water, &
-                me%W_settle_np, &
-                me%W_settle_spm, &
-                10.0_dp, &                    ! HACK: Where is the shear rate from?
-                me%volume, &
-                me%tmp_Q_out &                  ! TODO: Is this used?
-            ) &
-        ])
-        ! Get the resultant transformed mass from the Reactor
-        me%m_np = me%reactor%m_np
+        ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
+        ! what to really do if there are no flows
+        if (.not. isZero(me%volume)) then
+            call r%addErrors([ &
+                .errors. me%reactor%update( &
+                    t, &
+                    me%m_np, &
+                    me%C_spm, &
+                    me%T_water, &
+                    me%W_settle_np, &
+                    me%W_settle_spm, &
+                    10.0_dp, &                    ! HACK: Where is the shear rate from?
+                    me%volume, &
+                    me%tmp_Q_out &                  ! TODO: Is this used?
+                ) &
+            ])
+            ! Get the resultant transformed mass from the Reactor
+            me%m_np = me%reactor%m_np
+        end if
+        
         ! Reactor only deals with transformations, not flows, so we must now
         ! set an outflow based on the transformed mass
-        me%tmp_j_np_out = min(me%tmp_Q_out*(me%m_np/me%volume), me%m_np)
+        if (.not. isZero(me%volume)) then
+            me%tmp_j_np_out = min(me%tmp_Q_out*(me%m_np/me%volume), me%m_np)
+        else
+            me%tmp_j_np_out = 0.0_dp
+        end if
         me%m_np = me%m_np - me%tmp_j_np_out
 
-        ! Set the final concentrations
-        me%C_spm = me%m_spm/me%volume
-        me%C_np = me%m_np/me%volume
+        ! Set the final concentrations, checking that the river has a volume
+        if (.not. isZero(me%volume)) then
+            me%C_spm = me%m_spm/me%volume
+            me%C_np = me%m_np/me%volume
+        else
+            me%C_spm = 0.0_dp
+            me%C_np = 0.0_dp
+        end if
         
         !---------------------------------------------------------------------------------------------------------------------
         ! THIS NEEDS TO BE MOVED INTO THE DISPLACEMENT LOOP
@@ -436,11 +498,10 @@ module classRiverReach1
             
             !me%beta_res = 1e-7
             
-            Me%j_spm_res = Me%calculateResuspension( &
+            me%k_spm_res = Me%calculateResuspension( &
                 beta = me%beta_res, &
                 L = me%l*Me%f_m, &
                 W = me%W, &
-                m_bed = mbed, &
                 M_prop = M_prop, &
                 omega = omega, &
                 f_fr = f_fr &
@@ -500,24 +561,27 @@ module classRiverReach1
                 f_comp_in=C%defaultFractionalComp/100.0_dp &
             ))
         end do
-
-        ! COMMENTED OUT TO GET WORKING WITHOUT ERRORS:
-
-        ! ! Deposit the fine sediment to the bed sediment
-        ! depositRslt = Me%bedSediment%deposit(fineSediment)
-        ! call r%addErrors(.errors. depositRslt)
-        ! if (depositRslt%hasCriticalError()) then
-        !     call r%addToTrace("Depositing SPM to BedSediment")
-        !     return
-        ! end if
-        ! ! Retrieve the amount of water to be taken from the reach
-        ! V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
-        ! ! Subtract that volume for the reach (as a depth)
-        ! ! TODO: Subtracting the water doesn't have any effect at the moment,
-        ! ! since the depth is recalculated based on hydrology at the start
-        ! ! of every time step.
-        ! me%D = me%D - V_water_toDeposit
         
+        ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
+        ! AND WITH REASONABLE RUNTIME
+
+        ! Deposit the fine sediment to the bed sediment
+        depositRslt = Me%bedSediment%deposit(fineSediment)
+        call r%addErrors(.errors. depositRslt)
+        if (r%hasCriticalError()) then
+            ! print *, "Error in DepositSediment"
+            ! call r%addToTrace("Depositing SPM to BedSediment")
+            return
+        end if
+        ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
+        ! Retrieve the amount of water to be taken from the reach
+        V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
+        ! Subtract that volume for the reach (as a depth)
+        ! TODO: Subtracting the water doesn't have any effect at the moment,
+        ! since the depth is recalculated based on hydrology at the start
+        ! of every time step.
+        me%D = me%D - V_water_toDeposit
+
         ! Add any errors that occured in the deposit procedure
         call r%addToTrace("Depositing SPM to BedSediment")
     end function
@@ -554,6 +618,7 @@ module classRiverReach1
             allocate(me%pointSources(1))
             i = 2               ! Any extra point sources?
             do while (DATA%grp%hasGroup("PointSource_" // trim(str(i))))
+                deallocate(me%pointSources)
                 allocate(me%pointSources(i))
                 i = i+1
             end do
@@ -746,7 +811,11 @@ module classRiverReach1
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]
         real(dp) :: v                           !! The calculated velocity \( v \) [m/s]
-        v = Q/(W*D)
+        if (isZero(Q) .or. isZero(W) .or. isZero(D)) then
+            v = 0.0_dp
+        else
+            v = Q/(W*D)
+        end if
     end function
 
     !> Calculate the settling velocity of sediment particles for an individual

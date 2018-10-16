@@ -13,7 +13,10 @@ module classSoilLayer1
         procedure :: create => createSoilLayer1
         procedure :: update => updateSoilLayer1
         procedure :: addPooledWater => addPooledWaterSoilLayer1
+        procedure :: erode => erodeSoilLayer1
+        procedure :: attachment => attachmentSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
+        procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer1
     end type
 
   contains
@@ -38,8 +41,12 @@ module classSoilLayer1
         me%ref = ref("SoilLayer", x, y, p, l)
 
         ! Allocate and initialise variables
-        me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)
+        allocate(me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        allocate(me%m_np_perc(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        allocate(me%m_np_eroded(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
         me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
+        me%m_np_perc = 0.0_dp                           ! Just to be on the safe side
+        me%m_np_eroded = 0.0_dp
         me%V_w = 0.0_dp                                 ! Set initial water content to 0 [m3/m2]
 
         ! Parse the input data into the object properties
@@ -61,7 +68,7 @@ module classSoilLayer1
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer :: t                                    !! The current time step [s]
         real(dp) :: q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
-        real(dp) :: m_np_in                             !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
+        real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         type(Result) :: r
             !! The `Result` object to return. Contains warning if all water on this time step removed.
@@ -70,9 +77,15 @@ module classSoilLayer1
         me%q_in = q_in
         initial_V_w = me%V_w
 
+        ! Add in the NM from the above layer/source
+        me%m_np = me%m_np + m_np_in                             ! [kg]
+
+        ! Attachment
+        call me%attachment()                                    ! Transfers free -> attached
+
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
-            me%V_pool = 0                                       ! No pooled water
+            me%V_pool = 0.0_dp                                  ! No pooled water
             me%V_w = me%V_w + me%q_in                           ! Update the volume based on inflow
             me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)         ! Volume of water above V_FC
         else if (me%V_w + me%q_in > me%V_sat) then              ! Else, water pooled above V_sat
@@ -84,12 +97,22 @@ module classSoilLayer1
         me%V_perc = min(me%V_excess * &                          
                         (1-exp(-C%timeStep*me%K_s/(me%V_sat-me%V_FC))), &   ! Up to a maximum of V_w
                         me%V_w)
-        me%V_w = me%V_w - me%V_perc                              ! Get rid of the percolated water
+        ! Use this to calculate the amount of nanomaterial percolated as a fraction of that in layer,
+        ! then remove this and the water. Check if (near) zero to avoid FPE.
+        if (isZero(me%V_perc)) then
+            me%m_np_perc = 0.0_dp
+        else
+            ! Only free (porewater) particles will percolate, otherise m_np_perc is 0
+            me%m_np_perc = 0.0_dp
+            me%m_np_perc(:,1,1) = (me%V_perc/me%V_w)*me%m_np(:,1,1)     ! V_perc/V_w will be 1 at maximum
+        end if
+        me%m_np = me%m_np - me%m_np_perc                        ! Get rid of percolated NM
+        me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
 
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
         ! Error code 600 = "All water removed from SoilLayer"
-        if (abs(me%V_w) <= C%epsilon .and. initial_V_w > 0) then
+        if (isZero(me%V_w) .and. initial_V_w > 0) then
             call r%addError(ErrorInstance(600, isCritical=.false.))
         end if
 
@@ -106,6 +129,48 @@ module classSoilLayer1
 
         me%V_pool = max(me%V_w + V_pool - me%V_sat, 0.0)  ! Will the input pooled water result in pooled water for this layer?
         me%V_w = min(me%V_w + V_pool, me%V_sat)         ! Add pooled water, up to a maximum of V_sat
+    end function
+
+    !> TODO move this to a Reactor of some sort
+    subroutine attachmentSoilLayer1(me)
+        class(SoilLayer1)   :: me
+        real(dp)            :: k_att
+        real(dp)            :: dm_att(C%nSizeClassesNP)
+        if (C%includeAttachment) then
+            ! HACK Set to attachment rate as in SB4N SI for the moment:
+            ! https://pubs.acs.org/doi/suppl/10.1021/es500548h/suppl_file/es500548h_si_001.pdf
+            k_att = C%default_k_att
+            dm_att = min(k_att*C%timeStep*me%m_np(:,1,1), me%m_np(:,1,1))           ! Mass to move from free -> attached, max of the current mass
+            me%m_np(:,1,1) = me%m_np(:,1,1) - dm_att                                ! Remove from free
+            me%m_np(:,1,2) = me%m_np(:,1,2) + dm_att                                ! Add to attached (bound)
+        end if
+    end subroutine
+
+    !> Erode NM from this soil layer
+    !! TODO bulk density could be stored in this object, not passed
+    function erodeSoilLayer1(me, erodedSediment, bulkDensity, area) result(r)
+        class(SoilLayer1)   :: me
+        real(dp)            :: erodedSediment(:)        ! [kg/m2/day] TODO make sure changed to kg/m2/timestep
+        real(dp)            :: bulkDensity              ! [kg/m3]
+        real(dp)            :: area                     ! [m2]
+        type(Result)        :: r
+        real(dp)            :: m_soil_l1
+        real(dp)            :: propEroded
+        real(dp)            :: erodedNP(C%nSizeClassesNp)
+        
+        m_soil_l1 = bulkDensity * area * me%depth           ! Calculate the mass of the soil in this soil layer
+        propEroded = sum(erodedSediment)*area/m_soil_l1     ! Proportion of this that is eroded, convert erodedSediment to kg/gridcell/day
+        erodedNP = me%m_np(:,1,2)*propEroded                ! Only erode attached NM
+        me%m_np(:,1,2) = me%m_np(:,1,2) - erodedNP          ! Remove the eroded NM from the layer
+        me%m_np_eroded(:,1,2) = erodedNP
+    end function
+
+    function calculateBioturbationRateSoilLayer1(me) result(bioturbationRate)
+        class(SoilLayer1) :: me
+        real(dp) :: bioturbationRate
+        real(dp) :: earthwormDensity = 0.01e8     ! [worms/m3]
+        real(dp) :: bioturb_alpha = 1.341e-14
+        bioturbationRate = (earthwormDensity * bioturb_alpha) / me%depth
     end function
 
     !> Get the data from the input file and set object properties

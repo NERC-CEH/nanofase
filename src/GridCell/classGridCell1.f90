@@ -63,12 +63,13 @@ module classGridCell1
 
         ! Only carry on if there's stuff to be simulated for this GridCell
         if (me%isEmpty .eqv. .false.) then
+
             r = me%parseInputData()                         ! Parse and store input data in this object
 
             ! Create the DiffuseSource object(s), if this cell has any
             if (me%hasDiffuseSource) then
                 do s = 1, size(me%diffuseSources, 1)
-                    call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
+                    call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s))
                 end do
             end if
 
@@ -114,6 +115,7 @@ module classGridCell1
             ! Temporary array for appending to routedRiverReaches array
 
         b = 0                                   ! No river branches to begin with
+
         ! Loop through all the reaches in this GridCell.
         ! Don't type check for the moment
         do rr = 1, me%nRiverReaches
@@ -336,8 +338,6 @@ module classGridCell1
             me%j_np_diffuseSource = 0.0_dp
             
             ! Get any inputs from diffuse source
-            ! TODO Actually do something with these diffuse sources! Nothing is done
-            ! with me%j_np_diffuseSource currently
             if (me%hasDiffuseSource) then
                 do i = 1, size(me%diffuseSources)
                     call r%addErrors(.errors. me%diffuseSources(i)%update(t))
@@ -351,11 +351,17 @@ module classGridCell1
                 .errors. me%transfers() &
             ])
 
+            ! Demands and transfers
+            call r%addErrors([ &
+                .errors. me%demands(), &
+                .errors. me%transfers() &
+            ])
+
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
             call r%addErrors( &
-                .errors. me%colSoilProfiles(1)%item%update(t, j_np_diffuseSource) &
+                .errors. me%colSoilProfiles(1)%item%update(t, me%j_np_diffuseSource) &
             )
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
@@ -369,7 +375,8 @@ module classGridCell1
                 ! river length in this GridCell
                 lengthRatio = me%colRiverReaches(rr)%item%l/sum(me%branchLengths)
                 ! HACK to set NP runoff to 1e-9 SPM runoff
-                j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
+                ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
+                j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
                 ! Update the reach for this timestep
                 call r%addErrors(.errors. &
                     me%colRiverReaches(rr)%item%update( &
@@ -470,6 +477,7 @@ module classGridCell1
             allocate(me%diffuseSources(1))
             i = 2               ! Any extra diffuse sources?
             do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
+                deallocate(me%diffuseSources)
                 allocate(me%diffuseSources(i))
                 i = i+1
             end do
@@ -489,7 +497,7 @@ module classGridCell1
         call r%addErrors([ &
             .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
             .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
-            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &
+            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
             .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
             .errors. DATA%get('slope', me%slope), &
             .errors. DATA%get('n_river', me%n_river, 0.035_dp), &

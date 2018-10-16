@@ -98,6 +98,17 @@ Similarly to `PointSource`, multiple diffuse sources can be specified in the inp
 }
 ```
 
+### Atmospheric `DiffuseSource`s
+To reduce the amount of data stored in the input file, atmospheric deposition data that only comprises free, core particles can be input using the `input_mass_atmospheric[n][t]` key:
+
+```json
+"GridCell_1_1": {
+    "DiffuseSource": {
+        "input_mass_atmospheric[n][t]": 0.001
+    }
+}
+```
+
 # Input size class, state and form
 
 It is likely that available input data will not discretise input masses into size class, state and form fractions, and so care must be taken when structuring the data file to account for this.

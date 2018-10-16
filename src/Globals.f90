@@ -13,6 +13,7 @@ module Globals
         ! Config
         character(len=256)  :: inputFile
         character(len=256)  :: outputFile
+        character(len=256)  :: outputPath
         character(len=256)  :: logFilePath
         type(datetime)      :: startDate                        !! Datetime object representing the start date
         integer             :: timeStep                         !! The timestep to run the model on [s]
@@ -21,8 +22,12 @@ module Globals
         integer             :: defaultGridSize = 5000           !! Default GridCell size [m]
         real(dp)            :: defaultSoilLayerDepth = 0.1_dp   !! Default SoilLayer depth of 10 cm
         real(dp)            :: defaultMeanderingFactor = 1.0_dp !! Default river meandering factor, >1
+        real(dp)            :: default_k_att                    !! Default attachment rate
         integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
         real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
+        logical             :: includeBioturbation              !! Should bioturbation be modelled?
+        logical             :: includePointSources              !! Should point sources be included?
+        logical             :: includeAttachment                !! Should attachment to soil be included?
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
@@ -52,6 +57,7 @@ module Globals
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
+        integer :: npDim(3)                         !! Default dimensions for arrays of NM
 
       contains
         procedure :: rho_w      ! Density of water
@@ -75,19 +81,22 @@ module Globals
         character(len=256) :: configFilePath
         integer :: configFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, output_file, log_file_path, start_date, startDateStr
-        integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size
+        character(len=256) :: input_file, output_file, output_path, log_file_path, start_date, startDateStr
+        integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
+            default_np_forms, default_np_extra_states
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
-        real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero
-        logical :: error_output
+        real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
+            default_k_att
+        logical :: error_output, include_bioturbation, include_attachment, include_point_sources
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
-                                            default_fractional_comp_size
-        namelist /data/ input_file, output_file
+                                            default_fractional_comp_size, default_np_forms, default_np_extra_states
+        namelist /data/ input_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
-        namelist /soil/ default_soil_layer_depth
+        namelist /soil/ default_soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
+        namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -110,11 +119,13 @@ module Globals
         read(10, nml=global)
         read(10, nml=soil)
         read(10, nml=river)
+        read(10, nml=sources)
         close(10)
         
         ! Store this data in the Globals variable
         C%inputFile = input_file
         C%outputFile = output_file
+        C%outputPath = output_path
         C%logFilePath = log_file_path
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps
@@ -131,6 +142,11 @@ module Globals
         C%maxRiverReaches = max_river_reaches
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
+        C%default_k_att = default_k_att
+        ! Processes to be modelled / data to be included
+        C%includeBioturbation = include_bioturbation
+        C%includePointSources = include_point_sources
+        C%includeAttachment = include_attachment
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
@@ -213,6 +229,12 @@ module Globals
                 C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
             end if
         end do        
+
+        ! Array to store default NM array dimensions:
+        !   1: NP size class
+        !   2: form (core, shell, coating, corona)
+        !   3: state (free, bound, heteroaggregated)
+        C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
         
     end subroutine
 
