@@ -77,7 +77,6 @@ module spcSoilProfile
         real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
         !--------------------------------------
 
-
       contains
         procedure(createSoilProfile), deferred :: create                    ! Create the SoilProfile object
         procedure(destroySoilProfile), deferred :: destroy                  ! Remove the SoilProfile object and all contained objects

@@ -498,7 +498,7 @@ module classRiverReach1
             
             !me%beta_res = 1e-7
             
-            Me%k_spm_res = Me%calculateResuspension( &
+            me%k_spm_res = Me%calculateResuspension( &
                 beta = me%beta_res, &
                 L = me%l*Me%f_m, &
                 W = me%W, &

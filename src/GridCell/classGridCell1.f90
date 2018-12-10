@@ -351,6 +351,12 @@ module classGridCell1
                 .errors. me%transfers() &
             ])
 
+            ! Demands and transfers
+            call r%addErrors([ &
+                .errors. me%demands(), &
+                .errors. me%transfers() &
+            ])
+
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
             ! TODO Add DiffuseSource to soil profile
@@ -443,7 +449,7 @@ module classGridCell1
     !> Get the data from the input file and set object properties
     !! accordingly, including allocation of arrays that depend on
     !! input data.
-    function parseInputDataGridCell1(me) result(r)
+    function    (me) result(r)
         class(GridCell1)        :: me                   !! This `GridCell1` object
         type(Result)            :: r                    !! The `Result` object
         integer, allocatable    :: xySize(:)            ! The size of the GridCell
@@ -500,7 +506,7 @@ module classGridCell1
         ! Convert to m/timestep
         me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep      
         me%q_quickflow_timeSeries = me%q_quickflow_timeSeries*C%timeStep
-        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep
+        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep / (1000.0 * 86400.0)
         me%q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep
         
         ! Try and set the group to the demands group. It will produce an error if group
