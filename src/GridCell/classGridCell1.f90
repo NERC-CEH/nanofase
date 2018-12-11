@@ -449,7 +449,7 @@ module classGridCell1
     !> Get the data from the input file and set object properties
     !! accordingly, including allocation of arrays that depend on
     !! input data.
-    function    (me) result(r)
+    function parseInputDataGridCell1(me) result(r)
         class(GridCell1)        :: me                   !! This `GridCell1` object
         type(Result)            :: r                    !! The `Result` object
         integer, allocatable    :: xySize(:)            ! The size of the GridCell

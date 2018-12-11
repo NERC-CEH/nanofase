@@ -1,6 +1,7 @@
 module Globals
     use mo_netcdf
     use datetime_module
+    use mod_strptime, only: f_strptime
     use ErrorCriteriaModule
     use ErrorInstanceModule
     implicit none
@@ -131,7 +132,7 @@ module Globals
         C%nTimeSteps = n_timesteps
         C%epsilon = epsilon
         startDateStr = start_date
-        C%startDate = strptime(startDateStr, "%Y-%m-%d")
+        C%startDate = f_strptime(startDateStr)
         ! TODO: Change default grid size to array (x, y) so default can be rectangles
         C%defaultGridSize = default_grid_size
         C%defaultDistributionSediment = default_distribution_sediment
