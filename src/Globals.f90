@@ -105,7 +105,7 @@ module Globals
         if (configFilePathLength > 0) then
             open(10, file=trim(configFilePath), status="old")
         else
-            open(10, file="config.nml", status="old")
+            open(10, file="config/config.nml", status="old")
         end if
 
         read(10, nml=allocatable_array_sizes)
