@@ -28,6 +28,7 @@ module Globals
         real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
         logical             :: includePointSources              !! Should point sources be included?
+        logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
 
         ! General
@@ -89,14 +90,14 @@ module Globals
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_k_att
-        logical :: error_output, include_bioturbation, include_attachment, include_point_sources
+        logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth, include_bioturbation, include_attachment, default_k_att
-        namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero
+        namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, include_bed_sediment
         namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
@@ -148,6 +149,7 @@ module Globals
         C%includeBioturbation = include_bioturbation
         C%includePointSources = include_point_sources
         C%includeAttachment = include_attachment
+        C%includeBedSediment = include_bed_sediment
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")

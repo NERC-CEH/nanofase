@@ -109,8 +109,10 @@ module classRiverReach1
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        allocate(BedSediment1::me%bedSediment)
-        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        if (C%includeBedSediment) then
+            allocate(BedSediment1::me%bedSediment)
+            call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
+        end if
 
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
@@ -296,63 +298,63 @@ module classRiverReach1
 
             ! Resuspended SPM must be taken from BedSediment
             ! TODO: [DONE REQUIRES CHECKING] Get masses of bed sediment by size fraction
-            r1D = me%bedSediment%Mf_bed_by_size()                    ! retrieve bed masses [kg m-2] by size class
-            call r%addErrors(.errors. r1D)                           ! add any errors to trace
-            if (r%hasCriticalError()) return                        ! If getting bed throws error
-            mbed = .dp. r1D                                          ! extract bed sediment mass [kg] by size fraction
-                                                                     ! from Result object (1D array => 1D array)
+            if (C%includeBedSediment) then
+                r1D = me%bedSediment%Mf_bed_by_size()                   ! retrieve bed masses [kg m-2] by size class
+                call r%addErrors(.errors. r1D)                          ! add any errors to trace
+                if (r%hasCriticalError()) return                        ! If getting bed throws error
+                mbed = .dp. r1D                                         ! extract bed sediment mass [kg] by size fraction
+                                                                        ! from Result object (1D array => 1D array)
+            end if
             dj_spm_res = Me%k_spm_res * mbed * dt                    ! the mass of sediment resuspending on each displacement [kg]
             
-            ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
-            ! AND WITH REASONABLE RUNTIME
+            if (C%includeBedSediment) then
 
-            ! print *, "Bed sediment before resuspension"
-            ! call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
+                ! print *, "Bed sediment before resuspension"
+                ! call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
+                
+                call r%addErrors(.errors. &
+                    Me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
+                if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
+                
+                ! print *, "Bed sediment after resuspension"
+                ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
+                ! call print_matrix(Me%bedSediment%delta_sed)
+
+                call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
+                if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
             
-            ! call r%addErrors(.errors. &
-            !     Me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
-            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
-            
-            ! print *, "Bed sediment after resuspension"
-            ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
-            ! call print_matrix(Me%bedSediment%delta_sed)
+                ! print *, "Bed sediment after deposition"
+                ! call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
+                ! call print_matrix(Me%bedSediment%delta_sed)
+                
+                call r%addErrors(.errors. &
+                    Me%bedSediment%getmatrix(dj_spm_dep/Me%bedArea, &
+                                             dj_spm_res/Me%bedArea))
+                ! call print_matrix(Me%bedSediment%delta_sed)
 
-            ! call r%addErrors(.errors. Me%depositToBed(dj_spm_dep))   ! add deposited SPM to BedSediment 
-            ! if (r%hasCriticalError()) return                         ! exit if a critical error has been thrown
-        
-            ! print *, "Bed sediment after deposition"
-            ! call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
-            ! call print_matrix(Me%bedSediment%delta_sed)
-            
-            ! call r%AddErrors(.errors. &
-            !     Me%bedSediment%getmatrix(dj_spm_dep/Me%bedArea, &
-            !                              dj_spm_res/Me%bedArea))
-            ! call print_matrix(Me%bedSediment%delta_sed)
+                ! if (t == 1) then
+                !     m_np_sediment_layers = 0
+                ! end if
 
-            ! if (t == 1) then
-            !     m_np_sediment_layers = 0
-            ! end if
+                ! HACK to get NM mass in sediment layers. Need to implement properly.
+                ! do s = 1, C%nSizeClassesSpm
+                !     if (isZero(dj_spm_dep(s)) .or. isZero(me%m_spm(s))) then
+                !         dj_np_dep(:,:,s) = 0.0_dp
+                !     else
+                !         dj_np_dep(:,:,s) = min(me%m_np(:,:,s+2)*(dj_spm_dep(s)/me%m_spm(s)), me%m_np(:,:,s+2))
+                !     end if
+                !     do n = 1, C%nSizeClassesNP
+                !         m_np_sediment_layers(1,s,n) = sum(dj_np_dep(n,:,s))
+                !     end do
+                ! end do
+                
+                ! do n = 1, C%nSizeClassesNP
+                !     do s = 1, C%nSizeClassesSpm
+                !         m_np_sediment_layers(:,s,n) = matmul(Me%bedSediment%delta_sed(:,:,s), m_np_sediment_layers(:,s,n))
+                !     end do
+                ! end do
+            end if
 
-            ! HACK to get NM mass in sediment layers. Need to implement properly.
-            ! do s = 1, C%nSizeClassesSpm
-            !     if (isZero(dj_spm_dep(s)) .or. isZero(me%m_spm(s))) then
-            !         dj_np_dep(:,:,s) = 0.0_dp
-            !     else
-            !         dj_np_dep(:,:,s) = min(me%m_np(:,:,s+2)*(dj_spm_dep(s)/me%m_spm(s)), me%m_np(:,:,s+2))
-            !     end if
-            !     do n = 1, C%nSizeClassesNP
-            !         m_np_sediment_layers(1,s,n) = sum(dj_np_dep(n,:,s))
-            !     end do
-            ! end do
-            
-            ! do n = 1, C%nSizeClassesNP
-            !     do s = 1, C%nSizeClassesSpm
-            !         m_np_sediment_layers(:,s,n) = matmul(Me%bedSediment%delta_sed(:,:,s), m_np_sediment_layers(:,s,n))
-            !     end do
-            ! end do
-
-            ! print *, sum(m_np_sediment_layers(1,:,:)), sum(m_np_sediment_layers(2,:,:)), sum(m_np_sediment_layers(3,:,:))
-            ! if (t == 10) error stop
 
             
             me%m_spm = me%m_spm + dj_spm_res                         ! SPM resuspended is resuspension flux * displacement length
@@ -565,13 +567,15 @@ module classRiverReach1
         ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
         ! AND WITH REASONABLE RUNTIME
 
-        ! Deposit the fine sediment to the bed sediment
-        depositRslt = Me%bedSediment%deposit(fineSediment)
-        call r%addErrors(.errors. depositRslt)
-        if (r%hasCriticalError()) then
-            ! print *, "Error in DepositSediment"
-            ! call r%addToTrace("Depositing SPM to BedSediment")
-            return
+        if (C%includeBedSediment) then
+            ! Deposit the fine sediment to the bed sediment
+            depositRslt = Me%bedSediment%deposit(fineSediment)
+            call r%addErrors(.errors. depositRslt)
+            if (r%hasCriticalError()) then
+                ! print *, "Error in DepositSediment"
+                ! call r%addToTrace("Depositing SPM to BedSediment")
+                return
+            end if
         end if
         ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
         ! Retrieve the amount of water to be taken from the reach

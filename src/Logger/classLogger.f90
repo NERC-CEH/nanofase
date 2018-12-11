@@ -42,7 +42,7 @@ module classLogger
             else
                 me%logFilePath = "log/"
             end if
-            ! Set the file unit, if it has been provided
+            ! Set the file unit, if it has been providedx
             if (present(fileUnit)) me%fileUnit = fileUnit
             ! Open the log file
             open(unit=me%fileUnit, file=trim(me%logFilePath) // trim(me%logFileName), status="new")

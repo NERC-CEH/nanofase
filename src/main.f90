@@ -83,7 +83,11 @@ program main
                             C_np = 0
                         end if
                         npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_dep
-                        bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
+                        if (C%includeBedSediment) then
+                            bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
+                        else
+                            bedSedimentMass = 0    
+                        end if
                         npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
                         riverVolume = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         Q_out = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%Q_out/C%timeStep     ! Converted from m3/timestep to m3/s
