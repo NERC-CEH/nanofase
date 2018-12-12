@@ -1,5 +1,5 @@
 FC = gfortran
-FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -L/usr/local/lib -I/usr/local/include
+FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument
 DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow
 EXEC_FILE = main
 EXEC_PATH = ./bin/
@@ -13,6 +13,13 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/feh/src/ErrorCriteria.o \
 	vendor/mo_netcdf/src/mo_types.o \
 	vendor/mo_netcdf/src/mo_netcdf.o \
+	vendor/datetime-fortran/mod_timedelta.o \
+	vendor/datetime-fortran/mod_strftime.o \
+	vendor/datetime-fortran/mod_constants.o \
+	vendor/datetime-fortran/mod_datetime.o \
+	vendor/datetime-fortran/mod_clock.o \
+	vendor/datetime-fortran/datetime.o \
+	src/mod_strftime.o \
 	src/Globals.o \
 	src/UtilModule.o \
 	src/Logger/classLogger.o \
@@ -48,6 +55,7 @@ OBJECTS = $(notdir $(OBJ))
 
 VPATH = vendor/feh/src \
 	vendor/mo_netcdf/src \
+	vendor/datetime-fortran/src/lib \
 	src \
 	src/Logger \
 	src/DataInterfacer \

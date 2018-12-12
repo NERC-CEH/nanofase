@@ -69,7 +69,6 @@ module classGridCell1
             ! Create the DiffuseSource object(s), if this cell has any
             if (me%hasDiffuseSource) then
                 do s = 1, size(me%diffuseSources, 1)
-                    print *, me%x, me%y, s
                     call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s))
                 end do
             end if
@@ -116,6 +115,7 @@ module classGridCell1
             ! Temporary array for appending to routedRiverReaches array
 
         b = 0                                   ! No river branches to begin with
+
         ! Loop through all the reaches in this GridCell.
         ! Don't type check for the moment
         do rr = 1, me%nRiverReaches
@@ -338,14 +338,18 @@ module classGridCell1
             me%j_np_diffuseSource = 0.0_dp
             
             ! Get any inputs from diffuse source
-            ! TODO Actually do something with these diffuse sources! Nothing is done
-            ! with me%j_np_diffuseSource currently
             if (me%hasDiffuseSource) then
                 do i = 1, size(me%diffuseSources)
                     call r%addErrors(.errors. me%diffuseSources(i)%update(t))
                     me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
                 end do
             end if
+
+            ! Demands and transfers
+            call r%addErrors([ &
+                .errors. me%demands(), &
+                .errors. me%transfers() &
+            ])
 
             ! Demands and transfers
             call r%addErrors([ &
@@ -372,7 +376,7 @@ module classGridCell1
                 lengthRatio = me%colRiverReaches(rr)%item%l/sum(me%branchLengths)
                 ! HACK to set NP runoff to 1e-9 SPM runoff
                 ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
-                j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded
+                j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
                 ! Update the reach for this timestep
                 call r%addErrors(.errors. &
                     me%colRiverReaches(rr)%item%update( &
@@ -473,6 +477,7 @@ module classGridCell1
             allocate(me%diffuseSources(1))
             i = 2               ! Any extra diffuse sources?
             do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
+                deallocate(me%diffuseSources)
                 allocate(me%diffuseSources(i))
                 i = i+1
             end do

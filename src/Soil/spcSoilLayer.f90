@@ -104,6 +104,13 @@ module spcSoilLayer
             type(Result) :: r
         end function
 
+        function calculateBioturbationRateSoilLayer(me) result(bioturbationRate)
+            use Globals, only: dp
+            import SoilLayer
+            class(SoilLayer) :: me
+            real(dp) :: bioturbationRate
+        end function
+
         !> Parse the data input for this SoilLayer
         function parseInputDataSoilLayer(me) result(r)
             use ResultModule, only: Result

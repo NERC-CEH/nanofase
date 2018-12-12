@@ -136,28 +136,30 @@ module classSoilLayer1
         class(SoilLayer1)   :: me
         real(dp)            :: k_att
         real(dp)            :: dm_att(C%nSizeClassesNP)
-        ! HACK Set to attachment rate as in SB4N SI for the moment:
-        ! https://pubs.acs.org/doi/suppl/10.1021/es500548h/suppl_file/es500548h_si_001.pdf
-        k_att = 3.65e-3_dp              ! [s-1]
-        dm_att = min(k_att*C%timeStep*me%m_np(:,1,1), me%m_np(:,1,1))           ! Mass to move from free -> attached, max of the current mass
-        me%m_np(:,1,1) = me%m_np(:,1,1) - dm_att                                ! Remove from free
-        me%m_np(:,1,2) = me%m_np(:,1,2) + dm_att                                ! Add to attached (bound)
+        if (C%includeAttachment) then
+            ! HACK Set to attachment rate as in SB4N SI for the moment:
+            ! https://pubs.acs.org/doi/suppl/10.1021/es500548h/suppl_file/es500548h_si_001.pdf
+            k_att = C%default_k_att
+            dm_att = min(k_att*C%timeStep*me%m_np(:,1,1), me%m_np(:,1,1))           ! Mass to move from free -> attached, max of the current mass
+            me%m_np(:,1,1) = me%m_np(:,1,1) - dm_att                                ! Remove from free
+            me%m_np(:,1,2) = me%m_np(:,1,2) + dm_att                                ! Add to attached (bound)
+        end if
     end subroutine
 
     !> Erode NM from this soil layer
     !! TODO bulk density could be stored in this object, not passed
     function erodeSoilLayer1(me, erodedSediment, bulkDensity, area) result(r)
         class(SoilLayer1)   :: me
-        real(dp)            :: erodedSediment(:)
-        real(dp)            :: bulkDensity
-        real(dp)            :: area
+        real(dp)            :: erodedSediment(:)        ! [kg/m2/day] TODO make sure changed to kg/m2/timestep
+        real(dp)            :: bulkDensity              ! [kg/m3]
+        real(dp)            :: area                     ! [m2]
         type(Result)        :: r
         real(dp)            :: m_soil_l1
         real(dp)            :: propEroded
         real(dp)            :: erodedNP(C%nSizeClassesNp)
-        ! Calculate the mass of the soil in this soil layer
-        m_soil_l1 = bulkDensity * area * me%depth
-        propEroded = sum(erodedSediment)/m_soil_l1
+        
+        m_soil_l1 = bulkDensity * area * me%depth           ! Calculate the mass of the soil in this soil layer
+        propEroded = sum(erodedSediment)*area/m_soil_l1     ! Proportion of this that is eroded, convert erodedSediment to kg/gridcell/day
         erodedNP = me%m_np(:,1,2)*propEroded                ! Only erode attached NM
         me%m_np(:,1,2) = me%m_np(:,1,2) - erodedNP          ! Remove the eroded NM from the layer
         me%m_np_eroded(:,1,2) = erodedNP
@@ -166,6 +168,9 @@ module classSoilLayer1
     function calculateBioturbationRateSoilLayer1(me) result(bioturbationRate)
         class(SoilLayer1) :: me
         real(dp) :: bioturbationRate
+        real(dp) :: earthwormDensity = 0.01e8     ! [worms/m3]
+        real(dp) :: bioturb_alpha = 1.341e-14
+        bioturbationRate = (earthwormDensity * bioturb_alpha) / me%depth
     end function
 
     !> Get the data from the input file and set object properties

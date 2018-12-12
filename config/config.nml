@@ -7,33 +7,42 @@ default_np_extra_states = 2
 /
 
 &data
-input_file = "data/data-gwava.nc",
-output_file = "data/output.csv"
+input_file = "data/thames/thames-global.nc"
+output_file = "output.csv"
+output_path = "data/output/"
 /
 
 &run
-timestep = 86400,
-n_timesteps = 1095,
-start_date = "2015-01-01",
-epsilon = 1e-10,
-error_output = .true.
+timestep = 86400
+n_timesteps = 365
+start_date = "2015-01-01"
+epsilon = 1e-50,
+error_output = .false.
 log_file_path = "log/"
 /
 
 &global
-default_grid_size = 5000,
-default_distribution_sediment = 50, 30, 10, 7, 3,
+default_grid_size = 5000
+default_distribution_sediment = 50, 30, 10, 7, 3
 default_distribution_np = 50, 30, 10, 7, 3
 default_fractional_comp = 30, 30, 30, 10
 /
 
 &soil
-default_soil_layer_depth = 0.1,
+default_soil_layer_depth = 0.1
+default_k_att = 3.65d-3
+include_bioturbation = .true.
+include_attachment = .true.
 /
 
 &river
-max_river_reaches = 100,
-default_meandering_factor = 1.0,
-default_water_temperature = 10,
+max_river_reaches = 100
+default_meandering_factor = 1.0
+default_water_temperature = 10
 default_alpha_hetero = 0.01
+include_bed_sediment = .false.
+/
+
+&sources
+include_point_sources = .true.
 /

@@ -584,17 +584,20 @@ module classBedSedimentLayer1
             end if
             A_w_SC = .real. r0D                                      ! static local copy of water capacity
             associate(O => Me%colFineSediment(S))                    ! association for brevity
+                !
+                !call O%repstat("Depositing sediment into:")
+                !
                 M_f_SC = O%M_f()                                     ! fine sediment mass in layer
                 V_f_SC = O%V_f()                                     ! fine sediment volume in layer
                 V_w_SC = O%V_w()                                     ! water volume in layer
                 if (add_V_f > A_f_SC) then                           ! added volume exceeds the available capacity; cannot all be added
                     V_f_SC = Me%C_f_l(S)                             ! set fine sediment volume to capacity
-                    add_V_f = add_V_f - A_f_SC                       ! volume that could not be added
-                    V_f_added = V_f_SC - A_f_SC                      ! volume added
+                    V_f_added = A_f_SC                               ! volume added
+                    add_V_f = add_V_f - A_f_SC                       ! volume that could be added
                 else                                                 ! added volume does not exceed the fine sediment capacity; can all be added
                     V_f_SC = V_f_SC + add_V_f                        ! addition of fine sediment volume
-                    add_V_f = 0                                      ! return zero volume not added
                     V_f_added = add_V_f                              ! volume added
+                    add_V_f = 0                                      ! return zero volume not added
                 end if
                 if (add_V_w > A_w_SC) then                           ! added volume exceeds the available capacity; cannot all be added
                     V_w_SC = Me%C_w_l(S)                             ! set water volume to capacity
@@ -685,10 +688,10 @@ module classBedSedimentLayer1
                 if (V_f_SC_r > V_f_SC) then
                     V_f_SC_r = V_f_SC                                ! amount of sediment to be removed exceeds amount in layer, 
                     V_w_SC_r = V_w_SC                                ! so set volumes of sediment and water to be removed to the layer totals
-                    print *, "!"
-                    print *, "Volumes of fine sediment and water to be removed exceed that in layer."
-                    print *, "Adjusted volume of fine sediment to be removed [m3/m2]: ", V_f_SC_r
-                    print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
+                    ! print *, "!"
+                    ! print *, "Volumes of fine sediment and water to be removed exceed that in layer."
+                    ! print *, "Adjusted volume of fine sediment to be removed [m3/m2]: ", V_f_SC_r
+                    ! print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
                 else                                                 ! need to compute volume of water to be removed - equal proportion of water present as to sediment present
                     if (G%V_w() == 0) then
                         V_w_SC_r = V_f_SC_r / .dp. Me%volSLR(S)      ! water volume to be removed, computed from the solid:liquid ratio for the layer, if no value is supplied
@@ -696,8 +699,8 @@ module classBedSedimentLayer1
                         V_w_SC_r = G%V_w()                           ! water volume as supplied
                     end if
                 end if
-                print *, "!"
-                print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
+                ! print *, "!"
+                ! print *, "Adjusted volume of water to be removed [m3/m2]:         ", V_w_SC_r
                 call r%addErrors(.errors. O%set( &
                                    Vf_in = V_f_SC - V_f_SC_r, &
                                    Vw_in = V_w_SC - V_w_SC_r &
@@ -753,12 +756,11 @@ module classBedSedimentLayer1
         !! in this alternative version, both objects returned via inout
         !! `G (FineSediment1)` returns the sediment that could not be removed
         !! `H (FineSediment1)` returns the sediment that was removed
-        function removeSediment2(Me, S, G, H, d) result(r)
+        function removeSediment2(Me, S, G, H) result(r)
             class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(inout) :: G                  !! Fine sediment to be removed, returns fine sediment that could not be removed
             type(FineSediment1), intent(inout) :: H                  !! Returns fine sediment that was removed
-            real(dp), intent(inout) :: d                             !! delta: the proportional mass of sediment removed in this operation
             type(Result) :: r                                        !! The Result object
             real(dp) :: V_f_SC                                       ! LOCAL fine sediment volume in layer
             real(dp) :: V_f_SC_r                                     ! LOCAL fine sediment volume removed
@@ -795,7 +797,6 @@ module classBedSedimentLayer1
                 return                                               ! exit here
             end if
             associate (O => Me%colFineSediment(S))
-                d = O%M_f()                                          ! use d to store initial mass of fine sediment in the layer
                 V_f_SC = O%V_f()                                     ! static local copy of fine sediment volume
                 V_w_SC = O%V_w()                                     ! static local copy of water volume
                 if (V_f_SC_r > V_f_SC) then
@@ -843,15 +844,13 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                                ! add a trace message to any errors
                 return                                               ! exit here
             end if
-            d = H%M_f() / d                                          ! update d to return the proportion of sediment removed
         end function
         !> **Subroutine purpose**                                   <br>
-        !! Remove sediment of a specified size fraction, and associated water,
+        !! Remove sediment of all size classes, and associated water,
         !! from a bed sediment layer
         !!                                                          <br>
         !! **Subroutine inputs**                                    <br>
         !! `S (integer)`: the size class from which sediment is to be removed <br>
-        !! `G (FineSediment1)`: sediment to be removed
         !!                                                          <br>
         !! **Subroutine outcomes**                                  <br>
         !! Values of sediment mass, water volume and fractional composition set to zero

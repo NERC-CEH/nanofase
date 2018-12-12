@@ -30,6 +30,9 @@ default_fractional_comp = 30, 30, 30, 10
 
 &soil
 default_soil_layer_depth = 0.1
+default_k_att = 3.65d-3
+include_bioturbation = .true.
+include_attachment = .true.
 /
 
 &river
@@ -37,4 +40,8 @@ max_river_reaches = 100
 default_meandering_factor = 1.0
 default_water_temperature = 10
 default_alpha_hetero = 0.01
+/
+
+&sources
+include_point_sources = .true.
 /

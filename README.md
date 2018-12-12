@@ -68,8 +68,4 @@ Run `./nanofase.py` without any options to see all available options, but here a
 ### Running the script
 Python must be installed to run the script. The script can be run either by `./nanofase.py` or `python nanofase.py`. The former requires the script by executable (`chmod u+x ./nanofase.py`) and your system be capable of interpreting the `#!` shebang to the Python interpretter.
 
-<<<<<<< HEAD
 You might want to consider adding an alias to save having to type `./nanofase.py` each time you want to run the script. For example, adding `alias nf="/path/to/nanofase/dir/nanofase.py"` will make the script runable by `nf <option>` from any directory.
-=======
-You might wanted to consider adding an alias to save having to type `./nanofase.py` each time you want to run the script. For example, adding `alias nf="/path/to/nanofase/dir/nanofase.py"` will make the script runable by `nf <option>` from any directory.
->>>>>>> 37aff9502a504663a68dd79917a6806709c58ae2

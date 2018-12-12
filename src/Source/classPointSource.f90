@@ -3,6 +3,7 @@ module classPointSource
     use Globals
     use UtilModule
     use ResultModule
+    use classDataInterfacer
     implicit none
     
     type, public :: PointSource
@@ -49,6 +50,7 @@ module classPointSource
         ! Set some defaults
         me%fixedMass = 0.0_dp
         me%variableMass_timeSeries = 0.0_dp
+
         
         ! Parse the input data for this point source
         call r%addErrors(.errors. me%parseInputData())
@@ -63,12 +65,15 @@ module classPointSource
         type(Result) :: r
         
         me%j_np_pointsource = 0      ! Reset from the last timestep
-        ! Check if this is a timestep where the fixed mass is to be input
-        if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
-            me%j_np_pointsource = me%fixedMass
+
+        if (C%includePointSources) then
+            ! Check if this is a timestep where the fixed mass is to be input
+            if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
+                me%j_np_pointsource = me%fixedMass
+            end if
+            ! Add this timestep's input from the variable mass input
+            me%j_np_pointsource = me%j_np_pointsource + me%variableMass_timeSeries(t,:,:,:)
         end if
-        ! Add this timestep's input from the variable mass input
-        me%j_np_pointsource = me%j_np_pointsource + me%variableMass_timeSeries(t,:,:,:)
         
         call r%addToTrace("Updating PointSource on time step " // trim(str(t)))
     end function
@@ -77,47 +82,31 @@ module classPointSource
     function parseInputDataPointSource(me) result(r)
         class(PointSource) :: me
         type(Result) :: r
-        type(NcDataset) :: nc               ! NetCDF dataset
-        type(NcVariable) :: var             ! NetCDF variable
-        type(NcGroup) :: grp                ! NetCDF group
         integer :: i                        ! Loop iterator
         
-        nc = NcDataset(C%inputFile, "r")                        ! Open dataset as read-only
-        grp = nc%getGroup("Environment")
-        grp = grp%getGroup(trim(ref("GridCell",me%x,me%y)))
-        ! Loop through the parent groups        
+
+        call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
+            'Environment', &
+            ref('GridCell', me%x, me%y) &
+        ]))
         do i = 1, size(me%parents)
-            grp = grp%getGroup(trim(me%parents(i)))
+            DATA%grp = DATA%grp%getGroup(trim(me%parents(i)))
         end do
+
         ! The containing waterbody should have already checked this PointSource exists
-        if (me%s == 1 .and. grp%hasGroup("PointSource")) then
-            me%ncGroup = grp%getGroup("PointSource")
+        if (me%s == 1 .and. DATA%grp%hasGroup("PointSource")) then
+            DATA%grp = DATA%grp%getGroup("PointSource")
         else
-            me%ncGroup = grp%getGroup("PointSource_" // trim(str(me%s)))
+            DATA%grp = DATA%grp%getGroup("PointSource_" // trim(str(me%s)))
         end if
         
-        ! If a fixed mass input has been specified
-        if (me%ncGroup%hasVariable("fixed_mass")) then
-            var = me%ncGroup%getVariable("fixed_mass")
-            call var%getData(me%fixedMass)
-            ! If a fixed mass frequency has been specified, use it, otherwise default to daily
-            if (me%ncGroup%hasVariable("fixed_mass_frequency")) then
-                var = me%ncGroup%getVariable("fixed_mass_frequency")
-                call var%getData(me%fixedMassFrequency)
-            else
-                call r%addError(ErrorInstance( &
-                    message = "Fixed mass input specified with no frequency of input. Defaulting to daily input.", &
-                    isCritical = .false. &
-                ))
-                me%fixedMassFrequency = 1
-            end if
-        end if
-        
+        ! Get fixed mass, otherwise set to 0 [kg]
+        call r%addErrors(.errors. DATA%get("fixed_mass", me%fixedMass, 0.0_dp))
+
+        ! If a fixed mass frequency has been specified, use it, otherwise default to daily
+        call r%addErrors(.errors. DATA%get("fixed_mass_frequency", me%fixedMassFrequency, 1))
         ! If a time series of inputs has been specified
-        if (me%ncGroup%hasVariable("variable_mass")) then
-            var = me%ncGroup%getVariable("variable_mass")
-            call var%getData(me%variableMass_timeSeries)
-        end if
+        call r%addErrors(.errors. DATA%get("variable_mass", me%variableMass_timeSeries, 0.0_dp))
         
         ! Add this procedure to the error trace
         call r%addToTrace("Parsing input data")             

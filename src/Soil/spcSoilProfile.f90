@@ -23,6 +23,7 @@ module spcSoilProfile
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Nanomaterial
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
+        real(dp), allocatable :: m_np_in(:,:,:)                     !! Mass of NM deposited to profile on a time step [kg]
         real(dp), allocatable :: m_np_buried(:,:,:)                 !! Cumulative mass of NM "lost" from the bottom `SoilLayer` [kg]
         real(dp), allocatable :: m_np_eroded(:,:,:)                 !! Mass of NM eroded on current timestep [kg]
         ! Hydrology and met
@@ -75,14 +76,14 @@ module spcSoilProfile
         real(dp) :: usle_slp_ch                                     !! Slope of the channel [m m-1]
         real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
         !--------------------------------------
-
-
+        
       contains
         procedure(createSoilProfile), deferred :: create                    ! Create the SoilProfile object
         procedure(destroySoilProfile), deferred :: destroy                  ! Remove the SoilProfile object and all contained objects
         procedure(updateSoilProfile), deferred :: update                    ! Perform simulation for given time step
         procedure(percolateSoilProfile), deferred :: percolate              ! Percolate water for given time step
         procedure(erodeSoilProfile), deferred :: erode                      ! Erode soil for given time step
+        procedure(bioturbationSoilProfile), deferred :: bioturbation        ! Bioturbate soil for a given time step
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
     end type
@@ -156,6 +157,12 @@ module spcSoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current timestep
             type(Result) :: r                                   !! `Result` object to return
+        end function
+
+        function bioturbationSoilProfile(me) result(rslt)
+            import SoilProfile, Result
+            class(SoilProfile)  :: me
+            type(Result)        :: rslt
         end function
 
         !> Impose a size class distribution on a total mass to split it up
