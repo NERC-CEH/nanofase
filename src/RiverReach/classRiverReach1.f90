@@ -109,10 +109,8 @@ module classRiverReach1
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        if (C%includeBedSediment) then
-            allocate(BedSediment1::me%bedSediment)
-            call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
-        end if
+        allocate(BedSediment1::me%bedSediment)
+        call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
 
         ! Create the Reactor object to deal with nanoparticle transformations
         allocate(Reactor1::me%reactor)
@@ -298,13 +296,11 @@ module classRiverReach1
 
             ! Resuspended SPM must be taken from BedSediment
             ! TODO: [DONE REQUIRES CHECKING] Get masses of bed sediment by size fraction
-            if (C%includeBedSediment) then
-                r1D = me%bedSediment%Mf_bed_by_size()                   ! retrieve bed masses [kg m-2] by size class
-                call r%addErrors(.errors. r1D)                          ! add any errors to trace
-                if (r%hasCriticalError()) return                        ! If getting bed throws error
-                mbed = .dp. r1D                                         ! extract bed sediment mass [kg] by size fraction
-                                                                        ! from Result object (1D array => 1D array)
-            end if
+            r1D = me%bedSediment%Mf_bed_by_size()                   ! retrieve bed masses [kg m-2] by size class
+            call r%addErrors(.errors. r1D)                          ! add any errors to trace
+            if (r%hasCriticalError()) return                        ! If getting bed throws error
+            mbed = .dp. r1D                                         ! extract bed sediment mass [kg] by size fraction
+                                                                    ! from Result object (1D array => 1D array)
             dj_spm_res = Me%k_spm_res * mbed * dt                    ! the mass of sediment resuspending on each displacement [kg]
             
             if (C%includeBedSediment) then
