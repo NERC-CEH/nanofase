@@ -328,9 +328,6 @@ module classSoilProfile1
     function parseInputDataSoilProfile1(me) result(r)
         class(SoilProfile1)     :: me                       !! This `SoilProfile` instance
         type(Result)            :: r                        !! `Result` object to return
-        type(NcDataset)         :: nc                       ! NetCDF dataset
-        type(NcVariable)        :: var                      ! NetCDF variable
-        type(NcGroup)           :: grp                      ! NetCDF group
         real(dp), allocatable   :: usle_C_min(:)            ! Minimum cover factor for USLE
         real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
         integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param

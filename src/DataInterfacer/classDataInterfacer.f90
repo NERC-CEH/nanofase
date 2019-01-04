@@ -16,7 +16,7 @@ module classDataInterfacer
 
       contains
         procedure, public :: init => initDataInterfacer
-        procedure, public :: destroy => destroyDataInterfacer
+        procedure, public :: close => closeDataInterfacer
         procedure, public :: setGroup => setGroupDataInterfacer
         
         ! Methods to get variables of different types/ranks. All hopes of DRY coding out of the window...
@@ -92,12 +92,11 @@ module classDataInterfacer
         call LOG%add("Initialising DataInterfacer: success")
     end subroutine
 
-    !> Destroy the NetCDF DataInterfacer
-    function destroyDataInterfacer(me) result(r)
+    !> Close the NetCDF file
+    subroutine closeDataInterfacer(me)
         class(DataInterfacer) :: me
-        type(Result) :: r
-        ! me%file%close()
-    end function
+        call me%inputDataset%close()
+    end subroutine
     
     !> Set the current group to retrieve variables from.
     !! This saves multiple queries to find the group if we're

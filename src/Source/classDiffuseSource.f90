@@ -85,7 +85,7 @@ module classDiffuseSource
         end if
 
         ! If a fixed mass input has been specified, get it.
-        call r%addErrors(.errors. DATA%get('input_mass', me%inputMass_timeSeries, 0.0_dp))      ! [kg/m2/s]
+        call r%addErrors(.errors. DATA%get('input_mass', me%inputMass_timeSeries, 0.0_dp, warnIfDefaulting=.false.))    ! [kg/m2/s]
         me%inputMass_timeSeries = me%inputMass_timeSeries*C%timeStep                            ! Convert to kg/m2/timestep
 
         ! If an atmospheric fixed mass input has been specified, get it
@@ -95,7 +95,7 @@ module classDiffuseSource
         end if
 
         ! If a fixed mass input has been specified, get it.
-        call r%addErrors(.errors. DATA%get('input_mass', me%inputMass_timeSeries, 0.0_dp))      ! [kg/m2/s]
+        call r%addErrors(.errors. DATA%get('input_mass', me%inputMass_timeSeries, 0.0_dp, warnIfDefaulting=.false.))      ! [kg/m2/s]
         me%inputMass_timeSeries = me%inputMass_timeSeries*C%timeStep                            ! Convert to kg/m2/timestep
     end function
 
