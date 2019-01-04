@@ -97,7 +97,8 @@ module Globals
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
         namelist /soil/ default_soil_layer_depth, include_bioturbation, include_attachment, default_k_att
-        namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, include_bed_sediment
+        namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
+            include_bed_sediment
         namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
@@ -208,6 +209,7 @@ module Globals
         ! TODO: Check the distribution adds up to 100%
         var = grp%getVariable("default_distribution_np")    ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
+        call C%dataset%close()                              ! Close the dataset
         ! TODO: Get default water temperature "T_water"
 
         ! Set the number of size classes
