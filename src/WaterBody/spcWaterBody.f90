@@ -1,8 +1,7 @@
-!> Module containing definition of abstract base class `WaterBody`.
+!> Module containing definition of base class `WaterBody`.
 module spcWaterBody
-    use Globals                                                     ! Global declarations
-    use mo_netcdf                                                   ! Input/output handling
-    use ResultModule, only: Result, Result0D                        ! Error handling classes, required for
+    use Globals
+    use ResultModule, only: Result, Result0D
     use ErrorInstanceModule
     use classPointSource
     use classDiffuseSource

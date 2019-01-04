@@ -1,39 +1,21 @@
-!> Module containing the `WaterBody1` class definition
-module classWaterBody1
-    use mo_netcdf
+!> Module containing the `WaterBody1` class definition. WaterBody contains logic
+!! not specific to rivers, estuaries or lakes
+module spcWaterBody
     use Globals
     use UtilModule
-    use ResultModule
+    use ResultModule, only: Result, Result0D
     use ErrorInstanceModule
     use spcWaterBody
-    use classBedSediment1
+    use classLogger, only: LOG
+    use classDataInterfacer, only: DATA
     use classReactor1
     implicit none
 
-    !> `WaterBody1` object is responsible for sediment transport along river and
-    !! sediment deposition to bed sediment.
+    !> The 
     type, public, extends(WaterBody) :: WaterBody1
       contains
         ! Create/destroy
         procedure :: create => createWaterBody1
-        procedure :: destroy => destroyWaterBody1
-        ! Simulators
-        procedure :: update => updateWaterBody1
-        procedure :: finaliseUpdate => finaliseUpdateWaterBody1
-        procedure :: resuspension => resuspensionWaterBody1
-        procedure :: settling => settlingWaterBody1
-        procedure :: depositToBed => depositToBedWaterBody1
-        ! Data handlers
-        procedure :: setDefaults => setDefaultsWaterBody1
-        procedure :: parseInputData => parseInputDataWaterBody1
-        ! Calculators
-        procedure :: calculateWidth => calculateWidth1
-        procedure :: calculateDepth => calculateDepth1
-        procedure :: calculateVelocity => calculateVelocity1
-        procedure :: calculateSettlingVelocity => calculateSettlingVelocity1
-        procedure :: calculateResuspension => calculateResuspension1
-        procedure :: calculateArea => calculateArea1
-        procedure :: calculateVolume => calculateVolume1
     end type
 
   contains
@@ -47,81 +29,7 @@ module classWaterBody1
         real(dp) :: q_runoff_timeSeries(:)                      !! Runoff time series [m/timestep]
         real(dp) :: T_water_timeSeries(:)                       !! Water temperature time series [C]
         real(dp) :: gridCellArea                                !! The area for the containing `GridCell` [m2]
-        type(Result) :: r                                       !! The Result object
-        type(Result0D) :: D                                     ! Depth [m]
-        type(Result0D) :: v                                     ! River velocity [m/s]
-        type(Result0D) :: W                                     ! River width [m]
-        integer :: n, s                                         ! Loop iterator for SPM size classes and sources
-        integer :: allst                                        ! Allocation status
-        type(ErrorInstance) :: error                            ! To return errors
-
-        ! First, let's set the WaterBody's reference and the length
-        me%x = x
-        me%y = y
-        me%rr = rr
-        me%ref = trim(ref("WaterBody", x, y, rr))
-        me%gridCellArea = gridCellArea
-        allocate(me%q_runoff_timeSeries, source=q_runoff_timeSeries)    ! Runoff = slow flow + quick flow [m/timestep]
-        allocate(me%T_water_timeSeries, source=T_water_timeSeries)      ! Water temperature [C]
-
-        ! Allocate the arrays of size classes and set SPM to 0 to begin with
-        allocate(me%j_spm_in(C%nSizeClassesSpm), &
-            me%j_spm_out(C%nSizeClassesSpm), &
-            me%tmp_j_spm_out(C%nSizeClassesSpm), &
-            me%m_spm(C%nSizeClassesSpm), &
-            me%j_spm_res(C%nSizeClassesSpm), &
-            me%C_spm(C%nSizeClassesSpm), &
-            me%C_np(C%nSizeClassesNP, 4, C%nSizeClassesSpm), &
-            me%k_settle(C%nSizeClassesSpm), &
-            me%W_settle_spm(C%nSizeClassesSpm), &
-            me%W_settle_np(C%nSizeClassesNP), &
-            me%spmDep(C%nSizeClassesSpm), &
-            me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
-            me%j_np_in(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
-            me%j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
-            me%tmp_j_np_out(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
-            me%j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
-            me%j_np_dep(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm), &
-            stat=allst)
-        me%C_spm = 0                    ! Set SPM, NP and flows to zero to begin with
-        me%C_np = 0
-        me%m_spm = 0
-        me%m_np = 0
-        me%j_spm_out = 0
-        me%j_np_out = 0
-        me%Q_out = 0
-        me%tmp_j_spm_out = 0
-        me%tmp_j_np_out = 0
-        me%tmp_Q_out = 0
-        
-        ! Set any defaults (no errors to be thrown)
-        call me%setDefaults()
-        
-        ! Get data from the input data file
-        call r%addErrors(.errors. me%parseInputData())
-
-        ! TODO: Where should Manning's n come from? From Constants for the moment:
-        me%n = C%n_river
-
-        ! Create the BedSediment for this WaterBody
-        ! TODO: Get the type of BedSediment from the data file, and check for allst
-        ! TODO: Sort of BedSediment errors
-        !allocate(BedSediment1::me%bedSediment)
-        !call r%addErrors(.errors. me%bedSediment%create(me%ncGroup))
-        
-        ! Create the Reactor object to deal with nanoparticle transformations
-        allocate(Reactor1::me%reactor)
-        call r%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
-        
-        ! Create the PointSource object(s), if this reach has any
-        do s = 1, size(me%pointSources)
-            call r%addErrors(.errors. me%pointSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
-        end do
-
-        ! Create the DiffuseSource object(s), if this reach has any
-        do s = 1, size(me%diffuseSources)
-            call r%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s, [trim(me%ref)]))
-        end do
+     
         
         call r%addToTrace('Creating ' // trim(me%ref))
     end function

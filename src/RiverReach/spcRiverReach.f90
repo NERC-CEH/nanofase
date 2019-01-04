@@ -2,7 +2,7 @@
 module spcRiverReach
     use Globals                                                     ! Global declarations
     use mo_netcdf                                                   ! Input/output handling
-    use ResultModule, only: Result, Result0D                        ! Error handling classes, required for
+    use ResultModule, only: Result, Result0D                        ! Error handling classes
     use ErrorInstanceModule
     use classPointSource
     use classDiffuseSource
