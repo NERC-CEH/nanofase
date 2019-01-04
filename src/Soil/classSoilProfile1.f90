@@ -332,6 +332,7 @@ module classSoilProfile1
         real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
         integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param
         real(dp), allocatable   :: usle_rsd(:)              ! Residue on soil surface [kg/ha]
+        type(NcVariable)        :: var
 
         ! Allocate the data which are time series. These must be allocatable (as opposed to
         ! being declared that length) to work with the mo_netcdf getData() procedure.

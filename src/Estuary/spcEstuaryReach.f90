@@ -1,36 +1,15 @@
 module spcEstuaryReach
-    use ResultModule
+    use spcWaterBody
     implicit none
     
 
-    type, public, abstract :: EstuaryReach
+    type, public, abstract, extends(WaterBody) :: EstuaryReach
     
-      contains
-        procedure(createEstuaryReach), deferred :: create
-        procedure(updateEstuaryReach), deferred :: update
+        integer :: a = 1
     end type
       
     type, public :: EstuaryReachElement
         class(EstuaryReach), allocatable :: item    
     end type
-    
-    abstract interface
-    
-        function createEstuaryReach(me) result(r)
-            use ResultModule
-            import EstuaryReach, Result
-            class(EstuaryReach) :: me
-            type(Result) :: r
-        end function
-        
-        function updateEstuaryReach(me, t) result(r)
-            use ResultModule
-            import EstuaryReach, Result
-            class(EstuaryReach) :: me
-            integer :: t
-            type(Result) :: r
-        end function
-        
-    end interface
     
 end module
