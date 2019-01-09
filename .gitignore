@@ -71,6 +71,7 @@ fort*
 
 # Temp files
 ~$*.docx
+*.csv#
 
 # netCDF
 *.nc

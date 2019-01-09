@@ -40,6 +40,11 @@ options = {
         "run-description": "Running the model (without compiling) using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
         "cmd": "make run CONFIG_FILE=thames.nml"
     },
+    "run-gwava": {
+        "description": "Run the model (without compiling) using GWAVA config (config/gwava.nml) and data (data/gwava/data.nc)",
+        "run-description": "Running the model (without compiling) using GWAVA config (config/gwava.nml) and data (data/gwava/data.nc)",
+        "cmd": "make run CONFIG_FILE=gwava.nml"
+    },
     "compile-run": {
         "description": "Compile the model using the makefile and then run",
         "run-description": "Compiling the model using the makefile and then running",

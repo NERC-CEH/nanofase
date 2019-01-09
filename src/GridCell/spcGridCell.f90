@@ -4,9 +4,8 @@ module spcGridCell
     use mo_netcdf
     use ResultModule
     use ErrorInstanceModule
-    use spcRiverReach
+    use spcReach
     use spcSoilProfile
-    use spcEstuaryReach
     use classDiffuseSource
     use classPointSource
     use classCrop
@@ -23,12 +22,11 @@ module spcGridCell
         integer :: dx                                                   !! Size of `GridCell` in x direction [m]
         integer :: dy                                                   !! Size of `GridCell` in y direction [m]
         real(dp) :: area                                                !! Area of the `GridCell`
-        type(RiverReachElement), allocatable :: colRiverReaches(:)      !! Array of `RiverReachElement` objects to hold the RiverReaches
-        type(RiverReachPointer), allocatable :: routedRiverReaches(:,:) !! `RiverReach`es ordered by branch and flow direction
+        type(ReachElement), allocatable :: colRiverReaches(:)           !! Array of `RiverReachElement` objects to hold the RiverReaches
+        type(ReachPointer), allocatable :: routedRiverReaches(:,:)      !! `RiverReach`es ordered by branch and flow direction
             !! Array of `RiverReachPointer` objects to order rivers in routing order and by branch.
             !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch
         real(dp), allocatable :: branchLengths(:)                       !! Calculated (or specified) lengths of river branches in this `GridCell`
-        type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
         type(DiffuseSource), allocatable :: diffuseSources(:)           !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`

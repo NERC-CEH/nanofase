@@ -79,30 +79,33 @@ program main
                    ! RiverReachs
                    do rr = 1, env%colGridCells(x,y)%item%nRiverReaches
                        m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
-                       m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np + &
-                           env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_out
+                       m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np - &
+                           env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,:,:)
                        if (.not. isZero(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume)) then
                            C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                        else
                            C_np = 0
                        end if
-                       npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_dep
+                       npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_deposit()
                        if (C%includeBedSediment) then
                            bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
                        else
                            bedSedimentMass = 0    
                        end if
-                       npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff)
+                       npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff())
                        riverVolume = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
-                       Q_out = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%Q_out/C%timeStep     ! Converted from m3/timestep to m3/s
-                       npPointSource = 0
-                       if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%hasPointSource) then
-                           do s = 1, size(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%pointSources)
-                               npPointSource = npPointSource + &
-                                   sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%pointSources(s)%j_np_pointSource)
-                           end do
-                       end if
-        
+                       Q_out = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%Q(1)/C%timeStep     ! Converted from m3/timestep to m3/s
+                       ! npPointSource = 0
+                       ! if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%hasPointSource) then
+                       !     do s = 1, size(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%pointSources)
+                       !         npPointSource = npPointSource + &
+                       !             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%pointSources(s)%j_np_pointSource)
+                       !     end do
+                       ! end if
+                       npPointSource = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_pointsource())
+                       ! print *, "m_np: ", env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(1,:,:)
+                       ! print *, "j_np: ", env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,:,:)
+                       ! print *, ""
                        ! Write to the data file
                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
                            t, ",", &
@@ -124,10 +127,10 @@ program main
                        
                        m_np_hetero = m_np_hetero + &
                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &
-                           env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_out(:,1,3:)
+                           env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,1,3:)
                        m_np_free = m_np_free + &
                            sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,1)) + &
-                           sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_out(:,1,1))
+                           sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,1,1))
                    end do
         
                    m_np_l1 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np

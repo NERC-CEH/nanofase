@@ -38,7 +38,7 @@ module classEnvironment1
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
         logical :: isValidInflow = .true.                       ! Is inflow SubRiver is a neighbouring river
-        type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
+        type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
         call r%addErrors(.errors. me%parseInputData())
@@ -101,11 +101,11 @@ module classEnvironment1
                                     iy = riverReach%inflowRefs(i)%y
                                     ! Check the inflow specified exists in the model domain
                                     if (ix > 0 .and. ix .le. me%gridDimensions(1) &
-                                        .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
+                                        .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then                                        
                                         ! Point this reach's inflow to the actual RiverReach
                                         riverReach%inflows(i)%item => &
                                             me%colGridCells(riverReach%inflowRefs(i)%x,riverReach%inflowRefs(i)%y) &
-                                                %item%colRiverReaches(riverReach%inflowRefs(i)%rr)%item
+                                                %item%colRiverReaches(riverReach%inflowRefs(i)%w)%item
                                         ! Set this inflow's outflow to this reach
                                         riverReach%inflows(i)%item%outflow%item => riverReach
                                         ! If this is a GridCell inflow, then set its inflows to be GridCell outflows

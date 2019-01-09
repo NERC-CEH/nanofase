@@ -60,6 +60,7 @@ module Globals
         integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
         integer :: npDim(3)                         !! Default dimensions for arrays of NM
+        integer :: ionicDim                         !! Default dimensions for ionic metal
 
       contains
         procedure :: rho_w      ! Density of water
@@ -235,11 +236,13 @@ module Globals
             end if
         end do        
 
-        ! Array to store default NM array dimensions:
+        ! Array to store default NM and ionic array dimensions. NM:
         !   1: NP size class
         !   2: form (core, shell, coating, corona)
         !   3: state (free, bound, heteroaggregated)
+        ! Ionic: Form (free ion, solution, adsorbed)
         C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
+        C%ionicDim = 3
         
     end subroutine
 

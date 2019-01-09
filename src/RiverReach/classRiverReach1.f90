@@ -416,11 +416,6 @@ module classRiverReach1
             me%C_np = 0.0_dp
         end if
         
-        !---------------------------------------------------------------------------------------------------------------------
-        ! THIS NEEDS TO BE MOVED INTO THE DISPLACEMENT LOOP
-        ! Now add the settled SPM to the BedSediment
-        ! call r%addErrors(.errors. me%depositToBed(me%spmDep))
-        !---------------------------------------------------------------------------------------------------------------------
         ! If there's no SPM left, add the "all SPM advected" warning
         ! TODO Maybe the same for NPs
         do n = 1, C%nSizeClassesSpm
@@ -513,7 +508,6 @@ module classRiverReach1
         type(Result) :: r                                   !! The `Result` object to return any errors
         type(FineSediment1) :: fineSediment                 ! Object to pass SPM to BedSediment in
         integer :: n                                        ! Size class iterator
-        ! TODO: This isn't time dependent! Move out of update loop
         ! SPM: Loop through the size classes and calculate settling velocity
         do n = 1, C%nSizeClassesSpm
             me%W_settle_spm(n) = me%calculateSettlingVelocity( &
@@ -641,7 +635,7 @@ module classRiverReach1
                 ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
                 ! not physicaly possible within the reach (e.g. too short)       
             .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
-            .errors. DATA%get('f_m', me%f_m, 1.0_dp), &         ! Meandering factor
+            .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
             .errors. DATA%get('alpha_res', me%alpha_res), &     ! Resuspension alpha parameter
             .errors. DATA%get('beta_res', me%beta_res), &       ! Resuspension beta parameter
             .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.), &
@@ -840,7 +834,7 @@ module classRiverReach1
         ! Settling only occurs if SPM particle density is greater than density of water
         if (rho_particle > C%rho_w(T)) then
             dStar = ((rho_particle/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d    ! Calculate the dimensional particle diameter
-            W = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                         ! Calculate the settling velocity
+            W = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                              ! Calculate the settling velocity
                 * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
         else
             W = 0.0_dp
