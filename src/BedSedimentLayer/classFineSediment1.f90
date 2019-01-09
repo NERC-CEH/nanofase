@@ -287,8 +287,7 @@ module classFineSediment1
                 if (present(Vf_in)) Me%M_f_l = Vf_in * Me%rho_part()     ! Storing fine sediment volume, if specified
                 if (present(Vw_in)) Me%V_w_l = Vw_in                     ! Volume of water, if specified
             else
-                r = Result(error = &
-                    ErrorInstance( &
+                call r%addError(ErrorInstance( &
                         message = "Fine Sediment object not yet created. " &
                             // "Call FineSediment%create before trying to use the object", &
                         trace = ["FineSediment%setFS1"] &
