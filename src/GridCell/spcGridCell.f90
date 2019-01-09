@@ -6,7 +6,6 @@ module spcGridCell
     use ErrorInstanceModule
     use spcRiverReach
     use spcSoilProfile
-    use spcEstuaryReach
     use classDiffuseSource
     use classPointSource
     use classCrop
@@ -28,7 +27,7 @@ module spcGridCell
             !! Array of `RiverReachPointer` objects to order rivers in routing order and by branch.
             !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch
         real(dp), allocatable :: branchLengths(:)                       !! Calculated (or specified) lengths of river branches in this `GridCell`
-        type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
+        ! type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
         type(DiffuseSource), allocatable :: diffuseSources(:)           !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
