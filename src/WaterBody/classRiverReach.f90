@@ -16,24 +16,12 @@ module classRiverReach
         procedure :: destroy => destroyRiverReach
         ! Simulators
         procedure :: update => updateRiverReach
-        procedure :: finaliseUpdate => finaliseUpdateRiverReach
         ! Data handlers
         procedure :: parseInputData => parseInputDataRiverReach
         ! Calculators
         procedure :: calculateWidth => calculateWidth
         procedure :: calculateDepth => calculateDepth
         procedure :: calculateVelocity => calculateVelocity
-        ! Getters
-        procedure :: j_spm_inflows
-        procedure :: j_np_runoff => j_np_runoffRiverReach
-        procedure :: j_np_transfer => j_np_transferRiverReach
-        procedure :: j_np_deposit => j_np_depositRiverReach
-        procedure :: j_np_diffusesource => j_np_diffusesourceRiverReach
-        procedure :: j_np_pointsource => j_np_pointsourceRiverReach
-        ! Setters
-        procedure :: set_j_spm_runoff
-        procedure :: set_j_spm_transfer
-        procedure :: set_j_spm_deposit
     end type
 
   contains
@@ -52,8 +40,6 @@ module classRiverReach
         me%w = w
         me%ref = trim(ref("RiverReach", x, y, w))
         me%gridCellArea = gridCellArea
-
-        print *, me%ref
 
         ! Allocate arrays of size classes, form and state
         allocate(me%C_spm(C%nSizeClassesSpm), &
@@ -89,22 +75,22 @@ module classRiverReach
         !   (NM only)   5+nInflows -> 4+nInflows+nDiffuseSources: diffuse sources
         !   (NM only)   5+nInflows+nDiffuseSources -> 4+nInflows+nDiffuseSources+nPointSources: point sources
         allocate(me%Q(me%nInflows + 3), &
-            me%tmp_Q(me%nInflows + 3), &
+            me%Q_final(me%nInflows + 3), &
             me%j_spm(me%nInflows + 4, C%nSizeClassesSpm), &
-            me%tmp_j_spm(me%nInflows + 4, C%nSizeClassesSpm), &
+            me%j_spm_final(me%nInflows + 4, C%nSizeClassesSpm), &
             me%j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%tmp_j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%j_np_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%j_ionic(me%nInflows + 3, C%ionicDim), &
-            me%tmp_j_ionic(me%nInflows + 3, C%ionicDim) &
+            me%j_ionic_final(me%nInflows + 3, C%ionicDim) &
         )
         me%Q = 0
-        me%tmp_Q = 0
+        me%Q_final = 0
         me%j_spm = 0
-        me%tmp_j_spm = 0
+        me%j_spm_final = 0
         me%j_np = 0
-        me%tmp_j_np = 0
+        me%j_np_final = 0
         me%j_ionic = 0
-        me%tmp_j_ionic = 0
+        me%j_ionic_final = 0
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
@@ -164,19 +150,12 @@ module classRiverReach
         real(dp) :: dj_spm_res(C%nSizeClassesSpm)               ! Mass of each sediment size class resuspended on each displacement [kg]
 
         ! Initialise flows to zero
-        me%Q_in_total = 0
-        j_spm_in_total = 0
-        j_np_in_total = 0
         fractionSpmDep = 0
         j_spm_deposit = 0
-        me%tmp_Q = 0
-        me%Q(2:) = 0            ! Don't reset the outflow (element 1), other cells might need this as inflow
-        me%tmp_j_spm = 0
-        me%j_spm(2:,:) = 0
-        me%tmp_j_np = 0
-        me%j_np(2:,:,:,:) = 0
-        me%tmp_j_ionic = 0
-        me%j_ionic(2:,:) = 0
+        me%Q = 0            ! Don't reset the outflow (element 1), other cells might need this as inflow
+        me%j_spm = 0
+        me%j_np = 0
+        me%j_ionic = 0
         ! TODO get this from data (or empirical based on seasonal variation)
         me%T_water = 10
 
@@ -196,9 +175,9 @@ module classRiverReach
 
         ! Inflows from water bodies
         do i = 1, me%nInflows
-            me%Q(1+i) = -me%inflows(i)%item%Q(1)
-            me%j_spm(1+i,:) = -me%inflows(i)%item%j_spm(1,:)
-            me%j_np(1+i,:,:,:) = -me%inflows(i)%item%j_np(1,:,:,:)
+            me%Q(1+i) = -me%inflows(i)%item%Q_final(1)
+            me%j_spm(1+i,:) = -me%inflows(i)%item%j_spm_final(1,:)
+            me%j_np(1+i,:,:,:) = -me%inflows(i)%item%j_np_final(1,:,:,:)
         end do
 
         ! Inflows from transfers
@@ -366,11 +345,11 @@ module classRiverReach
 
             ! Sum the displacement outflows and mass for the final outflow
             ! Currently, Q_out = Q_in. Abstraction etc will change this
-            me%tmp_Q(1) = me%tmp_Q(1) - dQ_in
-            me%tmp_j_spm(1,:) = me%tmp_j_spm(1,:) - dj_spm_out
+            me%Q(1) = me%Q(1) - dQ_in
+            me%j_spm(1,:) = me%j_spm(1,:) - dj_spm_out
         end do
         ! Set the depositing flux in the SPM flux array
-        call me%set_j_spm_deposit(j_spm_deposit)   
+        call me%set_j_spm_deposit(j_spm_deposit)
 
         ! Use amount of settled SPM to get rid of heteroaggregated NPs, assuming
         ! uniformly distributed amongst SPM. fractionSpmDep doesn't include resuspension???
@@ -394,7 +373,7 @@ module classRiverReach
                     me%W_settle_spm, &
                     10.0_dp, &                      ! HACK: Where is the shear rate from?
                     me%volume, &
-                    -me%tmp_Q(1) &                   ! TODO: Is this used?
+                    -me%Q(1) &                   ! TODO: Is this used?
                 ) &
             ])
             ! Get the resultant transformed mass from the Reactor
@@ -404,11 +383,11 @@ module classRiverReach
         ! Reactor only deals with transformations, not flows, so we must now
         ! set an outflow based on the transformed mass
         if (.not. isZero(me%volume)) then
-            me%tmp_j_np(1,:,:,:) = -min(-me%tmp_Q(1)*(me%m_np/me%volume), me%m_np)
+            me%j_np(1,:,:,:) = -min(-me%Q(1)*(me%m_np/me%volume), me%m_np)
         else
-            me%tmp_j_np(1,:,:,:) = 0.0_dp
+            me%j_np(1,:,:,:) = 0.0_dp
         end if
-        me%m_np = me%m_np + me%tmp_j_np(1,:,:,:)    ! Outflow will be negative, hence the + sign here
+        me%m_np = me%m_np + me%j_np(1,:,:,:)    ! Outflow will be negative, hence the + sign here
 
         ! TODO Update all of the above so that me%m_np can be updated by j_np (and similar for SPM)
         ! in one go, instead of doing it individually for each process
@@ -437,15 +416,6 @@ module classRiverReach
 
         ! Add what we're doing here to the error trace
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
-    end function
-
-    !> TODO change to subroutine
-    function finaliseUpdateRiverReach(me) result(rslt)
-        class(RiverReach) :: me
-        type(Result) :: rslt
-        me%Q(1) = me%tmp_Q(1)
-        me%j_spm(1,:) = me%tmp_j_spm(1,:)
-        me%j_np(1,:,:,:) = me%tmp_j_np(1,:,:,:)
     end function
 
     function parseInputDataRiverReach(me) result(rslt)
@@ -674,73 +644,5 @@ module classRiverReach
             v = Q/(W*D)
         end if
     end function
-
-    function j_spm_inflows(me)
-        class(RiverReach) :: me
-        real(dp) :: j_spm_inflows(C%nSizeClassesSpm)
-        if (me%nInflows > 0) then
-            j_spm_inflows = sum(me%j_spm(2:1+me%nInflows,:), dim=1)
-        else
-            j_spm_inflows = 0
-        end if
-    end function
-
-    !> Get the total runoff from NM flux array
-    function j_np_runoffRiverReach(me) result(j_np_runoff)
-        class(RiverReach) :: me
-        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_runoff = me%j_np(2+me%nInflows,:,:,:)
-    end function
-
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_np_transferRiverReach(me) result(j_np_transfer)
-        class(RiverReach) :: me
-        real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_transfer = me%j_np(3+me%nInflows,:,:,:)
-    end function
-
-    !> Get the total deposited NM (settling + resus) from NM flux array
-    function j_np_depositRiverReach(me) result(j_np_deposit)
-        class(RiverReach) :: me
-        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_deposit = me%j_np(4+me%nInflows,:,:,:)
-    end function
-
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_np_diffusesourceRiverReach(me) result(j_np_diffusesource)
-        class(RiverReach) :: me
-        real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_diffusesource = sum(me%j_np(5+me%nInflows:5+me%nInflows+me%nDiffuseSources,:,:,:), dim=1)
-    end function
-
-    !> Get the total point source fluxes from NM flux array
-    function j_np_pointsourceRiverReach(me) result(j_np_pointsource)
-        class(RiverReach) :: me
-        real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_pointsource &
-            = sum(me%j_np(5+me%nInflows+me%nDiffuseSources:4+me%nInflows+me%nDiffuseSources+me%nPointSources,:,:,:), dim=1)
-    end function
-
-    !> Set the runoff flux of the SPM flux array
-    subroutine set_j_spm_runoff(me, j_spm_runoff)
-        class(RiverReach) :: me
-        real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
-        me%j_spm(2+me%nInflows,:) = j_spm_runoff
-    end subroutine
-
-    !> Set the transfer flux of the SPM flux array
-    subroutine set_j_spm_transfer(me, j_spm_transfer)
-        class(RiverReach) :: me
-        real(dp) :: j_spm_transfer(C%nSizeClassesSpm)
-        me%j_spm(3+me%nInflows,:) = j_spm_transfer
-    end subroutine
-
-    !> Set the settling/resuspension flux of the SPM flux array
-    subroutine set_j_spm_deposit(me, j_spm_deposit)
-        class(RiverReach) :: me
-        real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
-        me%j_spm(4+me%nInflows,:) = j_spm_deposit
-    end subroutine
-
 
 end module

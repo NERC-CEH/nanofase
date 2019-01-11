@@ -26,7 +26,7 @@ module spcWaterBody
 
     !> Abstract base class for `WaterBody`. Defines properties and procedures
     !! required in any implementation of this class.
-    type, abstract, public :: WaterBody
+    type, public :: WaterBody
         ! Reference
         character(len=100) :: ref                                   !! Reference for this object, of the form WaterBody_x_y_w
         integer :: x                                                !! `GridCell` x position
@@ -53,18 +53,20 @@ module spcWaterBody
             !! Flow of water to neighbouring compartments. Size of array corresponds to the number
             !! of possible flow directions (including transfers). +ve denotes flow *from* the neighbouring
             !! compartment, -ve denotes flow *to*. [m3/timestep]
-        real(dp), allocatable :: tmp_Q(:)                           !! Temporary flow storage until timestep loop complete [kg/timestep]
+        real(dp), allocatable :: Q_final(:)
+            !! Flow array updated at the end of the timestep. This is to enusre reaches don't use
+            !! the wrong timestep's Q from another reach, in particular as their inflow. [m3/timestep]
         real(dp) :: Q_in_total                                      !! Total inflow of water [m3/timestep]
         real(dp), allocatable :: j_spm(:,:)
-        real(dp), allocatable :: tmp_j_spm(:,:)                     !! Temporary flux storage until timestep loop complete [kg/timestep]
             !! Flow of SPM, same conventions as Q [kg/timestep]. 2nd dimension is the size class of the SPM
+        real(dp), allocatable :: j_spm_final(:,:)                   !! Final SPM flux array - see Q_final [kg/timestep]
         real(dp), allocatable :: j_np(:,:,:,:)
-        real(dp), allocatable :: tmp_j_np(:,:,:,:)                  !! Temporary flux storage until timestep loop complete [kg/timestep]
             !! Flow of NM, same conventions as Q [kg/timestep]. 2nd-4th dimensions are the NM size class,
             !! NM form and NM state, respectively.
+        real(dp), allocatable :: j_np_final(:,:,:,:)                !! Final NM flux array - see Q_final [kg/timestep]
         real(dp), allocatable :: j_ionic(:,:)
-        real(dp), allocatable :: tmp_j_ionic(:,:)                   !! Temporary flux storage until timestep loop complete [kg/timestep]
             !! Flow of ionic metal, same conventions as Q [kg/timestep]. 2nd dimension is the state of ionic metal
+        real(dp), allocatable :: j_ionic_final(:,:)                 !! Final ionic flux array - see Q_final [kg/timestep]
         real(dp), allocatable :: k_resus(:)                         !! Resuspension rate for a given timestep [s-1]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
@@ -80,20 +82,20 @@ module spcWaterBody
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
 
       contains
-        ! Create/destory
-        procedure(createWaterBody), deferred :: create
-        procedure(destroyWaterBody), deferred :: destroy
+        ! Create
+        procedure:: create => createWaterBody
         ! Simulators
-        procedure(updateWaterBody), deferred :: update
-        procedure(finaliseUpdateWaterBody), deferred :: finaliseUpdate
+        procedure:: update => updateWaterBody
+        procedure :: finaliseUpdate
         ! Data handlers
-        procedure(parseInputDataWaterBody), deferred :: parseInputData
+        procedure :: allocateAndInitialise => allocateAndInitialiseWaterBody
+        procedure:: parseInputData => parseInputDataWaterBody
         ! Getters
-        procedure(j_np_runoffWaterBody), deferred :: j_np_runoff
-        procedure(j_np_transferWaterBody), deferred :: j_np_transfer
-        procedure(j_np_depositWaterBody), deferred :: j_np_deposit
-        procedure(j_np_diffusesourceWaterBody), deferred :: j_np_diffusesource
-        procedure(j_np_pointsourceWaterBody), deferred :: j_np_pointsource
+        procedure:: j_np_runoff => j_np_runoffWaterBody
+        procedure:: j_np_transfer => j_np_transferWaterBody
+        procedure:: j_np_deposit => j_np_depositWaterBody
+        procedure:: j_np_diffusesource => j_np_diffusesourceWaterBody
+        procedure:: j_np_pointsource => j_np_pointsourceWaterBody
     end type
       
     !> Container type for `class(WaterBody)`, the actual type of the `WaterBody` class.
@@ -103,91 +105,103 @@ module spcWaterBody
         class(WaterBody), allocatable :: item                      !! Polymorphic `WaterBody` object
     end type
 
-    abstract interface
-        !> Create this `WaterBody`
-        function createWaterBody(me, x, y, w, gridCellArea) result(rslt)
-            use Globals
-            use ResultModule, only: Result
-            import WaterBody
-            class(WaterBody) :: me                                  !! The `WaterBody` instance
-            integer :: x, y, w                                      !! `GridCell` and `WaterBody` identifiers
-            real(dp) :: gridCellArea                                !! Area of the containing `GridCell`
-            type(Result) :: rslt                                    !! The Result object
-        end function
+  contains
 
-        !> Destroy this `WaterBody`
-        function destroyWaterBody(me) result(rslt)
-            use ResultModule, only: Result
-            import WaterBody
-            class(WaterBody) :: me                                  !! The `WaterBody` instance
-            type(Result) :: rslt                                    !! The `Result` object to return
-        end function
+    !> Create this `WaterBody`
+    function createWaterBody(me, x, y, w, gridCellArea) result(rslt)
+        class(WaterBody) :: me                                  !! The `WaterBody` instance
+        integer :: x, y, w                                      !! `GridCell` and `WaterBody` identifiers
+        real(dp) :: gridCellArea                                !! Area of the containing `GridCell`
+        type(Result) :: rslt                                    !! The Result object
+        ! Set reach indices and grid cell area
+        me%x = x
+        me%y = y
+        me%w = w
+        me%gridCellArea = gridCellArea
+    end function
 
-        !> Update this `WaterBody` on given time step
-        function updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
-            use Globals
-            use ResultModule, only: Result
-            import WaterBody
-            class(WaterBody) :: me                                  !! This `WaterBody` instance
-            integer :: t                                            !! What time step are we on?
-            real(dp), optional :: q_runoff                          !! Runoff from the hydrological model [m/timestep]
-            real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this water body [kg/timestep]
-            real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this water body [kg/timestep]
-            type(Result) :: rslt                                    !! The `Result` object
-        end function
+    !> Update this `WaterBody` on given time step
+    function updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
+        class(WaterBody) :: me                                  !! This `WaterBody` instance
+        integer :: t                                            !! What time step are we on?
+        real(dp), optional :: q_runoff                          !! Runoff from the hydrological model [m/timestep]
+        real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this water body [kg/timestep]
+        real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this water body [kg/timestep]
+        type(Result) :: rslt                                    !! The `Result` object
 
-        !> Set temporary flow variables to real flow variables
-        function finaliseUpdateWaterBody(me) result(rslt)
-            use ResultModule, only: Result
-            import WaterBody
-            class(WaterBody) :: me
-            type(Result) :: rslt
-        end function
+        ! Do stuff
+    end function
 
-        !> Parse input data for this `WaterBody`
-        function parseInputDataWaterBody(me) result(rslt)
-            use ResultModule, only: Result
-            import WaterBody
-            class(WaterBody) :: me
-            type(Result) :: rslt
-        end function
+    !> Allocate memory for arrays generic to any water body. Individual water bodies
+    !! may extend this routine to allocate their own body specific variables
+    subroutine allocateAndInitialiseWaterBody(me)
+        class(WaterBody) :: me
+        allocate(me%C_spm(C%nSizeClassesSpm), &
+            me%m_spm(C%nSizeClassesSpm), &
+            me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%C_ionic(C%ionicDim), &
+            me%m_ionic(C%ionicDim), &
+            me%k_resus(C%nSizeClassesSpm), &
+            me%k_settle(C%nSizeClassesSpm), &
+            me%W_settle_spm(C%nSizeClassesSpm), &
+            me%W_settle_np(C%nSizeClassesNP) &
+        )
+        me%C_spm = 0
+        me%m_spm = 0
+        me%C_np = 0
+        me%m_np = 0
+        me%C_ionic = 0
+        me%m_ionic = 0
+        me%T_water = 10             ! TODO set this from data or empirical relationship
+    end subroutine
 
-        function j_np_runoffWaterBody(me) result(j_np_runoff)
-            use Globals
-            import WaterBody
-            class(WaterBody) :: me
-            real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
-        end function
+    !> Parse input data for this `WaterBody`
+    function parseInputDataWaterBody(me) result(rslt)
+        class(WaterBody) :: me
+        type(Result) :: rslt
 
-        function j_np_transferWaterBody(me) result(j_np_transfer)
-            use Globals
-            import WaterBody
-            class(WaterBody) :: me
-            real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
-        end function
+        ! Do stuff
+    end function
 
-        function j_np_depositWaterBody(me) result(j_np_deposit)
-            use Globals
-            import WaterBody
-            class(WaterBody) :: me
-            real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        end function
+    !> Set the final flow arrays for this water body. These final arrays are used by other linked
+    !! water bodies such that the avoid using the wrong timestep's values, in particular as inflows.
+    subroutine finaliseUpdate(me)
+        class(WaterBody) :: me
+        me%Q_final = me%Q
+        me%j_spm_final = me%j_spm
+        me%j_np_final = me%j_np
+        me%j_ionic_final = me%j_ionic
+    end subroutine
 
-        function j_np_diffusesourceWaterBody(me) result(j_np_diffusesource)
-            use Globals
-            import WaterBody
-            class(WaterBody) :: me
-            real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        end function
+    function j_np_runoffWaterBody(me) result(j_np_runoff)
+        class(WaterBody) :: me
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! Do stuff
+    end function
 
-        function j_np_pointsourceWaterBody(me) result(j_np_pointsource)
-            use Globals
-            import WaterBody
-            class(WaterBody) :: me
-            real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        end function
+    function j_np_transferWaterBody(me) result(j_np_transfer)
+        class(WaterBody) :: me
+        real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! Do stuff
+    end function
 
+    function j_np_depositWaterBody(me) result(j_np_deposit)
+        class(WaterBody) :: me
+        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! Do stuff
+    end function
 
-    end interface
+    function j_np_diffusesourceWaterBody(me) result(j_np_diffusesource)
+        class(WaterBody) :: me
+        real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! Do stuff
+    end function
+
+    function j_np_pointsourceWaterBody(me) result(j_np_pointsource)
+        class(WaterBody) :: me
+        real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! Do stuff
+    end function
 
 end module

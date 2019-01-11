@@ -16,24 +16,13 @@ module classEstuaryReach
         procedure :: destroy => destroyEstuaryReach
         ! Simulators
         procedure :: update => updateEstuaryReach
-        procedure :: finaliseUpdate => finaliseUpdateEstuaryReach
+        procedure :: setDimensions
         ! Data handlers
         procedure :: parseInputData => parseInputDataEstuaryReach
         ! Calculators
         procedure :: calculateWidth => calculateWidth
         procedure :: calculateDepth => calculateDepth
         procedure :: calculateVelocity => calculateVelocity
-        ! Getters
-        procedure :: j_spm_inflows
-        procedure :: j_np_runoff => j_np_runoffEstuaryReach
-        procedure :: j_np_transfer => j_np_transferEstuaryReach
-        procedure :: j_np_deposit => j_np_depositEstuaryReach
-        procedure :: j_np_diffusesource => j_np_diffusesourceEstuaryReach
-        procedure :: j_np_pointsource => j_np_pointsourceEstuaryReach
-        ! Setters
-        procedure :: set_j_spm_runoff
-        procedure :: set_j_spm_transfer
-        procedure :: set_j_spm_deposit
     end type
 
   contains
@@ -47,62 +36,14 @@ module classEstuaryReach
         type(Result) :: rslt                    !! Result object to return errors in
         integer :: i, j                         ! Iterator
 
-        me%x = x
-        me%y = y
-        me%w = w
+        ! Set reach references (indices set in WaterBody%create) and grid cell area
+        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
         me%ref = trim(ref("EstuaryReach", x, y, w))
-        me%gridCellArea = gridCellArea
 
-        ! Allocate arrays of size classes, form and state
-        allocate(me%C_spm(C%nSizeClassesSpm), &
-            me%m_spm(C%nSizeClassesSpm), &
-            me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%C_ionic(C%ionicDim), &
-            me%m_ionic(C%ionicDim), &
-            me%k_resus(C%nSizeClassesSpm), &
-            me%k_settle(C%nSizeClassesSpm), &
-            me%W_settle_spm(C%nSizeClassesSpm), &
-            me%W_settle_np(C%nSizeClassesNP) &
-        )
-        me%C_spm = 0
-        me%m_spm = 0
-        me%C_np = 0
-        me%m_np = 0
-        me%C_ionic = 0
-        me%m_ionic = 0
-        me%n = C%n_river
-
-        ! Parse the input data
+        ! Parse input data and allocate/initialise variables. The order here is important:
+        ! allocation depends on the input data.
         call rslt%addErrors(.errors. me%parseInputData())
-
-        ! Now allocate the arrays that were based on the number of inflows (set by me%parseInputData()).
-        ! These are the flux/flow arrays to/from this reach. The 1st dimension represents the compartment
-        ! the flow is to/from, and for river reaches, this is indexed as so:
-        !   1. outflow
-        !   2 -> 1+nInflows: inflows
-        !   2+nInflows: runoff
-        !   3+nInflows: transfers
-        !   (SPM & NM only) 4+nInflows: settling & resuspension
-        !   (NM only)   5+nInflows -> 4+nInflows+nDiffuseSources: diffuse sources
-        !   (NM only)   5+nInflows+nDiffuseSources -> 4+nInflows+nDiffuseSources+nPointSources: point sources
-        allocate(me%Q(me%nInflows + 3), &
-            me%tmp_Q(me%nInflows + 3), &
-            me%j_spm(me%nInflows + 4, C%nSizeClassesSpm), &
-            me%tmp_j_spm(me%nInflows + 4, C%nSizeClassesSpm), &
-            me%j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%tmp_j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%j_ionic(me%nInflows + 3, C%ionicDim), &
-            me%tmp_j_ionic(me%nInflows + 3, C%ionicDim) &
-        )
-        me%Q = 0
-        me%tmp_Q = 0
-        me%j_spm = 0
-        me%tmp_j_spm = 0
-        me%j_np = 0
-        me%tmp_j_np = 0
-        me%j_ionic = 0
-        me%tmp_j_ionic = 0
+        call me%allocateAndInitialise()
 
         ! Create the BedSediment for this EstuaryReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
@@ -125,9 +66,11 @@ module classEstuaryReach
                 call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
             end do
         end if
+
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
+
 
     !> Destroy this `EstuaryReach`
     function destroyEstuaryReach(me) result(rslt)
@@ -144,10 +87,11 @@ module classEstuaryReach
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         type(Result) :: rslt
         !---
+        real(dp) :: j_spm_inflows(me%nInflows)                  ! SPM inflow from neighbouring reaches [kg/timestep]
+        real(dp) :: j_np_inflows(me%nInflows)                   ! NM inflow from neighbouring reaches [kg/timestep]
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
         real(dp) :: fractionSpmDep(C%nSizeClassesSpm)           ! Fraction of SPM deposited on each time step [-]
-        type(Result0D) :: depthRslt                             ! Result object for depth
         integer :: i, j                                         ! Iterator
         integer :: nDisp                                        ! Number of displacements to split this time step into
         real(dp) :: dt                                          ! Length of each displacement [s]
@@ -162,78 +106,50 @@ module classEstuaryReach
         real(dp) :: dj_spm_res(C%nSizeClassesSpm)               ! Mass of each sediment size class resuspended on each displacement [kg]
 
         ! Initialise flows to zero
-        me%Q_in_total = 0
-        j_spm_in_total = 0
-        j_np_in_total = 0
         fractionSpmDep = 0
         j_spm_deposit = 0
-        me%tmp_Q = 0
-        me%Q(2:) = 0            ! Don't reset the outflow (element 1), other cells might need this as inflow
-        me%tmp_j_spm = 0
-        me%j_spm(2:,:) = 0
-        me%tmp_j_np = 0
-        me%j_np(2:,:,:,:) = 0
-        me%tmp_j_ionic = 0
-        me%j_ionic(2:,:) = 0
-        ! TODO get this from data (or empirical based on seasonal variation)
-        me%T_water = 10
-
-        ! TODO change the below to use tmp_Q, tmp_j_spm and tmp_j_np only, until finalise update
-        ! to keep things in place from the previous timestep for inflow cells to use
-
-        ! Inflows from runoff
-        if (present(q_runoff)) then
-            me%Q(3+me%nInflows) = q_runoff*me%gridCellArea
-        end if
-        if (present(j_spm_runoff)) then
-            me%j_spm(3+me%nInflows,:) = j_spm_runoff
-        end if
-        if (present(j_np_runoff)) then
-            me%j_np(3+me%nInflows,:,:,:) = j_np_runoff
-        end if
-
-        ! Inflows from water bodies
+        me%Q = 0                    ! Final Q, j_spm etc still stored in Q_final, j_spm_final etc for other reaches to use
+        me%j_spm = 0
+        me%j_np = 0
+        me%j_ionic = 0
+        
+        ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
+        ! getting their outflow on this timestep, rather than the last timestep
         do i = 1, me%nInflows
-            me%Q(1+i) = -me%inflows(i)%item%Q(1)
-            me%j_spm(1+i,:) = -me%inflows(i)%item%j_spm(1,:)
-            me%j_np(1+i,:,:,:) = -me%inflows(i)%item%j_np(1,:,:,:)
+            ! TODO for some reason the getters j_spm_outflow_final() and j_np... don't work here with gfortran (internal compiler error)
+            call me%set_Q_inflow(-me%inflows(i)%item%Q_final(1), i)
+            call me%set_j_spm_inflow(-me%inflows(i)%item%j_spm_final(1,:), i)
+            call me%set_j_np_inflow(-me%inflows(i)%item%j_np_final(1,:,:,:), i)
         end do
 
-        ! Inflows from transfers
-        ! TODO
+        ! Inflows from runoff
+        if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep to m3/timestep] TODO what does HMF output?
+        if (present(j_spm_runoff)) call me%set_j_spm_runoff(j_spm_runoff)
+        if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
 
-        ! Loop through point and diffuse sources and get their inputs (if there are any):
+        ! TODO Inflows from transfers
+
+        ! Inflows from sources (if there are any):
         ! Run the update method, which sets PointSource's j_np_pointsource variable
         ! for this time step. j_np_pointsource = 0 if there isn't a point source
         ! Same for diffuse sources, convert j_np_diffuseSource from kg/m2/timestep to kg/reach/timestep
-        if (me%hasDiffuseSource) then
-            do i = 1, size(me%diffuseSources)
-                call rslt%addErrors(.errors. me%diffuseSources(i)%update(t))
-                me%j_np(4+me%nInflows+i,:,:,:) = me%diffuseSources(i)%j_np_diffuseSource*me%bedArea
-            end do
-        end if
-        if (me%hasPointSource) then
-            do i = 1, size(me%pointSources)
-                call rslt%addErrors(.errors. me%pointSources(i)%update(t))
-                me%j_np(4+me%nInflows+me%nDiffuseSources+i,:,:,:) = me%pointSources(i)%j_np_pointSource
-            end do
-        end if
+        do i = 1, me%nDiffuseSources
+            call rslt%addErrors(.errors. me%diffuseSources(i)%update(t))
+            call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
+        end do
+        do i = 1, me%nPointSources
+            call rslt%addErrors(.errors. me%pointSources(i)%update(t))
+            call me%set_j_np_pointsource(me%pointSources(i)%j_np_pointSource, i)
+        end do
 
         ! Total inflows = inflow water bodies + runoff + transfers (+ sources for NM)
         me%Q_in_total = sum(me%Q(2:))
         j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
         j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
 
-        ! Calculate the depth, velocity, area and volume
-        me%width = me%calculateWidth(me%Q_in_total/C%timeStep)
-        depthRslt = me%calculateDepth(me%width, me%slope, me%Q_in_total/C%timeStep)
-        me%depth = .dp. depthRslt                           ! Get real(dp) data from Result object
-        call rslt%addError(.error. depthRslt)                  ! Add any error that occurred
+        ! Set the reach dimensions and calculate the velocity
+        call rslt%addErrors(.errors. me%setDimensions())
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
-        me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
-        me%bedArea = me%width*me%length*me%f_m              ! Calculate the BedSediment area [m2]
-        me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area
-        me%volume = me%depth*me%width*me%length*me%f_m      ! Reach volume
 
         ! HACK
         if (me%volume < 10.0_dp) then
@@ -362,8 +278,8 @@ module classEstuaryReach
 
             ! Sum the displacement outflows and mass for the final outflow
             ! Currently, Q_out = Q_in. Abstraction etc will change this
-            me%tmp_Q(1) = me%tmp_Q(1) - dQ_in
-            me%tmp_j_spm(1,:) = me%tmp_j_spm(1,:) - dj_spm_out
+            me%Q(1) = me%Q(1) - dQ_in
+            me%j_spm(1,:) = me%j_spm(1,:) - dj_spm_out
         end do
         ! Set the depositing flux in the SPM flux array
         call me%set_j_spm_deposit(j_spm_deposit)   
@@ -390,7 +306,7 @@ module classEstuaryReach
                     me%W_settle_spm, &
                     10.0_dp, &                      ! HACK: Where is the shear rate from?
                     me%volume, &
-                    -me%tmp_Q(1) &                   ! TODO: Is this used?
+                    -me%Q(1) &                   ! TODO: Is this used?
                 ) &
             ])
             ! Get the resultant transformed mass from the Reactor
@@ -400,11 +316,11 @@ module classEstuaryReach
         ! Reactor only deals with transformations, not flows, so we must now
         ! set an outflow based on the transformed mass
         if (.not. isZero(me%volume)) then
-            me%tmp_j_np(1,:,:,:) = -min(-me%tmp_Q(1)*(me%m_np/me%volume), me%m_np)
+            me%j_np(1,:,:,:) = -min(-me%Q(1)*(me%m_np/me%volume), me%m_np)
         else
-            me%tmp_j_np(1,:,:,:) = 0.0_dp
+            me%j_np(1,:,:,:) = 0.0_dp
         end if
-        me%m_np = me%m_np + me%tmp_j_np(1,:,:,:)    ! Outflow will be negative, hence the + sign here
+        me%m_np = me%m_np + me%j_np(1,:,:,:)    ! Outflow will be negative, hence the + sign here
 
         ! TODO Update all of the above so that me%m_np can be updated by j_np (and similar for SPM)
         ! in one go, instead of doing it individually for each process
@@ -436,16 +352,23 @@ module classEstuaryReach
     end function
 
 
-    !> TODO change to subroutine
-    function finaliseUpdateEstuaryReach(me) result(rslt)
+    !> Set the dimensions (width, depth, area, volume) of the reach
+    function setDimensions(me) result(rslt)
         class(EstuaryReach) :: me
         type(Result) :: rslt
-        me%Q(1) = me%tmp_Q(1)
-        me%j_spm(1,:) = me%tmp_j_spm(1,:)
-        me%j_np(1,:,:,:) = me%tmp_j_np(1,:,:,:)
+        type(Result0D) :: depthRslt                         ! Result object for depth
+        me%width = me%calculateWidth(me%Q_in_total/C%timeStep)
+        depthRslt = me%calculateDepth(me%width, me%slope, me%Q_in_total/C%timeStep)
+        me%depth = .dp. depthRslt                           ! Get real(dp) data from Result object
+        call rslt%addError(.error. depthRslt)               ! Add any error that occurred
+        me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
+        me%bedArea = me%width*me%length*me%f_m              ! Calculate the BedSediment area [m2]
+        me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area
+        me%volume = me%depth*me%width*me%length*me%f_m      ! Reach volume
     end function
 
 
+    !> Parse input data for this EstuaryReach and store in state variables.
     function parseInputDataEstuaryReach(me) result(rslt)
         class(EstuaryReach) :: me
         type(Result) :: rslt
@@ -672,73 +595,5 @@ module classEstuaryReach
             v = Q/(W*D)
         end if
     end function
-
-    function j_spm_inflows(me)
-        class(EstuaryReach) :: me
-        real(dp) :: j_spm_inflows(C%nSizeClassesSpm)
-        if (me%nInflows > 0) then
-            j_spm_inflows = sum(me%j_spm(2:1+me%nInflows,:), dim=1)
-        else
-            j_spm_inflows = 0
-        end if
-    end function
-
-    !> Get the total runoff from NM flux array
-    function j_np_runoffEstuaryReach(me) result(j_np_runoff)
-        class(EstuaryReach) :: me
-        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_runoff = me%j_np(2+me%nInflows,:,:,:)
-    end function
-
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_np_transferEstuaryReach(me) result(j_np_transfer)
-        class(EstuaryReach) :: me
-        real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_transfer = me%j_np(3+me%nInflows,:,:,:)
-    end function
-
-    !> Get the total deposited NM (settling + resus) from NM flux array
-    function j_np_depositEstuaryReach(me) result(j_np_deposit)
-        class(EstuaryReach) :: me
-        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_deposit = me%j_np(4+me%nInflows,:,:,:)
-    end function
-
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_np_diffusesourceEstuaryReach(me) result(j_np_diffusesource)
-        class(EstuaryReach) :: me
-        real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_diffusesource = sum(me%j_np(5+me%nInflows:5+me%nInflows+me%nDiffuseSources,:,:,:), dim=1)
-    end function
-
-    !> Get the total point source fluxes from NM flux array
-    function j_np_pointsourceEstuaryReach(me) result(j_np_pointsource)
-        class(EstuaryReach) :: me
-        real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_pointsource &
-            = sum(me%j_np(5+me%nInflows+me%nDiffuseSources:4+me%nInflows+me%nDiffuseSources+me%nPointSources,:,:,:), dim=1)
-    end function
-
-    !> Set the runoff flux of the SPM flux array
-    subroutine set_j_spm_runoff(me, j_spm_runoff)
-        class(EstuaryReach) :: me
-        real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
-        me%j_spm(2+me%nInflows,:) = j_spm_runoff
-    end subroutine
-
-    !> Set the transfer flux of the SPM flux array
-    subroutine set_j_spm_transfer(me, j_spm_transfer)
-        class(EstuaryReach) :: me
-        real(dp) :: j_spm_transfer(C%nSizeClassesSpm)
-        me%j_spm(3+me%nInflows,:) = j_spm_transfer
-    end subroutine
-
-    !> Set the settling/resuspension flux of the SPM flux array
-    subroutine set_j_spm_deposit(me, j_spm_deposit)
-        class(EstuaryReach) :: me
-        real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
-        me%j_spm(4+me%nInflows,:) = j_spm_deposit
-    end subroutine
-
 
 end module

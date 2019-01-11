@@ -170,7 +170,7 @@ module classEnvironment1
         ! to avoid routing using the wrong timestep's outflow as an inflow.
         do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
             do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%finaliseUpdate()  ! finaliseUpdate() loops through SubRivers
+                call me%colGridCells(x,y)%item%finaliseUpdate()
             end do
         end do
     end function

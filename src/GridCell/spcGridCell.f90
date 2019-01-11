@@ -126,12 +126,10 @@ module spcGridCell
         end function
         
         !> Finalise the `GridCell`'s state variables for this time step
-        function finaliseUpdateGridCell(me) result(r)
-            use ResultModule, only: Result
+        subroutine finaliseUpdateGridCell(me)
             import GridCell
             class(GridCell) :: me                                      !! The `GridCell` instance
-            type(Result) :: r                                          !! The `Result` object to return any errors in
-        end function
+        end subroutine
 
         function get_Q_outGridCell(me, b) result(Q_out)
             use Globals, only: dp    

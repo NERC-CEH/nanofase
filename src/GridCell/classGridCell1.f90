@@ -400,19 +400,15 @@ module classGridCell1
     !! update procedure. This step is kept separate from the routing so that the
     !! wrong outflow isn't used as an inflow for another `RiverReach` whilst the reaches
     !! are looped through.
-    function finaliseUpdateGridCell1(me) result(r)
+    subroutine finaliseUpdateGridCell1(me)
         class(GridCell1) :: me                                      !! This `GridCell1` instace
-        type(Result) :: r                                           !! The `Result` object
         integer :: rr                                               ! Iterator for reaches
         if (.not. me%isEmpty) then
             do rr = 1, me%nRiverReaches
-                call r%addErrors(.errors. &
-                    me%colRiverReaches(rr)%item%finaliseUpdate() &
-                )
+                call me%colRiverReaches(rr)%item%finaliseUpdate()
             end do
         end if
-        call r%addToTrace("Finalising update for " // trim(me%ref))
-    end function
+    end subroutine
     
     !> Process the water demands for this `GridCell`
     function demandsGridCell1(me) result(r)

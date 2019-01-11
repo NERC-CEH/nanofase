@@ -45,6 +45,8 @@ module spcReach
         type(NcGroup) :: ncGroup
 
       contains
+        ! Data
+        procedure :: allocateAndInitialise => allocateAndInitialiseReach
         ! Simulators
         procedure :: resuspension => resuspensionReach
         procedure :: settling => settlingReach
@@ -53,9 +55,35 @@ module spcReach
         procedure :: calculateSettlingVelocity => calculateSettlingVelocity
         procedure :: calculateResuspension => calculateResuspension
         ! Getters
-        procedure :: getVolume => getVolumeReach
-        procedure :: getQOut => getQOutReach
-        procedure :: get_j_spm_out => get_j_spm_outReach
+        procedure :: Q_outflow_final => Q_outflow_finalReach
+        procedure :: j_spm_outflow_final => j_spm_outflow_finalReach
+        procedure :: j_np_outflow_final => j_np_outflow_finalReach
+        procedure :: j_spm_inflows
+        procedure :: j_np_runoff
+        procedure :: j_np_transfer
+        procedure :: j_np_deposit
+        procedure :: j_np_diffusesource
+        procedure :: j_np_pointsource
+        ! Setters
+        procedure :: set_Q_outflow
+        procedure :: set_Q_inflow
+        procedure :: set_Q_inflows
+        procedure :: set_Q_runoff
+        procedure :: set_Q_transfers
+        procedure :: set_j_spm_outflow
+        procedure :: set_j_spm_inflow
+        procedure :: set_j_spm_inflows
+        procedure :: set_j_spm_runoff
+        procedure :: set_j_spm_transfers
+        procedure :: set_j_spm_deposit
+        procedure :: set_j_np_outflow
+        procedure :: set_j_np_inflow
+        procedure :: set_j_np_inflows
+        procedure :: set_j_np_runoff
+        procedure :: set_j_np_transfers
+        procedure :: set_j_np_deposit
+        procedure :: set_j_np_diffusesource
+        procedure :: set_j_np_pointsource
     end type
 
     !> Container type for `class(Reach)`, the actual type of the `Reach` class.
@@ -67,6 +95,43 @@ module spcReach
 
   contains
 
+    !> Allocate memory for arrays and set any initial values
+    subroutine allocateAndInitialiseReach(me)
+        class(Reach) :: me
+        ! WaterBody initialises the variables common to all water bodies
+        call me%WaterBody%allocateAndInitialise()
+        ! Allocate flow arrays, which depend on the number of inflows and sources.The 1st dimension of
+        ! the flow arrays represent the compartment the flow is to/from, and for reaches this is indexed as so:
+        !   1. outflow
+        !   2 -> 1+nInflows: inflows
+        !   2+nInflows: runoff
+        !   3+nInflows: transfers
+        !   (SPM & NM only) 4+nInflows: settling & resuspension
+        !   (NM only)   5+nInflows -> 4+nInflows+nDiffuseSources: diffuse sources
+        !   (NM only)   5+nInflows+nDiffuseSources -> 4+nInflows+nDiffuseSources+nPointSources: point sources
+        allocate(me%Q(me%nInflows + 3), &
+            me%Q_final(me%nInflows + 3), &
+            me%j_spm(me%nInflows + 4, C%nSizeClassesSpm), &
+            me%j_spm_final(me%nInflows + 4, C%nSizeClassesSpm), &
+            me%j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%j_np_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%j_ionic(me%nInflows + 3, C%ionicDim), &
+            me%j_ionic_final(me%nInflows + 3, C%ionicDim) &
+        )
+        me%Q = 0
+        me%Q_final = 0
+        me%j_spm = 0
+        me%j_spm_final = 0
+        me%j_np = 0
+        me%j_np_final = 0
+        me%j_ionic = 0
+        me%j_ionic_final = 0
+        ! Defaults
+        me%n = C%n_river
+        me%f_m = C%defaultMeanderingFactor
+    end subroutine
+
+    !> Set the settling rate
     function settlingReach(me) result(rslt)
         class(Reach) :: me                      !! This `Reach` instance
         type(Result) :: rslt                    !! The `Result` object to return any errors in
@@ -153,7 +218,7 @@ module spcReach
         real(dp) :: f_fr                        ! Friction factor [-]
         real(dp) :: mbed(C%nSizeClassesSpm)     ! mass of fine material in the sediment [kg]
 
-        ! There must be inflow for there to be resuspension
+        ! There must be flow for there to be resuspension
         if (me%Q_in_total > 0) then
             ! Calculate maximum resuspendable particle size and proportion of each
             ! size class that can be resuspended. Changes on each timestep as dependent
@@ -242,28 +307,218 @@ module spcReach
         k_res = beta*L*W*M_prop*omega*f_fr
     end function
 
-    !> Return the volume of the `Reach`.
-    function getVolumeReach(me) result(volume)
-        class(Reach) :: me
-        real(dp) :: volume
-        volume = me%volume
-    end function
+!-------------!
+!-- GETTERS --!
+!-------------!
 
-    !> Return the outflow.
-    function getQOutReach(me) result(Q_out)
+    function Q_outflow_finalReach(me) result(Q_outflow_final)
         class(Reach) :: me
-        real(dp) :: Q_out
-        if (allocated(me%Q)) then
-            Q_out = me%Q(1)                 ! First element of Q is the outflow
-        end if
+        real(dp) :: Q_outflow_final
+        Q_outflow_final = me%Q_final(1)
     end function
 
     !> Return the SPM discahrge.
-    function get_j_spm_outReach(me) result(j_spm_out)
+    function j_spm_outflow_finalReach(me) result(j_spm_outflow_final)
         class(Reach) :: me
-        real(dp) :: j_spm_out(size(me%j_spm,2))
-        j_spm_out = me%j_spm(1,:)           ! First element of j_spm is the outflow
+        real(dp) :: j_spm_outflow_final(C%nSizeClassesSpm)
+        j_spm_outflow_final = me%j_spm_final(1,:)
     end function
+
+    !> Return the SPM discahrge.
+    function j_np_outflow_finalReach(me) result(j_np_outflow_final)
+        class(Reach) :: me
+        real(dp) :: j_np_outflow_final(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_outflow_final = me%j_np_final(1,:,:,:)
+    end function
+
+    function j_spm_inflows(me)
+        class(Reach) :: me
+        real(dp) :: j_spm_inflows(C%nSizeClassesSpm)
+        if (me%nInflows > 0) then
+            j_spm_inflows = sum(me%j_spm(2:1+me%nInflows,:), dim=1)
+        else
+            j_spm_inflows = 0
+        end if
+    end function
+
+    !> Get the total runoff from NM flux array
+    function j_np_runoff(me)
+        class(Reach) :: me
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_runoff = me%j_np(2+me%nInflows,:,:,:)
+    end function
+
+    !> Get the total diffuse source fluxes from NM flux array
+    function j_np_transfer(me)
+        class(Reach) :: me
+        real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_transfer = me%j_np(3+me%nInflows,:,:,:)
+    end function
+
+    !> Get the total deposited NM (settling + resus) from NM flux array
+    function j_np_deposit(me)
+        class(Reach) :: me
+        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_deposit = me%j_np(4+me%nInflows,:,:,:)
+    end function
+
+    !> Get the total diffuse source fluxes from NM flux array
+    function j_np_diffusesource(me)
+        class(Reach) :: me
+        real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_diffusesource = sum(me%j_np(5+me%nInflows:5+me%nInflows+me%nDiffuseSources,:,:,:), dim=1)
+    end function
+
+    !> Get the total point source fluxes from NM flux array
+    function j_np_pointsource(me)
+        class(Reach) :: me
+        real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_pointsource &
+            = sum(me%j_np(5+me%nInflows+me%nDiffuseSources:4+me%nInflows+me%nDiffuseSources+me%nPointSources,:,:,:), dim=1)
+    end function
+
+!-------------!
+!-- SETTERS --!
+!-------------!
+
+!-- WATER --!
+
+    subroutine set_Q_outflow(me, Q_outflow)
+        class(Reach) :: me                      !! This `Reach` instance
+        real(dp) :: Q_outflow                   !! Outflow value to set
+        me%Q(1) = Q_outflow
+    end subroutine
+
+    subroutine set_Q_inflow(me, Q_inflow, i)
+        class(Reach) :: me                      !! This `Reach` instance
+        real(dp) :: Q_inflow                    !! Inflow value to set
+        integer :: i                            !! Inflow index
+        me%Q(i+1) = Q_inflow
+    end subroutine
+
+    subroutine set_Q_inflows(me, Q_inflows)
+        class(Reach) :: me                      !! This `Reach` instance
+        real(dp) :: Q_inflows(me%nInflows)      !! Inflow array to set
+        if (me%nInflows > 0) then
+            me%Q(2:1+me%nInflows) = Q_inflows
+        end if
+    end subroutine
+
+    subroutine set_Q_runoff(me, Q_runoff)
+        class(Reach) :: me                      !! This `Reach` instance
+        real(dp) :: Q_runoff                    !! Runoff value to set
+        me%Q(2+me%nInflows) = Q_runoff
+    end subroutine
+
+    subroutine set_Q_transfers(me, Q_transfers)
+        class(Reach) :: me                      !! This `Reach` instance
+        real(dp) :: Q_transfers                 !! Transfer value to set
+        me%Q(3+me%nInflows) = Q_transfers
+    end subroutine
+
+!-- SPM --!
+
+    subroutine set_j_spm_outflow(me, j_spm_outflow)
+        class(Reach) :: me
+        real(dp) :: j_spm_outflow(C%nSizeClassesSpm)
+        me%j_spm(1,:) = j_spm_outflow
+    end subroutine
+
+    subroutine set_j_spm_inflow(me, j_spm_inflow, i)
+        class(Reach) :: me
+        real(dp) :: j_spm_inflow(C%nSizeClassesSpm)
+        integer :: i
+        me%j_spm(1+i,:) = j_spm_inflow
+    end subroutine
+
+    subroutine set_j_spm_inflows(me, j_spm_inflows)
+        class(Reach) :: me
+        real(dp) :: j_spm_inflows(me%nInflows, C%nSizeClassesSpm)
+        if (me%nInflows > 0) then
+            me%j_spm(2:1+me%nInflows,:) = j_spm_inflows
+        end if
+    end subroutine
+
+    !> Set the runoff flux of the SPM flux array
+    subroutine set_j_spm_runoff(me, j_spm_runoff)
+        class(Reach) :: me
+        real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
+        me%j_spm(2+me%nInflows,:) = j_spm_runoff
+    end subroutine
+
+    !> Set the transfer flux of the SPM flux array
+    subroutine set_j_spm_transfers(me, j_spm_transfers)
+        class(Reach) :: me
+        real(dp) :: j_spm_transfers(C%nSizeClassesSpm)
+        me%j_spm(3+me%nInflows,:) = j_spm_transfers
+    end subroutine
+
+    !> Set the settling/resuspension flux of the SPM flux array
+    subroutine set_j_spm_deposit(me, j_spm_deposit)
+        class(Reach) :: me
+        real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
+        me%j_spm(3+me%nInflows,:) = j_spm_deposit
+    end subroutine
+
+!-- NM --!
+
+    subroutine set_j_np_outflow(me, j_np_outflow)
+        class(Reach) :: me
+        real(dp) :: j_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        me%j_np(1,:,:,:) = j_np_outflow
+    end subroutine
+
+    subroutine set_j_np_inflow(me, j_np_inflow, i)
+        class(Reach) :: me
+        real(dp) :: j_np_inflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer :: i
+        me%j_np(1+i,:,:,:) = j_np_inflow
+    end subroutine
+
+    subroutine set_j_np_inflows(me, j_np_inflows)
+        class(Reach) :: me
+        real(dp) :: j_np_inflows(me%nInflows, C%npDim(1), C%npDim(2), C%npDim(3))
+        if (me%nInflows > 0) then
+            me%j_np(2:1+me%nInflows,:,:,:) = j_np_inflows
+        end if
+    end subroutine
+
+    !> Set the runoff flux of the SPM flux array
+    subroutine set_j_np_runoff(me, j_np_runoff)
+        class(Reach) :: me
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
+        me%j_np(2+me%nInflows,:,:,:) = j_np_runoff
+    end subroutine
+
+    !> Set the transfer flux of the SPM flux array
+    subroutine set_j_np_transfers(me, j_np_transfers)
+        class(Reach) :: me
+        real(dp) :: j_np_transfers(C%npDim(1), C%npDim(2), C%npDim(3))
+        me%j_np(3+me%nInflows,:,:,:) = j_np_transfers
+    end subroutine
+
+    !> Set the settling/resuspension flux of the SPM flux array
+    subroutine set_j_np_deposit(me, j_np_deposit)
+        class(Reach) :: me
+        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
+        me%j_np(3+me%nInflows,:,:,:) = j_np_deposit
+    end subroutine
+
+    !> Set the diffuse source flux of the SPM flux array
+    subroutine set_j_np_diffusesource(me, j_np_diffusesource, i)
+        class(Reach) :: me
+        real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer :: i
+        me%j_np(4+me%nInflows+i,:,:,:) = j_np_diffusesource
+    end subroutine
+
+    !> Set the point source flux of the SPM flux array
+    subroutine set_j_np_pointsource(me, j_np_pointsource, i)
+        class(Reach) :: me
+        real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer :: i
+        me%j_np(4+me%nInflows+me%nDiffuseSources+i,:,:,:) = j_np_pointsource
+    end subroutine
 
 
 end module
