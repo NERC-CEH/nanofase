@@ -17,11 +17,7 @@ module classRiverReach
         ! Simulators
         procedure :: update => updateRiverReach
         procedure :: finaliseUpdate => finaliseUpdateRiverReach
-        procedure :: resuspension => resuspensionRiverReach
-        procedure :: settling => settlingRiverReach
-        procedure :: depositToBed => depositToBedRiverReach
         ! Data handlers
-        procedure :: setDefaults => setDefaultsRiverReach
         procedure :: parseInputData => parseInputDataRiverReach
         ! Calculators
         procedure :: calculateWidth => calculateWidth
@@ -246,17 +242,6 @@ module classRiverReach
             me%volume = 0.0_dp
         end if
 
-        ! if (trim(me%ref)=="RiverReach_3_1_1") then
-        !     print *, "j_np_in_total 1: ", sum(j_np_in_total(1,:,:))
-        !     print *, "j_np_in_total 2: ", sum(j_np_in_total(1,:,:))
-        !     print *, "j_np_in_total 3: ", sum(j_np_in_total(1,:,:))
-        !     print *, "j_spm_in_total 1: ", j_spm_in_total(1)
-        !     print *, "j_spm_in_total 2: ", j_spm_in_total(2)
-        !     print *, "j_spm_in_total 3: ", j_spm_in_total(3)
-        !     print *, "j_spm_in_total 4: ", j_spm_in_total(4)
-        !     print *, "j_spm_in_total 5: ", j_spm_in_total(5)
-        ! end if
-
         ! Set the resuspension rate me%k_resus and settling rate me%k_settle
         ! (but don't acutally settle until we're looping through
         ! displacements). This can be done now as settling/resuspension rates
@@ -317,9 +302,6 @@ module classRiverReach
             dj_spm_res = me%k_resus * m_bed * dt                    ! the mass of sediment resuspending on each displacement [kg]
             me%m_spm = me%m_spm + dj_spm_res                        ! SPM resuspended is resuspension flux * displacement length
             j_spm_deposit = j_spm_deposit + dj_spm_res              ! Remove the resuspended mass from the deposit tally. +ve means gain
-            ! print *, "dj_spm_res disp: ", dj_spm_res, i
-            ! print *, "k_resus: ", me%k_resus
-            ! print *, "m_np SC1,2,3: ", sum(me%m_np(1,:,:)), sum(me%m_np(2,:,:)), sum(me%m_np(3,:,:))
 
             ! TODO MAYBE TURN OFF RESUS FOR NOW?
 
@@ -397,17 +379,6 @@ module classRiverReach
             me%j_np(4+me%nInflows,:,:,i+2) = -min(me%m_np(:,:,i+2)*fractionSpmDep(i), me%m_np(:,:,i+2))
         end do
         me%m_np = me%m_np + me%j_np(4+me%nInflows,:,:,:)    ! Remove/add deposited NPs.
-        ! print *, "m_np after dep free ", sum(me%m_np(:,:,1))
-        ! print *, "m_np after dep SPM sc1 ", sum(me%m_np(:,:,3))
-        ! print *, "m_np after dep SPM sc2 ", sum(me%m_np(:,:,4))
-        ! print *, "m_np after dep SPM sc3 ", sum(me%m_np(:,:,5))
-        ! print *, "m_np after dep SPM sc4 ", sum(me%m_np(:,:,6))
-        ! print *, "m_np after dep SPM sc5 ", sum(me%m_np(:,:,7))
-        ! print *, "fracSpmDep 1: ", fractionSpmDep(1)
-        ! print *, "fracSpmDep 2: ", fractionSpmDep(2)
-        ! print *, "fracSpmDep 3: ", fractionSpmDep(3)
-        ! print *, "fracSpmDep 4: ", fractionSpmDep(4)
-        ! print *, "fracSpmDep 5: ", fractionSpmDep(5)
 
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
@@ -430,14 +401,6 @@ module classRiverReach
             me%m_np = me%reactor%m_np
         end if
 
-        ! print *, "m_np after react free ", sum(me%m_np(:,:,1))
-        ! print *, "m_np after react SPM sc1 ", sum(me%m_np(:,:,3))
-        ! print *, "m_np after react SPM sc2 ", sum(me%m_np(:,:,4))
-        ! print *, "m_np after react SPM sc3 ", sum(me%m_np(:,:,5))
-        ! print *, "m_np after react SPM sc4 ", sum(me%m_np(:,:,6))
-        ! print *, "m_np after react SPM sc5 ", sum(me%m_np(:,:,7))
-        ! print *, "volume: ", me%volume
-
         ! Reactor only deals with transformations, not flows, so we must now
         ! set an outflow based on the transformed mass
         if (.not. isZero(me%volume)) then
@@ -446,20 +409,6 @@ module classRiverReach
             me%tmp_j_np(1,:,:,:) = 0.0_dp
         end if
         me%m_np = me%m_np + me%tmp_j_np(1,:,:,:)    ! Outflow will be negative, hence the + sign here
-
-        ! if (trim(me%ref)=="RiverReach_3_1_1") then
-        !     print *, "outflow NM, sc 1: ", sum(me%tmp_j_np(1,1,:,:))
-        !     print *, "outflow NM, sc 2: ", sum(me%tmp_j_np(1,2,:,:))
-        !     print *, "outflow NM, sc 3: ", sum(me%tmp_j_np(1,3,:,:))
-        !     print *, "outflow NM, sc 4: ", sum(me%tmp_j_np(1,4,:,:))
-        !     print *, "outflow NM, sc 5: ", sum(me%tmp_j_np(1,5,:,:))
-        !     print *, "end m_np nm sc 1: ", sum(me%m_np(1,:,:))
-        !     print *, "end m_np2 nm sc 2: ", sum(me%m_np(2,:,:))
-        !     print *, "end m_np3 nm sc 3: ", sum(me%m_np(3,:,:))
-        !     print *, "end m_np3 nm sc 4: ", sum(me%m_np(4,:,:))
-        !     print *, "end m_np3 nm sc 5: ", sum(me%m_np(5,:,:))
-        !     if (t==1) error stop
-        ! end if
 
         ! TODO Update all of the above so that me%m_np can be updated by j_np (and similar for SPM)
         ! in one go, instead of doing it individually for each process
@@ -498,98 +447,6 @@ module classRiverReach
         me%j_spm(1,:) = me%tmp_j_spm(1,:)
         me%j_np(1,:,:,:) = me%tmp_j_np(1,:,:,:)
     end function
-
-    !> Compute the resuspension rate [s-1] for a time step
-    !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
-    function resuspensionRiverReach(me) result(rslt)
-        class(RiverReach) :: me                 !! This `RiverReach` instance
-        type(Result) :: rslt                    !! `Result` object to return with any errors
-        !---
-        real(dp) :: d_max                       ! Maximum resuspendable particle size [m]
-        integer :: i                            ! Iterator
-        real(dp) :: M_prop(C%nSizeClassesSpm)   ! Proportion of size class that can be resuspended [-]
-        real(dp) :: omega                       ! Stream power per unit bed area [W m-2]
-        real(dp) :: f_fr                        ! Friction factor [-]
-        real(dp) :: mbed(C%nSizeClassesSpm)     ! mass of fine material in the sediment [kg]
-
-        ! There must be inflow for there to be resuspension
-        if (me%Q_in_total > 0) then
-            ! Calculate maximum resuspendable particle size and proportion of each
-            ! size class that can be resuspended. Changes on each timestep as dependent
-            ! on river depth
-            d_max = 9.994*sqrt(me%alpha_resus*C%g*me%depth*me%slope)**2.5208 
-            ! Calculate proportion of each size class that can be resuspended
-            do i = 1, C%nSizeClassesSpm
-                ! Calculate the proportion of size class that can be resuspended
-                if (d_max < C%d_spm_low(i)) then
-                    M_prop(i) = 0                                    ! None can be resuspended
-                else if (d_max > C%d_spm_upp(i)) then
-                    M_prop(i) = 1                                    ! All can be resuspended
-                else
-                    M_prop(i) = (d_max - C%d_spm_low(i)) &           ! Only some can be resuspended
-                        / (C%d_spm_upp(i) - C%d_spm_low(i))     
-                end if
-            end do
-            ! Calculate the stream power per unit bed area
-            omega = C%rho_w(C%T)*C%g*(me%Q_in_total/C%timeStep)*me%slope/me%width
-            f_fr = 4*me%depth/(me%width+2*me%depth)
-            ! Calculate the resuspension
-            ! TODO: [DONE REQUIRES CHECKING] Get masses of bed sediment by size fraction
-            ! r1D = Me%bedSediment%Mf_bed_by_size()                    ! retrieve bed masses [kg/m2] by size class
-            ! call r%addErrors(.errors. r1D)                           ! add any errors to trace
-            ! if (r%hasCriticalError()) then                           ! if call throws a critical error
-            !     call r%addToTrace(trim(Me%ref // "Getting bed sediment mass"))   ! add trace to all errors
-            !     return                                               ! and exit
-            ! end if
-            ! mbed = .dp. r1D                                          ! extract mbed from Result object (1D array => 1D array
-            
-            me%k_resus = me%calculateResuspension( &
-                beta = me%beta_resus, &
-                L = me%length*me%f_m, &
-                W = me%width, &
-                M_prop = M_prop, &
-                omega = omega, &
-                f_fr = f_fr &
-            )
-        else
-            me%k_resus = 0                                ! If there's no inflow
-        end if
-        call rslt%addToTrace('Calculating resuspension mass for ' // trim(me%ref))
-    end function
-
-    function settlingRiverReach(me) result(rslt)
-        class(RiverReach) :: me                 !! This `RiverReach` instance
-        type(Result) :: rslt                    !! The `Result` object to return any errors in
-        integer :: i                            ! Size class iterator
-        ! SPM: Loop through the size classes and calculate settling velocity
-        do i = 1, C%nSizeClassesSpm
-            me%W_settle_spm(i) = me%calculateSettlingVelocity( &
-                C%d_spm(i), &
-                sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
-                me%T_water &
-            )
-        end do
-        me%k_settle = me%W_settle_spm/me%depth
-
-        ! NP: Calculate this to pass to Reactor
-        do i = 1, C%nSizeClassesNP
-            me%W_settle_np(i) = me%calculateSettlingVelocity( &
-                C%d_np(i), &
-                4230.0_dp, &       ! HACK: rho_np, change this to account for different NP materials
-                me%T_water &
-            )
-        end do
-    end function
-
-    function depositToBedRiverReach(me, spmDep) result(rslt)
-        class(RiverReach) :: me
-        real(dp) :: spmDep(C%nSizeClassesSpm)                   !! The SPM to deposit
-        type(Result) :: rslt
-    end function
-
-    subroutine setDefaultsRiverReach(me)
-        class(RiverReach) :: me
-    end subroutine
 
     function parseInputDataRiverReach(me) result(rslt)
         class(RiverReach) :: me

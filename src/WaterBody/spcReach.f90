@@ -46,11 +46,9 @@ module spcReach
 
       contains
         ! Simulators
-        procedure(resuspensionReach), deferred :: resuspension
-        procedure(settlingReach), deferred :: settling
-        procedure(depositToBedReach), deferred :: depositToBed
-        ! Data handlers
-        procedure(setDefaultsReach), deferred :: setDefaults
+        procedure :: resuspension => resuspensionReach
+        procedure :: settling => settlingReach
+        procedure :: depositToBed => depositToBedReach
         ! Calculators
         procedure :: calculateSettlingVelocity => calculateSettlingVelocity
         procedure :: calculateResuspension => calculateResuspension
@@ -67,40 +65,138 @@ module spcReach
         class(Reach), allocatable :: item                      !! Polymorphic `Reach` object
     end type
 
-    abstract interface
-        !> Resuspend sediment based on current river flow
-        function resuspensionReach(me) result(r)
-            use ResultModule, only: Result
-            import Reach
-            class(Reach) :: me                                      !! This `Reach` instance
-            type(Result) :: r                                       !! The `Result` object to return
-        end function
-
-        !> Set settling rate \( k_{\text{settle}} \) for this time step
-        function settlingReach(me) result(r)
-            use ResultModule, only: Result
-            import Reach
-            class(Reach) :: me                                      !! This `Reach` instance
-            type(Result) :: r                                       !! The `Result` object to return
-        end function
-
-        function depositToBedReach(me, spmDep) result(r)
-            use Globals
-            use ResultModule, only: Result
-            import Reach
-            class(Reach) :: me                                      !! This `Reach` instance
-            real(dp) :: spmDep(C%nSizeClassesSpm)                   !! The SPM to deposit
-            type(Result) :: r                                       !! The `Result` object to return any errors in
-        end function
-
-        subroutine setDefaultsReach(me)
-            import Reach
-            class(Reach) :: me                                      !! This `Reach` instance
-        end subroutine
-
-    end interface
-
   contains
+
+    function settlingReach(me) result(rslt)
+        class(Reach) :: me                      !! This `Reach` instance
+        type(Result) :: rslt                    !! The `Result` object to return any errors in
+        integer :: i                            ! Size class iterator
+        ! SPM: Loop through the size classes and calculate settling velocity
+        do i = 1, C%nSizeClassesSpm
+            me%W_settle_spm(i) = me%calculateSettlingVelocity( &
+                C%d_spm(i), &
+                sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
+                me%T_water &
+            )
+        end do
+        me%k_settle = me%W_settle_spm/me%depth
+
+        ! NP: Calculate this to pass to Reactor
+        do i = 1, C%nSizeClassesNP
+            me%W_settle_np(i) = me%calculateSettlingVelocity( &
+                C%d_np(i), &
+                4230.0_dp, &       ! HACK: rho_np, change this to account for different NP materials
+                me%T_water &
+            )
+        end do
+    end function
+
+
+    function depositToBedReach(me, spmDep) result(rslt)
+        class(Reach)        :: me                           !! This Reach instance
+        real(dp)            :: spmDep(C%nSizeClassesSpm)    !! The SPM to deposit [kg/reach]
+        type(Result)        :: rslt                         !! The data object to return any errors in
+        type(Result0D)      :: depositRslt                  !! Result from the bed sediment's deposit procedure
+        real(dp)            :: V_water_toDeposit            !! Volume of water to deposit to bed sediment [m3/m2]
+        type(FineSediment1) :: fineSediment(C%nSizeClassesSpm) ! FineSediment object to pass to BedSediment
+        integer             :: n                            ! Loop iterator
+        ! Create the FineSediment object and add deposited SPM to it
+        ! (converting units of Mf_in to kg/m2), then give that object
+        ! to the BedSediment
+        ! TODO: What f_comp should be input? SL: THAT OF THE DEPOSITING SEDIMENT
+        do n = 1, C%nSizeClassesSpm
+            !HACK
+            call rslt%addErrors(.errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n)), 4))
+            !TODO: allow number of compositional fractions to be set 
+            call rslt%addErrors(.errors. fineSediment(n)%set( &
+                Mf_in=spmDep(n)/me%bedArea, &
+                f_comp_in=C%defaultFractionalComp/100.0_dp &
+            ))
+        end do
+        
+        ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
+        ! AND WITH REASONABLE RUNTIME
+
+        if (C%includeBedSediment) then
+            ! Deposit the fine sediment to the bed sediment
+            depositRslt = Me%bedSediment%deposit(fineSediment)
+            call rslt%addErrors(.errors. depositRslt)
+            if (rslt%hasCriticalError()) then
+                ! print *, "Error in DepositSediment"
+                ! call rslt%addToTrace("Depositing SPM to BedSediment")
+                return
+            end if
+        end if
+        ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
+        ! Retrieve the amount of water to be taken from the reach
+        V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
+        ! Subtract that volume for the reach (as a depth)
+        ! TODO: Subtracting the water doesn't have any effect at the moment,
+        ! since the depth is recalculated based on hydrology at the start
+        ! of every time step.
+        me%depth = me%depth - V_water_toDeposit
+
+        ! Add any errors that occured in the deposit procedure
+        call rslt%addToTrace("Depositing SPM to BedSediment")
+    end function
+
+    !> Compute the resuspension rate [s-1] for a time step
+    !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
+    function resuspensionReach(me) result(rslt)
+        class(Reach) :: me                      !! This `Reach` instance
+        type(Result) :: rslt                    !! `Result` object to return with any errors
+        !---
+        real(dp) :: d_max                       ! Maximum resuspendable particle size [m]
+        integer :: i                            ! Iterator
+        real(dp) :: M_prop(C%nSizeClassesSpm)   ! Proportion of size class that can be resuspended [-]
+        real(dp) :: omega                       ! Stream power per unit bed area [W m-2]
+        real(dp) :: f_fr                        ! Friction factor [-]
+        real(dp) :: mbed(C%nSizeClassesSpm)     ! mass of fine material in the sediment [kg]
+
+        ! There must be inflow for there to be resuspension
+        if (me%Q_in_total > 0) then
+            ! Calculate maximum resuspendable particle size and proportion of each
+            ! size class that can be resuspended. Changes on each timestep as dependent
+            ! on river depth
+            d_max = 9.994*sqrt(me%alpha_resus*C%g*me%depth*me%slope)**2.5208 
+            ! Calculate proportion of each size class that can be resuspended
+            do i = 1, C%nSizeClassesSpm
+                ! Calculate the proportion of size class that can be resuspended
+                if (d_max < C%d_spm_low(i)) then
+                    M_prop(i) = 0                                    ! None can be resuspended
+                else if (d_max > C%d_spm_upp(i)) then
+                    M_prop(i) = 1                                    ! All can be resuspended
+                else
+                    M_prop(i) = (d_max - C%d_spm_low(i)) &           ! Only some can be resuspended
+                        / (C%d_spm_upp(i) - C%d_spm_low(i))     
+                end if
+            end do
+            ! Calculate the stream power per unit bed area
+            omega = C%rho_w(C%T)*C%g*(me%Q_in_total/C%timeStep)*me%slope/me%width
+            f_fr = 4*me%depth/(me%width+2*me%depth)
+            ! Calculate the resuspension
+            ! TODO: [DONE REQUIRES CHECKING] Get masses of bed sediment by size fraction
+            ! r1D = Me%bedSediment%Mf_bed_by_size()                    ! retrieve bed masses [kg/m2] by size class
+            ! call r%addErrors(.errors. r1D)                           ! add any errors to trace
+            ! if (r%hasCriticalError()) then                           ! if call throws a critical error
+            !     call r%addToTrace(trim(Me%ref // "Getting bed sediment mass"))   ! add trace to all errors
+            !     return                                               ! and exit
+            ! end if
+            ! mbed = .dp. r1D                                          ! extract mbed from Result object (1D array => 1D array
+            
+            me%k_resus = me%calculateResuspension( &
+                beta = me%beta_resus, &
+                L = me%length*me%f_m, &
+                W = me%width, &
+                M_prop = M_prop, &
+                omega = omega, &
+                f_fr = f_fr &
+            )
+        else
+            me%k_resus = 0                                ! If there's no inflow
+        end if
+        call rslt%addToTrace('Calculating resuspension mass for ' // trim(me%ref))
+    end function
 
     !> Calculate the settling velocity of sediment particles for an individual
     !! size class:
