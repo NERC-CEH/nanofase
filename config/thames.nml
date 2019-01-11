@@ -7,7 +7,7 @@ default_np_extra_states = 2
 /
 
 &data
-input_file = "data/thames/thames-global.nc"
+input_file = "data/thames/thames-global-estuary.nc"
 output_file = "output.csv"
 output_path = "data/output/"
 /

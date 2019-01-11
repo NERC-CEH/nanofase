@@ -10,6 +10,7 @@ module classGridCell1
     use spcGridCell
     use classSoilProfile1
     use classRiverReach
+    use classEstuaryReach
     use classCrop
     implicit none
     !> `GridCell1` is responsible for running creation and simulation
@@ -22,7 +23,7 @@ module classGridCell1
         procedure :: destroy => destroyGridCell1
         procedure, private :: setBranchRouting
         procedure, private :: setRiverReachLengths
-        procedure, private :: createRiverReaches
+        procedure, private :: createReaches
         ! Simulators
         procedure :: update => updateGridCell1
         procedure :: finaliseUpdate => finaliseUpdateGridCell1
@@ -54,6 +55,7 @@ module classGridCell1
         allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
         allocate(me%j_np_diffuseSource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
         me%q_runoff = 0                                 ! Default to no runoff
+
 
         ! Set the GridCell's position, whether it's empty and its name
         me%x = x
@@ -92,7 +94,7 @@ module classGridCell1
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. r%hasCriticalError()) then
                 ! Add RiverReaches to the GridCell (if any are present in the data file)
-                call r%addErrors(.errors. me%createRiverReaches())
+                call r%addErrors(.errors. me%createReaches())
             end if
         end if
 
@@ -107,7 +109,7 @@ module classGridCell1
     !> Create the RiverReaches contained in this GridCell, and begin to populate
     !! the routedRiverReaches array by specifying the head of each river branch
     !! in the GridCell
-    function createRiverReaches(me) result(r)
+    function createReaches(me) result(r)
         class(GridCell1), target :: me          !! This `GridCell1` instance
         type(Result) :: r                       !! The `Result` object to return any errors in
         integer :: rr, b                        ! Iterator for reaches and branches
@@ -118,15 +120,18 @@ module classGridCell1
 
         ! Loop through all the reaches in this GridCell.
         ! Don't type check for the moment
-        do rr = 1, me%nRiverReaches
-            allocate(RiverReach::me%colRiverReaches(rr)%item)
+        do rr = 1, me%nReaches
+            ! Is this a river or estuary reach?
+            if (me%reachTypes(rr)=='riv') then
+                allocate(RiverReach::me%colRiverReaches(rr)%item)
+            else
+                allocate(EstuaryReach::me%colRiverReaches(rr)%item)
+            end if
             call r%addErrors(.errors. &
                 me%colRiverReaches(rr)%item%create( &
                     me%x, &
                     me%y, &
                     rr, &
-                    ! me%q_runoff_timeSeries, &
-                    ! me%T_water_timeSeries, &
                     me%area &
                 ) &
             )
@@ -478,9 +483,27 @@ module classGridCell1
             end do
         end if
         
-        ! Get the number of river reaches and allocate colRiverReaches. Defaults to 0
+        ! Get the number of river reaches. Defaults to 0
         call r%addErrors(.errors. DATA%get('n_river_reaches', me%nRiverReaches, silentlyFail=.true.))
-        allocate(me%colRiverReaches(me%nRiverReaches))
+        ! Get the number of estuary reaches and allocate colReaches. Defaults to 0
+        call r%addErrors(.errors. DATA%get('n_estuary_reaches', me%nEstuaryReaches, silentlyFail=.true.))
+        me%nReaches = me%nRiverReaches + me%nEstuaryReaches
+        allocate(me%colRiverReaches(me%nReaches))
+        allocate(me%reachTypes(me%nReaches))
+
+        ! Are reaches rivers or estuaries?
+        do i=1, me%nReaches
+            if (DATA%grp%hasGroup(ref('RiverReach', me%x, me%y, i))) then
+                me%reachTypes(i) = 'riv'
+            else if (DATA%grp%hasGroup(ref('EstuaryReach', me%x, me%y, i))) then
+                me%reachTypes(i) = 'est'
+            else
+                call r%addError(ErrorInstance( &
+                    message="Mismatch between specified number of reaches and number of data groups for those reaches. " &
+                        // "Check nReaches matches the number of reach groups in the input data."))
+            end if
+        end do
+
         
         ! Get the size of the GridCell [m]. Defaults to defaultGridSize from config
         call r%addErrors(.errors. DATA%get('size', xySize, [C%defaultGridSize, C%defaultGridSize]))

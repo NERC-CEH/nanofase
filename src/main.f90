@@ -2,7 +2,8 @@ program main
     use Globals
     use UtilModule
     use ResultModule
-    use classRiverReach1
+    use classRiverReach
+    use classEstuaryReach
     use classEnvironment1
     use classDataInterfacer, only: DATA
     use classLogger, only: LOG
@@ -32,6 +33,7 @@ program main
     real(dp) :: riverVolume
     real(dp) :: Q_out
     real(dp) :: npPointSource
+    character(len=3) :: reachType
 
     call cpu_time(start)                                                ! Simulation start time
 
@@ -53,7 +55,7 @@ program main
     open(unit=4, file=trim(C%outputPath) // 'output_hetero_vs_free.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     write(2, '(A,A)') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,", &
-        "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,river_flow,total_np_pointsource"
+        "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,river_flow,total_np_pointsource,reach_type"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in"
 
@@ -95,19 +97,23 @@ program main
                        npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff())
                        riverVolume = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                        Q_out = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%Q(1)/C%timeStep     ! Converted from m3/timestep to m3/s
-                       ! npPointSource = 0
-                       ! if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%hasPointSource) then
-                       !     do s = 1, size(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%pointSources)
-                       !         npPointSource = npPointSource + &
-                       !             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%pointSources(s)%j_np_pointSource)
-                       !     end do
-                       ! end if
+
+                       ! What type of reach is this?
+                       select type (reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
+                        type is (RiverReach)
+                          reachType = 'riv'
+                        type is (EstuaryReach)
+                          reachType = 'est'
+                        class default
+                          reachType = 'non'
+                       end select
+
                        npPointSource = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_pointsource())
                        ! print *, "m_np: ", env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(1,:,:)
                        ! print *, "j_np: ", env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,:,:)
                        ! print *, ""
                        ! Write to the data file
-                       write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
+                       write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
                            t, ",", &
                            x, ",", &
                            y, ",", &
@@ -123,7 +129,8 @@ program main
                            trim(str(sum(m_spm))), ",", &
                            trim(str(riverVolume)), ",", &
                            trim(str(Q_out)), ",", &
-                           trim(str(npPointSource))
+                           trim(str(npPointSource)), ",", &
+                           trim(reachType)
                        
                        m_np_hetero = m_np_hetero + &
                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &

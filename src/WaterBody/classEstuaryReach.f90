@@ -1,4 +1,4 @@
-module classRiverReach
+module classEstuaryReach
     use Globals
     use spcReach
     use UtilModule
@@ -9,31 +9,31 @@ module classRiverReach
     use classReactor1
     implicit none
 
-    type, public, extends(Reach) :: RiverReach
+    type, public, extends(Reach) :: EstuaryReach
       contains
         ! Create/destroy
-        procedure :: create => createRiverReach
-        procedure :: destroy => destroyRiverReach
+        procedure :: create => createEstuaryReach
+        procedure :: destroy => destroyEstuaryReach
         ! Simulators
-        procedure :: update => updateRiverReach
-        procedure :: finaliseUpdate => finaliseUpdateRiverReach
-        procedure :: resuspension => resuspensionRiverReach
-        procedure :: settling => settlingRiverReach
-        procedure :: depositToBed => depositToBedRiverReach
+        procedure :: update => updateEstuaryReach
+        procedure :: finaliseUpdate => finaliseUpdateEstuaryReach
+        procedure :: resuspension => resuspensionEstuaryReach
+        procedure :: settling => settlingEstuaryReach
+        procedure :: depositToBed => depositToBedEstuaryReach
         ! Data handlers
-        procedure :: setDefaults => setDefaultsRiverReach
-        procedure :: parseInputData => parseInputDataRiverReach
+        procedure :: setDefaults => setDefaultsEstuaryReach
+        procedure :: parseInputData => parseInputDataEstuaryReach
         ! Calculators
         procedure :: calculateWidth => calculateWidth
         procedure :: calculateDepth => calculateDepth
         procedure :: calculateVelocity => calculateVelocity
         ! Getters
         procedure :: j_spm_inflows
-        procedure :: j_np_runoff => j_np_runoffRiverReach
-        procedure :: j_np_transfer => j_np_transferRiverReach
-        procedure :: j_np_deposit => j_np_depositRiverReach
-        procedure :: j_np_diffusesource => j_np_diffusesourceRiverReach
-        procedure :: j_np_pointsource => j_np_pointsourceRiverReach
+        procedure :: j_np_runoff => j_np_runoffEstuaryReach
+        procedure :: j_np_transfer => j_np_transferEstuaryReach
+        procedure :: j_np_deposit => j_np_depositEstuaryReach
+        procedure :: j_np_diffusesource => j_np_diffusesourceEstuaryReach
+        procedure :: j_np_pointsource => j_np_pointsourceEstuaryReach
         ! Setters
         procedure :: set_j_spm_runoff
         procedure :: set_j_spm_transfer
@@ -42,8 +42,8 @@ module classRiverReach
 
   contains
 
-    function createRiverReach(me, x, y, w, gridCellArea) result(rslt)
-        class(RiverReach) :: me                 !! This `RiverReach` instance
+    function createEstuaryReach(me, x, y, w, gridCellArea) result(rslt)
+        class(EstuaryReach) :: me                 !! This `EstuaryReach` instance
         integer :: x                            !! Grid cell x-position index
         integer :: y                            !! Grid cell y-position index
         integer :: w                            !! Water body index within the cell
@@ -54,10 +54,8 @@ module classRiverReach
         me%x = x
         me%y = y
         me%w = w
-        me%ref = trim(ref("RiverReach", x, y, w))
+        me%ref = trim(ref("EstuaryReach", x, y, w))
         me%gridCellArea = gridCellArea
-
-        print *, me%ref
 
         ! Allocate arrays of size classes, form and state
         allocate(me%C_spm(C%nSizeClassesSpm), &
@@ -110,7 +108,7 @@ module classRiverReach
         me%j_ionic = 0
         me%tmp_j_ionic = 0
 
-        ! Create the BedSediment for this RiverReach
+        ! Create the BedSediment for this EstuaryReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
         allocate(BedSediment1::me%bedSediment)
         call rslt%addErrors(.errors. me%bedSediment%create(me%ncGroup))
@@ -135,15 +133,15 @@ module classRiverReach
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
 
-    !> Destroy this `RiverReach`
-    function destroyRiverReach(me) result(rslt)
-        class(RiverReach) :: me                             !! This `RiverReach` instance
+    !> Destroy this `EstuaryReach`
+    function destroyEstuaryReach(me) result(rslt)
+        class(EstuaryReach) :: me                             !! This `EstuaryReach` instance
         type(Result) :: rslt                                !! The `Result` object
         ! TODO: Write some destroy logic
     end function
 
-    function updateRiverReach(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
-        class(RiverReach) :: me
+    function updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
+        class(EstuaryReach) :: me
         integer :: t
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
@@ -246,7 +244,7 @@ module classRiverReach
             me%volume = 0.0_dp
         end if
 
-        ! if (trim(me%ref)=="RiverReach_3_1_1") then
+        ! if (trim(me%ref)=="EstuaryReach_3_1_1") then
         !     print *, "j_np_in_total 1: ", sum(j_np_in_total(1,:,:))
         !     print *, "j_np_in_total 2: ", sum(j_np_in_total(1,:,:))
         !     print *, "j_np_in_total 3: ", sum(j_np_in_total(1,:,:))
@@ -281,7 +279,7 @@ module classRiverReach
         do i = 1, nDisp
             ! Add the inflow NP to the current mass for this displacement
             me%m_np = me%m_np + dj_np_in
-
+            
             ! Update SPM according to inflow for this displacement, then calculate
             ! new SPM concentration based on this and the dimensions
             if (.not. isZero(me%volume)) then
@@ -447,7 +445,7 @@ module classRiverReach
         end if
         me%m_np = me%m_np + me%tmp_j_np(1,:,:,:)    ! Outflow will be negative, hence the + sign here
 
-        ! if (trim(me%ref)=="RiverReach_3_1_1") then
+        ! if (trim(me%ref)=="EstuaryReach_3_1_1") then
         !     print *, "outflow NM, sc 1: ", sum(me%tmp_j_np(1,1,:,:))
         !     print *, "outflow NM, sc 2: ", sum(me%tmp_j_np(1,2,:,:))
         !     print *, "outflow NM, sc 3: ", sum(me%tmp_j_np(1,3,:,:))
@@ -480,7 +478,7 @@ module classRiverReach
                 call rslt%addError(ErrorInstance( &
                     code = 500, &
                     message = "All SPM in size class " // trim(str(i)) // " (" // trim(str(C%d_spm(i)*1e6)) // &
-                            " um) advected from RiverReach.", &
+                            " um) advected from EstuaryReach.", &
                     isCritical = .false.) &
                 )
             end if 
@@ -491,8 +489,8 @@ module classRiverReach
     end function
 
     !> TODO change to subroutine
-    function finaliseUpdateRiverReach(me) result(rslt)
-        class(RiverReach) :: me
+    function finaliseUpdateEstuaryReach(me) result(rslt)
+        class(EstuaryReach) :: me
         type(Result) :: rslt
         me%Q(1) = me%tmp_Q(1)
         me%j_spm(1,:) = me%tmp_j_spm(1,:)
@@ -501,8 +499,8 @@ module classRiverReach
 
     !> Compute the resuspension rate [s-1] for a time step
     !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
-    function resuspensionRiverReach(me) result(rslt)
-        class(RiverReach) :: me                 !! This `RiverReach` instance
+    function resuspensionEstuaryReach(me) result(rslt)
+        class(EstuaryReach) :: me                 !! This `EstuaryReach` instance
         type(Result) :: rslt                    !! `Result` object to return with any errors
         !---
         real(dp) :: d_max                       ! Maximum resuspendable particle size [m]
@@ -557,8 +555,8 @@ module classRiverReach
         call rslt%addToTrace('Calculating resuspension mass for ' // trim(me%ref))
     end function
 
-    function settlingRiverReach(me) result(rslt)
-        class(RiverReach) :: me                 !! This `RiverReach` instance
+    function settlingEstuaryReach(me) result(rslt)
+        class(EstuaryReach) :: me                 !! This `EstuaryReach` instance
         type(Result) :: rslt                    !! The `Result` object to return any errors in
         integer :: i                            ! Size class iterator
         ! SPM: Loop through the size classes and calculate settling velocity
@@ -581,18 +579,18 @@ module classRiverReach
         end do
     end function
 
-    function depositToBedRiverReach(me, spmDep) result(rslt)
-        class(RiverReach) :: me
+    function depositToBedEstuaryReach(me, spmDep) result(rslt)
+        class(EstuaryReach) :: me
         real(dp) :: spmDep(C%nSizeClassesSpm)                   !! The SPM to deposit
         type(Result) :: rslt
     end function
 
-    subroutine setDefaultsRiverReach(me)
-        class(RiverReach) :: me
+    subroutine setDefaultsEstuaryReach(me)
+        class(EstuaryReach) :: me
     end subroutine
 
-    function parseInputDataRiverReach(me) result(rslt)
-        class(RiverReach) :: me
+    function parseInputDataEstuaryReach(me) result(rslt)
+        class(EstuaryReach) :: me
         type(Result) :: rslt
         integer :: i                                ! Loop iterator
         integer, allocatable :: inflowArray(:,:)    ! Temporary array for storing inflows from data file in
@@ -654,7 +652,7 @@ module classRiverReach
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         
-        ! ROUTING: Get the references to the inflow(s) RiverReaches and
+        ! ROUTING: Get the references to the inflow(s) EstuaryReaches and
         ! store in inflowRefs(). Do some auditing as well.
         if (DATA%grp%hasVariable("inflows")) then
             call rslt%addErrors(.errors. DATA%get('inflows', inflowArray))
@@ -676,8 +674,8 @@ module classRiverReach
                 do i = 1, me%nInflows                               ! Loop through the inflows
                     me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
                     me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
-                    me%inflowRefs(i)%w = inflowArray(3,i)           ! Inflow RiverReach reference
-                    ! Check the inflow is from a neighbouring RiverReach
+                    me%inflowRefs(i)%w = inflowArray(3,i)           ! Inflow EstuaryReach reference
+                    ! Check the inflow is from a neighbouring EstuaryReach
                     if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
                         call rslt%addError(ErrorInstance(code=401))
                     end if
@@ -722,7 +720,7 @@ module classRiverReach
     !!  <li>[Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)</li>
     !! </ul>
     function calculateWidth(me, Q) result(width)
-        class(RiverReach), intent(in) :: me     !! The `RiverReach` instance
+        class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance
         real(dp), intent(in) :: Q               !! `GridCell` discharge \( Q \) [m3/s]
         real(dp) :: width                       !! The calculated width \( W \) [m]
         width = 1.22*Q**0.557
@@ -742,7 +740,7 @@ module classRiverReach
     !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
     !! $$
     function calculateDepth(me, W, S, Q) result(rslt)
-        class(RiverReach), intent(in) :: me     !! The `RiverReach` instance.
+        class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance.
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m3/s].
@@ -806,7 +804,7 @@ module classRiverReach
     !!      v = \frac{Q}{WD}
     !! $$
     function calculateVelocity(me, D, Q, W) result(v)
-        class(RiverReach), intent(in) :: me    !! This `RiverReach` instance
+        class(EstuaryReach), intent(in) :: me    !! This `EstuaryReach` instance
         real(dp), intent(in) :: D               !! River depth \( D \) [m]
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]
@@ -819,7 +817,7 @@ module classRiverReach
     end function
 
     function j_spm_inflows(me)
-        class(RiverReach) :: me
+        class(EstuaryReach) :: me
         real(dp) :: j_spm_inflows(C%nSizeClassesSpm)
         if (me%nInflows > 0) then
             j_spm_inflows = sum(me%j_spm(2:1+me%nInflows,:), dim=1)
@@ -829,36 +827,36 @@ module classRiverReach
     end function
 
     !> Get the total runoff from NM flux array
-    function j_np_runoffRiverReach(me) result(j_np_runoff)
-        class(RiverReach) :: me
+    function j_np_runoffEstuaryReach(me) result(j_np_runoff)
+        class(EstuaryReach) :: me
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
         j_np_runoff = me%j_np(2+me%nInflows,:,:,:)
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
-    function j_np_transferRiverReach(me) result(j_np_transfer)
-        class(RiverReach) :: me
+    function j_np_transferEstuaryReach(me) result(j_np_transfer)
+        class(EstuaryReach) :: me
         real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
         j_np_transfer = me%j_np(3+me%nInflows,:,:,:)
     end function
 
     !> Get the total deposited NM (settling + resus) from NM flux array
-    function j_np_depositRiverReach(me) result(j_np_deposit)
-        class(RiverReach) :: me
+    function j_np_depositEstuaryReach(me) result(j_np_deposit)
+        class(EstuaryReach) :: me
         real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
         j_np_deposit = me%j_np(4+me%nInflows,:,:,:)
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
-    function j_np_diffusesourceRiverReach(me) result(j_np_diffusesource)
-        class(RiverReach) :: me
+    function j_np_diffusesourceEstuaryReach(me) result(j_np_diffusesource)
+        class(EstuaryReach) :: me
         real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
         j_np_diffusesource = sum(me%j_np(5+me%nInflows:5+me%nInflows+me%nDiffuseSources,:,:,:), dim=1)
     end function
 
     !> Get the total point source fluxes from NM flux array
-    function j_np_pointsourceRiverReach(me) result(j_np_pointsource)
-        class(RiverReach) :: me
+    function j_np_pointsourceEstuaryReach(me) result(j_np_pointsource)
+        class(EstuaryReach) :: me
         real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
         j_np_pointsource &
             = sum(me%j_np(5+me%nInflows+me%nDiffuseSources:4+me%nInflows+me%nDiffuseSources+me%nPointSources,:,:,:), dim=1)
@@ -866,21 +864,21 @@ module classRiverReach
 
     !> Set the runoff flux of the SPM flux array
     subroutine set_j_spm_runoff(me, j_spm_runoff)
-        class(RiverReach) :: me
+        class(EstuaryReach) :: me
         real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
         me%j_spm(2+me%nInflows,:) = j_spm_runoff
     end subroutine
 
     !> Set the transfer flux of the SPM flux array
     subroutine set_j_spm_transfer(me, j_spm_transfer)
-        class(RiverReach) :: me
+        class(EstuaryReach) :: me
         real(dp) :: j_spm_transfer(C%nSizeClassesSpm)
         me%j_spm(3+me%nInflows,:) = j_spm_transfer
     end subroutine
 
     !> Set the settling/resuspension flux of the SPM flux array
     subroutine set_j_spm_deposit(me, j_spm_deposit)
-        class(RiverReach) :: me
+        class(EstuaryReach) :: me
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
         me%j_spm(4+me%nInflows,:) = j_spm_deposit
     end subroutine

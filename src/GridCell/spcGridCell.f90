@@ -23,6 +23,7 @@ module spcGridCell
         integer :: dy                                                   !! Size of `GridCell` in y direction [m]
         real(dp) :: area                                                !! Area of the `GridCell`
         type(ReachElement), allocatable :: colRiverReaches(:)           !! Array of `RiverReachElement` objects to hold the RiverReaches
+        character(len=3), allocatable :: reachTypes(:)                  !! Type of each indexed reach within this cell - 'riv' or 'est'
         type(ReachPointer), allocatable :: routedRiverReaches(:,:)      !! `RiverReach`es ordered by branch and flow direction
             !! Array of `RiverReachPointer` objects to order rivers in routing order and by branch.
             !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch
@@ -31,7 +32,9 @@ module spcGridCell
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
         type(DiffuseSource), allocatable :: diffuseSources(:)           !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
         logical :: hasDiffuseSource = .false.                           !! Does this `GridCell` have a `DiffuseSource`?
-        integer :: nRiverReaches = 0                                    !! Number of contained `SubRiver`s
+        integer :: nRiverReaches = 0                                    !! TODO deprecate - Number of contained `RiverReach`es
+        integer :: nEstuaryReaches = 0                                  !! TODO deprecate - Number of contained `EstuaryReach`es
+        integer :: nReaches = 0                                         !! Number of `Reach`es in this cell
         integer :: nSoilProfiles = 0                                    !! Number of contained `SoilProfile`s
         integer :: nBranches = 0                                        !! Number of river branches in the `GridCell`
         integer, allocatable :: nReachesInBranch(:)
