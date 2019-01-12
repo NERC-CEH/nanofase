@@ -211,6 +211,7 @@ module spcReach
         class(Reach) :: me                      !! This `Reach` instance
         type(Result) :: rslt                    !! `Result` object to return with any errors
         !---
+        real(dp) :: Q_in_total                  ! Total inflow to this reach
         real(dp) :: d_max                       ! Maximum resuspendable particle size [m]
         integer :: i                            ! Iterator
         real(dp) :: M_prop(C%nSizeClassesSpm)   ! Proportion of size class that can be resuspended [-]

@@ -98,6 +98,9 @@ module classEstuaryReach
         real(dp) :: dQ_in                                       ! Q_in for each displacement
         real(dp) :: dj_spm_in(C%nSizeClassesSpm)                ! j_spm_in for each displacement
         real(dp) :: dj_np_in(C%npDim(1), C%npDim(2), C%npDim(3)) ! j_np_in for each displacement
+        real(dp) :: dQ(size(me%Q))                              ! Q for each displacement
+        real(dp) :: dj_spm(size(me%j_spm), C%nSizeClassesSpm)   ! j_spm for each displacement
+        real(dp) :: dj_np(size(me%j_np), C%npDim(1), C%npDim(2), C%npDim(3))   ! j_np for each displacement
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: dj_spm_out(C%nSizeClassesSpm)               ! SPM outflow for the displacement
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
@@ -176,8 +179,35 @@ module classEstuaryReach
         dQ_in = me%Q_in_total/nDisp                         ! Inflow to the first displacement [m3]
         dj_spm_in = j_spm_in_total/nDisp                    ! SPM inflow to the first displacment [kg]
         dj_np_in = j_np_in_total/nDisp                      ! NM inflow to the first displacement [kg]
+        
+        dQ = me%Q/nDisp
+        dj_spm = me%j_spm/nDisp
+        dj_np = me%j_np/nDisp
 
         do i = 1, nDisp
+            
+            ! Water mass balance (outflow = all the inflows)
+            dQ(1) = -sum(dQ(2:))
+            
+            ! SPM outflow
+            if (.not. isZero(me%volume)) then
+                dj_spm(1) = -min(me%m_spm * dQ(2:) / me%volume, me%m_spm)
+            else
+                dj_spm(1) = 0
+            end if
+            
+            ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow (i.e. sum(dj_spm)
+            dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm)), me%m_spm + sum(dj_spm))
+            dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
+            dj_spm(3+me%nInflows,:) = dj_spm_resus - dj_spm_deposit
+            
+            ! SPM mass balance
+            me%m_spm = me%m_spm + sum(dj_spm)
+            
+            ! TODO test this, commenting out the bits it replaces from below
+                   
+            
+            
             ! Add the inflow NP to the current mass for this displacement
             me%m_np = me%m_np + dj_np_in
             
