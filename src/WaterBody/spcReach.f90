@@ -458,7 +458,7 @@ module spcReach
     subroutine set_j_spm_deposit(me, j_spm_deposit)
         class(Reach) :: me
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
-        me%j_spm(3+me%nInflows,:) = j_spm_deposit
+        me%j_spm(4+me%nInflows,:) = j_spm_deposit
     end subroutine
 
 !-- NM --!
@@ -502,7 +502,7 @@ module spcReach
     subroutine set_j_np_deposit(me, j_np_deposit)
         class(Reach) :: me
         real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        me%j_np(3+me%nInflows,:,:,:) = j_np_deposit
+        me%j_np(4+me%nInflows,:,:,:) = j_np_deposit
     end subroutine
 
     !> Set the diffuse source flux of the SPM flux array

@@ -189,20 +189,27 @@ module classEstuaryReach
             ! Water mass balance (outflow = all the inflows)
             dQ(1) = -sum(dQ(2:))
             
-            ! SPM outflow
+            ! SPM and NM outflows
             if (.not. isZero(me%volume)) then
-                dj_spm(1) = -min(me%m_spm * dQ(2:) / me%volume, me%m_spm)
+                dj_spm(1) = -min(me%m_spm * dQ(1) / me%volume, me%m_spm)
+                dj_np(1) = -min(me%m_np * dQ(1) / me%volume, me%m_np)
             else
                 dj_spm(1) = 0
+                dj_np(1) = 0
             end if
             
             ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow (i.e. sum(dj_spm)
             dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm)), me%m_spm + sum(dj_spm))
             dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
-            dj_spm(3+me%nInflows,:) = dj_spm_resus - dj_spm_deposit
+            ! Calculate the fraction of SPM from each size class that was deposited, for use in calculating mass of NM deposited
+            fractionSpmDeposited = dj_spm_deposit/(me%m_spm + sum(dj_spm))              ! TODO include resus in this
+            ! Update the deposition element of the SPM and NM flux array
+            dj_spm(4+me%nInflows,:) = dj_spm_resus - dj_spm_deposit
+            dj_np(4+me%nInflows,:,:,3:) = -min(me%m_np(:,:,3:)*fractionSpmDeposited, me%m_np(:,:,3:))
             
-            ! SPM mass balance
+            ! SPM and NM mass balance
             me%m_spm = me%m_spm + sum(dj_spm)
+            me%m_np = me%m_np + sum(dj_np)
             
             ! TODO test this, commenting out the bits it replaces from below
                    
