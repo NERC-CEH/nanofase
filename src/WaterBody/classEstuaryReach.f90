@@ -10,7 +10,11 @@ module classEstuaryReach
     implicit none
 
     type, public, extends(Reach) :: EstuaryReach
-        real(dp) :: meanDepth               !! Mean estuary depth for use in tidal depth calculations
+        real(dp) :: meanDepth               !! Mean estuary depth for use in tidal depth calculations [m]
+        real(dp) :: distanceToMouth         !! Distance to the mouth of the estuary [m]
+        real(dp) :: tidalM2                 !! Tidal harmonic coefficient M2 [-]
+        real(dp) :: tidalS2                 !! Tidal harmonic coefficient S2 [-]
+        real(dp) :: tidalDatum              !! Tidal datum about which depths are given [m]
 
       contains
         ! Create/destroy
@@ -146,7 +150,7 @@ module classEstuaryReach
         j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
 
         ! Set the reach dimensions and calculate the velocity
-        call rslt%addErrors(.errors. me%setDimensions())
+        call me%setDimensions(t*C%timeStep)
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
 
         ! HACK
@@ -168,12 +172,16 @@ module classEstuaryReach
         else
             nDisp = ceiling(me%Q_in_total/me%volume)        ! Number of displacements
         end if
+        nDisp = max(nDisp, C%timeStep/3600)                 ! Make sure there is at least 1 displacement per hour
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
         dQ = me%Q/nDisp                                     ! Water flow array for each displacement
         dj_spm = me%j_spm/nDisp                             ! SPM flow array for each displacement
         dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
 
         do i = 1, nDisp
+
+            call me%setDimensions(t*C%timeStep + (i-1)*C%timeStep/nDisp)
+            print *, "depth, disp: ", me%depth, i
             ! Water mass balance (outflow = all the inflows)
             dQ(1) = -sum(dQ(2:))
             
@@ -289,13 +297,11 @@ module classEstuaryReach
 
 
     !> Set the dimensions (width, depth, area, volume) of the reach
-    function setDimensions(me) result(rslt)
+    subroutine setDimensions(me, tSeconds)
         class(EstuaryReach) :: me
-        type(Result) :: rslt
-        type(Result0D) :: depthRslt                         ! Result object for depth
-        depthRslt = me%calculateDepth(me%width, me%slope, me%Q_in_total/C%timeStep)
-        me%depth = .dp. depthRslt                           ! Get real(dp) data from Result object
-        call rslt%addError(.error. depthRslt)               ! Add any error that occurred
+        integer :: tSeconds
+
+        me%depth = me%calculateDepth(tSeconds)
         me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
         me%bedArea = me%width*me%length*me%f_m              ! Calculate the BedSediment area [m2]
         me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area
@@ -307,7 +313,7 @@ module classEstuaryReach
         print *, me%depth
         print *, me%meanDepth
         print *, me%width
-    end function
+    end subroutine
 
 
     !> Parse input data for this EstuaryReach and store in state variables.
@@ -372,7 +378,11 @@ module classEstuaryReach
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
             .errors. DATA%get('mean_depth', me%meanDepth), &
-            .errors. DATA%get('width', me%width) &
+            .errors. DATA%get('width', me%width), &
+            .errors. DATA%get('tidal_M2', me%tidalM2, C%tidalM2), &
+            .errors. DATA%get('tidal_S2', me%tidalS2, C%tidalS2), &
+            .errors. DATA%get('tidal_datum', me%tidalDatum, 0.0_dp), &
+            .errors. DATA%get('distance_to_mouth', me%distanceToMouth) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         
@@ -450,77 +460,25 @@ module classEstuaryReach
         width = 1.22*Q**0.557
     end function
 
-    !> Calculate water depth from Manning's roughness coefficient,
-    !! using Newton's method:
+    !> Calculate water depth from tidal harmonics.
     !! $$
-    !!      D_i = D_{i-1} - \frac{f(D_{i-1})}{f'(D_{i-1})}
+    !!      D(x,t) = A_{S2} \cos \left( 2\pi \frac{t}{12} \right) + A_{M2} \cos \left( 2\pi \frac{t}{12.42} \right) + /
+    !!          \frac{3}{4} \frac{xA_{M2}^2}{D_x 12.42 \sqrt{gD_x}} \cos(2\pi \frac{t}{6.21}) + z_0
     !! $$
-    !! where
-    !! $$
-    !!      f(D) = WD \left( \frac{WD}{W+2D} \right)^{2/3} \frac{\sqrt{S}}{n} - Q = 0
-    !! $$
-    !! and
-    !! $$
-    !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
-    !! $$
-    function calculateDepth(me, W, S, Q) result(rslt)
+    !! Ref: [Hardisty, 2007](https://doi.org/10.1002/9780470750889)
+    function calculateDepth(me, tSeconds) result(depth)
         class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance.
-        real(dp), intent(in) :: W               !! River width \( W \) [m].
-        real(dp), intent(in) :: S               !! River slope \( S \) [-].
-        real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m3/s].
-        type(Result0D) :: rslt
-            !! The Result object, containing the calculated depth [m] and any numerical error.
-        real(dp) :: D_i                         ! The iterative river depth \( D_i \) [m].
-        real(dp) :: f                           ! The function to find roots for \( f(D) \).
-        real(dp) :: df                          ! The derivative of \( f(D) \) with respect to \( D \).
-        real(dp) :: alpha                       ! Constant extracted from f and df
-        integer :: i                            ! Loop iterator to make sure loop isn't endless.
-        integer :: iMax                         ! Maximum number of iterations before error.
-        real(dp) :: epsilon                     ! Proximity to zero allowed.
-        type(ErrorInstance) :: error            ! Variable to store error in.
-        character(len=100) :: iChar             ! Loop iterator as character (for error message).
-        character(len=100) :: fChar             ! f(D) value as character (for error message).
-        character(len=100) :: epsilonChar       ! Proximity of f(D) to zero as character (for error message).
+        integer, intent(in) :: tSeconds           !! The current timestep
+        real(dp) :: depth
 
-        ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
-        D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
-        i = 1                                                                   ! Iterator for Newton solver
-        iMax = 100000                                                           ! Allow 10000 iterations
-        epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
-        alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
-        f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
+        print *, "me%tidalS2, me%tidalM2", me%tidalS2, me%tidalM2
+        print *, "C%pi, tSeconds", C%pi, tSeconds
+        print *, "me%distanceToMouth, me%meanDepth", me%distanceToMouth, me%meanDepth
+        print *, "me%tidalDatum", me%tidalDatum
 
-        ! Loop through and solve until f(D) is within e-9 of zero, or max iterations reached
-        do while (abs(f) > epsilon .and. i <= iMax)
-            f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q            ! f(D) based on D_{m-1}
-            df = alpha * ((D_i)**(5.0_dp/3.0_dp) * (6*D_i + 5*W))/(3*D_i * (2*D_i + W)**(5.0_dp/3.0_dp))
-            D_i = D_i - f/df                                                    ! Calculate D_i based on D_{m-1}
-            i = i + 1
-        end do
-
-        if (isnan(D_i)) then                                                    ! If method diverges (results in NaN)
-            write(iChar,*) i
-            error = ErrorInstance( &
-                code = 300, &
-                message = "Newton's method diverged to NaN after " // trim(adjustl(iChar)) // " iterations." &
-            )
-        else if (i > iMax) then                                                 ! If max number of iterations reached
-            write(iChar,*) iMax
-            write(fChar,*) f
-            write(epsilonChar,*) epsilon
-            error = ErrorInstance( &
-                code = 300, &
-                message = "Newton's method failed to converge - maximum number of iterations (" &
-                    // trim(adjustl(iChar)) // ") exceeded. " &
-                    // "Precision (proximity to zero) required: " // trim(adjustl(epsilonChar)) &
-                    // ". Final value: " // trim(adjustl(fChar)) // "." &
-            )
-        else
-            error = ERROR_HANDLER%getNoError()                                  ! Otherwise, no error occurred
-        end if
-        call rslt%setData(D_i)
-        call rslt%addError(error)
-        call rslt%addToTrace("Calculating river depth")
+        depth = me%tidalS2 * cos(2.0_dp*C%pi*tSeconds/12.0_dp) + me%tidalM2 * cos(2.0_dp*C%pi*tSeconds/12.42_dp) &
+            + (3.0_dp/4.0_dp) * ((me%distanceToMouth * me%tidalM2 ** 2)/(me%meanDepth * 12.42 * sqrt(9.81_dp * me%meanDepth))) &
+            * cos(2*C%pi*tSeconds/6.21_dp) + me%tidalDatum
     end function
 
     !> Calculate the velocity of the river:

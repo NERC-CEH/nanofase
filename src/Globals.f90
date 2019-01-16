@@ -61,6 +61,8 @@ module Globals
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
         integer :: npDim(3)                         !! Default dimensions for arrays of NM
         integer :: ionicDim                         !! Default dimensions for ionic metal
+        real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2
+        real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2
 
       contains
         procedure :: rho_w      ! Density of water
@@ -210,6 +212,10 @@ module Globals
         ! TODO: Check the distribution adds up to 100%
         var = grp%getVariable("default_distribution_np")    ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
+        var = grp%getVariable("tidal_M2")                   ! Tidal harmonic coefficient M2
+        call var%getData(C%tidalM2)
+        var = grp%getVariable("tidal_S2")                   ! Tidal harmonic coefficient S2
+        call var%getData(C%tidalS2)
         call C%dataset%close()                              ! Close the dataset
         ! TODO: Get default water temperature "T_water"
 
