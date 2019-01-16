@@ -284,7 +284,9 @@ module classGridCell1
                     allocate(me%colRiverReaches(0))
                     allocate(me%routedRiverReaches(0,0))
                     allocate(me%nReachesInBranch(0))
+                    me%nReaches = 0
                     me%nRiverReaches = 0
+                    me%nEstuaryReaches = 0
                     return
                 end if
             end if
@@ -369,7 +371,7 @@ module classGridCell1
             ! timestep, providing them the eroded sediment split according
             ! to their length
             ! TODO Add diffuse source to reaches
-            do rr = 1, me%nRiverReaches
+            do rr = 1, me%nReaches
                 ! Determine the proportion of this reach's length to the the total
                 ! river length in this GridCell
                 lengthRatio = me%colRiverReaches(rr)%item%length/sum(me%branchLengths)
@@ -404,7 +406,7 @@ module classGridCell1
         class(GridCell1) :: me                                      !! This `GridCell1` instace
         integer :: rr                                               ! Iterator for reaches
         if (.not. me%isEmpty) then
-            do rr = 1, me%nRiverReaches
+            do rr = 1, me%nReaches
                 call me%colRiverReaches(rr)%item%finaliseUpdate()
             end do
         end if
@@ -622,7 +624,7 @@ module classGridCell1
             end do
         else
             ! Loop through the reaches and sum the SPM masses
-            do rr = 1, me%nRiverReaches
+            do rr = 1, me%nReaches
                 m_spm = m_spm + me%colRiverReaches(rr)%item%m_spm
             end do
         end if

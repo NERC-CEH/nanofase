@@ -36,13 +36,13 @@ options = {
         "cmd": "make run"
     },
     "run-thames": {
-        "description": "Run the model (without compiling) using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
-        "run-description": "Running the model (without compiling) using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
+        "description": "Run the model (without compiling) using Thames config (config/thames.nml)",
+        "run-description": "Running the model (without compiling) using Thames config (config/thames.nml)",
         "cmd": "make run CONFIG_FILE=thames.nml"
     },
     "run-gwava": {
-        "description": "Run the model (without compiling) using GWAVA config (config/gwava.nml) and data (data/gwava/data.nc)",
-        "run-description": "Running the model (without compiling) using GWAVA config (config/gwava.nml) and data (data/gwava/data.nc)",
+        "description": "Run the model (without compiling) using GWAVA config (config/gwava.nml)",
+        "run-description": "Running the model (without compiling) using GWAVA config (config/gwava.nml)",
         "cmd": "make run CONFIG_FILE=gwava.nml"
     },
     "compile-run": {
@@ -51,8 +51,8 @@ options = {
         "cmd": "make && make run"
     },
     "compile-run-thames": {
-        "description": "Compile the model using the makefile and then run using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
-        "run-description": "Compiling the model using the makefile and then running using Thames config (config/thames.nml) and data (data/thames/thames-global.nc)",
+        "description": "Compile the model using the makefile and then run using Thames config (config/thames.nml)",
+        "run-description": "Compiling the model using the makefile and then running using Thames config (config/thames.nml)",
         "cmd": "make && make run CONFIG_FILE=thames.nml"
     },
     "view-log": {
@@ -77,7 +77,16 @@ if len(sys.argv) < 2:
     for option, detail in options.items():
         print("\t{0:20}\t{1}".format(option,detail['description']))
 
+    n_files = len(os.listdir('./log'))
+    if n_files > 50:
+        print("\033[34mWarning:\033[0m There are {0} files in the log/ directory. Consider cleaning using the `clean` command.".format(n_files))
+
 else:
+
+    n_files = len(os.listdir('./log'))
+    if n_files > 50:
+        print("\033[34mWarning:\033[0m There are {0} files in the log/ directory. Consider cleaning using the `clean` command.".format(n_files))
+
     option = sys.argv[1]                        # Get the command
     print(options[option]['run-description'])   # Print out what we're doing
     os.system(options[option]['cmd'])           # Run the command

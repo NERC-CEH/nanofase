@@ -54,7 +54,7 @@ module spcReactor
         end function
     
         !> Run the `Reactor`'s simulation for the current time step
-        function updateReactor(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume, Q_out) result(r)
+        function updateReactor(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
             use Globals
             use ResultModule, only: Result
             import Reactor
@@ -67,7 +67,6 @@ module spcReactor
             real(dp) :: W_settle_spm(C%nSizeClassesSpm) !! SPM settling velocity [m/s]
             real(dp) :: G                               !! Shear rate [s-1]
             real(dp) :: volume                          !! `RiverReach` volume on this timestep [s-1]
-            real(dp) :: Q_out                           !! Outflow for the containing water body [m3/timestep]
             type(Result) :: r
         end function
         

@@ -79,6 +79,7 @@ module classEstuaryReach
         ! TODO: Write some destroy logic
     end function
 
+    !> Run the estuary reach simulation for this timestep
     function updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
         class(EstuaryReach) :: me
         integer :: t
@@ -86,30 +87,22 @@ module classEstuaryReach
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         type(Result) :: rslt
-        !---
-        real(dp) :: j_spm_inflows(me%nInflows)                  ! SPM inflow from neighbouring reaches [kg/timestep]
-        real(dp) :: j_np_inflows(me%nInflows)                   ! NM inflow from neighbouring reaches [kg/timestep]
+        !--- Locals ---!
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
-        real(dp) :: fractionSpmDep(C%nSizeClassesSpm)           ! Fraction of SPM deposited on each time step [-]
+        real(dp) :: fractionSpmDeposited(C%nSizeClassesSpm)     ! Fraction of SPM deposited on each time step [-]
         integer :: i, j                                         ! Iterator
         integer :: nDisp                                        ! Number of displacements to split this time step into
         real(dp) :: dt                                          ! Length of each displacement [s]
-        real(dp) :: dQ_in                                       ! Q_in for each displacement
-        real(dp) :: dj_spm_in(C%nSizeClassesSpm)                ! j_spm_in for each displacement
-        real(dp) :: dj_np_in(C%npDim(1), C%npDim(2), C%npDim(3)) ! j_np_in for each displacement
-        real(dp) :: dQ(size(me%Q))                              ! Q for each displacement
-        real(dp) :: dj_spm(size(me%j_spm), C%nSizeClassesSpm)   ! j_spm for each displacement
-        real(dp) :: dj_np(size(me%j_np), C%npDim(1), C%npDim(2), C%npDim(3))   ! j_np for each displacement
+        real(dp) :: dQ(size(me%Q))                              ! Water flow array (Q) for each displacement
+        real(dp) :: dj_spm(size(me%j_spm, 1), C%nSizeClassesSpm)   ! SPM flow array (j_spm) for each displacement
+        real(dp) :: dj_np(size(me%j_np, 1), C%npDim(1), C%npDim(2), C%npDim(3))   ! NM flow array (j_np) for each displacement
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
-        real(dp) :: dj_spm_out(C%nSizeClassesSpm)               ! SPM outflow for the displacement
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
-        type(Result1D) :: rslt1D                                ! Result 1D object
-        real(dp) :: m_bed(C%nSizeClassesSpm)                    ! Mass of fine material in the sediment [kg]
-        real(dp) :: dj_spm_res(C%nSizeClassesSpm)               ! Mass of each sediment size class resuspended on each displacement [kg]
+        real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg]
 
         ! Initialise flows to zero
-        fractionSpmDep = 0
+        fractionSpmDeposited = 0
         j_spm_deposit = 0
         me%Q = 0                    ! Final Q, j_spm etc still stored in Q_final, j_spm_final etc for other reaches to use
         me%j_spm = 0
@@ -163,10 +156,8 @@ module classEstuaryReach
         ! (but don't acutally settle until we're looping through
         ! displacements). This can be done now as settling/resuspension rates
         ! don't depend on anything that changes on each displacement
-        call rslt%addErrors([ &
-            .errors. me%resuspension(), &                   ! me%resuspension computes resuspension rate [s-1] over complete timestep
-            .errors. me%settling() &                        ! me%settling computes settling rate [s-1] over complete timestep
-        ])
+        call me%setResuspensionRate()                   ! Computes resuspension rate [s-1] over complete timestep
+        call me%setSettlingRate()                       ! Computes settling rate [s-1] over complete timestep
 
         ! If Q_in for this timestep is bigger than the reach volume, then we need to
         ! split into a number of displacements. If Q_in is zero, just have 1 displacement.
@@ -176,158 +167,79 @@ module classEstuaryReach
             nDisp = ceiling(me%Q_in_total/me%volume)        ! Number of displacements
         end if
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
-        dQ_in = me%Q_in_total/nDisp                         ! Inflow to the first displacement [m3]
-        dj_spm_in = j_spm_in_total/nDisp                    ! SPM inflow to the first displacment [kg]
-        dj_np_in = j_np_in_total/nDisp                      ! NM inflow to the first displacement [kg]
-        
-        dQ = me%Q/nDisp
-        dj_spm = me%j_spm/nDisp
-        dj_np = me%j_np/nDisp
+        dQ = me%Q/nDisp                                     ! Water flow array for each displacement
+        dj_spm = me%j_spm/nDisp                             ! SPM flow array for each displacement
+        dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
 
         do i = 1, nDisp
-            
             ! Water mass balance (outflow = all the inflows)
             dQ(1) = -sum(dQ(2:))
             
             ! SPM and NM outflows
             if (.not. isZero(me%volume)) then
-                dj_spm(1) = -min(me%m_spm * dQ(1) / me%volume, me%m_spm)
-                dj_np(1) = -min(me%m_np * dQ(1) / me%volume, me%m_np)
+                dj_spm(1,:) = min(me%m_spm * dQ(1) / me%volume, me%m_spm)
+                dj_np(1,:,:,:) = min(me%m_np * dQ(1) / me%volume, me%m_np)
             else
-                dj_spm(1) = 0
-                dj_np(1) = 0
+                dj_spm(1,:) = 0
+                dj_np(1,:,:,:) = 0
             end if
             
-            ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow (i.e. sum(dj_spm)
-            dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm)), me%m_spm + sum(dj_spm))
+            print *, me%ref, i
+            print *, "m_spm", me%m_spm
+            ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
+            ! not pick up on the previous displacement's deposition (index 4+me%nInflows)
+            dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1)), &
+                me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1))
             dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
             ! Calculate the fraction of SPM from each size class that was deposited, for use in calculating mass of NM deposited
-            fractionSpmDeposited = dj_spm_deposit/(me%m_spm + sum(dj_spm))              ! TODO include resus in this
-            ! Update the deposition element of the SPM and NM flux array
-            dj_spm(4+me%nInflows,:) = dj_spm_resus - dj_spm_deposit
-            dj_np(4+me%nInflows,:,:,3:) = -min(me%m_np(:,:,3:)*fractionSpmDeposited, me%m_np(:,:,3:))
-            
-            ! SPM and NM mass balance
-            me%m_spm = me%m_spm + sum(dj_spm)
-            me%m_np = me%m_np + sum(dj_np)
-            
-            ! TODO test this, commenting out the bits it replaces from below
-                   
-            
-            
-            ! Add the inflow NP to the current mass for this displacement
-            me%m_np = me%m_np + dj_np_in
-            
-            ! Update SPM according to inflow for this displacement, then calculate
-            ! new SPM concentration based on this and the dimensions
-            if (.not. isZero(me%volume)) then
-                dj_spm_out = min(me%m_spm * dQ_in / me%volume, me%m_spm) ! SPM loss as a fraction of reach volume moving downstream on this displacement
-            else
-                dj_spm_out = 0
-            end if
-            ! Update SPM mass after advection and add inflow SPM
-            me%m_spm = me%m_spm - dj_spm_out + dj_spm_in
-
-            ! Remove settled SPM from the displacement. TODO: This will go to BedSediment eventually
-            ! If we've removed all of the SPM, set to 0
-            dj_spm_deposit = min(me%k_settle*dt*me%m_spm, me%m_spm)     ! Up to a maximum of the mass of SPM currently in reach
-            ! print *, "dj_spm_deposit disp: ", dj_spm_deposit, i
-            ! Check if dj_spm_deposit (and thus me%m_spm) is zero to avoid numerical errors
-            ! SPM deposited doesn't include resuspension
             do j = 1, C%nSizeClassesSpm 
                 if (isZero(dj_spm_deposit(j))) then
-                    fractionSpmDep(j) = fractionSpmDep(j)
+                    fractionSpmDeposited(j) = 0
                 else
-                    fractionSpmDep(j) = fractionSpmDep(j) + dj_spm_deposit(j)/me%m_spm(j)
+                    fractionSpmDeposited(j) = dj_spm_deposit(j)/(me%m_spm(j) + sum(dj_spm(1:3+me%nInflows,j)))  ! TODO include resus
                 end if
             end do
-            me%m_spm = me%m_spm - dj_spm_deposit
-            j_spm_deposit = j_spm_deposit - dj_spm_deposit          ! Keep track of deposited SPM for this time step. -ve means loss
-
-            ! Resuspended SPM must be taken from BedSediment
-            ! TODO: [DONE REQUIRES CHECKING] Get masses of bed sediment by size fraction
-            rslt1D = me%bedSediment%Mf_bed_by_size()                ! retrieve bed masses [kg m-2] by size class
-            call rslt%addErrors(.errors. rslt1D)                    ! add any errors to trace
-            if (rslt%hasCriticalError()) return                     ! If getting bed throws error
-            m_bed = .dp. rslt1D                                     ! Extract bed sediment mass [kg] by size fraction
-            dj_spm_res = me%k_resus * m_bed * dt                    ! the mass of sediment resuspending on each displacement [kg]
-            me%m_spm = me%m_spm + dj_spm_res                        ! SPM resuspended is resuspension flux * displacement length
-            j_spm_deposit = j_spm_deposit + dj_spm_res              ! Remove the resuspended mass from the deposit tally. +ve means gain
-
-            ! Update the concentration. isZero check used to avoid numerical errors
-            ! from very small m_spm numbers.
+            ! Update the deposition element of the SPM and NM flux array
+            dj_spm(4+me%nInflows,:) = dj_spm_resus - dj_spm_deposit
             do j = 1, C%nSizeClassesSpm
-                if (isZero(me%m_spm(j)) .or. isZero(me%volume)) then
-                    me%m_spm(j) = 0.0_dp
-                    me%C_spm(j) = 0.0_dp
-                else
-                    me%C_spm(j) = me%m_spm(j) / me%volume
-                end if
+                dj_np(4+me%nInflows,:,:,2+j) = -min(me%m_np(:,:,2+j)*fractionSpmDeposited(j), me%m_np(:,:,2+j))   ! Only deposit heteroaggregated NM (index 3+)
             end do
-
-            if (C%includeBedSediment) then
-
-                ! print *, "Bed sediment before resuspension"
-                ! call Me%bedSediment%repmass                              ! report bed sediment masses before resuspension  
-                
-                call rslt%addErrors(.errors. &
-                    Me%bedSediment%resuspend(dj_spm_res / me%bedArea))   ! remove resuspended SPM from BedSediment
-                if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
-                
-                ! print *, "Bed sediment after resuspension"
-                ! call Me%bedSediment%repmass                              ! report bed sediment masses after resuspension  
-                ! call print_matrix(Me%bedSediment%delta_sed)
-
-                call rslt%addErrors(.errors. Me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
-                if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             
-                ! print *, "Bed sediment after deposition"
-                ! call Me%bedSediment%repmass                              ! report bed sediment masses after deposition  
-                ! call print_matrix(Me%bedSediment%delta_sed)
-                
+            ! SPM and NM mass balance
+            me%m_spm = me%m_spm + sum(dj_spm, dim=1)
+            me%m_np = me%m_np + sum(dj_np, dim=1)
+
+            ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
+            ! (inflows, runoff, sources) as they've already been correctly before the disp loop
+            call me%set_Q_outflow(me%Q_outflow() + dQ(1))
+            call me%set_j_spm_outflow(me%j_spm_outflow() + dj_spm(1,:))
+            call me%set_j_spm_deposit(me%j_spm_deposit() + dj_spm(4+me%nInflows,:))
+            call me%set_j_np_outflow(me%j_np_outflow() + dj_np(1,:,:,:))
+            call me%set_j_np_deposit(me%j_np_deposit() + dj_np(4+me%nInflows,:,:,:))
+
+            ! If we're including bed sediment, then deposit and resuspend to/from
+            if (C%includeBedSediment) then
                 call rslt%addErrors(.errors. &
-                    Me%bedSediment%getmatrix(dj_spm_deposit/Me%bedArea, &
-                                             dj_spm_res/Me%bedArea))
-                ! call print_matrix(Me%bedSediment%delta_sed)
+                    me%bedSediment%resuspend(dj_spm_resus / me%bedArea))    ! remove resuspended SPM from BedSediment
+                if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
 
-                ! if (t == 1) then
-                !     m_np_sediment_layers = 0
-                ! end if
-
-                ! HACK to get NM mass in sediment layers. Need to implement properly.
-                ! do s = 1, C%nSizeClassesSpm
-                !     if (isZero(dj_spm_dep(s)) .or. isZero(me%m_spm(s))) then
-                !         dj_np_dep(:,:,s) = 0.0_dp
-                !     else
-                !         dj_np_dep(:,:,s) = min(me%m_np(:,:,s+2)*(dj_spm_dep(s)/me%m_spm(s)), me%m_np(:,:,s+2))
-                !     end if
-                !     do n = 1, C%nSizeClassesNP
-                !         m_np_sediment_layers(1,s,n) = sum(dj_np_dep(n,:,s))
-                !     end do
-                ! end do
-                
-                ! do n = 1, C%nSizeClassesNP
-                !     do s = 1, C%nSizeClassesSpm
-                !         m_np_sediment_layers(:,s,n) = matmul(Me%bedSediment%delta_sed(:,:,s), m_np_sediment_layers(:,s,n))
-                !     end do
-                ! end do
+                call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
+                if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             end if
 
-            ! Sum the displacement outflows and mass for the final outflow
-            ! Currently, Q_out = Q_in. Abstraction etc will change this
-            me%Q(1) = me%Q(1) - dQ_in
-            me%j_spm(1,:) = me%j_spm(1,:) - dj_spm_out
+            ! TODO Deposit and resuspend NM to/from bed sediment
         end do
-        ! Set the depositing flux in the SPM flux array
-        call me%set_j_spm_deposit(j_spm_deposit)   
 
-        ! Use amount of settled SPM to get rid of heteroaggregated NPs, assuming
-        ! uniformly distributed amongst SPM. fractionSpmDep doesn't include resuspension???
-        ! TODO inclue resuspension which will set sign of -min correctly
-        do i = 1, C%nSizeClassesSpm
-            me%j_np(4+me%nInflows,:,:,i+2) = -min(me%m_np(:,:,i+2)*fractionSpmDep(i), me%m_np(:,:,i+2))
-        end do
-        me%m_np = me%m_np + me%j_np(4+me%nInflows,:,:,:)    ! Remove/add deposited NPs.
+        ! Update the SPM concentration. isZero check used to avoid numerical errors
+        ! from very small m_spm numbers.
+        do j = 1, C%nSizeClassesSpm
+            if (isZero(me%m_spm(j)) .or. isZero(me%volume)) then
+                me%C_spm(j) = 0.0_dp
+                me%m_spm(j) = 0.0_dp            ! Needed because sometimes m_spm ends up as 1e-300 and causes FPEs
+            else
+                me%C_spm(j) = me%m_spm(j) / me%volume
+            end if
+        end do   
 
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
@@ -342,25 +254,12 @@ module classEstuaryReach
                     me%W_settle_np, &
                     me%W_settle_spm, &
                     10.0_dp, &                      ! HACK: Where is the shear rate from?
-                    me%volume, &
-                    -me%Q(1) &                   ! TODO: Is this used?
+                    me%volume &
                 ) &
             ])
             ! Get the resultant transformed mass from the Reactor
             me%m_np = me%reactor%m_np
         end if
-
-        ! Reactor only deals with transformations, not flows, so we must now
-        ! set an outflow based on the transformed mass
-        if (.not. isZero(me%volume)) then
-            me%j_np(1,:,:,:) = -min(-me%Q(1)*(me%m_np/me%volume), me%m_np)
-        else
-            me%j_np(1,:,:,:) = 0.0_dp
-        end if
-        me%m_np = me%m_np + me%j_np(1,:,:,:)    ! Outflow will be negative, hence the + sign here
-
-        ! TODO Update all of the above so that me%m_np can be updated by j_np (and similar for SPM)
-        ! in one go, instead of doing it individually for each process
 
         ! Set the final concentrations, checking that the river has a volume
         if (.not. isZero(me%volume)) then

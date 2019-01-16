@@ -48,8 +48,8 @@ module spcReach
         ! Data
         procedure :: allocateAndInitialise => allocateAndInitialiseReach
         ! Simulators
-        procedure :: resuspension => resuspensionReach
-        procedure :: settling => settlingReach
+        procedure :: setResuspensionRate => setResuspensionRateReach
+        procedure :: setSettlingRate => setSettlingRateReach
         procedure :: depositToBed => depositToBedReach
         ! Calculators
         procedure :: calculateSettlingVelocity => calculateSettlingVelocity
@@ -58,7 +58,11 @@ module spcReach
         procedure :: Q_outflow_final => Q_outflow_finalReach
         procedure :: j_spm_outflow_final => j_spm_outflow_finalReach
         procedure :: j_np_outflow_final => j_np_outflow_finalReach
+        procedure :: Q_outflow
+        procedure :: j_spm_outflow
         procedure :: j_spm_inflows
+        procedure :: j_spm_deposit
+        procedure :: j_np_outflow
         procedure :: j_np_runoff
         procedure :: j_np_transfer
         procedure :: j_np_deposit
@@ -84,6 +88,19 @@ module spcReach
         procedure :: set_j_np_deposit
         procedure :: set_j_np_diffusesource
         procedure :: set_j_np_pointsource
+        ! Static methods
+        procedure, nopass :: Q_outflowStatic
+        procedure, nopass :: j_spm_outflowStatic
+        procedure, nopass :: j_np_outflowStatic
+        generic, public :: out => Q_outflowStatic, j_spm_outflowStatic, j_np_outflowStatic
+        procedure, nopass :: Q_inflowsStatic
+        procedure, nopass :: j_spm_inflowsStatic
+        procedure, nopass :: j_np_inflowsStatic
+        generic, public :: in => Q_inflowsStatic, j_spm_inflowsStatic, j_np_inflowsStatic
+        procedure, nopass :: Q_runoffStatic
+        procedure, nopass :: j_spm_runoffStatic
+        procedure, nopass :: j_np_runoffStatic
+        generic, public :: run => Q_runoffStatic, j_spm_runoffStatic, j_np_runoffStatic
     end type
 
     !> Container type for `class(Reach)`, the actual type of the `Reach` class.
@@ -132,9 +149,8 @@ module spcReach
     end subroutine
 
     !> Set the settling rate
-    function settlingReach(me) result(rslt)
+    subroutine setSettlingRateReach(me)
         class(Reach) :: me                      !! This `Reach` instance
-        type(Result) :: rslt                    !! The `Result` object to return any errors in
         integer :: i                            ! Size class iterator
         ! SPM: Loop through the size classes and calculate settling velocity
         do i = 1, C%nSizeClassesSpm
@@ -154,7 +170,7 @@ module spcReach
                 me%T_water &
             )
         end do
-    end function
+    end subroutine
 
 
     function depositToBedReach(me, spmDep) result(rslt)
@@ -207,10 +223,9 @@ module spcReach
 
     !> Compute the resuspension rate [s-1] for a time step
     !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
-    function resuspensionReach(me) result(rslt)
+    subroutine setResuspensionRateReach(me)
         class(Reach) :: me                      !! This `Reach` instance
-        type(Result) :: rslt                    !! `Result` object to return with any errors
-        !---
+        !--- Locals ---!
         real(dp) :: Q_in_total                  ! Total inflow to this reach
         real(dp) :: d_max                       ! Maximum resuspendable particle size [m]
         integer :: i                            ! Iterator
@@ -240,16 +255,7 @@ module spcReach
             ! Calculate the stream power per unit bed area
             omega = C%rho_w(C%T)*C%g*(me%Q_in_total/C%timeStep)*me%slope/me%width
             f_fr = 4*me%depth/(me%width+2*me%depth)
-            ! Calculate the resuspension
-            ! TODO: [DONE REQUIRES CHECKING] Get masses of bed sediment by size fraction
-            ! r1D = Me%bedSediment%Mf_bed_by_size()                    ! retrieve bed masses [kg/m2] by size class
-            ! call r%addErrors(.errors. r1D)                           ! add any errors to trace
-            ! if (r%hasCriticalError()) then                           ! if call throws a critical error
-            !     call r%addToTrace(trim(Me%ref // "Getting bed sediment mass"))   ! add trace to all errors
-            !     return                                               ! and exit
-            ! end if
-            ! mbed = .dp. r1D                                          ! extract mbed from Result object (1D array => 1D array
-            
+            ! Set k_resus using the above
             me%k_resus = me%calculateResuspension( &
                 beta = me%beta_resus, &
                 L = me%length*me%f_m, &
@@ -261,8 +267,7 @@ module spcReach
         else
             me%k_resus = 0                                ! If there's no inflow
         end if
-        call rslt%addToTrace('Calculating resuspension mass for ' // trim(me%ref))
-    end function
+    end subroutine
 
     !> Calculate the settling velocity of sediment particles for an individual
     !! size class:
@@ -332,6 +337,18 @@ module spcReach
         j_np_outflow_final = me%j_np_final(1,:,:,:)
     end function
 
+    function Q_outflow(me)
+        class(Reach) :: me
+        real(dp) :: Q_outflow
+        Q_outflow = me%Q(1)
+    end function
+
+    function j_spm_outflow(me)
+        class(Reach) :: me
+        real(dp) :: j_spm_outflow(C%nSizeClassesSpm)
+        j_spm_outflow = me%j_spm(1,:)
+    end function
+
     function j_spm_inflows(me)
         class(Reach) :: me
         real(dp) :: j_spm_inflows(C%nSizeClassesSpm)
@@ -340,6 +357,19 @@ module spcReach
         else
             j_spm_inflows = 0
         end if
+    end function
+
+    function j_spm_deposit(me)
+        class(Reach) :: me
+        real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
+        j_spm_deposit = me%j_spm(4+me%nInflows,:)
+    end function
+
+    !> Get the outflow from NM flux array
+    function j_np_outflow(me)
+        class(Reach) :: me
+        real(dp) :: j_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_outflow = me%j_np(1,:,:,:)
     end function
 
     !> Get the total runoff from NM flux array
@@ -520,6 +550,83 @@ module spcReach
         integer :: i
         me%j_np(4+me%nInflows+me%nDiffuseSources+i,:,:,:) = j_np_pointsource
     end subroutine
+
+
+!---------------------!
+!-- STATIC METHODS ---!
+!---------------------!
+
+    function Q_outflowStatic(Q) result(Q_outflow)
+        real(dp) :: Q(:)
+        real(dp) :: Q_outflow
+        Q_outflow = Q(1)
+    end function
+
+    function j_spm_outflowStatic(j_spm) result(j_spm_outflow)
+        real(dp) :: j_spm(:,:)
+        real(dp) :: j_spm_outflow(C%nSizeClassesSpm)
+        j_spm_outflow = j_spm(1,:)
+    end function
+
+    function j_np_outflowStatic(j_np) result(j_np_outflow)
+        real(dp) :: j_np(:,:,:,:)
+        real(dp) :: j_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_np_outflow = j_np(1,:,:,:)
+    end function
+
+    function Q_inflowsStatic(Q) result(Q_inflows)
+        real(dp) :: Q(:)
+        real(dp), allocatable :: Q_inflows(:)
+        integer :: nInflows
+        nInflows = size(Q) - 3
+        allocate(Q_inflows(nInflows))
+        if (nInflows > 0) then
+            Q_inflows = Q(2:1+nInflows)
+        end if
+    end function
+
+    function j_spm_inflowsStatic(j_spm) result(j_spm_inflows)
+        real(dp) :: j_spm(:,:)
+        real(dp), allocatable :: j_spm_inflows(:,:)
+        integer :: nInflows
+        nInflows = size(j_spm, 1) - 4
+        allocate(j_spm_inflows(nInflows, C%nSizeClassesSpm))
+        if (nInflows > 0) then
+            j_spm_inflows = j_spm(2:1+nInflows,:)
+        end if
+    end function
+
+    function j_np_inflowsStatic(j_np, nInflows) result(j_np_inflows)
+        real(dp) :: j_np(:,:,:,:)
+        real(dp) :: j_np_inflows(nInflows, C%npDim(1), C%npDim(2), C%npDim(3))
+        integer :: nInflows
+        if (nInflows > 0) then
+            j_np_inflows = j_np(2:1+nInflows,:,:,:)
+        end if
+    end function
+
+    function Q_runoffStatic(Q) result(Q_runoff)
+        real(dp) :: Q(:)
+        real(dp), allocatable :: Q_runoff
+        integer :: nInflows
+        nInflows = size(Q) - 3
+        Q_runoff = Q(2+nInflows)
+    end function
+
+    function j_spm_runoffStatic(j_spm) result(j_spm_runoff)
+        real(dp) :: j_spm(:,:)
+        real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
+        integer :: nInflows
+        nInflows = size(j_spm, 1) - 4
+        j_spm_runoff = j_spm(2+nInflows,:)
+    end function
+
+    function j_np_runoffStatic(j_np, nInflows) result(j_np_runoff)
+        real(dp) :: j_np(:,:,:,:)
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer :: nInflows
+        j_np_runoff = j_np(2+nInflows,:,:,:)
+    end function
 
 
 end module

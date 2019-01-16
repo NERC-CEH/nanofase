@@ -79,7 +79,7 @@ program main
                         sum(env%colGridCells(x,y)%item%erodedSediment)
         
                    ! RiverReachs
-                   do rr = 1, env%colGridCells(x,y)%item%nRiverReaches
+                   do rr = 1, env%colGridCells(x,y)%item%nReaches
                        m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
                        m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np - &
                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,:,:)
