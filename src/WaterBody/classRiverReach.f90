@@ -182,8 +182,6 @@ module classRiverReach
                 dj_np(1,:,:,:) = 0
             end if
             
-            print *, me%ref, i
-            print *, "m_spm", me%m_spm
             ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
             ! not pick up on the previous displacement's deposition (index 4+me%nInflows)
             dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1)), &

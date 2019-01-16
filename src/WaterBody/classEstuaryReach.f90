@@ -10,6 +10,8 @@ module classEstuaryReach
     implicit none
 
     type, public, extends(Reach) :: EstuaryReach
+        real(dp) :: meanDepth               !! Mean estuary depth for use in tidal depth calculations
+
       contains
         ! Create/destroy
         procedure :: create => createEstuaryReach
@@ -184,8 +186,6 @@ module classEstuaryReach
                 dj_np(1,:,:,:) = 0
             end if
             
-            print *, me%ref, i
-            print *, "m_spm", me%m_spm
             ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
             ! not pick up on the previous displacement's deposition (index 4+me%nInflows)
             dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1)), &
@@ -293,7 +293,6 @@ module classEstuaryReach
         class(EstuaryReach) :: me
         type(Result) :: rslt
         type(Result0D) :: depthRslt                         ! Result object for depth
-        me%width = me%calculateWidth(me%Q_in_total/C%timeStep)
         depthRslt = me%calculateDepth(me%width, me%slope, me%Q_in_total/C%timeStep)
         me%depth = .dp. depthRslt                           ! Get real(dp) data from Result object
         call rslt%addError(.error. depthRslt)               ! Add any error that occurred
@@ -301,6 +300,13 @@ module classEstuaryReach
         me%bedArea = me%width*me%length*me%f_m              ! Calculate the BedSediment area [m2]
         me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area
         me%volume = me%depth*me%width*me%length*me%f_m      ! Reach volume
+
+        ! TODO set the rest of the EstuaryReach dimensions
+
+        print *, ""
+        print *, me%depth
+        print *, me%meanDepth
+        print *, me%width
     end function
 
 
@@ -364,7 +370,9 @@ module classEstuaryReach
             .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
             .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.), &
                 ! alpha_hetero defaults to that specified in config.nml
-            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
+            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
+            .errors. DATA%get('mean_depth', me%meanDepth), &
+            .errors. DATA%get('width', me%width) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         
