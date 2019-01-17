@@ -80,6 +80,7 @@ module spcWaterBody
         type(DiffuseSource), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
         integer :: nDiffuseSources                                  !! How many diffuse sources this water body has
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
+        logical :: isTidalLimit = .false.
 
       contains
         ! Create

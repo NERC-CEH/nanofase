@@ -61,8 +61,9 @@ module Globals
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
         integer :: npDim(3)                         !! Default dimensions for arrays of NM
         integer :: ionicDim                         !! Default dimensions for ionic metal
-        real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2
-        real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2
+        real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2 [-]
+        real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2 [-]
+        real(dp) :: tidalDatum                      !! Datum that tidal harmonics are calculated relative to [m]
 
       contains
         procedure :: rho_w      ! Density of water
@@ -216,6 +217,8 @@ module Globals
         call var%getData(C%tidalM2)
         var = grp%getVariable("tidal_S2")                   ! Tidal harmonic coefficient S2
         call var%getData(C%tidalS2)
+        var = grp%getVariable("tidal_datum")                ! Datum which tidal harmonics are calculated relative to
+        call var%getData(C%tidalDatum)
         call C%dataset%close()                              ! Close the dataset
         ! TODO: Get default water temperature "T_water"
 

@@ -28,7 +28,7 @@ module spcReach
         logical :: isGridCellInflow = .false.                       !! Is this reach the inflow the `GridCell` its in
         logical :: isGridCellOutflow = .false.                      !! Does the reach outflow to another cell?
         logical :: isDomainOutflow = .false.                        !! Does the reach flow out of the gridded domain?
-        integer :: branch = 0                                       !! Which branch is this reach on in the GridCell? 0 = not processed yet
+        integer :: branch = 0                                       !! Which branch is this reach on in the GridCell? 0 = not processed yet 
         ! Physical properties
         real(dp) :: slope                                           !! Slope of reach [m/m]
         real(dp) :: width                                           !! Width of the reach [m]

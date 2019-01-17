@@ -180,6 +180,7 @@ module classGridCell1
                 call r%addErrors(.errors. me%setRiverReachLengths(b))
             end do
         end if
+
         ! Trigger any errors
         call r%addToTrace("Finalising creation of " // trim(me%ref))
         call LOG%toFile(errors=.errors.r)
@@ -187,7 +188,7 @@ module classGridCell1
         call r%clear()                  ! Clear errors from the Result object so they're not reported twice
     end function
     
-    !> Recursively called function that sets the next elemet in the routedRiverReaches array,
+    !> Recursively called function that sets the next element in the routedRiverReaches array,
     !! based on the `riverReach%outflow` property. `rr` must be the current final reach in the array.
     recursive function setBranchRouting(me, b, rr) result(r)
         class(GridCell1) :: me              !! This `GridCell1` instance
@@ -270,7 +271,7 @@ module classGridCell1
                             "Reaches must either be specified as inflow to downstream reach, " // &
                             "or have a model domain outflow specified.") &
                         )
-                        call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))
+                        call r%addToTrace("Determining reach lengths for branch " // trim(str(b)))
                         return              ! Get out of here early otherwise we'll get FPEs below!
                     end if
                 ! If the reach has no inflows but is a domain outflow, there's not a lot we
@@ -379,14 +380,16 @@ module classGridCell1
                 ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
                 j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
                 ! Update the reach for this timestep
-                call r%addErrors(.errors. &
-                    me%colRiverReaches(rr)%item%update( &
-                        t = t, &
-                        q_runoff = me%q_runoff_timeSeries(t), &
-                        j_spm_runoff = me%erodedSediment*lengthRatio, &
-                        j_np_runoff = j_np_runoff &
-                    ) &
-                )
+                if (me%colRiverReaches(rr)%item%ref(1:3)=='Riv') then       ! HACK only rivers whilst I test recursive estuary updating
+                    call r%addErrors(.errors. &
+                        me%colRiverReaches(rr)%item%update( &
+                            t = t, &
+                            q_runoff = me%q_runoff_timeSeries(t), &
+                            j_spm_runoff = me%erodedSediment*lengthRatio, &
+                            j_np_runoff = j_np_runoff &
+                        ) &
+                    )
+                end if
             end do
         end if
 

@@ -40,6 +40,7 @@ module classEnvironment1
         logical :: isValidInflow = .true.                       ! Is inflow SubRiver is a neighbouring river
         type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
+        character(len=3) :: inflowType                          ! River or estuary
 
         call r%addErrors(.errors. me%parseInputData())
         
@@ -111,6 +112,12 @@ module classEnvironment1
                                         ! If this is a GridCell inflow, then set its inflows to be GridCell outflows
                                         if (riverReach%isGridCellInflow) then
                                             riverReach%inflows(i)%item%isGridCellOutflow = .true.  
+                                        end if
+                                        ! If the inflow is a river and this reach is an estuary, set the estuary to
+                                        ! be the tidal limit
+                                        if (riverReach%ref(1:3) == 'Est' &
+                                            .and. riverReach%inflows(i)%item%ref(1:3) == 'Riv') then
+                                            riverReach%isTidalLimit = .true.
                                         end if
                                     else
                                         ! TODO For the moment, if the inflow doesn't exist in the

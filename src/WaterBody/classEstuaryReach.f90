@@ -14,7 +14,6 @@ module classEstuaryReach
         real(dp) :: distanceToMouth         !! Distance to the mouth of the estuary [m]
         real(dp) :: tidalM2                 !! Tidal harmonic coefficient M2 [-]
         real(dp) :: tidalS2                 !! Tidal harmonic coefficient S2 [-]
-        real(dp) :: tidalDatum              !! Tidal datum about which depths are given [m]
 
       contains
         ! Create/destroy
@@ -150,7 +149,7 @@ module classEstuaryReach
         j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
 
         ! Set the reach dimensions and calculate the velocity
-        call me%setDimensions(t*C%timeStep)
+        call me%setDimensions((t-1)*24 + (i-1)*(int(dt)/3600))
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
 
         ! HACK
@@ -180,8 +179,7 @@ module classEstuaryReach
 
         do i = 1, nDisp
 
-            call me%setDimensions(t*C%timeStep + (i-1)*C%timeStep/nDisp)
-            print *, "depth, disp: ", me%depth, i
+            call me%setDimensions((t-1)*24 + (i-1)*(int(dt)/3600))
             ! Water mass balance (outflow = all the inflows)
             dQ(1) = -sum(dQ(2:))
             
@@ -297,22 +295,14 @@ module classEstuaryReach
 
 
     !> Set the dimensions (width, depth, area, volume) of the reach
-    subroutine setDimensions(me, tSeconds)
+    subroutine setDimensions(me, tHours)
         class(EstuaryReach) :: me
-        integer :: tSeconds
-
-        me%depth = me%calculateDepth(tSeconds)
+        integer :: tHours
+        me%depth = me%calculateDepth(tHours)
         me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
         me%bedArea = me%width*me%length*me%f_m              ! Calculate the BedSediment area [m2]
         me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area
         me%volume = me%depth*me%width*me%length*me%f_m      ! Reach volume
-
-        ! TODO set the rest of the EstuaryReach dimensions
-
-        print *, ""
-        print *, me%depth
-        print *, me%meanDepth
-        print *, me%width
     end subroutine
 
 
@@ -381,7 +371,6 @@ module classEstuaryReach
             .errors. DATA%get('width', me%width), &
             .errors. DATA%get('tidal_M2', me%tidalM2, C%tidalM2), &
             .errors. DATA%get('tidal_S2', me%tidalS2, C%tidalS2), &
-            .errors. DATA%get('tidal_datum', me%tidalDatum, 0.0_dp), &
             .errors. DATA%get('distance_to_mouth', me%distanceToMouth) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
@@ -463,22 +452,19 @@ module classEstuaryReach
     !> Calculate water depth from tidal harmonics.
     !! $$
     !!      D(x,t) = A_{S2} \cos \left( 2\pi \frac{t}{12} \right) + A_{M2} \cos \left( 2\pi \frac{t}{12.42} \right) + /
-    !!          \frac{3}{4} \frac{xA_{M2}^2}{D_x 12.42 \sqrt{gD_x}} \cos(2\pi \frac{t}{6.21}) + z_0
+    !!          \frac{3}{4} \frac{xA_{M2}^2}{D_x (6.21 \times 3600) \sqrt{gD_x}} \cos(2\pi \frac{t}{6.21}) + z_0
     !! $$
     !! Ref: [Hardisty, 2007](https://doi.org/10.1002/9780470750889)
-    function calculateDepth(me, tSeconds) result(depth)
+    function calculateDepth(me, tHours) result(depth)
         class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance.
-        integer, intent(in) :: tSeconds           !! The current timestep
+        integer, intent(in) :: tHours           !! The current timestep
         real(dp) :: depth
 
-        print *, "me%tidalS2, me%tidalM2", me%tidalS2, me%tidalM2
-        print *, "C%pi, tSeconds", C%pi, tSeconds
-        print *, "me%distanceToMouth, me%meanDepth", me%distanceToMouth, me%meanDepth
-        print *, "me%tidalDatum", me%tidalDatum
+        depth = me%tidalS2 * cos(2.0_dp*C%pi*tHours/12.0_dp) + me%tidalM2 * cos(2.0_dp*C%pi*tHours/12.42_dp) &
+            + (0.75_dp) * ((me%distanceToMouth * me%tidalM2 ** 2)/(me%meanDepth * 22356.0_dp * sqrt(9.81_dp * me%meanDepth))) &
+            * cos(2*C%pi*tHours/6.21_dp) + C%tidalDatum
 
-        depth = me%tidalS2 * cos(2.0_dp*C%pi*tSeconds/12.0_dp) + me%tidalM2 * cos(2.0_dp*C%pi*tSeconds/12.42_dp) &
-            + (3.0_dp/4.0_dp) * ((me%distanceToMouth * me%tidalM2 ** 2)/(me%meanDepth * 12.42 * sqrt(9.81_dp * me%meanDepth))) &
-            * cos(2*C%pi*tSeconds/6.21_dp) + me%tidalDatum
+        if (depth < 0) depth = 0
     end function
 
     !> Calculate the velocity of the river:
