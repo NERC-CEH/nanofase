@@ -135,6 +135,10 @@ module classGridCell1
                     me%area &
                 ) &
             )
+            ! Check if this cell is a headwater
+            if (me%colRiverReaches(rr)%item%isHeadwater) then
+                me%isHeadwater = .true.
+            end if
             ! If the RiverReach we just created is the head of a branch in this
             ! GridCell, then use it to start filling the routedRiverReaches array.
             ! Whether it is a GridCell inflow or a headwater will have been set
@@ -336,8 +340,7 @@ module classGridCell1
         class(GridCell1) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
         type(Result) :: r                                       !! `Result` object to return errors in
-        integer :: i                                            ! Iterator
-        integer :: rr                                           ! Loop counter
+        integer :: i, rr, b                                            ! Iteratora
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
         ! Check that the GridCell is not empty before simulating anything
@@ -368,28 +371,27 @@ module classGridCell1
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
-            ! Loop through the reaches and call their update methods for this
-            ! timestep, providing them the eroded sediment split according
-            ! to their length
+            ! Loop through the reaches in their routed order, and call their update methods for this
+            ! timestep, providing them the eroded sediment split according to their length
             ! TODO Add diffuse source to reaches
-            do rr = 1, me%nReaches
-                ! Determine the proportion of this reach's length to the the total
-                ! river length in this GridCell
-                lengthRatio = me%colRiverReaches(rr)%item%length/sum(me%branchLengths)
-                ! HACK to set NP runoff to 1e-9 SPM runoff
-                ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
-                j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
-                ! Update the reach for this timestep
-                if (me%colRiverReaches(rr)%item%ref(1:3)=='Riv') then       ! HACK only rivers whilst I test recursive estuary updating
+            do b = 1, me%nBranches
+                do rr = 1, me%nReachesInBranch(b)
+                    ! Determine the proportion of this reach's length to the the total
+                    ! river length in this GridCell
+                    lengthRatio = me%routedRiverReaches(b,rr)%item%length/sum(me%branchLengths)
+                    ! HACK to set NP runoff to 1e-9 SPM runoff
+                    ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
+                    j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+                    ! Update the reach for this timestep
                     call r%addErrors(.errors. &
-                        me%colRiverReaches(rr)%item%update( &
+                        me%routedRiverReaches(b,rr)%item%update( &
                             t = t, &
                             q_runoff = me%q_runoff_timeSeries(t), &
                             j_spm_runoff = me%erodedSediment*lengthRatio, &
                             j_np_runoff = j_np_runoff &
                         ) &
                     )
-                end if
+                end do
             end do
         end if
 

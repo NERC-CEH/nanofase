@@ -11,6 +11,12 @@ module spcGridCell
     use classCrop
     implicit none
 
+    !> `GridCellPointer` used for to link `GridCell`s array, so the elements within can
+    !! point to other `Reach`'s colReach elements
+    type GridCellPointer
+        class(GridCell), pointer :: item => null()                      !! Pointer to polymorphic `GridCell` object
+    end type
+
     !> Abstract base class `GridCell`. Extended classes are responsible
     !! for running creation and simulation procedures for `SoilProfile`
     !! and `RiverReach`es.
@@ -25,6 +31,7 @@ module spcGridCell
         type(ReachElement), allocatable :: colRiverReaches(:)           !! Array of `RiverReachElement` objects to hold the RiverReaches
         character(len=3), allocatable :: reachTypes(:)                  !! Type of each indexed reach within this cell - 'riv' or 'est'
         type(ReachPointer), allocatable :: routedRiverReaches(:,:)      !! `RiverReach`es ordered by branch and flow direction
+        type(GridCellPointer) :: outflow                                !! Where does the outflow reach from this GridCell go to?
             !! Array of `RiverReachPointer` objects to order rivers in routing order and by branch.
             !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch
         real(dp), allocatable :: branchLengths(:)                       !! Calculated (or specified) lengths of river branches in this `GridCell`
@@ -55,6 +62,7 @@ module spcGridCell
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
         real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! Input NPs from diffuse sources on this timestep [(kg/m2)/timestep]
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
+        logical :: isHeadwater = .false.                                !! Is this `GridCell` a headwater?
         ! Demands
         logical :: hasDemands = .false.                                 !! Does this `GridCell` have any water demand data?
         logical :: hasCrop = .false.                                    !! Does this `GridCell` have any crops?

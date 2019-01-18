@@ -42,6 +42,8 @@ module classEnvironment1
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
         character(len=3) :: inflowType                          ! River or estuary
 
+        allocate(me%headwaters(0))
+        me%nHeadwaters = 0
         call r%addErrors(.errors. me%parseInputData())
         
         if (.not. r%hasCriticalError()) then    
@@ -69,7 +71,13 @@ module classEnvironment1
                                 allocate(GridCell1::me%colGridCells(x,y)%item)  ! Allocate to type 1, GridCell1
                                 call r%addErrors(.errors. &                     ! Call the create method to create the GridCell
                                     me%colGridCells(x,y)%item%create(x,y) &
-                                )  
+                                )
+                                if (me%colGridCells(x,y)%item%isHeadwater) then
+                                    me%nHeadwaters = me%nHeadwaters + 1
+                                    deallocate(me%headwaters)
+                                    allocate(me%headwaters(me%nHeadwaters))         ! Add another element to the headwaters array
+                                    me%headwaters(me%nHeadwaters)%item => me%colGridCells(x,y)%item     ! Point to this grid cell
+                                end if
                             case default
                                 call r%addError( &                              ! Invalid type error
                                     ErrorInstance(110,"Invalid GridCell type index for " // &
@@ -105,13 +113,14 @@ module classEnvironment1
                                         .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then                                        
                                         ! Point this reach's inflow to the actual RiverReach
                                         riverReach%inflows(i)%item => &
-                                            me%colGridCells(riverReach%inflowRefs(i)%x,riverReach%inflowRefs(i)%y) &
-                                                %item%colRiverReaches(riverReach%inflowRefs(i)%w)%item
+                                            me%colGridCells(ix,iy)%item%colRiverReaches(riverReach%inflowRefs(i)%w)%item
                                         ! Set this inflow's outflow to this reach
                                         riverReach%inflows(i)%item%outflow%item => riverReach
                                         ! If this is a GridCell inflow, then set its inflows to be GridCell outflows
                                         if (riverReach%isGridCellInflow) then
-                                            riverReach%inflows(i)%item%isGridCellOutflow = .true.  
+                                            riverReach%inflows(i)%item%isGridCellOutflow = .true.
+                                            ! Also set the inflow grid cell's outflow pointer
+                                            me%colGridCells(ix,iy)%item%outflow%item => me%colGridCells(x,y)%item
                                         end if
                                         ! If the inflow is a river and this reach is an estuary, set the estuary to
                                         ! be the tidal limit
@@ -143,6 +152,11 @@ module classEnvironment1
             end do
 
         end if
+
+        print *, "size headwaters", me%nHeadwaters
+        do x = 1, me%nHeadwaters
+            print *, "headwater ref", me%headwaters(x)%item%ref
+        end do
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
         call LOG%toFile(errors=.errors.r)
