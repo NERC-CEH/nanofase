@@ -39,6 +39,7 @@ module classEnvironment1
         integer :: gridCellType                                 ! Integer representing the GridCell type
         logical :: isValidInflow = .true.                       ! Is inflow SubRiver is a neighbouring river
         type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
+        type(GridCellPointer), allocatable :: tmpHeadwaters(:)  ! Temporary array to store headwater array in
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
         character(len=3) :: inflowType                          ! River or estuary
 
@@ -74,8 +75,9 @@ module classEnvironment1
                                 )
                                 if (me%colGridCells(x,y)%item%isHeadwater) then
                                     me%nHeadwaters = me%nHeadwaters + 1
-                                    deallocate(me%headwaters)
-                                    allocate(me%headwaters(me%nHeadwaters))         ! Add another element to the headwaters array
+                                    allocate(tmpHeadwaters(me%nHeadwaters))                             ! Extend the me%headwaters array by 1
+                                    tmpHeadwaters(1:me%nHeadwaters-1) = me%headwaters
+                                    call move_alloc(tmpHeadwaters, me%headwaters)
                                     me%headwaters(me%nHeadwaters)%item => me%colGridCells(x,y)%item     ! Point to this grid cell
                                 end if
                             case default
@@ -92,7 +94,6 @@ module classEnvironment1
                     end if
                 end do
             end do
-
             
             ! Now we need to create links between RiverReaches, which wasn't possible before all GridCells
             ! and their RiverReaches were created:
@@ -150,13 +151,7 @@ module classEnvironment1
                     call r%addErrors(.errors. me%colGridCells(x,y)%item%finaliseCreate())
                 end do
             end do
-
         end if
-
-        print *, "size headwaters", me%nHeadwaters
-        do x = 1, me%nHeadwaters
-            print *, "headwater ref", me%headwaters(x)%item%ref
-        end do
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
         call LOG%toFile(errors=.errors.r)
@@ -177,16 +172,84 @@ module classEnvironment1
         class(Environment1) :: me                               !! This `Environment` instance
         integer :: t                                            !! Current time step
         type(Result) :: r                                       !! Return error(s) in `Result` object
-        integer :: x, y, s
+        type(GridCellPointer) :: cell
+        type(GridCellPointer), allocatable :: streamJunctionCells(:)    !! List of cells that are stream junctions
+        type(GridCellPointer), allocatable :: nextUpGridCells(:)
+        character(len=100) :: inflowToStreamJunctionRef
+        integer :: downstreamStreamOrder
+        integer :: x, y, s, i, j, k
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
+
+        allocate(streamJunctionCells(0))
+        allocate(nextUpGridCells(0))
         
-        ! Perform the main routing procedure
-        do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
-            do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%update(t)         ! Run routing simulation for each GridCell
+        ! Start at the headwaters and work downstream, checking the stream order to check we're
+        ! updating in the correct order
+        do i = 1, me%nHeadwaters
+            cell%item => me%headwaters(i)%item
+            do while (cell%item%nBranches == 1 .and. associated(cell%item))
+                print *, "this cell ref", cell%item%ref
+                r = cell%item%update(t)
+                cell%item => cell%item%outflow%item
             end do
+            print *, "after headwater reaches"
+            ! If this cell is associated and the number of branches is > 1, then we must be in
+            ! a junction cell. If so, add to the stream junction cells array to be looped through
+            ! after all streams of this order have been 
+            if (associated(cell%item) .and. cell%item%nBranches > 1) then
+                streamJunctionCells = [streamJunctionCells, cell]
+                do j = 1, cell%item%nBranches
+                    if ((cell%item%routedRiverReaches(j,1)%ref) == trim(inflowToStreamJunctionRef)) then
+                        do k = 1, size(cell%item%routedRiverReaches(j,:))
+                            cell%item%routedRiverReaches(j,k)%item%streamOrder = 1
+                        end do
+                    end if
+                end do
+            end if
         end do
+
+        print *, "after stream jn cells"
+        print *, size(streamJunctionCells)
+
+        do i = 1, size(streamJunctionCells)
+            print *, i
+            downstreamStreamOrder = 0
+            do j = 1, size(streamJunctionCells(i)%item%routedRiverReaches)
+                print *, "Routed river reaches j", j
+                downstreamStreamOrder = downstreamStreamOrder + streamJunctionCells(i)%item%routedRiverReaches(j,1)%item%streamOrder
+            end do
+            print *, "downstream order", downstreamStreamOrder
+            if (downstreamStreamOrder == 2) then
+                nextUpGridCells = [nextUpGridCells, streamJunctionCells(i)]
+            end if
+        end do
+
+        deallocate(streamJunctionCells)
+        allocate(streamJunctionCells(0))
+
+        do i = 1, size(nextUpGridCells)
+            cell%item => nextUpGridCells(i)%item
+            do while (cell%item%nBranches == 1 .and. associated(cell%item))
+                print *, "next up cell ref", cell%item%ref
+                r = cell%item%update(t)
+                cell%item => cell%item%outflow%item
+            end do
+            ! If this cell is associated and the number of branches is > 1, then we must be in
+            ! a junction cell. If so, add to the stream junction cells array to be looped through
+            ! after all streams of this order have been 
+            if (associated(cell%item) .and. cell%item%nBranches > 1) then
+                streamJunctionCells = [streamJunctionCells, cell]
+            end if
+        end do
+
+        ! ! Perform the main routing procedure
+        ! do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
+        !     do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
+        !         r = me%colGridCells(x,y)%item%update(t)         ! Run routing simulation for each GridCell
+        !     end do
+        ! end do
+
         ! Finalise the routing by setting outflows to temporary outflows that were stored
         ! to avoid routing using the wrong timestep's outflow as an inflow.
         do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows

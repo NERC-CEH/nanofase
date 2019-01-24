@@ -1,5 +1,5 @@
 FC = gfortran
-FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument
+FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -fopenmp
 DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow
 EXEC_FILE = main
 EXEC_PATH = ./bin/

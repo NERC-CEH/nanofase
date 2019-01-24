@@ -63,6 +63,7 @@ module spcGridCell
         real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! Input NPs from diffuse sources on this timestep [(kg/m2)/timestep]
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
         logical :: isHeadwater = .false.                                !! Is this `GridCell` a headwater?
+        logical :: hasStreamJunctionInflow = .false.                    !! Is the inflow to this cell from more than one cell?
         ! Demands
         logical :: hasDemands = .false.                                 !! Does this `GridCell` have any water demand data?
         logical :: hasCrop = .false.                                    !! Does this `GridCell` have any crops?
