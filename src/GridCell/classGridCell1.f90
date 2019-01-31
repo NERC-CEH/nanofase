@@ -102,8 +102,13 @@ module classGridCell1
         call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear errors from the Result object so they're not reported twice
-        call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
-        call LOG%toFile("Creating " // trim(me%ref) // ": success")
+        if (.not. me%isEmpty) then
+            call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+            call LOG%toFile("Creating " // trim(me%ref) // ": success")
+        else
+            call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32mempty\x1B[0m")
+            call LOG%toFile("Creating " // trim(me%ref) // ": empty")
+        end if
     end function
     
     !> Create the RiverReaches contained in this GridCell, and begin to populate

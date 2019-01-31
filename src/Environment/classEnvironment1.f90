@@ -177,71 +177,87 @@ module classEnvironment1
         type(GridCellPointer), allocatable :: nextUpGridCells(:)
         character(len=100) :: inflowToStreamJunctionRef
         integer :: downstreamStreamOrder
+        logical :: areReachesThisOrder = .true.
+        character(len=256), allocatable :: thisOrderJunctionCells(:)
         integer :: x, y, s, i, j, k
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
-        allocate(streamJunctionCells(0))
-        allocate(nextUpGridCells(0))
-        
-        ! Start at the headwaters and work downstream, checking the stream order to check we're
-        ! updating in the correct order
-        do i = 1, me%nHeadwaters
-            cell%item => me%headwaters(i)%item
-            do while (cell%item%nBranches == 1 .and. associated(cell%item))
-                print *, "this cell ref", cell%item%ref
-                r = cell%item%update(t)
-                cell%item => cell%item%outflow%item
-            end do
-            print *, "after headwater reaches"
-            ! If this cell is associated and the number of branches is > 1, then we must be in
-            ! a junction cell. If so, add to the stream junction cells array to be looped through
-            ! after all streams of this order have been 
-            if (associated(cell%item) .and. cell%item%nBranches > 1) then
-                streamJunctionCells = [streamJunctionCells, cell]
-                do j = 1, cell%item%nBranches
-                    if ((cell%item%routedRiverReaches(j,1)%ref) == trim(inflowToStreamJunctionRef)) then
-                        do k = 1, size(cell%item%routedRiverReaches(j,:))
-                            cell%item%routedRiverReaches(j,k)%item%streamOrder = 1
-                        end do
-                    end if
-                end do
-            end if
-        end do
+        print *, me%routedReachIndices
+        error stop 12
 
-        print *, "after stream jn cells"
-        print *, size(streamJunctionCells)
+        ! allocate(streamJunctionCells(0))
+        ! allocate(nextUpGridCells(0))
+        ! allocate(thisOrderJunctionCells(0))
 
-        do i = 1, size(streamJunctionCells)
-            print *, i
-            downstreamStreamOrder = 0
-            do j = 1, size(streamJunctionCells(i)%item%routedRiverReaches)
-                print *, "Routed river reaches j", j
-                downstreamStreamOrder = downstreamStreamOrder + streamJunctionCells(i)%item%routedRiverReaches(j,1)%item%streamOrder
-            end do
-            print *, "downstream order", downstreamStreamOrder
-            if (downstreamStreamOrder == 2) then
-                nextUpGridCells = [nextUpGridCells, streamJunctionCells(i)]
-            end if
-        end do
+        ! ! do s = 1, 5
+        !     ! Start at the headwaters and work downstream
+        !     do i = 1, me%nHeadwaters
+        !         cell%item => me%headwaters(i)%item
+        !         ! Work downstream until we get to a junction cell (or the domain outflow)
+        !         do while (cell%item%nBranches == 1 .and. associated(cell%item))
+        !             r = cell%item%update(t)
+        !             ! inflowToStreamJunctionRef = cell%item%ref
+        !             cell%item => cell%item%outflow%item
+        !         end do
+        !         ! If this cell is associated and the number of branches is > 1, then we must be in
+        !         ! a junction cell. If so, add to the stream junction cells array to be looped through
+        !         ! after all streams of this order have been 
+        !         if (associated(cell%item) .and. cell%item%nBranches > 1) then
+        !             ! streamJunctionCells = [streamJunctionCells, cell]
+        !             areReachesThisOrder = .true.
+        !             do j = 1, cell%item%nReaches
+        !                 if (cell%item%colRiverReaches(j)%item%streamOrder > 1) then
+        !                     areReachesThisOrder = .false.
+        !                 end if
+        !                 ! if ((cell%item%routedRiverReaches(j,1)%item%ref) == trim(inflowToStreamJunctionRef)) then
+        !                 !     do k = 1, size(cell%item%routedRiverReaches(j,:))
+        !                 !         cell%item%routedRiverReaches(j,k)%item%streamOrder = 1
+        !                 !     end do
+        !                 ! end if
+        !             end do
+        !             if (areReachesThisOrder) then
+        !                 thisOrderJunctionCells = [thisOrderJunctionCells, cell%item%ref]
+        !             end if
+        !         end if
+        !     end do
+        ! ! end do
 
-        deallocate(streamJunctionCells)
-        allocate(streamJunctionCells(0))
+        ! print *, thisOrderJunctionCells
 
-        do i = 1, size(nextUpGridCells)
-            cell%item => nextUpGridCells(i)%item
-            do while (cell%item%nBranches == 1 .and. associated(cell%item))
-                print *, "next up cell ref", cell%item%ref
-                r = cell%item%update(t)
-                cell%item => cell%item%outflow%item
-            end do
-            ! If this cell is associated and the number of branches is > 1, then we must be in
-            ! a junction cell. If so, add to the stream junction cells array to be looped through
-            ! after all streams of this order have been 
-            if (associated(cell%item) .and. cell%item%nBranches > 1) then
-                streamJunctionCells = [streamJunctionCells, cell]
-            end if
-        end do
+        ! print *, "after stream jn cells"
+        ! print *, size(streamJunctionCells)
+
+        ! do i = 1, size(streamJunctionCells)
+        !     print *, i
+        !     downstreamStreamOrder = 0
+        !     do j = 1, size(streamJunctionCells(i)%item%routedRiverReaches)
+        !         print *, "Routed river reaches j", j
+        !         downstreamStreamOrder = downstreamStreamOrder + streamJunctionCells(i)%item%routedRiverReaches(j,1)%item%streamOrder
+        !     end do
+        !     print *, "downstream order", downstreamStreamOrder
+        !     if (downstreamStreamOrder == 2) then
+        !         nextUpGridCells = [nextUpGridCells, streamJunctionCells(i)]
+        !     end if
+        ! end do
+
+        ! deallocate(streamJunctionCells)
+        ! allocate(streamJunctionCells(0))
+
+        ! do i = 1, size(nextUpGridCells)
+        !     cell%item => nextUpGridCells(i)%item
+        !     do while (cell%item%nBranches == 1 .and. associated(cell%item))
+        !         print *, "next up cell ref", cell%item%ref
+        !         r = cell%item%update(t)
+        !         cell%item => cell%item%outflow%item
+        !     end do
+        !     ! If this cell is associated and the number of branches is > 1, then we must be in
+        !     ! a junction cell. If so, add to the stream junction cells array to be looped through
+        !     ! after all streams of this order have been 
+        !     if (associated(cell%item) .and. cell%item%nBranches > 1) then
+        !         streamJunctionCells = [streamJunctionCells, cell]
+        !     end if
+        ! end do
 
         ! ! Perform the main routing procedure
         ! do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
@@ -265,7 +281,10 @@ module classEnvironment1
         type(Result) :: r                                   !! The `Result` object to return
         ! Get the grid dimensions for the Environment
         call r%addErrors(.errors. DATA%setGroup(['Environment']))
-        call r%addErrors(.errors. DATA%get('grid_dimensions', me%gridDimensions))
+        call r%addErrors([ &
+            .errors. DATA%get('grid_dimensions', me%gridDimensions), &
+            .errors. DATA%get('routed_reaches', me%routedReachIndices) &
+        ])
     end function
     
     function get_m_npEnvironment1(me) result(m_np)

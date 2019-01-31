@@ -371,7 +371,8 @@ module classEstuaryReach
             .errors. DATA%get('width', me%width), &
             .errors. DATA%get('tidal_M2', me%tidalM2, C%tidalM2), &
             .errors. DATA%get('tidal_S2', me%tidalS2, C%tidalS2), &
-            .errors. DATA%get('distance_to_mouth', me%distanceToMouth) &
+            .errors. DATA%get('distance_to_mouth', me%distanceToMouth), &
+            .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         

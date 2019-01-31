@@ -358,7 +358,8 @@ module classRiverReach
             .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
             .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.), &
                 ! alpha_hetero defaults to that specified in config.nml
-            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
+            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
+            .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         
