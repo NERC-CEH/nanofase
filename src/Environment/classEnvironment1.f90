@@ -34,18 +34,19 @@ module classEnvironment1
         class(Environment1), target :: me
             !! This `Environment` instace. Must be target so `SubRiver`s can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
-        integer :: x, y, rr, i, b, ix, iy                       ! Iterators for GridCells, RiverReaches, inflows and branches
+        integer :: x, y, rr, i, j, b, ix, iy                    ! Iterators
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
         logical :: isValidInflow = .true.                       ! Is inflow SubRiver is a neighbouring river
-        type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
-        type(GridCellPointer), allocatable :: tmpHeadwaters(:)  ! Temporary array to store headwater array in
+        ! type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
+        ! type(GridCellPointer), allocatable :: tmpHeadwaters(:)  ! Temporary array to store headwater array in
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
         character(len=3) :: inflowType                          ! River or estuary
 
-        allocate(me%headwaters(0))
-        me%nHeadwaters = 0
+        ! allocate(me%headwaters(0))
+        ! me%nHeadwaters = 0
         call r%addErrors(.errors. me%parseInputData())
+        allocate(me%routedReaches(size(me%routedReachIndices,2), size(me%routedReachIndices,3)))
         
         if (.not. r%hasCriticalError()) then    
 
@@ -73,13 +74,13 @@ module classEnvironment1
                                 call r%addErrors(.errors. &                     ! Call the create method to create the GridCell
                                     me%colGridCells(x,y)%item%create(x,y) &
                                 )
-                                if (me%colGridCells(x,y)%item%isHeadwater) then
-                                    me%nHeadwaters = me%nHeadwaters + 1
-                                    allocate(tmpHeadwaters(me%nHeadwaters))                             ! Extend the me%headwaters array by 1
-                                    tmpHeadwaters(1:me%nHeadwaters-1) = me%headwaters
-                                    call move_alloc(tmpHeadwaters, me%headwaters)
-                                    me%headwaters(me%nHeadwaters)%item => me%colGridCells(x,y)%item     ! Point to this grid cell
-                                end if
+                                ! if (me%colGridCells(x,y)%item%isHeadwater) then
+                                !     me%nHeadwaters = me%nHeadwaters + 1
+                                !     allocate(tmpHeadwaters(me%nHeadwaters))                             ! Extend the me%headwaters array by 1
+                                !     tmpHeadwaters(1:me%nHeadwaters-1) = me%headwaters
+                                !     call move_alloc(tmpHeadwaters, me%headwaters)
+                                !     me%headwaters(me%nHeadwaters)%item => me%colGridCells(x,y)%item     ! Point to this grid cell
+                                ! end if
                             case default
                                 call r%addError( &                              ! Invalid type error
                                     ErrorInstance(110,"Invalid GridCell type index for " // &
@@ -111,7 +112,7 @@ module classEnvironment1
                                     iy = riverReach%inflowRefs(i)%y
                                     ! Check the inflow specified exists in the model domain
                                     if (ix > 0 .and. ix .le. me%gridDimensions(1) &
-                                        .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then                                        
+                                        .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
                                         ! Point this reach's inflow to the actual RiverReach
                                         riverReach%inflows(i)%item => &
                                             me%colGridCells(ix,iy)%item%colRiverReaches(riverReach%inflowRefs(i)%w)%item
@@ -143,6 +144,23 @@ module classEnvironment1
                     end if
                 end do
             end do
+
+            ! Now we can use the routed reach indices from the data file to point the routed reaches array
+            ! to the correct reaches
+            do j = 1, size(me%routedReachIndices, 2)            ! Seeds
+                do i = 1, size(me%routedReachIndices, 3)        ! Branches
+                    x = me%routedReachIndices(1,j,i)
+                    y = me%routedReachIndices(2,j,i)
+                    rr = me%routedReachIndices(3,j,i)
+                    ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
+                    ! so empty elements are set as zero in input data).
+                    if (x > 0 .and. y > 0 .and. rr > 0) then
+                        me%routedReaches(j,i)%item => me%colGridCells(x,y)%item%colRiverReaches(rr)%item
+                    else
+                        me%routedReaches(j,i)%item => null()
+                    end if
+                end do
+            end do
             
             ! Finally, we can populate the GridCell%routedRiverReaches array and do
             ! things like determine reach lengths
@@ -169,22 +187,41 @@ module classEnvironment1
 
     !> Perform simulations for the `Environment`
     function updateEnvironment1(me, t) result(r)
+        use omp_lib
         class(Environment1) :: me                               !! This `Environment` instance
         integer :: t                                            !! Current time step
         type(Result) :: r                                       !! Return error(s) in `Result` object
-        type(GridCellPointer) :: cell
-        type(GridCellPointer), allocatable :: streamJunctionCells(:)    !! List of cells that are stream junctions
-        type(GridCellPointer), allocatable :: nextUpGridCells(:)
-        character(len=100) :: inflowToStreamJunctionRef
-        integer :: downstreamStreamOrder
-        logical :: areReachesThisOrder = .true.
-        character(len=256), allocatable :: thisOrderJunctionCells(:)
-        integer :: x, y, s, i, j, k
+        type(ReachPointer) :: reach                             ! Poitner to the reach we're updating
+        integer :: i, j, x, y
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
-        print *, me%routedReachIndices
-        error stop 12
+        ! Loop through the routed reaches
+        do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively high stream orders
+            !$omp parallel do
+            do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
+                if (associated(me%routedReaches(i,j)%item)) then
+                    print *, "Stream order: ", me%routedReaches(i,j)%item%streamOrder
+                    print *, "\tSeed: ", trim(me%routedReaches(i,j)%item%ref)
+                    reach%item => me%routedReaches(i,j)%item
+                    print *, "\t\t", reach%item%ref
+                    if (associated(reach%item%outflow%item)) then
+                        reach%item => reach%item%outflow%item
+                        do while (reach%item%nInflows == 1)
+                            print *, "\t\t", reach%item%ref
+                            if (.not. associated(reach%item%outflow%item)) then
+                                exit
+                            else
+                                reach%item => reach%item%outflow%item
+                            end if
+                        end do
+                    end if
+                end if
+            end do
+            !$omp end parallel do
+        end do
+
+        error stop 15
 
         ! allocate(streamJunctionCells(0))
         ! allocate(nextUpGridCells(0))
