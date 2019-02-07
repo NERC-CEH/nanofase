@@ -20,6 +20,7 @@ module spcEnvironment
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy
         procedure(updateEnvironment), deferred :: update
+        procedure(updateReachEnvironment), deferred :: updateReach
         procedure(parseInputDataEnvironment), deferred :: parseInputData
         ! Getters
         procedure(get_m_npEnvironment), deferred :: get_m_np
@@ -50,6 +51,16 @@ module spcEnvironment
             class(Environment) :: me                    !! This `Environment` instance
             integer :: t                                !! The current time step
             type(Result) :: r                           !! `Result` object containing any errors
+        end function
+
+        function updateReachEnvironment(me, t, reach) result(rslt)
+            use ResultModule, only: Result
+            use spcReach, only: ReachPointer
+            import Environment
+            class(Environment), target :: me
+            integer :: t
+            type(ReachPointer) :: reach
+            type(Result) :: rslt
         end function
         
         !> Interface to import and parse input data for the `Environment` object

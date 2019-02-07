@@ -19,6 +19,7 @@ module classEnvironment1
         procedure :: create => createEnvironment1
         procedure :: destroy => destroyEnvironment1
         procedure :: update => updateEnvironment1
+        procedure :: updateReach => updateReachEnvironment1
         procedure :: parseInputData => parseInputDataEnvironment1
         ! Getters
         procedure :: get_m_np => get_m_npEnvironment1
@@ -191,24 +192,28 @@ module classEnvironment1
         class(Environment1) :: me                               !! This `Environment` instance
         integer :: t                                            !! Current time step
         type(Result) :: r                                       !! Return error(s) in `Result` object
-        type(ReachPointer) :: reach                             ! Poitner to the reach we're updating
+        type(ReachPointer) :: reach                             ! Pointer to the reach we're updating
         integer :: i, j, x, y
+        real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length in cell
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
         ! Loop through the routed reaches
-        do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively high stream orders
-            !$omp parallel do
+        do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
+            !!$omp parallel do
             do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
                 if (associated(me%routedReaches(i,j)%item)) then
-                    print *, "Stream order: ", me%routedReaches(i,j)%item%streamOrder
-                    print *, "\tSeed: ", trim(me%routedReaches(i,j)%item%ref)
+                    ! Update this reach, also updating the containing grid cell (if it hasn't been already)
                     reach%item => me%routedReaches(i,j)%item
-                    print *, "\t\t", reach%item%ref
+                    call r%addErrors(.errors. me%updateReach(t, reach))
+                    ! Check this reach has an outflow, before moving on to it and looping until we hit
+                    ! a stream junction
                     if (associated(reach%item%outflow%item)) then
                         reach%item => reach%item%outflow%item
                         do while (reach%item%nInflows == 1)
-                            print *, "\t\t", reach%item%ref
+                            ! Update this reach (and its grid cell, if need be)
+                            call r%addErrors(.errors. me%updateReach(t, reach))
                             if (.not. associated(reach%item%outflow%item)) then
                                 exit
                             else
@@ -218,10 +223,9 @@ module classEnvironment1
                     end if
                 end if
             end do
-            !$omp end parallel do
+            !!$omp end parallel do
         end do
 
-        error stop 15
 
         ! allocate(streamJunctionCells(0))
         ! allocate(nextUpGridCells(0))
@@ -310,6 +314,38 @@ module classEnvironment1
                 call me%colGridCells(x,y)%item%finaliseUpdate()
             end do
         end do
+        error stop 15
+    end function
+    
+    !> Update an individual reach, also updating the containng grid cell, if it hasn't
+    !! already been updated.
+    function updateReachEnvironment1(me, t, reach) result(rslt)
+        class(Environment1), target :: me   !! This `Environment1` instance
+        integer :: t                    !! Time step
+        type(ReachPointer) :: reach     !! Pointer to the reach to update
+        type(Result) :: rslt            !! The Result object to return any errors in
+        type(GridCellPointer) :: cell   ! Pointer to this reach's grid cell
+        real(dp) :: lengthRatio             ! Length ratio of this reach to the total reach length in cell
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))     ! Proportion of cell's NM runoff going to this reach
+        ! Point cell to this reach's grid cell
+        cell%item => me%colGridCells(reach%item%x, reach%item%y)%item
+        ! If this GridCell hasn't already been updated, run its update method first
+        if (.not. cell%item%isUpdated) then
+            call rslt%addErrors(.errors. cell%item%update(t))
+        end if
+        ! Determine the proportion of this reach's length to the the total
+        ! river length in this GridCell and use it to proportion NM runoff
+        lengthRatio = reach%item%length/sum(cell%item%branchLengths)
+        j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+        ! Update the reach for this timestep
+        call rslt%addErrors(.errors. &
+            reach%item%update( &
+                t = t, &
+                q_runoff = cell%item%q_runoff_timeSeries(t), &
+                j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
+                j_np_runoff = j_np_runoff &
+            ) &
+        )
     end function
     
     !> Obtain and parse input data for this `Environment` object

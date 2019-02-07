@@ -64,6 +64,7 @@ module spcGridCell
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
         logical :: isHeadwater = .false.                                !! Is this `GridCell` a headwater?
         logical :: hasStreamJunctionInflow = .false.                    !! Is the inflow to this cell from more than one cell?
+        logical :: isUpdated = .false.                                  !! Has this `GridCell` been updated for this timestep?
         ! Demands
         logical :: hasDemands = .false.                                 !! Does this `GridCell` have any water demand data?
         logical :: hasCrop = .false.                                    !! Does this `GridCell` have any crops?

@@ -106,6 +106,8 @@ module classEstuaryReach
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
         real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg]
 
+        print *, "Updating ", trim(me%ref)
+
         ! Initialise flows to zero
         fractionSpmDeposited = 0
         j_spm_deposit = 0

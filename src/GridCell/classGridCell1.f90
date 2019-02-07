@@ -348,6 +348,10 @@ module classGridCell1
         integer :: i, rr, b                                            ! Iteratora
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
+
+
+        print *, "Updating ", trim(me%ref)
+
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Reset variables
@@ -400,6 +404,9 @@ module classGridCell1
             end do
         end if
 
+        ! Set flag to see we've run the update for this timestep
+        me%isUpdated = .true.
+
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
         call LOG%toFile(errors = .errors. r)            ! Log any errors to the output file
@@ -419,6 +426,7 @@ module classGridCell1
             do rr = 1, me%nReaches
                 call me%colRiverReaches(rr)%item%finaliseUpdate()
             end do
+            me%isUpdated = .false.      ! Reset updated flag for the next timestep
         end if
     end subroutine
     
