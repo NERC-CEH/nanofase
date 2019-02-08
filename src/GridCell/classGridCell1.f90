@@ -349,9 +349,6 @@ module classGridCell1
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
 
-
-        print *, "Updating ", trim(me%ref)
-
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Reset variables
@@ -380,28 +377,30 @@ module classGridCell1
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
+            ! Reaches will be updated separately in reach routing order, by the `Environment` object
+
             ! Loop through the reaches in their routed order, and call their update methods for this
             ! timestep, providing them the eroded sediment split according to their length
             ! TODO Add diffuse source to reaches
-            do b = 1, me%nBranches
-                do rr = 1, me%nReachesInBranch(b)
-                    ! Determine the proportion of this reach's length to the the total
-                    ! river length in this GridCell
-                    lengthRatio = me%routedRiverReaches(b,rr)%item%length/sum(me%branchLengths)
-                    ! HACK to set NP runoff to 1e-9 SPM runoff
-                    ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
-                    j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
-                    ! Update the reach for this timestep
-                    call r%addErrors(.errors. &
-                        me%routedRiverReaches(b,rr)%item%update( &
-                            t = t, &
-                            q_runoff = me%q_runoff_timeSeries(t), &
-                            j_spm_runoff = me%erodedSediment*lengthRatio, &
-                            j_np_runoff = j_np_runoff &
-                        ) &
-                    )
-                end do
-            end do
+            ! do b = 1, me%nBranches
+            !     do rr = 1, me%nReachesInBranch(b)
+            !         ! Determine the proportion of this reach's length to the the total
+            !         ! river length in this GridCell
+            !         lengthRatio = me%routedRiverReaches(b,rr)%item%length/sum(me%branchLengths)
+            !         ! HACK to set NP runoff to 1e-9 SPM runoff
+            !         ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
+            !         j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+            !         ! Update the reach for this timestep
+            !         call r%addErrors(.errors. &
+            !             me%routedRiverReaches(b,rr)%item%update( &
+            !                 t = t, &
+            !                 q_runoff = me%q_runoff_timeSeries(t), &
+            !                 j_spm_runoff = me%erodedSediment*lengthRatio, &
+            !                 j_np_runoff = j_np_runoff &
+            !             ) &
+            !         )
+            !     end do
+            ! end do
         end if
 
         ! Set flag to see we've run the update for this timestep

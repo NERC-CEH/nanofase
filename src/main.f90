@@ -8,13 +8,14 @@ program main
     use classDataInterfacer, only: DATA
     use classLogger, only: LOG
     use datetime_module
+    use omp_lib
     implicit none
 
-    real :: start, finish                                               ! Simulation start and finish times
-    type(Result) :: r                                                   ! Result object
-    integer :: x, y, rr, t, i, s                                           ! Loop iterators
+    real :: start, finish, wallStart, wallFinish                    ! Simulation start and finish times
+    type(Result) :: r                                               ! Result object
+    integer :: x, y, rr, t, i, s                                    ! Loop iterators
     real(dp) :: m_spm(5)
-    type(Environment1) :: env                                           ! Environment object
+    type(Environment1) :: env                                       ! Environment object
     real(dp) :: m_np(5, 4, 7)
     real(dp) :: m_np_l1(5, 4, 7)
     real(dp) :: m_np_l2(5, 4, 7)
@@ -36,6 +37,7 @@ program main
     character(len=3) :: reachType
 
     call cpu_time(start)                                                ! Simulation start time
+    wallStart = omp_get_wtime()
 
     ! Set up global vars and constants, and initialise data interfacer.
     ! These vars are available globally
@@ -161,7 +163,11 @@ program main
     end do
 
     close(2)                                                                ! Close the output file
-    call cpu_time(finish)                                                   ! Simulation finish time
-    print *, 'Time taken to simulate and write data (s): ', finish-start    ! How long did it take?
+    
+    ! Timings
+    call cpu_time(finish)
+    wallFinish = omp_get_wtime()
+    print *, 'CPU time taken to simulate and write data (s): ', finish - start
+    print *, 'Wall time taken to simulate and write data (s):', wallFinish - wallStart
 
 end program

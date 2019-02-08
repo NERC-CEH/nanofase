@@ -106,8 +106,6 @@ module classEstuaryReach
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
         real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg]
 
-        print *, "Updating ", trim(me%ref)
-
         ! Initialise flows to zero
         fractionSpmDeposited = 0
         j_spm_deposit = 0
@@ -369,14 +367,26 @@ module classEstuaryReach
             .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.), &
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
-            .errors. DATA%get('mean_depth', me%meanDepth), &
-            .errors. DATA%get('width', me%width), &
+            .errors. DATA%get('mean_depth', me%meanDepth, 0.0_dp), &
+            .errors. DATA%get('width', me%width, 0.0_dp), &
             .errors. DATA%get('tidal_M2', me%tidalM2, C%tidalM2), &
             .errors. DATA%get('tidal_S2', me%tidalS2, C%tidalS2), &
             .errors. DATA%get('distance_to_mouth', me%distanceToMouth), &
             .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
+
+        ! HACK for the width of the Thames
+        if (me%width == 0.0_dp) then
+            ! Hardisty, pg 50
+            me%width = 5000 * exp(-4.25*me%distanceToMouth/80000)
+        end if
+
+        ! HACK for depth of Thames
+        if (me%meanDepth == 0.0_dp) then
+            ! Hardisty, pg 53. 6 m in mean depth at Southend Pier
+            me%meanDepth = 6 * exp(-1.4*me%distanceToMouth/80000)
+        end if
         
         ! ROUTING: Get the references to the inflow(s) EstuaryReaches and
         ! store in inflowRefs(). Do some auditing as well.
