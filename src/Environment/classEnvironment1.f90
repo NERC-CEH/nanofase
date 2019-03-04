@@ -38,16 +38,20 @@ module classEnvironment1
         integer :: x, y, rr, i, j, b, ix, iy                    ! Iterators
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
-        logical :: isValidInflow = .true.                       ! Is inflow SubRiver is a neighbouring river
         ! type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
         ! type(GridCellPointer), allocatable :: tmpHeadwaters(:)  ! Temporary array to store headwater array in
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
-        character(len=3) :: inflowType                          ! River or estuary
 
         ! allocate(me%headwaters(0))
         ! me%nHeadwaters = 0
         call r%addErrors(.errors. me%parseInputData())
-        allocate(me%routedReaches(size(me%routedReachIndices,2), size(me%routedReachIndices,3)))
+        allocate(me%routedReaches(size(me%routedReachIndices,3), size(me%routedReachIndices,2)))
+        ! Make sure everything is null to begin with
+        do j = 1, size(me%routedReaches,2)
+            do i = 1, size(me%routedReaches,1)
+                me%routedReaches(i,j)%item => null()
+            end do
+        end do
         
         if (.not. r%hasCriticalError()) then    
 
@@ -111,6 +115,13 @@ module classEnvironment1
                                 do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
                                     ix = riverReach%inflowRefs(i)%x
                                     iy = riverReach%inflowRefs(i)%y
+
+                                    ! if (ix == 12 .and. iy == 1) then
+                                    !     print *, riverReach%ref
+                                    !     print *, riverReach%inflowRefs(i)%x, riverReach%inflowRefs(i)%y
+                                    !     error stop 123
+                                    ! end if
+
                                     ! Check the inflow specified exists in the model domain
                                     if (ix > 0 .and. ix .le. me%gridDimensions(1) &
                                         .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
@@ -145,29 +156,36 @@ module classEnvironment1
                     end if
                 end do
             end do
-
-            ! Now we can use the routed reach indices from the data file to point the routed reaches array
-            ! to the correct reaches
-            do j = 1, size(me%routedReachIndices, 2)            ! Seeds
-                do i = 1, size(me%routedReachIndices, 3)        ! Branches
-                    x = me%routedReachIndices(1,j,i)
-                    y = me%routedReachIndices(2,j,i)
-                    rr = me%routedReachIndices(3,j,i)
-                    ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
-                    ! so empty elements are set as zero in input data).
-                    if (x > 0 .and. y > 0 .and. rr > 0) then
-                        me%routedReaches(j,i)%item => me%colGridCells(x,y)%item%colRiverReaches(rr)%item
-                    else
-                        me%routedReaches(j,i)%item => null()
-                    end if
-                end do
-            end do
             
             ! Finally, we can populate the GridCell%routedRiverReaches array and do
             ! things like determine reach lengths
             do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
                 do x = 1, size(me%colGridCells, 1)              ! Loop through the rows
                     call r%addErrors(.errors. me%colGridCells(x,y)%item%finaliseCreate())
+                end do
+            end do
+
+            ! Now we can use the routed reach indices from the data file to point the routed reaches array
+            ! to the correct reaches. This must be done after the finaliseCreate method, as that may
+            ! deallocate reaches that are both headwaters and domain outflows - we want to make sure we're
+            ! not pointing to anything that is deallocated
+            do j = 1, size(me%routedReachIndices, 2)            ! Seeds
+                do i = 1, size(me%routedReachIndices, 3)        ! Branches
+                    x = me%routedReachIndices(1,j,i)
+                    y = me%routedReachIndices(2,j,i)
+                    rr = me%routedReachIndices(3,j,i)
+
+                    ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
+                    ! so empty elements are set as zero in input data).
+                    if (x > 0 .and. y > 0 .and. rr > 0) then
+                        if (allocated(me%colGridCells(x,y)%item%colRiverReaches) .and. &
+                            size(me%colGridCells(x,y)%item%colRiverReaches) > 0) then
+                            me%routedReaches(i,j)%item => me%colGridCells(x,y)%item%colRiverReaches(rr)%item
+                            print *, i, j, me%routedReaches(i,j)%item%ref
+                        end if
+                    else
+                        me%routedReaches(i,j)%item => null()
+                    end if
                 end do
             end do
         end if
@@ -199,13 +217,29 @@ module classEnvironment1
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
+        do j = 1, size(me%routedReaches, 2)
+            do i = 1, size(me%routedReaches, 1)
+                if (associated(me%routedReaches(i,j)%item)) then
+                    print *, i, j, me%routedReaches(i,j)%item%ref
+                end if
+            end do
+        end do
+
+        error stop
+
         ! Loop through the routed reaches
         do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
             !!$omp parallel do private(reach, i) firstprivate(r)
             do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
+
+                ! TODO maybe change to j,i
+                print *, "Routed river indices", me%routedReachIndices(:,j,i)
+
                 if (associated(me%routedReaches(i,j)%item)) then
+                    print *, "Updating:", i, j
                     ! Update this reach, also updating the containing grid cell (if it hasn't been already)
                     reach%item => me%routedReaches(i,j)%item
+                    print *, reach%item%ref
 
                     ! TODO something is going wrong in the Thames routing such that routedReach(2,1) (and beyond)
                     ! isn't being allocated properly (gibberish as ref). Need to check this!
@@ -215,8 +249,11 @@ module classEnvironment1
                     ! Check this reach has an outflow, before moving on to it and looping until we hit
                     ! a stream junction
                     if (associated(reach%item%outflow%item)) then
+                        print *, "is associated"
+                        print *, "outflow", reach%item%outflow%item%x, reach%item%outflow%item%y
                         reach%item => reach%item%outflow%item
                         do while (reach%item%nInflows == 1)
+                            print *, "Updating in do: ", reach%item%x, reach%item%y
                             ! Update this reach (and its grid cell, if need be)
                             call r%addErrors(.errors. me%updateReach(t, reach))
                             if (.not. associated(reach%item%outflow%item)) then

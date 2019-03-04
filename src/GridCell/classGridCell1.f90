@@ -125,6 +125,11 @@ module classGridCell1
 
         ! Loop through all the reaches in this GridCell.
         ! Don't type check for the moment
+
+        if (me%x == 12 .and. me%y == 1) then
+            print *, "in 12,2"
+            print *, me%nReaches
+        end if
         do rr = 1, me%nReaches
             ! Is this a river or estuary reach?
             if (me%reachTypes(rr)=='riv') then
@@ -345,7 +350,7 @@ module classGridCell1
         class(GridCell1) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
         type(Result) :: r                                       !! `Result` object to return errors in
-        integer :: i, rr, b                                            ! Iteratora
+        integer :: i, b                                            ! Iterator
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
 
@@ -518,7 +523,6 @@ module classGridCell1
                         // "Check nReaches matches the number of reach groups in the input data."))
             end if
         end do
-
         
         ! Get the size of the GridCell [m]. Defaults to defaultGridSize from config
         call r%addErrors(.errors. DATA%get('size', xySize, [C%defaultGridSize, C%defaultGridSize]))
@@ -578,7 +582,7 @@ module classGridCell1
                 me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
                 i = i+1
             end do
-        end if        
+        end if  
 
     end function
 

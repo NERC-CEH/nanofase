@@ -91,7 +91,7 @@ module classSoilProfile1
             allocate(sl)        ! Must be allocated on every time step
             ! Create the SoilLayer and add any errors to Result object
             call r%addErrors(.errors. &
-                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s) &
+                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s, me%area) &
             )
             call move_alloc(sl, me%colSoilLayers(l)%item)   ! This automatically deallocates sl
         end do

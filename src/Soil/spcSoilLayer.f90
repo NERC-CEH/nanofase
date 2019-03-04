@@ -3,6 +3,7 @@ module spcSoilLayer
     use Globals                                                     ! Global definitions and constants
     use mo_netcdf                                                   ! NetCDF input/output
     use ResultModule, only: Result                                  ! Result object to pass errors
+    use spcBiota
     implicit none
 
     !> Abstract base class for `SoilLayer` object. Defines properties and
@@ -17,6 +18,7 @@ module spcSoilLayer
         integer :: p                                                !! Containing `SoilProfile` index
         integer :: l                                                !! Layer index
         real(dp) :: depth                                           !! Layer depth [m]
+        real(dp) :: area                                            !! Area of the containing SoilProfile [m2]
         type(NcGroup) :: ncGroup                                    !! NetCDF group for this object
         ! Soil properties
         real(dp) :: pH                                              !! Porewater pH
@@ -34,6 +36,8 @@ module spcSoilLayer
         real(dp) :: V_sat                                           !! Water content at saturation [m3 m-2]
         real(dp) :: V_FC                                            !! Water content at field capacity [m3 m-2]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
+        ! Biota
+        class(Biota), allocatable :: biota
       contains
         procedure(createSoilLayer), deferred :: create              ! Create the SoilLayer object
         procedure(updateSoilLayer), deferred :: update              ! Update on every timestep (e.g., perform soil percolation)
@@ -54,7 +58,7 @@ module spcSoilLayer
 
     abstract interface
         !> Create this `SoilLayer`
-        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s) result(r)
+        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area) result(r)
             use Globals, only: dp
             use ResultModule, only: Result
             import SoilLayer
@@ -66,6 +70,7 @@ module spcSoilLayer
             real(dp), intent(in) :: WC_sat                  !! Water content at saturation [m3/m3]
             real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
             real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
+            real(dp), intent(in) :: area                    !! Area of the containing SoilProfile [m2]
             type(Result) :: r                               !! The `Result` object to return
         end function
 
