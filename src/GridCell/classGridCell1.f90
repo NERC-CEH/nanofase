@@ -354,6 +354,8 @@ module classGridCell1
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
 
+        print *, "updating", me%ref
+
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Reset variables
@@ -366,6 +368,8 @@ module classGridCell1
                     me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
                 end do
             end if
+
+            print *, "j_np_diffusesource in grid cell", sum(me%j_np_diffusesource)
 
             ! Demands and transfers
             call r%addErrors([ &
@@ -381,6 +385,7 @@ module classGridCell1
             )
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
+            print *, "eroded sed passed back to GC", sum(me%erodedSediment)
 
             ! Reaches will be updated separately in reach routing order, by the `Environment` object
 

@@ -55,8 +55,13 @@ module classDiffuseSource
         class(DiffuseSource) :: me
         integer :: t
         type(Result) :: r
-        ! Get this time step's input mass
-        me%j_np_diffusesource = me%inputMass_timeSeries(t,:,:,:)        ! [kg/m2/timestep]
+
+        if (t .ge. C%warmUpPeriod) then
+            ! Get this time step's input mass
+            me%j_np_diffusesource = me%inputMass_timeSeries(t,:,:,:)        ! [kg/m2/timestep]
+        else
+            me%j_np_diffusesource = 0.0_dp
+        end if
     end function
 
     !> Parse the input data to get input masses from this diffuse source.

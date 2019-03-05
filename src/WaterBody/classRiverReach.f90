@@ -89,7 +89,7 @@ module classRiverReach
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
         real(dp) :: fractionSpmDeposited(C%nSizeClassesSpm)     ! Fraction of SPM deposited on each time step [-]
-        integer :: i, j                                         ! Iterator
+        integer :: i, j, k                                      ! Iterators
         integer :: nDisp                                        ! Number of displacements to split this time step into
         real(dp) :: dt                                          ! Length of each displacement [s]
         real(dp) :: dQ(size(me%Q))                              ! Water flow array (Q) for each displacement
@@ -141,6 +141,13 @@ module classRiverReach
         j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
         j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
 
+        ! if (me%x == 12 .and. me%y == 7 .and. me%w == 1) then
+        !     print *, "q_runoff", q_runoff
+        !     print *, "Q_runoff", q_runoff*me%gridCellArea
+        !     print *, "total Q in", me%Q_in_total
+        !     error stop
+        ! end if
+
         ! Set the reach dimensions and calculate the velocity
         call rslt%addErrors(.errors. me%setDimensions())
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
@@ -175,8 +182,9 @@ module classRiverReach
             
             ! SPM and NM outflows
             if (.not. isZero(me%volume)) then
-                dj_spm(1,:) = min(me%m_spm * dQ(1) / me%volume, me%m_spm)
-                dj_np(1,:,:,:) = min(me%m_np * dQ(1) / me%volume, me%m_np)
+                ! Outflows are negative, up to a maximum of total masses currently in reach
+                dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)
+                dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np)
             else
                 dj_spm(1,:) = 0
                 dj_np(1,:,:,:) = 0
@@ -201,9 +209,9 @@ module classRiverReach
                 dj_np(4+me%nInflows,:,:,2+j) = -min(me%m_np(:,:,2+j)*fractionSpmDeposited(j), me%m_np(:,:,2+j))   ! Only deposit heteroaggregated NM (index 3+)
             end do
             
-            ! SPM and NM mass balance
-            me%m_spm = me%m_spm + sum(dj_spm, dim=1)
-            me%m_np = me%m_np + sum(dj_np, dim=1)
+            ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
+            me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
+            me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
 
             ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
             ! (inflows, runoff, sources) as they've already been correctly before the disp loop
@@ -235,7 +243,17 @@ module classRiverReach
             else
                 me%C_spm(j) = me%m_spm(j) / me%volume
             end if
-        end do   
+        end do
+        ! Same for m_np
+        do k = 1, C%npDim(3)
+            do j = 1, C%npDim(2)
+                do i = 1, C%npDim(1)
+                    if (isZero(me%m_np(i,j,k)) .or. isZero(me%volume)) then
+                        me%m_np(i,j,k) = 0.0_dp
+                    end if
+                end do
+            end do
+        end do
 
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out

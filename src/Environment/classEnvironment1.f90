@@ -116,12 +116,6 @@ module classEnvironment1
                                     ix = riverReach%inflowRefs(i)%x
                                     iy = riverReach%inflowRefs(i)%y
 
-                                    ! if (ix == 12 .and. iy == 1) then
-                                    !     print *, riverReach%ref
-                                    !     print *, riverReach%inflowRefs(i)%x, riverReach%inflowRefs(i)%y
-                                    !     error stop 123
-                                    ! end if
-
                                     ! Check the inflow specified exists in the model domain
                                     if (ix > 0 .and. ix .le. me%gridDimensions(1) &
                                         .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
@@ -175,13 +169,17 @@ module classEnvironment1
                     y = me%routedReachIndices(2,j,i)
                     rr = me%routedReachIndices(3,j,i)
 
+                    ! if (x == 12 .and. y == 7 .and. rr == 1) then
+                    !     print *, "n river reaches", size(me%colGridCells(x,y)%item%colRiverReaches)
+                    !     error stop 1234
+                    ! end if
+
                     ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
                     ! so empty elements are set as zero in input data).
                     if (x > 0 .and. y > 0 .and. rr > 0) then
                         if (allocated(me%colGridCells(x,y)%item%colRiverReaches) .and. &
                             size(me%colGridCells(x,y)%item%colRiverReaches) > 0) then
                             me%routedReaches(i,j)%item => me%colGridCells(x,y)%item%colRiverReaches(rr)%item
-                            print *, i, j, me%routedReaches(i,j)%item%ref
                         end if
                     else
                         me%routedReaches(i,j)%item => null()
@@ -217,43 +215,24 @@ module classEnvironment1
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
-        do j = 1, size(me%routedReaches, 2)
-            do i = 1, size(me%routedReaches, 1)
-                if (associated(me%routedReaches(i,j)%item)) then
-                    print *, i, j, me%routedReaches(i,j)%item%ref
-                end if
-            end do
-        end do
-
-        error stop
-
         ! Loop through the routed reaches
         do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
             !!$omp parallel do private(reach, i) firstprivate(r)
             do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
 
-                ! TODO maybe change to j,i
-                print *, "Routed river indices", me%routedReachIndices(:,j,i)
+                ! if (trim(me%routedReaches(i,j)%item%ref) == 'RiverReach_12_7_1') then
+                !     error stop 5252
+                ! end if
 
                 if (associated(me%routedReaches(i,j)%item)) then
-                    print *, "Updating:", i, j
                     ! Update this reach, also updating the containing grid cell (if it hasn't been already)
                     reach%item => me%routedReaches(i,j)%item
-                    print *, reach%item%ref
-
-                    ! TODO something is going wrong in the Thames routing such that routedReach(2,1) (and beyond)
-                    ! isn't being allocated properly (gibberish as ref). Need to check this!
-
-                    print *, i, j, me%routedReaches(i,j)%item%ref, reach%item%ref
                     call r%addErrors(.errors. me%updateReach(t, reach))
                     ! Check this reach has an outflow, before moving on to it and looping until we hit
                     ! a stream junction
                     if (associated(reach%item%outflow%item)) then
-                        print *, "is associated"
-                        print *, "outflow", reach%item%outflow%item%x, reach%item%outflow%item%y
                         reach%item => reach%item%outflow%item
                         do while (reach%item%nInflows == 1)
-                            print *, "Updating in do: ", reach%item%x, reach%item%y
                             ! Update this reach (and its grid cell, if need be)
                             call r%addErrors(.errors. me%updateReach(t, reach))
                             if (.not. associated(reach%item%outflow%item)) then
@@ -297,6 +276,14 @@ module classEnvironment1
         ! river length in this GridCell and use it to proportion NM runoff
         lengthRatio = reach%item%length/sum(cell%item%branchLengths)
         j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+
+        ! print *, "eroded NM to pass to update reach", sum(j_np_runoff)
+
+        ! if (reach%item%x == 12 .and. reach%item%y == 1) then
+        !     print *, "eroded NM", sum(j_np_runoff)
+        !     error stop 4321
+        ! end if
+
         ! Update the reach for this timestep
         call rslt%addErrors(.errors. &
             reach%item%update( &

@@ -64,6 +64,7 @@ module spcReach
         procedure :: j_spm_inflows
         procedure :: j_spm_deposit
         procedure :: j_np_outflow
+        procedure :: j_np_inflows
         procedure :: j_np_runoff
         procedure :: j_np_transfer
         procedure :: j_np_deposit
@@ -373,6 +374,17 @@ module spcReach
         j_np_outflow = me%j_np(1,:,:,:)
     end function
 
+    !> Get the inflowing NM from NM flux array
+    function j_np_inflows(me)
+        class(Reach) :: me
+        real(dp) :: j_np_inflows(C%npDim(1), C%npDim(2), C%npDim(3))
+        if (me%nInflows > 0) then
+            j_np_inflows = sum(me%j_np(2:1+me%nInflows,:,:,:), dim=1)
+        else
+            j_np_inflows = 0
+        end if
+    end function
+
     !> Get the total runoff from NM flux array
     function j_np_runoff(me)
         class(Reach) :: me
@@ -398,7 +410,7 @@ module spcReach
     function j_np_diffusesource(me)
         class(Reach) :: me
         real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_diffusesource = sum(me%j_np(5+me%nInflows:5+me%nInflows+me%nDiffuseSources,:,:,:), dim=1)
+        j_np_diffusesource = sum(me%j_np(5+me%nInflows:4+me%nInflows+me%nDiffuseSources,:,:,:), dim=1)
     end function
 
     !> Get the total point source fluxes from NM flux array

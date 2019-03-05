@@ -66,7 +66,9 @@ module classPointSource
         
         me%j_np_pointsource = 0      ! Reset from the last timestep
 
-        if (C%includePointSources) then
+        ! Only include point sources if config says we're meant to, and we're not in the
+        ! warm up period
+        if (C%includePointSources .and. t .ge. C%warmUpPeriod) then
             ! Check if this is a timestep where the fixed mass is to be input
             if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
                 me%j_np_pointsource = me%fixedMass

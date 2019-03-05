@@ -286,6 +286,10 @@ module classSoilProfile1
 
         me%m_np_eroded(:,1,2) = me%colSoilLayers(1)%item%m_np_eroded(:,1,2)
         me%m_np(:,1,2) = me%m_np(:,1,2) - me%m_np_eroded(:,1,2)     ! Remove the eroded NM from the soil
+        
+        print *, "eroded sed in sp", sum(me%erodedSediment)
+        print *, "eroded NM in SP", sum(me%m_np_eroded)
+
     end function
 
     !> Perform bioturbation on a time step by mixing calculated depth of two layers together

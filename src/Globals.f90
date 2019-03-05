@@ -30,6 +30,7 @@ module Globals
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
+        integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
@@ -89,7 +90,7 @@ module Globals
         ! Values from config file
         character(len=256) :: input_file, output_file, output_path, log_file_path, start_date, startDateStr
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
-            default_np_forms, default_np_extra_states
+            default_np_forms, default_np_extra_states, warm_up_period
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
@@ -99,7 +100,8 @@ module Globals
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
-        namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
+        namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp, &
+            warm_up_period
         namelist /soil/ default_soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             include_bed_sediment
@@ -150,6 +152,7 @@ module Globals
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
         C%default_k_att = default_k_att
+        C%warmUpPeriod = warm_up_period
         ! Processes to be modelled / data to be included
         C%includeBioturbation = include_bioturbation
         C%includePointSources = include_point_sources

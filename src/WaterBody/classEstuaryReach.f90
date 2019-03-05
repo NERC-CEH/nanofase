@@ -148,8 +148,8 @@ module classEstuaryReach
         j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
         j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
 
-        ! Set the reach dimensions and calculate the velocity
-        call me%setDimensions((t-1)*24 + (i-1)*(int(dt)/3600))
+        ! Set the reach dimensions (using the timestep in hours for tidal harmonics) and calculate the velocity
+        call me%setDimensions((t-1)*24)
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
 
         ! HACK
@@ -178,15 +178,17 @@ module classEstuaryReach
         dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
 
         do i = 1, nDisp
-
+            ! Calculate the timestep in hours from the displacement length, and pass to setDimensions
+            ! to use to calculate tidal harmonics
             call me%setDimensions((t-1)*24 + (i-1)*(int(dt)/3600))
             ! Water mass balance (outflow = all the inflows)
             dQ(1) = -sum(dQ(2:))
             
             ! SPM and NM outflows
             if (.not. isZero(me%volume)) then
-                dj_spm(1,:) = min(me%m_spm * dQ(1) / me%volume, me%m_spm)
-                dj_np(1,:,:,:) = min(me%m_np * dQ(1) / me%volume, me%m_np)
+                ! Outflows are negative, up to a maximum of total masses currently in reach
+                dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)
+                dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np)
             else
                 dj_spm(1,:) = 0
                 dj_np(1,:,:,:) = 0
@@ -211,9 +213,9 @@ module classEstuaryReach
                 dj_np(4+me%nInflows,:,:,2+j) = -min(me%m_np(:,:,2+j)*fractionSpmDeposited(j), me%m_np(:,:,2+j))   ! Only deposit heteroaggregated NM (index 3+)
             end do
             
-            ! SPM and NM mass balance
-            me%m_spm = me%m_spm + sum(dj_spm, dim=1)
-            me%m_np = me%m_np + sum(dj_np, dim=1)
+            ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
+            me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
+            me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
 
             ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
             ! (inflows, runoff, sources) as they've already been correctly before the disp loop
@@ -470,14 +472,14 @@ module classEstuaryReach
     !! Ref: [Hardisty, 2007](https://doi.org/10.1002/9780470750889)
     function calculateDepth(me, tHours) result(depth)
         class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance.
-        integer, intent(in) :: tHours           !! The current timestep
+        integer, intent(in) :: tHours             !! The current timestep (in hours)
         real(dp) :: depth
 
         depth = me%tidalS2 * cos(2.0_dp*C%pi*tHours/12.0_dp) + me%tidalM2 * cos(2.0_dp*C%pi*tHours/12.42_dp) &
             + (0.75_dp) * ((me%distanceToMouth * me%tidalM2 ** 2)/(me%meanDepth * 22356.0_dp * sqrt(9.81_dp * me%meanDepth))) &
             * cos(2*C%pi*tHours/6.21_dp) + C%tidalDatum
-
-        if (depth < 0) depth = 0
+        ! If the depth is negative, set it to zero
+        if (depth < 0) depth = 0.0_dp
     end function
 
     !> Calculate the velocity of the river:
