@@ -5,13 +5,14 @@ module spcBiota                                                     !! superclas
                                                                     ! class properties
         character(len=256) :: ref                                   !! Reference for this instance
         ! real(dp), allocatable :: m_np                               ! Mass of nanomaterial in biota [kg]          ! TODO is this needed?
-        real(dp), allocatable :: C_np                               !! Concentration of nanomaterial in biota [kg/m3]
-        real(dp) :: k_uptake(2)                                     !! Uptake constants, one per matrix uptaken from (e.g. soil/water, food) [/s]
-        reaL(dp) :: k_elim                                          !! Elimination rate constant [/s]
-        real(dp) :: k_growth                                        !! Growth dilution rate [/s]
+        real(dp) :: C_np                                            !! Concentration of nanomaterial in biota [kg/kg dw]
+        real(dp) :: C_np_noStoredFraction                           !! Concentration of nanomaterial in biota with no stored fraction, for comparison's sake [kg/kg dw]
+        real(dp) :: k_uptake(2)                                     !! Uptake constants, one per matrix uptaken from (e.g. soil/water, food) [/day]
+        reaL(dp) :: k_elim                                          !! Elimination rate constant [/day]
+        real(dp) :: k_growth                                        !! Growth dilution rate [/day]
         real(dp) :: storedFraction                                  !! Stored fraction of namoaterial [-]
         integer :: eliminationPhaseStart                            !! When the elimination phase starts [days]
-        real(dp) :: C_np_init                                       !! Initial NM conc at start of model run [kg/m3]
+        real(dp) :: C_np_init                                       !! Initial NM conc at start of model run [kg/kg dw]
 
       contains
         procedure, public :: create => createBiota                  ! constructor method

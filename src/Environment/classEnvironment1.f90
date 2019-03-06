@@ -169,11 +169,6 @@ module classEnvironment1
                     y = me%routedReachIndices(2,j,i)
                     rr = me%routedReachIndices(3,j,i)
 
-                    ! if (x == 12 .and. y == 7 .and. rr == 1) then
-                    !     print *, "n river reaches", size(me%colGridCells(x,y)%item%colRiverReaches)
-                    !     error stop 1234
-                    ! end if
-
                     ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
                     ! so empty elements are set as zero in input data).
                     if (x > 0 .and. y > 0 .and. rr > 0) then
@@ -219,11 +214,6 @@ module classEnvironment1
         do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
             !!$omp parallel do private(reach, i) firstprivate(r)
             do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
-
-                ! if (trim(me%routedReaches(i,j)%item%ref) == 'RiverReach_12_7_1') then
-                !     error stop 5252
-                ! end if
-
                 if (associated(me%routedReaches(i,j)%item)) then
                     ! Update this reach, also updating the containing grid cell (if it hasn't been already)
                     reach%item => me%routedReaches(i,j)%item
@@ -266,6 +256,7 @@ module classEnvironment1
         type(GridCellPointer) :: cell   ! Pointer to this reach's grid cell
         real(dp) :: lengthRatio             ! Length ratio of this reach to the total reach length in cell
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))     ! Proportion of cell's NM runoff going to this reach
+
         ! Point cell to this reach's grid cell
         cell%item => me%colGridCells(reach%item%x, reach%item%y)%item
         ! If this GridCell hasn't already been updated, run its update method first
@@ -277,22 +268,20 @@ module classEnvironment1
         lengthRatio = reach%item%length/sum(cell%item%branchLengths)
         j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
 
-        ! print *, "eroded NM to pass to update reach", sum(j_np_runoff)
-
-        ! if (reach%item%x == 12 .and. reach%item%y == 1) then
-        !     print *, "eroded NM", sum(j_np_runoff)
-        !     error stop 4321
-        ! end if
-
-        ! Update the reach for this timestep
-        call rslt%addErrors(.errors. &
-            reach%item%update( &
-                t = t, &
-                q_runoff = cell%item%q_runoff_timeSeries(t), &
-                j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
-                j_np_runoff = j_np_runoff &
-            ) &
-        )
+        if (reach%item%ref(1:3) == 'Riv') then
+            ! Update the reach for this timestep
+            call rslt%addErrors(.errors. &
+                reach%item%update( &
+                    t = t, &
+                    q_runoff = cell%item%q_runoff_timeSeries(t), &
+                    j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
+                    j_np_runoff = j_np_runoff &
+                ) &
+            )
+        else
+            print *, reach%item%ref
+            error stop 192
+        end if
     end function
     
     !> Obtain and parse input data for this `Environment` object

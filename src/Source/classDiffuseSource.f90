@@ -62,8 +62,6 @@ module classDiffuseSource
         else
             me%j_np_diffusesource = 0.0_dp
         end if
-
-        print *, "diffuse source t", sum(me%j_np_diffusesource), t
     end function
 
     !> Parse the input data to get input masses from this diffuse source.

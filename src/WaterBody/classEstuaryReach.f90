@@ -93,6 +93,8 @@ module classEstuaryReach
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         type(Result) :: rslt
         !--- Locals ---!
+        real(dp) :: previousVolume                              ! Volume of reach at end of last displacement
+        real(dp) :: changeInVolume                              ! Change in volume of reach between displacements
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
         real(dp) :: fractionSpmDeposited(C%nSizeClassesSpm)     ! Fraction of SPM deposited on each time step [-]
@@ -113,6 +115,11 @@ module classEstuaryReach
         me%j_spm = 0
         me%j_np = 0
         me%j_ionic = 0
+        if (t == 1) then
+            previousVolume = 0.0_dp
+        else
+            previousVolume = me%volume      ! me%volume will be changed by setDimensions() below
+        end if
         
         ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
         ! getting their outflow on this timestep, rather than the last timestep
@@ -178,9 +185,18 @@ module classEstuaryReach
         dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
 
         do i = 1, nDisp
+            ! Store the previous displacement's volume to determine direction of flow
+            if (i > 1) previousVolume = me%volume
             ! Calculate the timestep in hours from the displacement length, and pass to setDimensions
             ! to use to calculate tidal harmonics
             call me%setDimensions((t-1)*24 + (i-1)*(int(dt)/3600))
+            ! Calculate the volume change to determine the direction of flow
+            changeInVolume = previousVolume - me%volume
+            if (changeInVolume < 0) then
+                print *, "upstream"
+            else
+                print *, "downstream"
+            end if
             ! Water mass balance (outflow = all the inflows)
             dQ(1) = -sum(dQ(2:))
             

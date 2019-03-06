@@ -15,9 +15,8 @@ module classBiota1                                                      !! class
             type(Result) :: rslt
             ! Set defaults and ref
             me%ref = "Biota"
-            me%storedFraction = 0
-            ! me%m_np = 0
-            me%C_np = 0
+            me%C_np = 0.0_dp
+            me%C_np_noStoredFraction = 0.0_dp
             ! Get data from input file
             call rslt%addErrors(.errors. me%parseInputData())
             call rslt%addToTrace('Creating Biota')                 ! Add this procedure to the trace
@@ -27,7 +26,7 @@ module classBiota1                                                      !! class
         function updateBiota1(me, t, C_np_matrices) result(rslt)
             class(Biota1) :: me                 !! This Biota1 instance
             integer :: t                        !! The current time step
-            real(dp) :: C_np_matrices(2)        !! Concentration of nanomaterial in all matrix (soil/water) and diet
+            real(dp) :: C_np_matrices(2)        !! Concentration of nanomaterial in all matrices (soil/water) and diet
             type(Result) :: rslt                !! The Result object to return errors in
             integer :: tDays
 
@@ -39,9 +38,16 @@ module classBiota1                                                      !! class
                     * me%k_uptake(2)) * tDays + (1 - me%storedFraction) * (C_np_matrices(1) * me%k_uptake(1) &
                     + C_np_matrices(2) * me%k_uptake(2)) / (me%k_elim + me%k_growth) &
                     * (1 - exp(-(me%k_elim + me%k_growth) * tDays))
+                me%C_np_noStoredFraction = (C_np_matrices(1) * me%k_uptake(1) &
+                    + C_np_matrices(2) * me%k_uptake(2)) / (me%k_elim + me%k_growth) &
+                    * (1 - exp(-(me%k_elim + me%k_growth) * tDays))
             else                                            ! Else we must be in the elimination phase
                 me%C_np = me%storedFraction * (C_np_matrices(1) * me%k_uptake(1) + C_np_matrices(2) &
                     * me%k_uptake(2)) * (me%eliminationPhaseStart - 1) + (1 - me%storedFraction) * (C_np_matrices(1) &
+                    * me%k_uptake(1) + C_np_matrices(2) * me%k_uptake(2)) / (me%k_elim + me%k_growth) &
+                    * (1 - exp(-(me%k_elim + me%k_growth) * (me%eliminationPhaseStart - 1))) &
+                    * exp(-(me%k_elim + me%k_growth) * (tDays - me%eliminationPhaseStart - 1))
+                me%C_np_noStoredFraction = (C_np_matrices(1) &
                     * me%k_uptake(1) + C_np_matrices(2) * me%k_uptake(2)) / (me%k_elim + me%k_growth) &
                     * (1 - exp(-(me%k_elim + me%k_growth) * (me%eliminationPhaseStart - 1))) &
                     * exp(-(me%k_elim + me%k_growth) * (tDays - me%eliminationPhaseStart - 1))
@@ -57,7 +63,8 @@ module classBiota1                                                      !! class
             me%k_uptake(2) = 0.05               ! Update from diet [/day]
             me%k_elim = 0.5                     ! [/day]
             me%k_growth = 0.1                   ! [/day]
-            me%eliminationPhaseStart = 28       ! [day]
-            me%C_np_init = 0                    ! Initial NM conc {kg/m3}
+            me%eliminationPhaseStart = 366      ! [day]
+            me%C_np_init = 0                    ! Initial NM conc [kg/day]
+            me%storedFraction = 0.1             ! [-]
         end function
 end module

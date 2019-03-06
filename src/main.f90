@@ -25,7 +25,7 @@ program main
     real(dp) :: m_np_buried(5, 4, 7)
     real(dp) :: m_np_in(5, 4, 7)
     real(dp) :: C_np(5, 4, 7)
-    real(dp) :: C_np_biota
+    real(dp) :: C_np_biota, C_np_biota_noStoredFraction
     real(dp) :: npDep(5, 4, 7)
     real(dp) :: m_np_hetero(5, 5)
     real(dp) :: m_np_free
@@ -60,7 +60,7 @@ program main
     write(2, '(A,A)') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,", &
         "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,river_flow,total_np_pointsource,reach_type"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
-        "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota"
+        "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer
     r = env%create()                                                    ! Create the environment
@@ -151,11 +151,13 @@ program main
                    m_np_buried = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_buried
                    m_np_in = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_in
                    C_np_biota = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np
+                   C_np_biota_noStoredFraction &
+                      = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np_noStoredFraction
                    write(5,*) t, ", ", x, ", ", y, ", ", &
                        sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
                        sum(m_np_l4(:,1,1)), ", ", sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
                        sum(m_np_l3(:,1,2)), ", ", sum(m_np_l4(:,1,2)), ", ", sum(m_np_eroded(:,1,2)), ", ", &
-                       sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota
+                       sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota, ", ", C_np_biota_noStoredFraction
                end if
            end do
         end do
