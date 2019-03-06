@@ -62,6 +62,8 @@ module classDiffuseSource
         else
             me%j_np_diffusesource = 0.0_dp
         end if
+
+        print *, "diffuse source t", sum(me%j_np_diffusesource), t
     end function
 
     !> Parse the input data to get input masses from this diffuse source.
@@ -98,10 +100,6 @@ module classDiffuseSource
             call r%addErrors(.errors. DATA%get('input_mass_atmospheric', atmosphericInput))     ! [kg/m2/s]
             me%inputMass_timeSeries(:,:,1,1) = atmosphericInput                                 ! Only add to free, core NP
         end if
-
-        ! If a fixed mass input has been specified, get it.
-        call r%addErrors(.errors. DATA%get('input_mass', me%inputMass_timeSeries, 0.0_dp, warnIfDefaulting=.false.))      ! [kg/m2/s]
-        me%inputMass_timeSeries = me%inputMass_timeSeries*C%timeStep                            ! Convert to kg/m2/timestep
     end function
 
 end module
