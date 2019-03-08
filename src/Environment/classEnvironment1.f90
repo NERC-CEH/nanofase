@@ -279,8 +279,15 @@ module classEnvironment1
                 ) &
             )
         else
-            print *, reach%item%ref
-            error stop 192
+            ! Update the reach for this timestep
+            call rslt%addErrors(.errors. &
+                reach%item%update( &
+                    t = t, &
+                    q_runoff = cell%item%q_runoff_timeSeries(t), &
+                    j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
+                    j_np_runoff = j_np_runoff &
+                ) &
+            )
         end if
     end function
     

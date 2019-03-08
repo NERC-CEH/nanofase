@@ -60,8 +60,13 @@ module spcReach
         procedure :: j_spm_outflow_final => j_spm_outflow_finalReach
         procedure :: j_np_outflow_final => j_np_outflow_finalReach
         procedure :: Q_outflow
+        procedure :: Q_inflows
+        procedure :: Q_runoff
+        procedure :: Q_transfers
         procedure :: j_spm_outflow
         procedure :: j_spm_inflows
+        procedure :: j_spm_runoff
+        procedure :: j_spm_transfers
         procedure :: j_spm_deposit
         procedure :: j_np_outflow
         procedure :: j_np_inflows
@@ -345,6 +350,24 @@ module spcReach
         Q_outflow = me%Q(1)
     end function
 
+    function Q_inflows(me)
+        class(Reach) :: me
+        real(dp) :: Q_inflows
+        Q_inflows = sum(me%Q(2:1+me%nInflows))
+    end function
+
+    function Q_runoff(me)
+        class(Reach) :: me
+        real(dp) :: Q_runoff
+        Q_runoff = me%Q(2+me%nInflows)
+    end function
+
+    function Q_transfers(me)
+        class(Reach) :: me
+        real(dp) :: Q_transfers
+        Q_transfers = me%Q(3+me%nInflows)
+    end function
+
     function j_spm_outflow(me)
         class(Reach) :: me
         real(dp) :: j_spm_outflow(C%nSizeClassesSpm)
@@ -359,6 +382,18 @@ module spcReach
         else
             j_spm_inflows = 0
         end if
+    end function
+
+    function j_spm_runoff(me)
+        class(Reach) :: me
+        real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
+        j_spm_runoff = me%j_spm(2+me%nInflows,:)
+    end function
+
+    function j_spm_transfers(me)
+        class(Reach) :: me
+        real(dp) :: j_spm_transfers(C%nSizeClassesSpm)
+        j_spm_transfers = me%j_spm(3+me%nInflows,:)
     end function
 
     function j_spm_deposit(me)
