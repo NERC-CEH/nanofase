@@ -47,6 +47,8 @@ module spcWaterBody
         real(dp), allocatable :: m_np(:,:,:)                        !! NM mass mass [kg/m3]
         real(dp), allocatable :: C_ionic(:)                         !! Ionic metal concentration [kg/m3]
         real(dp), allocatable :: m_ionic(:)                         !! Ionic metal mass [kg/m3]
+        real(dp), allocatable :: m_np_disp(:,:,:,:)                 !! Mass of nanomaterial on each displacement [kg]
+        real(dp), allocatable :: C_np_disp(:,:,:,:)                 !! Concentration of nanomaterial on each displacement [kg]
         ! Flows and fluxes
         type(WaterBodyPointer), allocatable :: neighbours(:)        !! Neighbouring waterbodies
         real(dp), allocatable :: Q(:)

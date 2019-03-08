@@ -1,5 +1,6 @@
 module classReactor1
     use Globals
+    use UtilModule
     use ResultModule
     use spcReactor
 
@@ -140,8 +141,12 @@ module classReactor1
             me%m_np(n,1,1) = me%m_np(n,1,1) - dm_hetero             ! Remove heteroaggregated mass from free NPs
             ! Add heteroaggregated mass to each size class of SPM
             do s = 1, C%nSizeClassesSpm
-                dm_hetero = dm_hetero*(me%k_hetero(n,s)/sum(me%k_hetero(n,:)))  ! Fraction of heteroaggregated mass to add to this SPM size class
-                me%m_np(n,1,s+2) = me%m_np(n,1,s+2) + dm_hetero                 ! Add that heteroaggregated NPs
+                if (.not. isZero(me%k_hetero(n,s))) then
+                    dm_hetero = dm_hetero*(me%k_hetero(n,s)/sum(me%k_hetero(n,:)))  ! Fraction of heteroaggregated mass to add to this SPM size class
+                    me%m_np(n,1,s+2) = me%m_np(n,1,s+2) + dm_hetero                 ! Add that heteroaggregated NPs
+                else
+                    dm_hetero = 0.0_dp
+                end if
             end do
         end do
 
