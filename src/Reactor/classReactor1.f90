@@ -52,8 +52,8 @@ module classReactor1
             4, &                            ! Number of different forms
             C%nSizeClassesSpm + 2 &         ! Number of different states
         ))
-        ! Allocate ionic metal array. 1. free ion, 2. solution, 3. adsorbed.
-        allocate(me%m_ionic(3))
+        ! Allocate ionic metal array. 1.ionic, 2. complexed, 3. adsorbed.
+        allocate(me%m_dissolved(3))
         
         ! Set the mass of individual particles (used for converting between
         ! particle concentrations and masses)

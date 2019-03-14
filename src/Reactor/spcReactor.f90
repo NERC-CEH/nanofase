@@ -12,8 +12,9 @@ module spcReactor
             !! Matrix of NP masses, each element representing a different NP size class (1st dimension),
             !! state (2nd dimension) and form (3rd dimension). States: free, bound to solid, heteroaggreated
             !! (per SPM size class). Forms: core, shell, coating, corona.
-        real(dp), allocatable :: m_ionic(:)
-            !! Array of ionic metal masses: Free ion, solution, adsorbed.
+        real(dp), allocatable :: m_dissolved(:)
+        real(dp), allocatable :: m_transformed
+            !! Array of ionic metal masses: Ionic, complexed, adsorbed.
         real(dp), allocatable :: C_np_free_particle(:)      !! Particle concentration of free NPs
         real(dp) :: T_water                     !! Temperature of the water [C]
         real(dp), allocatable :: W_settle_np(:) !! NP settling velocity [m/s]
