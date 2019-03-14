@@ -41,6 +41,7 @@ max_river_reaches = 100
 default_meandering_factor = 1.0
 default_water_temperature = 10
 default_alpha_hetero = 0.01
+default_alpha_hetero_estuary = 0.1
 include_bed_sediment = .false.
 /
 

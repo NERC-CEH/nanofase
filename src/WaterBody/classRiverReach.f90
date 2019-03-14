@@ -295,7 +295,7 @@ module classRiverReach
                 call rslt%addError(ErrorInstance( &
                     code = 500, &
                     message = "All SPM in size class " // trim(str(i)) // " (" // trim(str(C%d_spm(i)*1e6)) // &
-                            " um) advected from EstuaryReach.", &
+                            " um) advected from RiverReach.", &
                     isCritical = .false.) &
                 )
             end if 
@@ -378,7 +378,7 @@ module classRiverReach
             .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
             .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
             .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
-            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.), &
+            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero), &
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
             .errors. DATA%get('stream_order', me%streamOrder) &

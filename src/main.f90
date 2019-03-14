@@ -65,8 +65,6 @@ program main
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
     write(7, '(A,A)') "t,time,x,y,rr,total_m_np,total_C_np,reach_volume,reach_flow"
 
-    print *, "go"
-
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer
     r = env%create()                                                    ! Create the environment
     call DATA%close()                                                   ! We should be done with the data input now, so close the file

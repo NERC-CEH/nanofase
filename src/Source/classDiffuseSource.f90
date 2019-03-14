@@ -96,7 +96,7 @@ module classDiffuseSource
         ! If an atmospheric fixed mass input has been specified, get it
         if (DATA%grp%hasVariable('input_mass_atmospheric')) then
             call r%addErrors(.errors. DATA%get('input_mass_atmospheric', atmosphericInput))     ! [kg/m2/s]
-            me%inputMass_timeSeries(:,:,1,1) = atmosphericInput                                 ! Only add to free, core NP
+            me%inputMass_timeSeries(:,:,1,1) = atmosphericInput*C%timeStep                      ! Only add to free, core NP
         end if
     end function
 

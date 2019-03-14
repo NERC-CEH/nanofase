@@ -189,6 +189,8 @@ module classGridCell1
             end do
         end if
 
+        print *, "finished create", me%ref
+
         ! Trigger any errors
         call r%addToTrace("Finalising creation of " // trim(me%ref))
         call LOG%toFile(errors=.errors.r)

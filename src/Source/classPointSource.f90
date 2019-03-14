@@ -16,12 +16,12 @@ module classPointSource
         type(NcGroup) :: ncGroup        !! NetCDF group for this `PointSource` object
         integer :: fixedMassFrequency   !! Frequency of fixed mass releases; how many timesteps apart are releases? [timestep]
         real(dp), allocatable :: fixedMass(:,:,:)                   !! Fixed mass to be released according to fixedMassFrequency [kg]
-        real(dp), allocatable :: fixedMassTransformed
-        real(dp), allocatable :: fixedMassDissolved
+        real(dp) :: fixedMassTransformed
+        real(dp) :: fixedMassDissolved
         real(dp), allocatable :: variableMass_timeSeries(:,:,:,:)   !! Time series of input masses [kg/timestep]
         real(dp), allocatable :: j_np_pointsource(:,:,:)            !! Nanomaterial inflow for a given timestep [kg/timestep]
         real(dp), allocatable :: j_dissolved_pointsource(:)
-        real(dp), allocatable :: j_transformed_pointsource
+        real(dp) :: j_transformed_pointsource
 
     contains
         ! Proceudres
@@ -55,6 +55,8 @@ module classPointSource
         ! Set some defaults
         me%fixedMass = 0.0_dp
         me%variableMass_timeSeries = 0.0_dp
+        me%fixedMassTransformed = 0.0_dp
+        me%fixedMassDissolved = 0.0_dp
 
         
         ! Parse the input data for this point source
@@ -94,9 +96,9 @@ module classPointSource
         class(PointSource) :: me
         type(Result) :: r
         integer :: i                        ! Loop iterator
-        real(dp) :: fixedMassDissolved
-        real(dp) :: fixedMassTransformed
+        real(dp), allocatable :: variableMassPristine(:,:)
         
+        allocate(variableMassPristine(C%nTimesteps, C%nSizeClassesNp))
 
         call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
             'Environment', &
@@ -116,12 +118,14 @@ module classPointSource
         ! Get fixed mass, otherwise set to 0 [kg]
         call r%addErrors(.errors. DATA%get("fixed_mass", me%fixedMass, 0.0_dp))
         call r%addErrors(.errors. DATA%get("fixed_mass_dissolved", me%fixedMassDissolved, 0.0_dp))
-        call r%addErrors(.errors. DATA%get("fixed_mass_transformed", me%fixedMassTransformed, 0.0_dp))
+        ! call r%addErrors(.errors. DATA%get("fixed_mass_transformed", me%fixedMassTransformed, 0.0_dp))
 
         ! If a fixed mass frequency has been specified, use it, otherwise default to daily
         call r%addErrors(.errors. DATA%get("fixed_mass_frequency", me%fixedMassFrequency, 1))
         ! If a time series of inputs has been specified
         call r%addErrors(.errors. DATA%get("variable_mass", me%variableMass_timeSeries, 0.0_dp))
+        call r%addErrors(.errors. DATA%get("variable_mass_pristine", variableMassPristine, 0.0_dp))
+        me%variableMass_timeSeries(:,:,1,1) = me%variableMass_timeSeries(:,:,1,1) + variableMassPristine
         
         ! Add this procedure to the error trace
         call r%addToTrace("Parsing input data")             
