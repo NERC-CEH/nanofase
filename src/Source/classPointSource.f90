@@ -16,8 +16,12 @@ module classPointSource
         type(NcGroup) :: ncGroup        !! NetCDF group for this `PointSource` object
         integer :: fixedMassFrequency   !! Frequency of fixed mass releases; how many timesteps apart are releases? [timestep]
         real(dp), allocatable :: fixedMass(:,:,:)                   !! Fixed mass to be released according to fixedMassFrequency [kg]
+        real(dp), allocatable :: fixedMassTransformed
+        real(dp), allocatable :: fixedMassDissolved
         real(dp), allocatable :: variableMass_timeSeries(:,:,:,:)   !! Time series of input masses [kg/timestep]
         real(dp), allocatable :: j_np_pointsource(:,:,:)            !! Nanomaterial inflow for a given timestep [kg/timestep]
+        real(dp), allocatable :: j_dissolved_pointsource(:)
+        real(dp), allocatable :: j_transformed_pointsource
 
     contains
         ! Proceudres
@@ -45,7 +49,8 @@ module classPointSource
         allocate( &
             me%fixedMass(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
             me%variableMass_timeSeries(C%nTimesteps, C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
-            me%j_np_pointsource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2) &
+            me%j_np_pointsource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2), &
+            me%j_dissolved_pointsource(3) &
         )
         ! Set some defaults
         me%fixedMass = 0.0_dp
@@ -65,6 +70,8 @@ module classPointSource
         type(Result) :: r
         
         me%j_np_pointsource = 0      ! Reset from the last timestep
+        me%j_dissolved_pointsource = 0
+        me%j_transformed_pointsource = 0
 
         ! Only include point sources if config says we're meant to, and we're not in the
         ! warm up period
@@ -72,6 +79,8 @@ module classPointSource
             ! Check if this is a timestep where the fixed mass is to be input
             if (me%fixedMassFrequency /= 0 .and. mod(t,me%fixedMassFrequency) == 0) then
                 me%j_np_pointsource = me%fixedMass
+                me%j_dissolved_pointsource(1) = me%fixedMassDissolved
+                me%j_transformed_pointsource = me%fixedMassTransformed
             end if
             ! Add this timestep's input from the variable mass input
             me%j_np_pointsource = me%j_np_pointsource + me%variableMass_timeSeries(t,:,:,:)
@@ -85,6 +94,8 @@ module classPointSource
         class(PointSource) :: me
         type(Result) :: r
         integer :: i                        ! Loop iterator
+        real(dp) :: fixedMassDissolved
+        real(dp) :: fixedMassTransformed
         
 
         call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
@@ -104,6 +115,8 @@ module classPointSource
         
         ! Get fixed mass, otherwise set to 0 [kg]
         call r%addErrors(.errors. DATA%get("fixed_mass", me%fixedMass, 0.0_dp))
+        call r%addErrors(.errors. DATA%get("fixed_mass_dissolved", me%fixedMassDissolved, 0.0_dp))
+        call r%addErrors(.errors. DATA%get("fixed_mass_transformed", me%fixedMassTransformed, 0.0_dp))
 
         ! If a fixed mass frequency has been specified, use it, otherwise default to daily
         call r%addErrors(.errors. DATA%get("fixed_mass_frequency", me%fixedMassFrequency, 1))

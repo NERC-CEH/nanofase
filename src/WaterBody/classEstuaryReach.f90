@@ -474,7 +474,7 @@ module classEstuaryReach
             .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
             .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
             .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
-            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero, warnIfDefaulting=.true.), &
+            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero_estuary), &
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
             .errors. DATA%get('mean_depth', me%meanDepth, 0.0_dp), &
