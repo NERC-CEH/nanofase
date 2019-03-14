@@ -231,6 +231,10 @@ module classRiverReach
                 if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             end if
 
+            ! Write stuff to output file
+            write(7,*) t, ",", (t-1)*C%timeStep + i*C%timeStep/nDisp, ",", me%x, ",", me%y, ",", me%w, ",", &
+                sum(me%m_np), ",", sum(me%C_np), ",", me%volume, ",", me%Q_outflow()
+
             ! TODO Deposit and resuspend NM to/from bed sediment
         end do
 

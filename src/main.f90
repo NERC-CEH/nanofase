@@ -63,7 +63,7 @@ program main
         "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,river_flow,total_np_pointsource,reach_type"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
-    write(7, '(A,A)') "t,time,x,y,rr,total_m_np,total_C_np"
+    write(7, '(A,A)') "t,time,x,y,rr,total_m_np,total_C_np,reach_volume,reach_flow"
 
     print *, "go"
 
@@ -147,14 +147,14 @@ program main
                            sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,1)) + &
                            sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,1,1))
 
-                      if (reachType == 'est') then
-                        nDisp = size(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np_disp, 1)
-                        do i = 1, nDisp
-                          write(7,*) t, ",", (t-1)*C%timeStep + i*C%timeStep/nDisp, ",", x, ",", y, ",", rr, ",", &
-                            sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np_disp(i,:,:,:)), ",", &
-                            sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_np_disp(i,:,:,:))
-                        end do
-                      end if
+                      ! if (reachType == 'est') then
+                      !   nDisp = size(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np_disp, 1)
+                      !   do i = 1, nDisp
+                      !     write(7,*) t, ",", (t-1)*C%timeStep + i*C%timeStep/nDisp, ",", x, ",", y, ",", rr, ",", &
+                      !       sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np_disp(i,:,:,:)), ",", &
+                      !       sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_np_disp(i,:,:,:))
+                      !   end do
+                      ! end if
                    end do
         
                    m_np_l1 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np

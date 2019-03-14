@@ -131,9 +131,9 @@ module classEstuaryReach
         ! getting their outflow on this timestep, rather than the last timestep
         do i = 1, me%nInflows
             ! TODO for some reason the getters j_spm_outflow_final() and j_np... don't work here with gfortran (internal compiler error)
-            call me%set_Q_inflow(-me%inflows(i)%item%Q_final(1), i)
-            call me%set_j_spm_inflow(-me%inflows(i)%item%j_spm_final(1,:), i)
-            call me%set_j_np_inflow(-me%inflows(i)%item%j_np_final(1,:,:,:), i)
+            call me%set_Q_inflow(-me%inflows(i)%item%Q(1), i)
+            call me%set_j_spm_inflow(-me%inflows(i)%item%j_spm(1,:), i)
+            call me%set_j_np_inflow(-me%inflows(i)%item%j_np(1,:,:,:), i)
         end do
 
         ! Inflows from runoff
@@ -305,8 +305,10 @@ module classEstuaryReach
             me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
             me%m_np_disp(i,:,:,:) = me%m_np
             if (.not. isZero(me%volume)) then
+                me%C_np = me%m_np / me%volume
                 me%C_np_disp(i,:,:,:) = me%m_np / me%volume
             else
+                me%C_np = 0
                 me%C_np_disp(i,:,:,:) = 0.0_dp
             end if
 
@@ -327,6 +329,10 @@ module classEstuaryReach
                 call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
                 if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             end if
+
+            ! Write stuff to output file
+            write(7,*) t, ",", (t-1)*C%timeStep + i*C%timeStep/nDisp, ",", me%x, ",", me%y, ",", me%w, ",", &
+                sum(me%m_np), ",", sum(me%C_np), ",", me%volume, ",", me%Q_outflow()
 
             ! TODO Deposit and resuspend NM to/from bed sediment
         end do
