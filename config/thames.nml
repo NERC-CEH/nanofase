@@ -27,6 +27,7 @@ default_distribution_sediment = 50, 30, 10, 7, 3
 default_distribution_np = 50, 30, 10, 7, 3
 default_fractional_comp = 30, 30, 30, 10
 warm_up_period = 0
+nanomaterial_density = 4320
 /
 
 &soil
@@ -41,7 +42,7 @@ max_river_reaches = 100
 default_meandering_factor = 1.0
 default_water_temperature = 10
 default_alpha_hetero = 0.01
-default_alpha_hetero_estuary = 0.1
+default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .false.
 /
 

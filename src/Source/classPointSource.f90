@@ -122,6 +122,7 @@ module classPointSource
 
         ! If a fixed mass frequency has been specified, use it, otherwise default to daily
         call r%addErrors(.errors. DATA%get("fixed_mass_frequency", me%fixedMassFrequency, 1))
+        ! me%fixedMassFrequency = 10 ! HACK!!!!
         ! If a time series of inputs has been specified
         call r%addErrors(.errors. DATA%get("variable_mass", me%variableMass_timeSeries, 0.0_dp))
         call r%addErrors(.errors. DATA%get("variable_mass_pristine", variableMassPristine, 0.0_dp))

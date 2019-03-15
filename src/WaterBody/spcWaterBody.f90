@@ -7,6 +7,7 @@ module spcWaterBody
     use classDiffuseSource
     use spcBedSediment
     use spcReactor
+    use spcBiota
     implicit none
     
     !> `WaterBodyPointer` used for `WaterBody` inflows array, so the elements within can
@@ -75,6 +76,7 @@ module spcWaterBody
         real(dp), allocatable :: W_settle_np(:)                     !! NP settling velocity [m/s]
         ! Contained objects
         class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
+        class(Biota), allocatable :: biota                          !! Contained `Biota` object
         class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
         type(PointSource), allocatable :: pointSources(:)           !! Contained `PointSource` objects
         logical :: hasPointSource = .false.                         !! Does this water body have any point sources?

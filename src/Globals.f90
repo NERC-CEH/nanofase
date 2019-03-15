@@ -32,6 +32,7 @@ module Globals
         logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
         integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
+        real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
@@ -95,14 +96,14 @@ module Globals
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_k_att, default_alpha_hetero_estuary
+            default_k_att, default_alpha_hetero_estuary, nanomaterial_density
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp, &
-            warm_up_period
+            warm_up_period, nanomaterial_density
         namelist /soil/ default_soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_alpha_hetero_estuary, include_bed_sediment
@@ -155,6 +156,7 @@ module Globals
         C%default_alpha_hetero_estuary = default_alpha_hetero_estuary
         C%default_k_att = default_k_att
         C%warmUpPeriod = warm_up_period
+        C%nanomaterialDensity = nanomaterial_density
         ! Processes to be modelled / data to be included
         C%includeBioturbation = include_bioturbation
         C%includePointSources = include_point_sources

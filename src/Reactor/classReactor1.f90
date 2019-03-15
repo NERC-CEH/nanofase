@@ -33,7 +33,7 @@ module classReactor1
         me%x = x
         me%y = y
         me%alpha_hetero = alpha_hetero
-        me%rho_np = 4230                ! HACK: Manually setting rho_np to TiO2 density [kg/m3]
+        me%rho_np = C%nanomaterialDensity
         me%volume = 0                   ! No river to begin with...
 
         ! Allocate size class arrays to the correct size
