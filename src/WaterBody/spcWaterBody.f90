@@ -7,7 +7,7 @@ module spcWaterBody
     use classDiffuseSource
     use spcBedSediment
     use spcReactor
-    use spcBiota
+    use classBiota1
     implicit none
     
     !> `WaterBodyPointer` used for `WaterBody` inflows array, so the elements within can

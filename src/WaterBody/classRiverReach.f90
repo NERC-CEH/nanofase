@@ -7,6 +7,7 @@ module classRiverReach
     use classLogger, only: LOG
     use classDataInterfacer, only: DATA
     use classReactor1
+    use classBiota1
     implicit none
 
     type, public, extends(Reach) :: RiverReach
@@ -47,12 +48,14 @@ module classRiverReach
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        allocate(BedSediment1::me%bedSediment)
-        call rslt%addErrors(.errors. me%bedSediment%create(me%ncGroup))
-
-        ! Create the Reactor object to deal with nanoparticle transformations
-        allocate(Reactor1::me%reactor)
-        call rslt%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
+        allocate(BedSediment1 :: me%bedSediment)
+        allocate(Reactor1 :: me%reactor)
+        allocate(Biota1 :: me%biota)
+        call rslt%addErrors([ &
+            .errors. me%bedSediment%create(me%ncGroup), &
+            .errors. me%reactor%create(me%x, me%y, me%alpha_hetero), &
+            .errors. me%biota%create() &
+        ])
         
         ! Create the PointSource object(s), if this reach has any
         if (me%hasPointSource) then
@@ -140,13 +143,6 @@ module classRiverReach
         me%Q_in_total = sum(me%Q(2:))
         j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
         j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
-
-        ! if (me%x == 12 .and. me%y == 7 .and. me%w == 1) then
-        !     print *, "q_runoff", q_runoff
-        !     print *, "Q_runoff", q_runoff*me%gridCellArea
-        !     print *, "total Q in", me%Q_in_total
-        !     error stop
-        ! end if
 
         ! Set the reach dimensions and calculate the velocity
         call rslt%addErrors(.errors. me%setDimensions())
@@ -287,6 +283,10 @@ module classRiverReach
             me%C_spm = 0.0_dp
             me%C_np = 0.0_dp
         end if
+
+        ! Update the biota
+        ! TODO which forms/states of NM should go to biota?
+        call rslt%addErrors(.errors. me%biota%update(t, [sum(me%C_np), 0.0_dp]))
 
         ! If there's no SPM left, add the "all SPM advected" warning
         ! TODO Maybe the same for NPs

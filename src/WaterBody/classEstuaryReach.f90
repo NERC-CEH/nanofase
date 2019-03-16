@@ -7,6 +7,7 @@ module classEstuaryReach
     use classLogger, only: LOG
     use classDataInterfacer, only: DATA
     use classReactor1
+    use classBiota1
     implicit none
 
     type, public, extends(Reach) :: EstuaryReach
@@ -51,14 +52,16 @@ module classEstuaryReach
         call rslt%addErrors(.errors. me%parseInputData())
         call me%allocateAndInitialise()
 
-        ! Create the BedSediment for this EstuaryReach
+        ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        allocate(BedSediment1::me%bedSediment)
-        call rslt%addErrors(.errors. me%bedSediment%create(me%ncGroup))
-
-        ! Create the Reactor object to deal with nanoparticle transformations
-        allocate(Reactor1::me%reactor)
-        call rslt%addErrors(.errors. me%reactor%create(me%x, me%y, me%alpha_hetero))
+        allocate(BedSediment1 :: me%bedSediment)
+        allocate(Reactor1 :: me%reactor)
+        allocate(Biota1 :: me%biota)
+        call rslt%addErrors([ &
+            .errors. me%bedSediment%create(me%ncGroup), &
+            .errors. me%reactor%create(me%x, me%y, me%alpha_hetero), &
+            .errors. me%biota%create() &
+        ])
         
         ! Create the PointSource object(s), if this reach has any
         if (me%hasPointSource) then
@@ -180,36 +183,6 @@ module classEstuaryReach
             ! j_spm_input_total = j_spm_input_total + me%j_spm_inflows()
             ! j_np_input_total = j_np_input_total + me%j_np_inflows()
         end if
-
-        ! Total inflows = inflow water bodies + runoff + transfers (+ sources for NM)
-        ! if (changeInVolume < 0) then            ! Tide going out
-        !     me%Q_in_total = sum(me%Q(2:))
-        !     j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
-        !     j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
-        ! else                                    ! Tide coming in
-        !     ! Total Q inflowing is change in volume + whatever was pushed upstream
-        !     me%Q_in_total = changeInVolume - me%Q_inflows()
-        !     if (associated(me%outflow%item)) then
-        !         j_spm_outflow = me%outflow%item%m_spm*(changeInVolume - sum(me%Q(2:)))
-        !         j_np_outflow = me%outflow%item%m_np*(changeInVolume - sum(me%Q(2:)))
-        !     else
-        !         j_spm_outflow = 0.0_dp
-        !         j_np_outflow = 0.0_dp
-        !     end if
-        !     j_spm_in_total = me%j_spm_runoff() + me%j_spm_transfers() + j_spm_outflow
-        !     j_np_in_total = sum(me%j_np(2+me%nInflows:,:,:,:)) + j_np_outflow
-        !     print *, me%ref
-        !     print *, "Q_in_total", me%Q_in_total
-        !     print *, "inflows", me%Q_inflows()
-        !     print *, "j_spm_outflow", sum(j_spm_outflow)
-        !     print *, "j_np_outflow", sum(j_np_outflow)
-        !     print *, "j_spm_in_total", sum(j_spm_in_total)
-        !     print *, "j_np_in_total", sum(j_np_in_total)
-        !     print *, "dV", changeInVolume
-        ! end if
-        ! me%Q_in_total = sum(me%Q(2:))
-        ! j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
-        ! j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
 
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
 
@@ -376,6 +349,10 @@ module classEstuaryReach
             me%C_spm = 0.0_dp
             me%C_np = 0.0_dp
         end if
+
+        ! Update the biota
+        ! TODO which forms/states of NM should go to biota?
+        call rslt%addErrors(.errors. me%biota%update(t, [sum(me%C_np), 0.0_dp]))
 
         ! If there's no SPM left, add the "all SPM advected" warning
         ! TODO Maybe the same for NPs
