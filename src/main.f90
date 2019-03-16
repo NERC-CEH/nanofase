@@ -59,9 +59,9 @@ program main
     open(unit=4, file=trim(C%outputPath) // 'output_hetero_vs_free.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     open(unit=7, file=trim(C%outputPath) // 'output_disp.csv')
-    write(2, '(A,A)') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,", &
-        "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,river_flow,total_np_pointsource,", &
-        "C_np_biota,C_np_biota_noStoredFraction,reach_type"
+    write(2, '(A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,", &
+        "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,river_flow,total_np_pointsource,C_np_biota,"
+    write(2, '(A,A)') "C_np_biota_noStoredFraction,reach_type"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
     write(7, '(A,A)') "t,time,x,y,rr,total_m_np,total_C_np,reach_volume,reach_flow"
