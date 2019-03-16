@@ -12,8 +12,9 @@ module spcReactor
             !! Matrix of NP masses, each element representing a different NP size class (1st dimension),
             !! state (2nd dimension) and form (3rd dimension). States: free, bound to solid, heteroaggreated
             !! (per SPM size class). Forms: core, shell, coating, corona.
-        real(dp), allocatable :: m_ionic(:)
-            !! Array of ionic metal masses: Free ion, solution, adsorbed.
+        real(dp), allocatable :: m_dissolved(:)
+        real(dp), allocatable :: m_transformed
+            !! Array of ionic metal masses: Ionic, complexed, adsorbed.
         real(dp), allocatable :: C_np_free_particle(:)      !! Particle concentration of free NPs
         real(dp) :: T_water                     !! Temperature of the water [C]
         real(dp), allocatable :: W_settle_np(:) !! NP settling velocity [m/s]
@@ -54,7 +55,7 @@ module spcReactor
         end function
     
         !> Run the `Reactor`'s simulation for the current time step
-        function updateReactor(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume, Q_out) result(r)
+        function updateReactor(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
             use Globals
             use ResultModule, only: Result
             import Reactor
@@ -67,7 +68,6 @@ module spcReactor
             real(dp) :: W_settle_spm(C%nSizeClassesSpm) !! SPM settling velocity [m/s]
             real(dp) :: G                               !! Shear rate [s-1]
             real(dp) :: volume                          !! `RiverReach` volume on this timestep [s-1]
-            real(dp) :: Q_out                           !! Outflow for the containing water body [m3/timestep]
             type(Result) :: r
         end function
         

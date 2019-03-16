@@ -4,6 +4,7 @@ module classSoilLayer1
     use UtilModule
     use spcSoilLayer
     use classDataInterfacer, only: DATA
+    use classBiota1
     implicit none
 
     !> `SoilLayer1` is responsible for routing percolated water through
@@ -21,7 +22,7 @@ module classSoilLayer1
 
   contains
     !> Create this `SoilLayer` and call the input data parsing procedure
-    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s) result(r)
+    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer, intent(in) :: x                        !! Containing `GridCell` x index
         integer, intent(in) :: y                        !! Containing `GridCell` y index
@@ -30,15 +31,17 @@ module classSoilLayer1
         real(dp), intent(in) :: WC_sat                  !! Water content at saturation [m3/m3]
         real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
         real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
+        real(dp), intent(in) :: area                    !! Area of the containing SoilProfile [m2]
         type(Result) :: r
             !! The `Result` object to return, with any errors from parsing input data.
 
-        ! Set the metadata
+        ! Set the metadata and area
         me%x = x
         me%y = y 
         me%p = p
         me%l = l
         me%ref = ref("SoilLayer", x, y, p, l)
+        me%area = area
 
         ! Allocate and initialise variables
         allocate(me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
@@ -56,6 +59,10 @@ module classSoilLayer1
         me%V_sat = WC_sat*me%depth
         me%V_FC = WC_FC*me%depth
         me%K_s = K_s                                    ! Hydraulic conductivity [m/s]
+
+        ! Allocate and create the Biota object
+        allocate(Biota1 :: me%biota)
+        call r%addErrors(.errors. me%biota%create())
 
         ! Add this procedure to error traces
         call r%addToTrace("Creating " // trim(me%ref))
@@ -115,6 +122,10 @@ module classSoilLayer1
         if (isZero(me%V_w) .and. initial_V_w > 0) then
             call r%addError(ErrorInstance(600, isCritical=.false.))
         end if
+
+        ! Update the biota
+        ! TODO which forms/states of NM should go to biota?
+        call r%addErrors(.errors. me%biota%update(t, [sum(me%m_np)/(me%depth*me%area), 0.0_dp]))
 
         ! Add this procedure to the error trace
         call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))

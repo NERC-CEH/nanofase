@@ -9,7 +9,8 @@ module classGridCell1
     use ErrorInstanceModule
     use spcGridCell
     use classSoilProfile1
-    use classRiverReach1
+    use classRiverReach
+    use classEstuaryReach
     use classCrop
     implicit none
     !> `GridCell1` is responsible for running creation and simulation
@@ -22,7 +23,7 @@ module classGridCell1
         procedure :: destroy => destroyGridCell1
         procedure, private :: setBranchRouting
         procedure, private :: setRiverReachLengths
-        procedure, private :: createRiverReaches
+        procedure, private :: createReaches
         ! Simulators
         procedure :: update => updateGridCell1
         procedure :: finaliseUpdate => finaliseUpdateGridCell1
@@ -54,6 +55,7 @@ module classGridCell1
         allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
         allocate(me%j_np_diffuseSource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
         me%q_runoff = 0                                 ! Default to no runoff
+
 
         ! Set the GridCell's position, whether it's empty and its name
         me%x = x
@@ -92,7 +94,7 @@ module classGridCell1
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. r%hasCriticalError()) then
                 ! Add RiverReaches to the GridCell (if any are present in the data file)
-                call r%addErrors(.errors. me%createRiverReaches())
+                call r%addErrors(.errors. me%createReaches())
             end if
         end if
 
@@ -100,36 +102,47 @@ module classGridCell1
         call LOG%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear errors from the Result object so they're not reported twice
-        call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
-        call LOG%toFile("Creating " // trim(me%ref) // ": success")
+        if (.not. me%isEmpty) then
+            call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+            call LOG%toFile("Creating " // trim(me%ref) // ": success")
+        else
+            call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32mempty\x1B[0m")
+            call LOG%toFile("Creating " // trim(me%ref) // ": empty")
+        end if
     end function
     
     !> Create the RiverReaches contained in this GridCell, and begin to populate
     !! the routedRiverReaches array by specifying the head of each river branch
     !! in the GridCell
-    function createRiverReaches(me) result(r)
+    function createReaches(me) result(r)
         class(GridCell1), target :: me          !! This `GridCell1` instance
         type(Result) :: r                       !! The `Result` object to return any errors in
         integer :: rr, b                        ! Iterator for reaches and branches
-        type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
+        type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
             ! Temporary array for appending to routedRiverReaches array
 
         b = 0                                   ! No river branches to begin with
-
         ! Loop through all the reaches in this GridCell.
         ! Don't type check for the moment
-        do rr = 1, me%nRiverReaches
-            allocate(RiverReach1::me%colRiverReaches(rr)%item)
+        do rr = 1, me%nReaches
+            ! Is this a river or estuary reach?
+            if (me%reachTypes(rr)=='riv') then
+                allocate(RiverReach::me%colRiverReaches(rr)%item)
+            else
+                allocate(EstuaryReach::me%colRiverReaches(rr)%item)
+            end if
             call r%addErrors(.errors. &
                 me%colRiverReaches(rr)%item%create( &
                     me%x, &
                     me%y, &
                     rr, &
-                    me%q_runoff_timeSeries, &
-                    me%T_water_timeSeries, &
                     me%area &
                 ) &
             )
+            ! Check if this cell is a headwater
+            if (me%colRiverReaches(rr)%item%isHeadwater) then
+                me%isHeadwater = .true.
+            end if
             ! If the RiverReach we just created is the head of a branch in this
             ! GridCell, then use it to start filling the routedRiverReaches array.
             ! Whether it is a GridCell inflow or a headwater will have been set
@@ -175,6 +188,9 @@ module classGridCell1
                 call r%addErrors(.errors. me%setRiverReachLengths(b))
             end do
         end if
+
+        print *, "finished create", me%ref
+
         ! Trigger any errors
         call r%addToTrace("Finalising creation of " // trim(me%ref))
         call LOG%toFile(errors=.errors.r)
@@ -182,15 +198,15 @@ module classGridCell1
         call r%clear()                  ! Clear errors from the Result object so they're not reported twice
     end function
     
-    !> Recursively called function that sets the next elemet in the routedRiverReaches array,
+    !> Recursively called function that sets the next element in the routedRiverReaches array,
     !! based on the `riverReach%outflow` property. `rr` must be the current final reach in the array.
     recursive function setBranchRouting(me, b, rr) result(r)
         class(GridCell1) :: me              !! This `GridCell1` instance
         integer :: b                        !! Which branch to route
         integer :: rr                       !! The `RiverReach` index to start from
         type(Result) :: r                   !! The `Result` object to return
-        type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
-        class(RiverReach), allocatable :: finalRiverReach
+        type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)
+        class(Reach), allocatable :: finalRiverReach
         
         ! Get the current final river reach in the branch (given that rr was passed correctly)
         allocate(finalRiverReach, source=me%routedRiverReaches(b,rr)%item)
@@ -265,7 +281,7 @@ module classGridCell1
                             "Reaches must either be specified as inflow to downstream reach, " // &
                             "or have a model domain outflow specified.") &
                         )
-                        call r%addToTrace("Determining RiverReach lengths for branch " // trim(str(b)))
+                        call r%addToTrace("Determining reach lengths for branch " // trim(str(b)))
                         return              ! Get out of here early otherwise we'll get FPEs below!
                     end if
                 ! If the reach has no inflows but is a domain outflow, there's not a lot we
@@ -279,7 +295,9 @@ module classGridCell1
                     allocate(me%colRiverReaches(0))
                     allocate(me%routedRiverReaches(0,0))
                     allocate(me%nReachesInBranch(0))
+                    me%nReaches = 0
                     me%nRiverReaches = 0
+                    me%nEstuaryReaches = 0
                     return
                 end if
             end if
@@ -290,7 +308,7 @@ module classGridCell1
             
         ! Loop through reaches and get their lengths from data
         do rr = 1, me%nReachesInBranch(b)
-            specifiedLengths(rr) = me%routedRiverReaches(b,rr)%item%l
+            specifiedLengths(rr) = me%routedRiverReaches(b,rr)%item%length
             ! Add to tally of how many reaches don't have length in data file
             if (abs(specifiedLengths(rr)) < C%epsilon) nReachesUnspecifiedLength = nReachesUnspecifiedLength + 1
         end do
@@ -307,7 +325,7 @@ module classGridCell1
             ! Give reaches with unspecified length an equal proportion of that length
             do rr = 1, me%nReachesInBranch(b)
                 if (abs(specifiedLengths(rr)) < C%epsilon) then
-                    me%routedRiverReaches(b,rr)%item%l = unspecifiedLengths
+                    me%routedRiverReaches(b,rr)%item%length = unspecifiedLengths
                 end if
             end do
         end if
@@ -328,10 +346,10 @@ module classGridCell1
         class(GridCell1) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
         type(Result) :: r                                       !! `Result` object to return errors in
-        integer :: i                                            ! Iterator
-        integer :: rr                                           ! Loop counter
+        integer :: i, b                                            ! Iterator
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
+
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
             ! Reset variables
@@ -344,13 +362,7 @@ module classGridCell1
                     me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
                 end do
             end if
-
-            ! Demands and transfers
-            call r%addErrors([ &
-                .errors. me%demands(), &
-                .errors. me%transfers() &
-            ])
-
+            
             ! Demands and transfers
             call r%addErrors([ &
                 .errors. me%demands(), &
@@ -366,27 +378,34 @@ module classGridCell1
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
-            ! Loop through the reaches and call their update methods for this
-            ! timestep, providing them the eroded sediment split according
-            ! to their length
+            ! Reaches will be updated separately in reach routing order, by the `Environment` object
+
+            ! Loop through the reaches in their routed order, and call their update methods for this
+            ! timestep, providing them the eroded sediment split according to their length
             ! TODO Add diffuse source to reaches
-            do rr = 1, me%nRiverReaches
-                ! Determine the proportion of this reach's length to the the total
-                ! river length in this GridCell
-                lengthRatio = me%colRiverReaches(rr)%item%l/sum(me%branchLengths)
-                ! HACK to set NP runoff to 1e-9 SPM runoff
-                ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
-                j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
-                ! Update the reach for this timestep
-                call r%addErrors(.errors. &
-                    me%colRiverReaches(rr)%item%update( &
-                        t = t, &
-                        j_spm_runoff = me%erodedSediment*lengthRatio, &
-                        j_np_runoff = j_np_runoff &
-                    ) &
-                )
-            end do
+            ! do b = 1, me%nBranches
+            !     do rr = 1, me%nReachesInBranch(b)
+            !         ! Determine the proportion of this reach's length to the the total
+            !         ! river length in this GridCell
+            !         lengthRatio = me%routedRiverReaches(b,rr)%item%length/sum(me%branchLengths)
+            !         ! HACK to set NP runoff to 1e-9 SPM runoff
+            !         ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
+            !         j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+            !         ! Update the reach for this timestep
+            !         call r%addErrors(.errors. &
+            !             me%routedRiverReaches(b,rr)%item%update( &
+            !                 t = t, &
+            !                 q_runoff = me%q_runoff_timeSeries(t), &
+            !                 j_spm_runoff = me%erodedSediment*lengthRatio, &
+            !                 j_np_runoff = j_np_runoff &
+            !             ) &
+            !         )
+            !     end do
+            ! end do
         end if
+
+        ! Set flag to see we've run the update for this timestep
+        me%isUpdated = .true.
 
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
@@ -400,19 +419,16 @@ module classGridCell1
     !! update procedure. This step is kept separate from the routing so that the
     !! wrong outflow isn't used as an inflow for another `RiverReach` whilst the reaches
     !! are looped through.
-    function finaliseUpdateGridCell1(me) result(r)
+    subroutine finaliseUpdateGridCell1(me)
         class(GridCell1) :: me                                      !! This `GridCell1` instace
-        type(Result) :: r                                           !! The `Result` object
         integer :: rr                                               ! Iterator for reaches
         if (.not. me%isEmpty) then
-            do rr = 1, me%nRiverReaches
-                call r%addErrors(.errors. &
-                    me%colRiverReaches(rr)%item%finaliseUpdate() &
-                )
+            do rr = 1, me%nReaches
+                call me%colRiverReaches(rr)%item%finaliseUpdate()
             end do
+            me%isUpdated = .false.      ! Reset updated flag for the next timestep
         end if
-        call r%addToTrace("Finalising update for " // trim(me%ref))
-    end function
+    end subroutine
     
     !> Process the water demands for this `GridCell`
     function demandsGridCell1(me) result(r)
@@ -483,9 +499,26 @@ module classGridCell1
             end do
         end if
         
-        ! Get the number of river reaches and allocate colRiverReaches. Defaults to 0
+        ! Get the number of river reaches. Defaults to 0
         call r%addErrors(.errors. DATA%get('n_river_reaches', me%nRiverReaches, silentlyFail=.true.))
-        allocate(me%colRiverReaches(me%nRiverReaches))
+        ! Get the number of estuary reaches and allocate colReaches. Defaults to 0
+        call r%addErrors(.errors. DATA%get('n_estuary_reaches', me%nEstuaryReaches, silentlyFail=.true.))
+        me%nReaches = me%nRiverReaches + me%nEstuaryReaches
+        allocate(me%colRiverReaches(me%nReaches))
+        allocate(me%reachTypes(me%nReaches))
+
+        ! Are reaches rivers or estuaries?
+        do i=1, me%nReaches
+            if (DATA%grp%hasGroup(ref('RiverReach', me%x, me%y, i))) then
+                me%reachTypes(i) = 'riv'
+            else if (DATA%grp%hasGroup(ref('EstuaryReach', me%x, me%y, i))) then
+                me%reachTypes(i) = 'est'
+            else
+                call r%addError(ErrorInstance( &
+                    message="Mismatch between specified number of reaches and number of data groups for those reaches. " &
+                        // "Check nReaches matches the number of reach groups in the input data."))
+            end if
+        end do
         
         ! Get the size of the GridCell [m]. Defaults to defaultGridSize from config
         call r%addErrors(.errors. DATA%get('size', xySize, [C%defaultGridSize, C%defaultGridSize]))
@@ -501,7 +534,7 @@ module classGridCell1
             .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
             .errors. DATA%get('slope', me%slope), &
             .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
-            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature) &
+            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.false.) &
         ])
         ! Convert to m/timestep
         me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep      
@@ -545,7 +578,7 @@ module classGridCell1
                 me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
                 i = i+1
             end do
-        end if        
+        end if  
 
     end function
 
@@ -562,10 +595,10 @@ module classGridCell1
         ! If branch is present, just get the outflow for that branch,
         ! else, sum the outflows from each branch
         if (present(b)) then
-            Q_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q_out
+            Q_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q(1)
         else
             do b = 1, me%nBranches
-                Q_out = Q_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q_out
+                Q_out = Q_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q(1)
             end do
         end if
     end function
@@ -578,10 +611,10 @@ module classGridCell1
         ! If branch is present, just get the outflow for that branch,
         ! else, sum the outflows from each branch
         if (present(b)) then
-            j_spm_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm_out
+            j_spm_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm(1,:)
         else
             do b = 1, me%nBranches
-                j_spm_out = j_spm_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm_out
+                j_spm_out = j_spm_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm(1,:)
             end do
         end if
     end function
@@ -608,7 +641,7 @@ module classGridCell1
             end do
         else
             ! Loop through the reaches and sum the SPM masses
-            do rr = 1, me%nRiverReaches
+            do rr = 1, me%nReaches
                 m_spm = m_spm + me%colRiverReaches(rr)%item%m_spm
             end do
         end if

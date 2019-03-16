@@ -91,7 +91,7 @@ module classSoilProfile1
             allocate(sl)        ! Must be allocated on every time step
             ! Create the SoilLayer and add any errors to Result object
             call r%addErrors(.errors. &
-                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s) &
+                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s, me%area) &
             )
             call move_alloc(sl, me%colSoilLayers(l)%item)   ! This automatically deallocates sl
         end do
@@ -359,6 +359,7 @@ module classSoilProfile1
             .errors. DATA%get('bulk_density', me%bulkDensity), &
             .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
         ])
+        if (r%hasCriticalError()) return
         allocate(me%colSoilLayers(me%nSoilLayers))
         me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from t/m3 to kg/m3
 

@@ -26,10 +26,13 @@ module Globals
         real(dp)            :: default_k_att                    !! Default attachment rate
         integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
         real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
+        real(dp)            :: default_alpha_hetero_estuary     !! Default NP-SPM attachment efficiency [-]
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
+        integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
+        real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
@@ -60,6 +63,10 @@ module Globals
         integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
         integer :: npDim(3)                         !! Default dimensions for arrays of NM
+        integer :: ionicDim                         !! Default dimensions for ionic metal
+        real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2 [-]
+        real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2 [-]
+        real(dp) :: tidalDatum                      !! Datum that tidal harmonics are calculated relative to [m]
 
       contains
         procedure :: rho_w      ! Density of water
@@ -85,20 +92,21 @@ module Globals
         ! Values from config file
         character(len=256) :: input_file, output_file, output_path, log_file_path, start_date, startDateStr
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
-            default_np_forms, default_np_extra_states
+            default_np_forms, default_np_extra_states, warm_up_period
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_k_att
+            default_k_att, default_alpha_hetero_estuary, nanomaterial_density
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
         namelist /data/ input_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
-        namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp
+        namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp, &
+            warm_up_period, nanomaterial_density
         namelist /soil/ default_soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            include_bed_sediment
+            default_alpha_hetero_estuary, include_bed_sediment
         namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
@@ -145,7 +153,10 @@ module Globals
         C%maxRiverReaches = max_river_reaches
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
+        C%default_alpha_hetero_estuary = default_alpha_hetero_estuary
         C%default_k_att = default_k_att
+        C%warmUpPeriod = warm_up_period
+        C%nanomaterialDensity = nanomaterial_density
         ! Processes to be modelled / data to be included
         C%includeBioturbation = include_bioturbation
         C%includePointSources = include_point_sources
@@ -209,6 +220,12 @@ module Globals
         ! TODO: Check the distribution adds up to 100%
         var = grp%getVariable("default_distribution_np")    ! Get the sediment size classes variable
         call var%getData(C%defaultDistributionNP)           ! Get the variable's data
+        var = grp%getVariable("tidal_M2")                   ! Tidal harmonic coefficient M2
+        call var%getData(C%tidalM2)
+        var = grp%getVariable("tidal_S2")                   ! Tidal harmonic coefficient S2
+        call var%getData(C%tidalS2)
+        var = grp%getVariable("tidal_datum")                ! Datum which tidal harmonics are calculated relative to
+        call var%getData(C%tidalDatum)
         call C%dataset%close()                              ! Close the dataset
         ! TODO: Get default water temperature "T_water"
 
@@ -235,11 +252,13 @@ module Globals
             end if
         end do        
 
-        ! Array to store default NM array dimensions:
+        ! Array to store default NM and ionic array dimensions. NM:
         !   1: NP size class
         !   2: form (core, shell, coating, corona)
         !   3: state (free, bound, heteroaggregated)
+        ! Ionic: Form (free ion, solution, adsorbed)
         C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
+        C%ionicDim = 3
         
     end subroutine
 

@@ -481,9 +481,8 @@ contains
     !!
     !!
     !!
-    function Get_Mf_bed_by_size(Me) result(r)
+    function Get_Mf_bed_by_size(Me) result(Mf_size)
         class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
-        type(Result1D) :: r                                          !! Return value
         integer :: L                                                 ! LOCAL loop counter
         integer :: S                                                 ! LOCAL loop counter
         real(dp) :: Mf                                               ! LOCAL internal storage
@@ -499,7 +498,6 @@ contains
             end do
             Mf_size(S) = Mf                                          ! assign to array for output
         end do
-        r = Result(data = Mf_size)                                   ! return value
     end function
                                 ! Get the FineSediment objects from the Result1D object, temporarily
                                 !! store in array and then assign to U and T

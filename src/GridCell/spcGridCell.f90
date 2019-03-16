@@ -4,12 +4,18 @@ module spcGridCell
     use mo_netcdf
     use ResultModule
     use ErrorInstanceModule
-    use spcRiverReach
+    use spcReach
     use spcSoilProfile
     use classDiffuseSource
     use classPointSource
     use classCrop
     implicit none
+
+    !> `GridCellPointer` used for to link `GridCell`s array, so the elements within can
+    !! point to other `Reach`'s colReach elements
+    type GridCellPointer
+        class(GridCell), pointer :: item => null()                      !! Pointer to polymorphic `GridCell` object
+    end type
 
     !> Abstract base class `GridCell`. Extended classes are responsible
     !! for running creation and simulation procedures for `SoilProfile`
@@ -22,17 +28,20 @@ module spcGridCell
         integer :: dx                                                   !! Size of `GridCell` in x direction [m]
         integer :: dy                                                   !! Size of `GridCell` in y direction [m]
         real(dp) :: area                                                !! Area of the `GridCell`
-        type(RiverReachElement), allocatable :: colRiverReaches(:)      !! Array of `RiverReachElement` objects to hold the RiverReaches
-        type(RiverReachPointer), allocatable :: routedRiverReaches(:,:) !! `RiverReach`es ordered by branch and flow direction
+        type(ReachElement), allocatable :: colRiverReaches(:)           !! Array of `RiverReachElement` objects to hold the RiverReaches
+        character(len=3), allocatable :: reachTypes(:)                  !! Type of each indexed reach within this cell - 'riv' or 'est'
+        type(ReachPointer), allocatable :: routedRiverReaches(:,:)      !! `RiverReach`es ordered by branch and flow direction
+        type(GridCellPointer) :: outflow                                !! Where does the outflow reach from this GridCell go to?
             !! Array of `RiverReachPointer` objects to order rivers in routing order and by branch.
             !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch
         real(dp), allocatable :: branchLengths(:)                       !! Calculated (or specified) lengths of river branches in this `GridCell`
-        ! type(EstuaryReachElement), allocatable :: colEstuaryReaches(:)  !! Array of `EstuaryReachElement` objects
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
         type(DiffuseSource), allocatable :: diffuseSources(:)           !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
         logical :: hasDiffuseSource = .false.                           !! Does this `GridCell` have a `DiffuseSource`?
-        integer :: nRiverReaches = 0                                    !! Number of contained `SubRiver`s
+        integer :: nRiverReaches = 0                                    !! TODO deprecate - Number of contained `RiverReach`es
+        integer :: nEstuaryReaches = 0                                  !! TODO deprecate - Number of contained `EstuaryReach`es
+        integer :: nReaches = 0                                         !! Number of `Reach`es in this cell
         integer :: nSoilProfiles = 0                                    !! Number of contained `SoilProfile`s
         integer :: nBranches = 0                                        !! Number of river branches in the `GridCell`
         integer, allocatable :: nReachesInBranch(:)
@@ -53,6 +62,9 @@ module spcGridCell
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
         real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! Input NPs from diffuse sources on this timestep [(kg/m2)/timestep]
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
+        logical :: isHeadwater = .false.                                !! Is this `GridCell` a headwater?
+        logical :: hasStreamJunctionInflow = .false.                    !! Is the inflow to this cell from more than one cell?
+        logical :: isUpdated = .false.                                  !! Has this `GridCell` been updated for this timestep?
         ! Demands
         logical :: hasDemands = .false.                                 !! Does this `GridCell` have any water demand data?
         logical :: hasCrop = .false.                                    !! Does this `GridCell` have any crops?
@@ -124,12 +136,10 @@ module spcGridCell
         end function
         
         !> Finalise the `GridCell`'s state variables for this time step
-        function finaliseUpdateGridCell(me) result(r)
-            use ResultModule, only: Result
+        subroutine finaliseUpdateGridCell(me)
             import GridCell
             class(GridCell) :: me                                      !! The `GridCell` instance
-            type(Result) :: r                                          !! The `Result` object to return any errors in
-        end function
+        end subroutine
 
         function get_Q_outGridCell(me, b) result(Q_out)
             use Globals, only: dp    

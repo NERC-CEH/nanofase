@@ -1,5 +1,6 @@
 module classReactor1
     use Globals
+    use UtilModule
     use ResultModule
     use spcReactor
 
@@ -32,7 +33,7 @@ module classReactor1
         me%x = x
         me%y = y
         me%alpha_hetero = alpha_hetero
-        me%rho_np = 4230                ! HACK: Manually setting rho_np to TiO2 density [kg/m3]
+        me%rho_np = C%nanomaterialDensity
         me%volume = 0                   ! No river to begin with...
 
         ! Allocate size class arrays to the correct size
@@ -51,8 +52,8 @@ module classReactor1
             4, &                            ! Number of different forms
             C%nSizeClassesSpm + 2 &         ! Number of different states
         ))
-        ! Allocate ionic metal array. 1. free ion, 2. solution, 3. adsorbed.
-        allocate(me%m_ionic(3))
+        ! Allocate ionic metal array. 1.ionic, 2. complexed, 3. adsorbed.
+        allocate(me%m_dissolved(3))
         
         ! Set the mass of individual particles (used for converting between
         ! particle concentrations and masses)
@@ -65,7 +66,7 @@ module classReactor1
     end function
     
     !> Run the `Reactor`'s simulation for the current time step
-    function updateReactor1(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume, Q_out) result(r)
+    function updateReactor1(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
         class(Reactor1) :: me           !! This `Reactor1` object
         integer :: t                    !! The current time step
         real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) !! Mass of NP for this timestep [kg]
@@ -75,7 +76,6 @@ module classReactor1
         real(dp) :: W_settle_spm(C%nSizeClassesSpm) !! SPM settling velocity [m/s]
         real(dp) :: G                   !! Shear rate [s-1]
         real(dp) :: volume         !! Volume of the reach on this time step [m3]
-        real(dp) :: Q_out               !! Outflow from the reach [m3/s]
         type(Result) :: r               !! The `Result` object to return
         integer :: s                    ! Iterator for SPM size classes
         integer :: n                    ! Iterator for NP size classes
@@ -141,8 +141,12 @@ module classReactor1
             me%m_np(n,1,1) = me%m_np(n,1,1) - dm_hetero             ! Remove heteroaggregated mass from free NPs
             ! Add heteroaggregated mass to each size class of SPM
             do s = 1, C%nSizeClassesSpm
-                dm_hetero = dm_hetero*(me%k_hetero(n,s)/sum(me%k_hetero(n,:)))  ! Fraction of heteroaggregated mass to add to this SPM size class
-                me%m_np(n,1,s+2) = me%m_np(n,1,s+2) + dm_hetero                 ! Add that heteroaggregated NPs
+                if (.not. isZero(me%k_hetero(n,s))) then
+                    dm_hetero = dm_hetero*(me%k_hetero(n,s)/sum(me%k_hetero(n,:)))  ! Fraction of heteroaggregated mass to add to this SPM size class
+                    me%m_np(n,1,s+2) = me%m_np(n,1,s+2) + dm_hetero                 ! Add that heteroaggregated NPs
+                else
+                    dm_hetero = 0.0_dp
+                end if
             end do
         end do
 

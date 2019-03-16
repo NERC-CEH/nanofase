@@ -1,4 +1,4 @@
-module classRiverReach
+module classEstuaryReach
     use Globals
     use spcReach
     use UtilModule
@@ -10,26 +10,32 @@ module classRiverReach
     use classBiota1
     implicit none
 
-    type, public, extends(Reach) :: RiverReach
+    type, public, extends(Reach) :: EstuaryReach
+        real(dp) :: meanDepth               !! Mean estuary depth for use in tidal depth calculations [m]
+        real(dp) :: distanceToMouth         !! Distance to the mouth of the estuary [m]
+        real(dp) :: tidalM2                 !! Tidal harmonic coefficient M2 [-]
+        real(dp) :: tidalS2                 !! Tidal harmonic coefficient S2 [-]
+
       contains
         ! Create/destroy
-        procedure :: create => createRiverReach
-        procedure :: destroy => destroyRiverReach
+        procedure :: create => createEstuaryReach
+        procedure :: destroy => destroyEstuaryReach
         ! Simulators
-        procedure :: update => updateRiverReach
+        procedure :: update => updateEstuaryReach
         procedure :: setDimensions
         ! Data handlers
-        procedure :: parseInputData => parseInputDataRiverReach
+        procedure :: parseInputData => parseInputDataEstuaryReach
         ! Calculators
         procedure :: calculateWidth => calculateWidth
         procedure :: calculateDepth => calculateDepth
         procedure :: calculateVelocity => calculateVelocity
+        procedure :: changeInVolume => changeInVolume
     end type
 
   contains
 
-    function createRiverReach(me, x, y, w, gridCellArea) result(rslt)
-        class(RiverReach) :: me                 !! This `RiverReach` instance
+    function createEstuaryReach(me, x, y, w, gridCellArea) result(rslt)
+        class(EstuaryReach) :: me                 !! This `EstuaryReach` instance
         integer :: x                            !! Grid cell x-position index
         integer :: y                            !! Grid cell y-position index
         integer :: w                            !! Water body index within the cell
@@ -39,7 +45,7 @@ module classRiverReach
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area
         call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
-        me%ref = trim(ref("RiverReach", x, y, w))
+        me%ref = trim(ref("EstuaryReach", x, y, w))
 
         ! Parse input data and allocate/initialise variables. The order here is important:
         ! allocation depends on the input data.
@@ -69,30 +75,36 @@ module classRiverReach
                 call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
             end do
         end if
+
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
 
-    !> Destroy this `RiverReach`
-    function destroyRiverReach(me) result(rslt)
-        class(RiverReach) :: me                             !! This `RiverReach` instance
+
+    !> Destroy this `EstuaryReach`
+    function destroyEstuaryReach(me) result(rslt)
+        class(EstuaryReach) :: me                             !! This `EstuaryReach` instance
         type(Result) :: rslt                                !! The `Result` object
         ! TODO: Write some destroy logic
     end function
 
-    !> Run the river reach simulation for this timestep
-    function updateRiverReach(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
-        class(RiverReach) :: me                                 !! This `RiverReach` instance
-        integer :: t                                            !! The current timestep
+    !> Run the estuary reach simulation for this timestep
+    function updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
+        class(EstuaryReach) :: me
+        integer :: t
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         type(Result) :: rslt
         !--- Locals ---!
+        real(dp) :: Q_outflow
+        real(dp) :: changeInVolume, previousVolume
+        real(dp) :: j_spm_outflow(C%nSizeClassesSpm)
+        real(dp) :: j_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
         real(dp) :: fractionSpmDeposited(C%nSizeClassesSpm)     ! Fraction of SPM deposited on each time step [-]
-        integer :: i, j, k                                      ! Iterators
+        integer :: i, j                                         ! Iterator
         integer :: nDisp                                        ! Number of displacements to split this time step into
         real(dp) :: dt                                          ! Length of each displacement [s]
         real(dp) :: dQ(size(me%Q))                              ! Water flow array (Q) for each displacement
@@ -101,6 +113,9 @@ module classRiverReach
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
         real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg]
+        real(dp) :: dj_spm_in(C%nSizeClassesSpm)
+        real(dp) :: dj_np_in(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: tpm_m_spm(C%nSizeClassesSpm)
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -109,6 +124,11 @@ module classRiverReach
         me%j_spm = 0
         me%j_np = 0
         me%j_ionic = 0
+        if (t == 1) then
+            previousVolume = 0.0_dp
+        else
+            previousVolume = me%volume      ! me%volume will be changed by setDimensions() below
+        end if
         
         ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
         ! getting their outflow on this timestep, rather than the last timestep
@@ -139,13 +159,31 @@ module classRiverReach
             call me%set_j_np_pointsource(me%pointSources(i)%j_np_pointSource, i)
         end do
 
-        ! Total inflows = inflow water bodies + runoff + transfers (+ sources for NM)
-        me%Q_in_total = sum(me%Q(2:))
-        j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
-        j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
+        ! Set the reach dimensions (using the timestep in hours for tidal harmonics) and calculate the velocity
+        call me%setDimensions((t-1)*C%timeStep/3600)
+        changeInVolume = me%changeInVolume((t-1)*24, t*24)
 
-        ! Set the reach dimensions and calculate the velocity
-        call rslt%addErrors(.errors. me%setDimensions())
+        ! Calculate the outflow based on the change in volume and inflows. +ve outflow indicates upstream tidal flow,
+        ! -ve outflow indicates downstream tidal flow. This is used to determine what classes as "input" SPM/NM
+        Q_outflow = changeInVolume - me%Q_inflows() - me%Q_runoff() - me%Q_transfers()
+        ! Input will always be from runoff, transfers and sources
+        ! TODO that ^ is not true for transfers
+        me%Q_in_total = me%Q_runoff() + me%Q_transfers()
+        ! j_spm_input_total = me%j_spm_runoff() + me%j_spm_transfers()
+        ! j_np_input_total = me%j_np_runoff() + me%j_np_transfers() + me%j_np_pointsource() + me%j_np_diffusesource()
+        ! If outflow is positive, then some input will be provided by the inflowing outflow
+        if (Q_outflow > 0) then
+            me%Q_in_total = me%Q_in_total + me%Q_outflow()
+            ! j_spm_input_total = j_spm_input_total + me%j_spm_outflow()
+            ! j_np_input_total = j_np_input_total + me%j_np_outflow()
+        end if
+        ! If inflow is positive, input will also be from inflows
+        if (me%Q_inflows() > 0) then
+            me%Q_in_total = me%Q_in_total + me%Q_inflows()
+            ! j_spm_input_total = j_spm_input_total + me%j_spm_inflows()
+            ! j_np_input_total = j_np_input_total + me%j_np_inflows()
+        end if
+
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
 
         ! HACK
@@ -167,36 +205,66 @@ module classRiverReach
         else
             nDisp = ceiling(me%Q_in_total/me%volume)        ! Number of displacements
         end if
+        nDisp = max(nDisp, C%timeStep/3600)                 ! Make sure there is at least 1 displacement per hour
         dt = C%timeStep/nDisp                               ! Length of each displacement [s]
         dQ = me%Q/nDisp                                     ! Water flow array for each displacement
         dj_spm = me%j_spm/nDisp                             ! SPM flow array for each displacement
         dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
+        if (allocated(me%m_np_disp)) deallocate(me%m_np_disp)               ! Deallocate if already allocated from previous time step
+        if (allocated(me%C_np_disp)) deallocate(me%C_np_disp)               ! Deallocate if already allocated from previous time step
+        allocate(me%m_np_disp(nDisp, C%npDim(1), C%npDim(2), C%npDim(3)))   ! Allocate the NM mass array for each displacement
+        allocate(me%C_np_disp(nDisp, C%npDim(1), C%npDim(2), C%npDim(3)))   ! Allocate the NM conc array for each displacement
 
         do i = 1, nDisp
-            ! Water mass balance (outflow = all the inflows)
-            dQ(1) = -sum(dQ(2:))
-            
-            ! SPM and NM outflows
-            if (.not. isZero(me%volume)) then
-                ! Outflows are negative, up to a maximum of total masses currently in reach
-                dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)
-                dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np)
+            ! Calculate the change in volume between this displacement and the next
+            changeInVolume = me%changeInVolume((t-1)*24 + (i-1)*(int(dt)/3600), (t-1)*24 + i*(int(dt)/3600))
+            ! Calculate the timestep in hours from the displacement length, and pass to setDimensions
+            ! to use to calculate tidal harmonics
+            call me%setDimensions((t-1)*C%timeStep/3600 + i*(int(dt)/3600))
+            ! Water mass balance (outflow = all the inflows + change in volume)
+            dQ(1) = -sum(dQ(2:)) + changeInVolume
+
+            ! If this displacement's outflow is -ve, tidal flow must be downstream and
+            ! outflowing SPM/NM is a function of this reach's SPM/NM conc, else if it is
+            ! +ve, then it must be a function of the outflow reach's SPM/NM conc (if that
+            ! outflow reach exists)
+            if (dQ(1) < 0 .and. .not. isZero(me%volume)) then
+                dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)  ! SPM outflow
+                dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np) ! NM outflow
+                dj_spm_in = sum(dj_spm(2:,:), dim=1) - dj_spm(4+me%nInflows,:)    ! Total SPM input to this displacement (not deposition)
+                dj_np_in = sum(dj_np(2:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)     ! Total NM input to this displacement (not deposition)
+            else if (dQ(1) > 0 .and. associated(me%outflow%item)) then
+                dj_spm(1,:) = me%outflow%item%C_spm * dQ(1)                 ! SPM outflow
+                dj_np(1,:,:,:) = me%outflow%item%C_np * dQ(1)               ! NM outflow
+                dj_spm_in = dj_spm(1,:) + sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)              ! Total SPM input
+                dj_np_in = dj_np(1,:,:,:) + sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)    ! Total NM input
+            else if (dQ(1) > 0 .and. .not. associated(me%outflow%item)) then
+                ! If there is no outflow but tidal flow is in, set inflow SPM/NM to zero
+                dj_spm(1,:) = 0.0_dp
+                dj_np(1,:,:,:) = 0.0_dp
+                dj_spm_in = sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)
+                dj_np_in = sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)
             else
-                dj_spm(1,:) = 0
-                dj_np(1,:,:,:) = 0
+                dj_spm(1,:) = 0.0_dp
+                dj_np(1,:,:,:) = 0.0_dp
+                dj_spm_in = 0.0_dp
+                dj_np_in = 0.0_dp
             end if
-            
+
+            tpm_m_spm = max(me%m_spm + dj_spm_in, 0.0_dp)           ! Check the SPM isn't making the new mass negative
             ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
             ! not pick up on the previous displacement's deposition (index 4+me%nInflows)
-            dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1)), &
-                me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1))
+            dj_spm_deposit = min(me%k_settle*dt*(tpm_m_spm), &
+                tpm_m_spm)
             dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
+
+
             ! Calculate the fraction of SPM from each size class that was deposited, for use in calculating mass of NM deposited
             do j = 1, C%nSizeClassesSpm 
                 if (isZero(dj_spm_deposit(j))) then
                     fractionSpmDeposited(j) = 0
                 else
-                    fractionSpmDeposited(j) = dj_spm_deposit(j)/(me%m_spm(j) + sum(dj_spm(1:3+me%nInflows,j)))  ! TODO include resus
+                    fractionSpmDeposited(j) = dj_spm_deposit(j) / (tpm_m_spm(j))  ! TODO include resus
                 end if
             end do
             ! Update the deposition element of the SPM and NM flux array
@@ -208,6 +276,14 @@ module classRiverReach
             ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
             me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
             me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
+            me%m_np_disp(i,:,:,:) = me%m_np
+            if (.not. isZero(me%volume)) then
+                me%C_np = me%m_np / me%volume
+                me%C_np_disp(i,:,:,:) = me%m_np / me%volume
+            else
+                me%C_np = 0
+                me%C_np_disp(i,:,:,:) = 0.0_dp
+            end if
 
             ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
             ! (inflows, runoff, sources) as they've already been correctly before the disp loop
@@ -243,17 +319,7 @@ module classRiverReach
             else
                 me%C_spm(j) = me%m_spm(j) / me%volume
             end if
-        end do
-        ! Same for m_np
-        do k = 1, C%npDim(3)
-            do j = 1, C%npDim(2)
-                do i = 1, C%npDim(1)
-                    if (isZero(me%m_np(i,j,k)) .or. isZero(me%volume)) then
-                        me%m_np(i,j,k) = 0.0_dp
-                    end if
-                end do
-            end do
-        end do
+        end do   
 
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
@@ -262,7 +328,7 @@ module classRiverReach
             call rslt%addErrors([ &
                 .errors. me%reactor%update( &
                     t, &
-                    me%m_np, &
+                    me%m_np, &  
                     me%C_spm, &
                     me%T_water, &
                     me%W_settle_np, &
@@ -295,7 +361,7 @@ module classRiverReach
                 call rslt%addError(ErrorInstance( &
                     code = 500, &
                     message = "All SPM in size class " // trim(str(i)) // " (" // trim(str(C%d_spm(i)*1e6)) // &
-                            " um) advected from RiverReach.", &
+                            " um) advected from EstuaryReach.", &
                     isCritical = .false.) &
                 )
             end if 
@@ -305,24 +371,31 @@ module classRiverReach
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
     end function
 
+
     !> Set the dimensions (width, depth, area, volume) of the reach
-    function setDimensions(me) result(rslt)
-        class(RiverReach) :: me
-        type(Result) :: rslt
-        type(Result0D) :: depthRslt                         ! Result object for depth
-        me%width = me%calculateWidth(me%Q_in_total/C%timeStep)
-        depthRslt = me%calculateDepth(me%width, me%slope, me%Q_in_total/C%timeStep)
-        me%depth = .dp. depthRslt                           ! Get real(dp) data from Result object
-        call rslt%addError(.error. depthRslt)               ! Add any error that occurred
+    subroutine setDimensions(me, tHours)
+        class(EstuaryReach) :: me
+        integer :: tHours
+        me%depth = me%calculateDepth(tHours)
         me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
         me%bedArea = me%width*me%length*me%f_m              ! Calculate the BedSediment area [m2]
         me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area
         me%volume = me%depth*me%width*me%length*me%f_m      ! Reach volume
+    end subroutine
+
+
+    function changeInVolume(me, tStart, tFinal)
+        class(EstuaryReach) :: me
+        integer :: tStart                   !! Initial time [hours]
+        integer :: tFinal                   !! Final time [hours]
+        real(dp) :: changeInVolume          !! Change in reach volume between `tStart` and `tFinal`
+        changeInVolume = (me%calculateDepth(tFinal) - me%calculateDepth(tStart))*me%width*me%length*me%f_m
     end function
 
-    !> Parse data from the input file for this river reach
-    function parseInputDataRiverReach(me) result(rslt)
-        class(RiverReach) :: me
+
+    !> Parse input data for this EstuaryReach and store in state variables.
+    function parseInputDataEstuaryReach(me) result(rslt)
+        class(EstuaryReach) :: me
         type(Result) :: rslt
         integer :: i                                ! Loop iterator
         integer, allocatable :: inflowArray(:,:)    ! Temporary array for storing inflows from data file in
@@ -378,14 +451,31 @@ module classRiverReach
             .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
             .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
             .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
-            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero), &
+            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero_estuary), &
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
+            .errors. DATA%get('mean_depth', me%meanDepth, 0.0_dp), &
+            .errors. DATA%get('width', me%width, 0.0_dp), &
+            .errors. DATA%get('tidal_M2', me%tidalM2, C%tidalM2), &
+            .errors. DATA%get('tidal_S2', me%tidalS2, C%tidalS2), &
+            .errors. DATA%get('distance_to_mouth', me%distanceToMouth), &
             .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
+
+        ! HACK for the width of the Thames
+        if (me%width == 0.0_dp) then
+            ! Hardisty, pg 50
+            me%width = 5000 * exp(-4.25*me%distanceToMouth/80000)
+        end if
+
+        ! HACK for depth of Thames
+        if (me%meanDepth == 0.0_dp) then
+            ! Hardisty, pg 53. 6 m in mean depth at Southend Pier
+            me%meanDepth = 6 * exp(-1.4*me%distanceToMouth/80000)
+        end if
         
-        ! ROUTING: Get the references to the inflow(s) RiverReaches and
+        ! ROUTING: Get the references to the inflow(s) EstuaryReaches and
         ! store in inflowRefs(). Do some auditing as well.
         if (DATA%grp%hasVariable("inflows")) then
             call rslt%addErrors(.errors. DATA%get('inflows', inflowArray))
@@ -407,8 +497,8 @@ module classRiverReach
                 do i = 1, me%nInflows                               ! Loop through the inflows
                     me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
                     me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
-                    me%inflowRefs(i)%w = inflowArray(3,i)           ! Inflow RiverReach reference
-                    ! Check the inflow is from a neighbouring RiverReach
+                    me%inflowRefs(i)%w = inflowArray(3,i)           ! Inflow EstuaryReach reference
+                    ! Check the inflow is from a neighbouring EstuaryReach
                     if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
                         call rslt%addError(ErrorInstance(code=401))
                     end if
@@ -453,83 +543,28 @@ module classRiverReach
     !!  <li>[Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)</li>
     !! </ul>
     function calculateWidth(me, Q) result(width)
-        class(RiverReach), intent(in) :: me     !! The `RiverReach` instance
+        class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance
         real(dp), intent(in) :: Q               !! `GridCell` discharge \( Q \) [m3/s]
         real(dp) :: width                       !! The calculated width \( W \) [m]
         width = 1.22*Q**0.557
     end function
 
-    !> Calculate water depth from Manning's roughness coefficient,
-    !! using Newton's method:
+    !> Calculate water depth from tidal harmonics.
     !! $$
-    !!      D_i = D_{i-1} - \frac{f(D_{i-1})}{f'(D_{i-1})}
+    !!      D(x,t) = A_{S2} \cos \left( 2\pi \frac{t}{12} \right) + A_{M2} \cos \left( 2\pi \frac{t}{12.42} \right) + /
+    !!          \frac{3}{4} \frac{xA_{M2}^2}{D_x (6.21 \times 3600) \sqrt{gD_x}} \cos(2\pi \frac{t}{6.21}) + z_0
     !! $$
-    !! where
-    !! $$
-    !!      f(D) = WD \left( \frac{WD}{W+2D} \right)^{2/3} \frac{\sqrt{S}}{n} - Q = 0
-    !! $$
-    !! and
-    !! $$
-    !!      f'(D) = \frac{\sqrt{S}}{n} \frac{(DW)^{5/3}(6D + 5W)}{3D(2D + W)^{5/3}}
-    !! $$
-    function calculateDepth(me, W, S, Q) result(rslt)
-        class(RiverReach), intent(in) :: me     !! The `RiverReach` instance.
-        real(dp), intent(in) :: W               !! River width \( W \) [m].
-        real(dp), intent(in) :: S               !! River slope \( S \) [-].
-        real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m3/s].
-        type(Result0D) :: rslt
-            !! The Result object, containing the calculated depth [m] and any numerical error.
-        real(dp) :: D_i                         ! The iterative river depth \( D_i \) [m].
-        real(dp) :: f                           ! The function to find roots for \( f(D) \).
-        real(dp) :: df                          ! The derivative of \( f(D) \) with respect to \( D \).
-        real(dp) :: alpha                       ! Constant extracted from f and df
-        integer :: i                            ! Loop iterator to make sure loop isn't endless.
-        integer :: iMax                         ! Maximum number of iterations before error.
-        real(dp) :: epsilon                     ! Proximity to zero allowed.
-        type(ErrorInstance) :: error            ! Variable to store error in.
-        character(len=100) :: iChar             ! Loop iterator as character (for error message).
-        character(len=100) :: fChar             ! f(D) value as character (for error message).
-        character(len=100) :: epsilonChar       ! Proximity of f(D) to zero as character (for error message).
+    !! Ref: [Hardisty, 2007](https://doi.org/10.1002/9780470750889)
+    function calculateDepth(me, tHours) result(depth)
+        class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance.
+        integer, intent(in) :: tHours             !! The current timestep (in hours)
+        real(dp) :: depth
 
-        ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
-        D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
-        i = 1                                                                   ! Iterator for Newton solver
-        iMax = 100000                                                           ! Allow 10000 iterations
-        epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
-        alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
-        f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
-
-        ! Loop through and solve until f(D) is within e-9 of zero, or max iterations reached
-        do while (abs(f) > epsilon .and. i <= iMax)
-            f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q            ! f(D) based on D_{m-1}
-            df = alpha * ((D_i)**(5.0_dp/3.0_dp) * (6*D_i + 5*W))/(3*D_i * (2*D_i + W)**(5.0_dp/3.0_dp))
-            D_i = D_i - f/df                                                    ! Calculate D_i based on D_{m-1}
-            i = i + 1
-        end do
-
-        if (isnan(D_i)) then                                                    ! If method diverges (results in NaN)
-            write(iChar,*) i
-            error = ErrorInstance( &
-                code = 300, &
-                message = "Newton's method diverged to NaN after " // trim(adjustl(iChar)) // " iterations." &
-            )
-        else if (i > iMax) then                                                 ! If max number of iterations reached
-            write(iChar,*) iMax
-            write(fChar,*) f
-            write(epsilonChar,*) epsilon
-            error = ErrorInstance( &
-                code = 300, &
-                message = "Newton's method failed to converge - maximum number of iterations (" &
-                    // trim(adjustl(iChar)) // ") exceeded. " &
-                    // "Precision (proximity to zero) required: " // trim(adjustl(epsilonChar)) &
-                    // ". Final value: " // trim(adjustl(fChar)) // "." &
-            )
-        else
-            error = ERROR_HANDLER%getNoError()                                  ! Otherwise, no error occurred
-        end if
-        call rslt%setData(D_i)
-        call rslt%addError(error)
-        call rslt%addToTrace("Calculating river depth")
+        depth = me%tidalS2 * cos(2.0_dp*C%pi*tHours/12.0_dp) + me%tidalM2 * cos(2.0_dp*C%pi*tHours/12.42_dp) &
+            + (0.75_dp) * ((me%distanceToMouth * me%tidalM2 ** 2)/(me%meanDepth * 22356.0_dp * sqrt(9.81_dp * me%meanDepth))) &
+            * cos(2*C%pi*tHours/6.21_dp) + C%tidalDatum
+        ! If the depth is negative, set it to zero
+        if (depth < 0) depth = 0.0_dp
     end function
 
     !> Calculate the velocity of the river:
@@ -537,7 +572,7 @@ module classRiverReach
     !!      v = \frac{Q}{WD}
     !! $$
     function calculateVelocity(me, D, Q, W) result(v)
-        class(RiverReach), intent(in) :: me    !! This `RiverReach` instance
+        class(EstuaryReach), intent(in) :: me    !! This `EstuaryReach` instance
         real(dp), intent(in) :: D               !! River depth \( D \) [m]
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]

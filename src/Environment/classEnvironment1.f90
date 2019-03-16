@@ -19,6 +19,7 @@ module classEnvironment1
         procedure :: create => createEnvironment1
         procedure :: destroy => destroyEnvironment1
         procedure :: update => updateEnvironment1
+        procedure :: updateReach => updateReachEnvironment1
         procedure :: parseInputData => parseInputDataEnvironment1
         ! Getters
         procedure :: get_m_np => get_m_npEnvironment1
@@ -34,14 +35,23 @@ module classEnvironment1
         class(Environment1), target :: me
             !! This `Environment` instace. Must be target so `SubRiver`s can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
-        integer :: x, y, rr, i, b, ix, iy                       ! Iterators for GridCells, RiverReaches, inflows and branches
+        integer :: x, y, rr, i, j, b, ix, iy                    ! Iterators
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
-        logical :: isValidInflow = .true.                       ! Is inflow SubRiver is a neighbouring river
-        type(RiverReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
+        ! type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
+        ! type(GridCellPointer), allocatable :: tmpHeadwaters(:)  ! Temporary array to store headwater array in
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
+        ! allocate(me%headwaters(0))
+        ! me%nHeadwaters = 0
         call r%addErrors(.errors. me%parseInputData())
+        allocate(me%routedReaches(size(me%routedReachIndices,3), size(me%routedReachIndices,2)))
+        ! Make sure everything is null to begin with
+        do j = 1, size(me%routedReaches,2)
+            do i = 1, size(me%routedReaches,1)
+                me%routedReaches(i,j)%item => null()
+            end do
+        end do
         
         if (.not. r%hasCriticalError()) then    
 
@@ -68,7 +78,14 @@ module classEnvironment1
                                 allocate(GridCell1::me%colGridCells(x,y)%item)  ! Allocate to type 1, GridCell1
                                 call r%addErrors(.errors. &                     ! Call the create method to create the GridCell
                                     me%colGridCells(x,y)%item%create(x,y) &
-                                )  
+                                )
+                                ! if (me%colGridCells(x,y)%item%isHeadwater) then
+                                !     me%nHeadwaters = me%nHeadwaters + 1
+                                !     allocate(tmpHeadwaters(me%nHeadwaters))                             ! Extend the me%headwaters array by 1
+                                !     tmpHeadwaters(1:me%nHeadwaters-1) = me%headwaters
+                                !     call move_alloc(tmpHeadwaters, me%headwaters)
+                                !     me%headwaters(me%nHeadwaters)%item => me%colGridCells(x,y)%item     ! Point to this grid cell
+                                ! end if
                             case default
                                 call r%addError( &                              ! Invalid type error
                                     ErrorInstance(110,"Invalid GridCell type index for " // &
@@ -83,7 +100,6 @@ module classEnvironment1
                     end if
                 end do
             end do
-
             
             ! Now we need to create links between RiverReaches, which wasn't possible before all GridCells
             ! and their RiverReaches were created:
@@ -99,18 +115,26 @@ module classEnvironment1
                                 do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
                                     ix = riverReach%inflowRefs(i)%x
                                     iy = riverReach%inflowRefs(i)%y
+
                                     ! Check the inflow specified exists in the model domain
                                     if (ix > 0 .and. ix .le. me%gridDimensions(1) &
                                         .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
                                         ! Point this reach's inflow to the actual RiverReach
                                         riverReach%inflows(i)%item => &
-                                            me%colGridCells(riverReach%inflowRefs(i)%x,riverReach%inflowRefs(i)%y) &
-                                                %item%colRiverReaches(riverReach%inflowRefs(i)%rr)%item
+                                            me%colGridCells(ix,iy)%item%colRiverReaches(riverReach%inflowRefs(i)%w)%item
                                         ! Set this inflow's outflow to this reach
                                         riverReach%inflows(i)%item%outflow%item => riverReach
                                         ! If this is a GridCell inflow, then set its inflows to be GridCell outflows
                                         if (riverReach%isGridCellInflow) then
-                                            riverReach%inflows(i)%item%isGridCellOutflow = .true.  
+                                            riverReach%inflows(i)%item%isGridCellOutflow = .true.
+                                            ! Also set the inflow grid cell's outflow pointer
+                                            me%colGridCells(ix,iy)%item%outflow%item => me%colGridCells(x,y)%item
+                                        end if
+                                        ! If the inflow is a river and this reach is an estuary, set the estuary to
+                                        ! be the tidal limit
+                                        if (riverReach%ref(1:3) == 'Est' &
+                                            .and. riverReach%inflows(i)%item%ref(1:3) == 'Riv') then
+                                            riverReach%isTidalLimit = .true.
                                         end if
                                     else
                                         ! TODO For the moment, if the inflow doesn't exist in the
@@ -135,6 +159,28 @@ module classEnvironment1
                 end do
             end do
 
+            ! Now we can use the routed reach indices from the data file to point the routed reaches array
+            ! to the correct reaches. This must be done after the finaliseCreate method, as that may
+            ! deallocate reaches that are both headwaters and domain outflows - we want to make sure we're
+            ! not pointing to anything that is deallocated
+            do j = 1, size(me%routedReachIndices, 2)            ! Seeds
+                do i = 1, size(me%routedReachIndices, 3)        ! Branches
+                    x = me%routedReachIndices(1,j,i)
+                    y = me%routedReachIndices(2,j,i)
+                    rr = me%routedReachIndices(3,j,i)
+
+                    ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
+                    ! so empty elements are set as zero in input data).
+                    if (x > 0 .and. y > 0 .and. rr > 0) then
+                        if (allocated(me%colGridCells(x,y)%item%colRiverReaches) .and. &
+                            size(me%colGridCells(x,y)%item%colRiverReaches) > 0) then
+                            me%routedReaches(i,j)%item => me%colGridCells(x,y)%item%colRiverReaches(rr)%item
+                        end if
+                    else
+                        me%routedReaches(i,j)%item => null()
+                    end if
+                end do
+            end do
         end if
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
@@ -153,26 +199,96 @@ module classEnvironment1
 
     !> Perform simulations for the `Environment`
     function updateEnvironment1(me, t) result(r)
+        use omp_lib
         class(Environment1) :: me                               !! This `Environment` instance
         integer :: t                                            !! Current time step
         type(Result) :: r                                       !! Return error(s) in `Result` object
-        integer :: x, y, s
+        type(ReachPointer) :: reach                             ! Pointer to the reach we're updating
+        integer :: i, j, x, y
+        real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length in cell
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
-        
-        ! Perform the main routing procedure
-        do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
-            do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%update(t)         ! Run routing simulation for each GridCell
+
+        ! Loop through the routed reaches
+        do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
+            !!$omp parallel do private(reach, i) firstprivate(r)
+            do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
+                if (associated(me%routedReaches(i,j)%item)) then
+                    ! Update this reach, also updating the containing grid cell (if it hasn't been already)
+                    reach%item => me%routedReaches(i,j)%item
+                    call r%addErrors(.errors. me%updateReach(t, reach))
+                    ! Check this reach has an outflow, before moving on to it and looping until we hit
+                    ! a stream junction
+                    if (associated(reach%item%outflow%item)) then
+                        reach%item => reach%item%outflow%item
+                        do while (reach%item%nInflows == 1)
+                            ! Update this reach (and its grid cell, if need be)
+                            call r%addErrors(.errors. me%updateReach(t, reach))
+                            if (.not. associated(reach%item%outflow%item)) then
+                                exit
+                            else
+                                reach%item => reach%item%outflow%item
+                            end if
+                        end do
+                    end if
+                end if
             end do
+            !!$omp end parallel do
         end do
+
         ! Finalise the routing by setting outflows to temporary outflows that were stored
         ! to avoid routing using the wrong timestep's outflow as an inflow.
         do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
             do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
-                r = me%colGridCells(x,y)%item%finaliseUpdate()  ! finaliseUpdate() loops through SubRivers
+                call me%colGridCells(x,y)%item%finaliseUpdate()
             end do
         end do
+    end function
+    
+    !> Update an individual reach, also updating the containng grid cell, if it hasn't
+    !! already been updated.
+    function updateReachEnvironment1(me, t, reach) result(rslt)
+        class(Environment1), target :: me   !! This `Environment1` instance
+        integer :: t                    !! Time step
+        type(ReachPointer) :: reach     !! Pointer to the reach to update
+        type(Result) :: rslt            !! The Result object to return any errors in
+        type(GridCellPointer) :: cell   ! Pointer to this reach's grid cell
+        real(dp) :: lengthRatio             ! Length ratio of this reach to the total reach length in cell
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))     ! Proportion of cell's NM runoff going to this reach
+
+        ! Point cell to this reach's grid cell
+        cell%item => me%colGridCells(reach%item%x, reach%item%y)%item
+        ! If this GridCell hasn't already been updated, run its update method first
+        if (.not. cell%item%isUpdated) then
+            call rslt%addErrors(.errors. cell%item%update(t))
+        end if
+        ! Determine the proportion of this reach's length to the the total
+        ! river length in this GridCell and use it to proportion NM runoff
+        lengthRatio = reach%item%length/sum(cell%item%branchLengths)
+        j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+
+        if (reach%item%ref(1:3) == 'Riv') then
+            ! Update the reach for this timestep
+            call rslt%addErrors(.errors. &
+                reach%item%update( &
+                    t = t, &
+                    q_runoff = cell%item%q_runoff_timeSeries(t), &
+                    j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
+                    j_np_runoff = j_np_runoff &
+                ) &
+            )
+        else
+            ! Update the reach for this timestep
+            call rslt%addErrors(.errors. &
+                reach%item%update( &
+                    t = t, &
+                    q_runoff = cell%item%q_runoff_timeSeries(t), &
+                    j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
+                    j_np_runoff = j_np_runoff &
+                ) &
+            )
+        end if
     end function
     
     !> Obtain and parse input data for this `Environment` object
@@ -181,7 +297,10 @@ module classEnvironment1
         type(Result) :: r                                   !! The `Result` object to return
         ! Get the grid dimensions for the Environment
         call r%addErrors(.errors. DATA%setGroup(['Environment']))
-        call r%addErrors(.errors. DATA%get('grid_dimensions', me%gridDimensions))
+        call r%addErrors([ &
+            .errors. DATA%get('grid_dimensions', me%gridDimensions), &
+            .errors. DATA%get('routed_reaches', me%routedReachIndices) &
+        ])
     end function
     
     function get_m_npEnvironment1(me) result(m_np)

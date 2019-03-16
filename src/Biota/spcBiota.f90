@@ -1,23 +1,45 @@
 module spcBiota                                                     !! superclass definition for Biota
+    use Globals
     implicit none                                                   ! force declaration of all variables
     type, abstract, public :: Biota                                 !! type declaration for class
                                                                     ! class properties
-        character(len=256) :: name                                  ! a name for the object
-        contains                                                    ! METHODS - all declared deferred
-            procedure, public :: create => createBiota              ! constructor method
-            procedure, public :: destroy => destroyBiota            ! finaliser method
-                                                                    ! any other private subroutines or functions go here
+        character(len=256) :: ref                                   !! Reference for this instance
+        ! real(dp), allocatable :: m_np                               ! Mass of nanomaterial in biota [kg]          ! TODO is this needed?
+        real(dp) :: C_np                                            !! Concentration of nanomaterial in biota [kg/kg dw]
+        real(dp) :: C_np_noStoredFraction                           !! Concentration of nanomaterial in biota with no stored fraction, for comparison's sake [kg/kg dw]
+        real(dp) :: k_uptake(2)                                     !! Uptake constants, one per matrix uptaken from (e.g. soil/water, food) [/day]
+        reaL(dp) :: k_elim                                          !! Elimination rate constant [/day]
+        real(dp) :: k_growth                                        !! Growth dilution rate [/day]
+        real(dp) :: storedFraction                                  !! Stored fraction of namoaterial [-]
+        integer :: eliminationPhaseStart                            !! When the elimination phase starts [days]
+        real(dp) :: C_np_init                                       !! Initial NM conc at start of model run [kg/kg dw]
+
+      contains
+        procedure, public :: create => createBiota                  ! constructor method
+        procedure, public :: update => updateBiota                  ! Update method that is run every time step
+        procedure, public :: parseInputData => parseInputDataBiota
     end type
 
   contains
 
-    subroutine createBiota(me)
+    function createBiota(me) result(rslt)
+        use ResultModule, only: Result
         class(Biota) :: me
-        ! Do some stuff to create biota
-    end subroutine
+        type(Result) :: rslt
+    end function
 
-    subroutine destroyBiota(me)
+    function updateBiota(me, t, C_np_matrices) result(rslt)
+        use ResultModule, only: Result
         class(Biota) :: me
-        ! Do some stuff to destory biota
-    end subroutine
+        integer :: t
+        real(dp) :: C_np_matrices(2)            !! Concentration of nanomaterial in all matrix (soil/water) and diet
+        type(Result) :: rslt
+    end function
+
+    function parseInputDataBiota(me) result(rslt)
+        use ResultModule, only: Result
+        class(Biota) :: me
+        type(Result) :: rslt
+    end function
+
 end module
