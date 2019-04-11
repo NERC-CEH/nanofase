@@ -36,6 +36,7 @@ program main
     real(dp) :: Q_out
     real(dp) :: npPointSource
     character(len=3) :: reachType
+    real(dp) :: reachDepth
     integer :: nDisp
 
     call cpu_time(start)                                                ! Simulation start time
@@ -59,8 +60,8 @@ program main
     open(unit=4, file=trim(C%outputPath) // 'output_hetero_vs_free.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     open(unit=7, file=trim(C%outputPath) // 'output_disp.csv')
-    write(2, '(A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,", &
-        "total_m_np_5,total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,river_flow,total_np_pointsource,C_np_biota,"
+    write(2, '(A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
+        "total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,reach_depth,river_flow,total_np_pointsource,C_np_biota,"
     write(2, '(A,A)') "C_np_biota_noStoredFraction,reach_type"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
@@ -103,6 +104,7 @@ program main
                         end if
                         npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff())
                         riverVolume = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
+                        reachDepth = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%depth
                         Q_out = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%Q(1)/C%timeStep     ! Converted from m3/timestep to m3/s
 
                         ! What type of reach is this?
@@ -120,7 +122,7 @@ program main
                         C_np_biota_noStoredFraction &
                             = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np_noStoredFraction
                         ! Write to the data file
-                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
+                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
                             t, ",", &
                             x, ",", &
                             y, ",", &
@@ -135,6 +137,7 @@ program main
                             trim(str(npRunoff)), ",", &
                             trim(str(sum(m_spm))), ",", &
                             trim(str(riverVolume)), ",", &
+                            trim(str(reachDepth)), ",", &
                             trim(str(Q_out)), ",", &
                             trim(str(npPointSource)), ",", &
                             trim(str(C_np_biota)), ",", &

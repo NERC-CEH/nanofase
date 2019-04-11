@@ -65,6 +65,6 @@ module classBiota1                                                      !! class
             me%k_growth = 0.1                   ! [/day]
             me%eliminationPhaseStart = 366      ! [day]
             me%C_np_init = 0                    ! Initial NM conc [kg/day]
-            me%storedFraction = 0.1             ! [-]
+            me%storedFraction = 0.5             ! [-]
         end function
 end module

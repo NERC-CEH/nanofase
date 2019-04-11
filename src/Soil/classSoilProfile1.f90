@@ -361,7 +361,7 @@ module classSoilProfile1
         ])
         if (r%hasCriticalError()) return
         allocate(me%colSoilLayers(me%nSoilLayers))
-        me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from t/m3 to kg/m3
+        me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from T/m3 to kg/m3
 
         ! Auditing
         call r%addError( &
