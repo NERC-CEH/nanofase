@@ -84,7 +84,6 @@ module classGridCell1
                     me%slope, &
                     me%n_river, &
                     me%area, &
-                    me%q_quickflow_timeSeries, &
                     me%q_precip_timeSeries, &
                     me%q_evap_timeSeries &
                 ) &
@@ -188,8 +187,6 @@ module classGridCell1
                 call r%addErrors(.errors. me%setRiverReachLengths(b))
             end do
         end if
-
-        print *, "finished create", me%ref
 
         ! Trigger any errors
         call r%addToTrace("Finalising creation of " // trim(me%ref))
@@ -478,7 +475,6 @@ module classGridCell1
 
         ! Allocate arrays to store flows in
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
-        allocate(me%q_quickflow_timeSeries(C%nTimeSteps))
         allocate(me%q_evap_timeSeries(C%nTimeSteps))
         allocate(me%q_precip_timeSeries(C%nTimeSteps))
         allocate(me%T_water_timeSeries(C%nTimeSteps))
@@ -528,19 +524,18 @@ module classGridCell1
         
         ! Get hydrology, topography and water data
         call r%addErrors([ &
-            .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
-            .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
-            .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
-            .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
+            ! .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
+            ! .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
+            ! .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
+            ! .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
             .errors. DATA%get('slope', me%slope), &
             .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
             .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.false.) &
         ])
         ! Convert to m/timestep
-        me%q_runoff_timeSeries = me%q_runoff_timeSeries*C%timeStep      
-        me%q_quickflow_timeSeries = me%q_quickflow_timeSeries*C%timeStep
-        me%q_precip_timeSeries = me%q_precip_timeSeries*C%timeStep
-        me%q_evap_timeSeries = me%q_evap_timeSeries*C%timeStep
+        me%q_runoff_timeSeries = DATA%runoff(me%x, me%y, :)
+        me%q_precip_timeSeries = DATA%precip(me%x, me%y, :)
+        me%q_evap_timeSeries = DATA%evap(me%x, me%y, :)
         
         ! Try and set the group to the demands group. It will produce an error if group
         ! doesn't exist - use this to set me%hasDemands to .false.

@@ -8,6 +8,7 @@ default_np_extra_states = 2
 
 &data
 input_file = "data/thames/data.nc"
+flat_input = "data/thames/flat.nc"
 output_file = "output.csv"
 output_path = "data/output/"
 /

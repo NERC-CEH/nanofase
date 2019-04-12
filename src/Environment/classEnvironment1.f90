@@ -294,6 +294,8 @@ module classEnvironment1
     !> Obtain and parse input data for this `Environment` object
     function parseInputDataEnvironment1(me) result(r)
         class(Environment1) :: me                           !! This `Environment1` instance
+        type(NcVariable) :: var
+        real(dp) :: fillValue
         type(Result) :: r                                   !! The `Result` object to return
         ! Get the grid dimensions for the Environment
         call r%addErrors(.errors. DATA%setGroup(['Environment']))
@@ -301,6 +303,30 @@ module classEnvironment1
             .errors. DATA%get('grid_dimensions', me%gridDimensions), &
             .errors. DATA%get('routed_reaches', me%routedReachIndices) &
         ])
+
+        ! FLAT DATA
+        ! TODO eventually move into data interfacer. Deal with unit conversions here. Maybe print
+        ! what has been imported
+
+        ! Runoff [mm/day]
+        var = C%flatDataset%getVariable('runoff')
+        call var%getData(DATA%runoff)
+        DATA%runoff = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
+
+        ! Precipitation [mm/day = kg/m2/day]
+        var = C%flatDataset%getVariable('precip')
+        call var%getData(DATA%precip)
+        DATA%precip = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
+
+        ! HACK evap to zero, set this in DataInterfacer eventually.
+        ! TODO calculate precip - evap here
+        allocate(DATA%evap(44, 27, 365))
+        DATA%evap = 0.0_dp
+
+        ! Soil bulk density [T/m3]
+        var = C%flatDataset%getVariable('soil_bulk_density')
+        call var%getData(DATA%soilBulkDensity)
+        DATA%soilBulkDensity = DATA%soilBulkDensity * 1.0e3_dp              ! Convert from T/m3 to kg/m3
     end function
     
     function get_m_npEnvironment1(me) result(m_np)

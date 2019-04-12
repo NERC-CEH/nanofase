@@ -36,6 +36,7 @@ module Globals
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
+        type(NcDataset)     :: flatDataset                      !! The flat NetCDF dataset
 
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
@@ -90,7 +91,7 @@ module Globals
         character(len=256) :: configFilePath
         integer :: configFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, output_file, output_path, log_file_path, start_date, startDateStr
+        character(len=256) :: input_file, flat_input, output_file, output_path, log_file_path, start_date, startDateStr
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
             default_np_forms, default_np_extra_states, warm_up_period
         integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
@@ -100,7 +101,7 @@ module Globals
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
                                             default_fractional_comp_size, default_np_forms, default_np_extra_states
-        namelist /data/ input_file, output_file, output_path
+        namelist /data/ input_file, flat_input, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp, &
             warm_up_period, nanomaterial_density
@@ -201,6 +202,9 @@ module Globals
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=errors, on=error_output)
+
+        ! Open the FLAT DATA file
+        C%flatDataset = NcDataset(flat_input, "r")
 
         ! Get the sediment and nanoparticle size classes from data file
         C%dataset = NcDataset(C%inputFile, "r")             ! Open dataset as read-only

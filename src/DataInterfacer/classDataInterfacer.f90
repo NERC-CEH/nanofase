@@ -14,6 +14,12 @@ module classDataInterfacer
         type(NcDataset) :: inputDataset
         class(NcGroup), allocatable :: grp
 
+        ! FLAT DATA
+        real(dp), allocatable :: runoff(:,:,:)
+        real(dp), allocatable :: precip(:,:,:)
+        real(dp), allocatable :: evap(:,:,:)
+        real(dp), allocatable :: soilBulkDensity(:,:)
+
       contains
         procedure, public :: init => initDataInterfacer
         procedure, public :: close => closeDataInterfacer

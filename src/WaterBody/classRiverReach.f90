@@ -109,6 +109,8 @@ module classRiverReach
         me%j_spm = 0
         me%j_np = 0
         me%j_ionic = 0
+
+        print *, q_runoff
         
         ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
         ! getting their outflow on this timestep, rather than the last timestep

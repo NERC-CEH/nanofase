@@ -20,7 +20,6 @@ module classSoilProfile1
         procedure :: update => updateSoilProfile1                   ! Update on every timestep (e.g., perform routing of water through soil)
         procedure :: percolate => percolateSoilProfile1             ! Percolate soil on a given time step
         procedure :: erode => erodeSoilProfile1                     ! Erode soil on a given time step
-        procedure :: erodeMUSLE => erodeMUSLESoilProfile1           ! Erode soil using MUSLE on a given time step
         procedure :: bioturbation => bioturbationSoilProfile1       ! Bioturbate soil on a given time step
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
@@ -37,7 +36,6 @@ module classSoilProfile1
                                 slope, &
                                 n_river, &
                                 area, &
-                                q_quickflow_timeSeries, &
                                 q_precip_timeSeries, &
                                 q_evap_timeSeries) result(r)
         class(SoilProfile1) :: me                           !! The `SoilProfile` instance.
@@ -47,7 +45,6 @@ module classSoilProfile1
         real(dp)            :: slope                        !! Slope of the containing `GridCell` [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
         real(dp)            :: area                         !! The surface area of the `SoilProfile` [m3]
-        real(dp), allocatable :: q_quickflow_timeSeries(:)  !! The quickflow runoff from HMF [m/timestep]
         real(dp), allocatable :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
         real(dp), allocatable :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
         type(Result)        :: r                            !! The `Result` object
@@ -72,7 +69,6 @@ module classSoilProfile1
         me%slope = slope
         me%n_river = n_river
         me%area = area                                      ! Surface area
-        allocate(me%q_quickflow_timeSeries, source=q_quickflow_timeSeries)      ! [m/timestep]
         allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)            ! [m/timestep]
         allocate(me%q_evap_timeSeries, source=q_evap_timeSeries)                ! [m/timestep]
         me%V_buried = 0.0_dp                                ! Volume of water "lost" from the bottom of SoilProfile
@@ -116,9 +112,6 @@ module classSoilProfile1
         type(Result) :: r                                       !! Result object to return
         
         ! Set the timestep-specific object properties
-        me%q_quickflow = me%q_quickflow_timeSeries(t)           ! Set the runoff (quickflow) for this timestep [m/timestep] TODO check units
-        ! TODO get rid of q_surf - not needed by soil erosion any more
-        me%q_surf = 0.1*me%q_quickflow                          ! Surface runoff = 10% of quickflow [m/timestep]
         me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
         me%q_evap = me%q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
         me%q_in = max(me%q_precip - me%q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
@@ -200,35 +193,6 @@ module classSoilProfile1
 
         ! Add this procedure to the Result object's trace
         call r%addToTrace("Percolating water on time step #" // trim(str(t)))
-    end function
-
-    !> Calculates soil erosion for this timestep, Updates this `GridCell`'s
-    !! state variable `erodedSediment` accordingly.
-    function erodeMUSLESoilProfile1(me, t) result(r)
-        class(SoilProfile1) :: me               !! This `SoilProfile` instance
-        integer             :: t                !! The current time step
-        type(Result)        :: r                !! The `Result` object to return
-        real(dp)            :: t_conc           ! Time of concentration \( t_{\text{tc}} \)
-        real(dp)            :: q_peak           ! Peak rainfall \( q_{\text{peak}} \)
-        real(dp)            :: Q_surf_hru       ! Surface runoff for the whole HRU per day [m3/day]
-        real(dp)            :: S_tot            ! Total eroded sediment
-
-        ! Change units of surface runoff from m/timestep for the GridCell, to m3/day for the HRU
-        Q_surf_hru = (me%q_surf/C%timeStep)*me%usle_area_hru*86400       ! [m3/day]
-        ! Estimate the time of concentration
-        t_conc = (me%usle_L_sb**0.6 * me%usle_n_sb**0.6)/(18 * me%usle_slp_sb) &
-                + (0.62 * me%usle_L_ch * me%n_river**0.75)/(me%usle_area_sb**0.125 * me%usle_slp_ch**0.375)
-        ! Estimate the peak flow
-        q_peak = me%usle_alpha_half(t)*me%q_surf*me%usle_area_sb/(3.6*t_conc)
-        ! Bring this all together to calculate eroded sediment, converted to kg/timestep (from metric ton/day)
-        S_tot = (118*C%timeStep/864) * (me%q_surf * q_peak * me%usle_area_hru)**0.56 &
-                * me%usle_K * me%usle_C(t) * me%usle_P * me%usle_LS * me%usle_CFRG
-        ! TODO: Need to convert sediment yield for the HRU to sediment yield for the grid cell.
-        ! Simply scaling linearly from HRU area to grid cell area like below isn't realistic
-        ! (not everywhere in the grid cell is going to be contributing as much as whatever
-        ! HRU we're doing the calculation for).
-        me%erodedSediment = me%imposeSizeDistribution(S_tot*me%area/me%usle_area_hru)
-        call r%addToTrace("Eroding soil on time step #" // trim(str(t)))
     end function
 
     !> Calculate the soil erosion for this timestep and updates this `GridCell`'s
@@ -346,7 +310,7 @@ module classSoilProfile1
             me%ref &
         ]))
         ! Setup data and soil hydraulic/texture properties
-        call r%addErrors([ &
+        call r%addErrors([ & 
             .errors. DATA%get('n_soil_layers', me%nSoilLayers), &
             .errors. DATA%get('WC_sat', me%WC_sat), &               ! Water content at saturation [m3/m3] TODO check between 0 and 1
             .errors. DATA%get('WC_FC', me%WC_FC), &                 ! Water content at field capacity [m3/m3] TODO check between 0 and 1
