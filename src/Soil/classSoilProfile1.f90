@@ -312,20 +312,30 @@ module classSoilProfile1
         ! Setup data and soil hydraulic/texture properties
         call r%addErrors([ & 
             .errors. DATA%get('n_soil_layers', me%nSoilLayers), &
-            .errors. DATA%get('WC_sat', me%WC_sat), &               ! Water content at saturation [m3/m3] TODO check between 0 and 1
-            .errors. DATA%get('WC_FC', me%WC_FC), &                 ! Water content at field capacity [m3/m3] TODO check between 0 and 1
-            .errors. DATA%get('K_s', me%K_s), &                     ! Saturated hydraulic conductivity [m/s]
-            .errors. DATA%get('sand_content', me%sandContent), &
-            .errors. DATA%get('silt_content', me%siltContent), &
-            .errors. DATA%get('clay_content', me%clayContent), &
+            ! .errors. DATA%get('WC_sat', me%WC_sat), &               ! Water content at saturation [m3/m3] TODO check between 0 and 1
+            ! .errors. DATA%get('WC_FC', me%WC_FC), &                 ! Water content at field capacity [m3/m3] TODO check between 0 and 1
+            ! .errors. DATA%get('K_s', me%K_s), &                     ! Saturated hydraulic conductivity [m/s]
+            ! .errors. DATA%get('sand_content', me%sandContent), &
+            ! .errors. DATA%get('silt_content', me%siltContent), &
+            ! .errors. DATA%get('clay_content', me%clayContent), &
             .errors. DATA%get('porosity', me%porosity, 50.0_dp), &
-            .errors. DATA%get('coarse_frag_content', me%coarseFragContent), &
-            .errors. DATA%get('bulk_density', me%bulkDensity), &
+            ! .errors. DATA%get('coarse_frag_content', me%coarseFragContent), &
+            ! .errors. DATA%get('bulk_density', me%bulkDensity), &
             .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
         ])
         if (r%hasCriticalError()) return
         allocate(me%colSoilLayers(me%nSoilLayers))
-        me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from T/m3 to kg/m3
+        ! me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from T/m3 to kg/m3
+
+        ! FLAT DATA
+        me%bulkDensity = DATA%soilBulkDensity(me%x, me%y)
+        me%WC_sat = DATA%soilWaterContentSaturation(me%x, me%y)
+        me%WC_FC = DATA%soilWaterContentFieldCapacity(me%x, me%y)
+        me%K_s = DATA%soilHydraulicConductivity(me%x, me%y)
+        me%clayContent = DATA%soilTextureClayContent(me%x, me%y)
+        me%sandContent = DATA%soilTextureSandContent(me%x, me%y)
+        me%siltContent = DATA%soilTextureSiltContent(me%x, me%y)
+        me%coarseFragContent = DATA%soilTextureCoarseFragContent(me%x, me%y)
 
         ! Auditing
         call r%addError( &

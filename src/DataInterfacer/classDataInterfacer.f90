@@ -15,10 +15,19 @@ module classDataInterfacer
         class(NcGroup), allocatable :: grp
 
         ! FLAT DATA
+        ! Spatiotemporal
         real(dp), allocatable :: runoff(:,:,:)
         real(dp), allocatable :: precip(:,:,:)
         real(dp), allocatable :: evap(:,:,:)
+        ! Spatiol
         real(dp), allocatable :: soilBulkDensity(:,:)
+        real, allocatable :: soilWaterContentFieldCapacity(:,:)
+        real, allocatable :: soilWaterContentSaturation(:,:)
+        real(dp), allocatable :: soilHydraulicConductivity(:,:)
+        real, allocatable :: soilTextureClayContent(:,:)
+        real, allocatable :: soilTextureSandContent(:,:)
+        real, allocatable :: soilTextureSiltContent(:,:)
+        real, allocatable :: soilTextureCoarseFragContent(:,:)
 
       contains
         procedure, public :: init => initDataInterfacer
