@@ -22,7 +22,7 @@ module classSoilLayer1
 
   contains
     !> Create this `SoilLayer` and call the input data parsing procedure
-    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area) result(r)
+    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer, intent(in) :: x                        !! Containing `GridCell` x index
         integer, intent(in) :: y                        !! Containing `GridCell` y index
@@ -32,6 +32,7 @@ module classSoilLayer1
         real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
         real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
         real(dp), intent(in) :: area                    !! Area of the containing SoilProfile [m2]
+        real(dp), intent(in) :: bulkDensity             !! Bulk density [kg/m3]
         type(Result) :: r
             !! The `Result` object to return, with any errors from parsing input data.
 
@@ -42,14 +43,18 @@ module classSoilLayer1
         me%l = l
         me%ref = ref("SoilLayer", x, y, p, l)
         me%area = area
+        me%depth = C%soilLayerDepth(l)
+        me%bulkDensity = bulkDensity
 
         ! Allocate and initialise variables
-        allocate(me%m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
-        allocate(me%m_np_perc(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
-        allocate(me%m_np_eroded(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm))
+        allocate(me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%m_np_perc(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)))
         me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
         me%m_np_perc = 0.0_dp                           ! Just to be on the safe side
         me%m_np_eroded = 0.0_dp
+        me%C_np = 0.0_dp
         me%V_w = 0.0_dp                                 ! Set initial water content to 0 [m3/m2]
 
         ! Parse the input data into the object properties
@@ -76,8 +81,9 @@ module classSoilLayer1
         integer :: t                                    !! The current time step [s]
         real(dp) :: q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
         real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
+        type(Result) :: r                               !! The Result object to return any errors in
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
-        type(Result) :: r
+        integer :: i, j, k
             !! The `Result` object to return. Contains warning if all water on this time step removed.
 
         ! Set the inflow to this SoilLayer and store initial water in layer
@@ -115,6 +121,17 @@ module classSoilLayer1
         end if
         me%m_np = me%m_np - me%m_np_perc                        ! Get rid of percolated NM
         me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
+        do k = 1, C%npDim(3)                                    ! Calculate the concentration
+            do j = 1, C%npDim(2)
+                do i = 1, C%npDim(1)
+                    if (isZero(me%m_np(i,j,k))) then
+                        me%C_np = 0.0_dp
+                    else
+                        me%C_np = me%m_np / (me%depth * me%area * me%bulkDensity)
+                    end if
+                end do
+            end do
+        end do
 
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
@@ -158,7 +175,7 @@ module classSoilLayer1
     end subroutine
 
     !> Erode NM from this soil layer
-    !! TODO bulk density could be stored in this object, not passed
+    !! TODO bulk density could be stored in this object, not passed, probably same with area
     function erodeSoilLayer1(me, erodedSediment, bulkDensity, area) result(r)
         class(SoilLayer1)   :: me
         real(dp)            :: erodedSediment(:)        ! [kg/m2/day] TODO make sure changed to kg/m2/timestep
@@ -198,8 +215,6 @@ module classSoilLayer1
             ref("SoilProfile", me%x, me%y, me%p), &
             "SoilLayer_" // trim(str(me%l)) &
         ]))
-        ! Depth of this soil layer [m]
-        call r%addErrors(.errors. DATA%get('depth', me%depth, C%defaultSoilLayerDepth))
 
     end function
 

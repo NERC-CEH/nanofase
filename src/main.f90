@@ -6,6 +6,7 @@ program main
     use classEstuaryReach
     use classEnvironment1
     use classDataInterfacer, only: DATA
+    use classDatabase, only: DATASET
     use classLogger, only: LOG
     use datetime_module
     use omp_lib
@@ -13,7 +14,7 @@ program main
 
     real :: start, finish, wallStart, wallFinish                    ! Simulation start and finish times
     type(Result) :: r                                               ! Result object
-    integer :: x, y, rr, t, i, s                                    ! Loop iterators
+    integer :: x, y, rr, t, i, s, j                                 ! Loop iterators
     real(dp) :: m_spm(5)
     type(Environment1) :: env                                       ! Environment object
     real(dp) :: m_np(5, 4, 7)
@@ -56,18 +57,26 @@ program main
 
     ! Open the output files to print to
     open(unit=2, file=trim(C%outputPath) // C%outputFile)
+    open(unit=7, file=trim(C%outputPath) // 'output_water.csv')
     open(unit=3, file=trim(C%outputPath) // 'output_erosion.csv')
-    open(unit=4, file=trim(C%outputPath) // 'output_hetero_vs_free.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
-    open(unit=7, file=trim(C%outputPath) // 'output_disp.csv')
     write(2, '(A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
         "total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,reach_depth,river_flow,total_np_pointsource,C_np_biota,"
     write(2, '(A,A)') "C_np_biota_noStoredFraction,reach_type"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
-    write(7, '(A,A)') "t,time,x,y,rr,total_m_np,total_C_np,reach_volume,reach_flow"
+    write(7, '(A,A)', advance='no') "t,x,y,r"
+    do i = 1, C%nSizeClassesNP
+        write(7, '(A,A)', advance='no') "C_np" // str(i) // "_free,"
+    end do
+    do i = 1, C%nSizeClassesNP
+        do j = 1, C%nSizeClassesSpm
+            write(7, '(A,A)', advance='no') "C_np" // str(i) // "het" // str(j) // ","
+        end do
+    end do
 
-    call DATA%init(C%inputFile)                                         ! Initialise the data interfacer
+    call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
+    call DATASET%init(C%flatInputFile)                                  ! Initialise the flat dataset - this closes the input data file as well
     r = env%create()                                                    ! Create the environment
     call DATA%close()                                                   ! We should be done with the data input now, so close the file
 
@@ -143,6 +152,21 @@ program main
                             trim(str(C_np_biota)), ",", &
                             trim(str(C_np_biota_noStoredFraction)), ",", &
                             trim(reachType)
+
+                        associate (C_np_water => env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_np)
+                            ! NEW water output file
+                            write(7, *) ""
+                            write(7, '(A,A)', advance='no') t, ",", x, ",", y, ",", rr, ","
+                            do i = 1, C%nSizeClassesNP
+                                write(7, '(A,A)', advance='no') C_np_water(i,1,1), ","
+                            end do
+                            do i = 1, C%nSizeClassesNP
+                                do j = 1, C%nSizeClassesSpm
+                                    write(7, '(A,A)', advance='no') C_np_water(i,1,j+2), ","
+                                end do
+                            end do
+                        end associate
+
                        
                         m_np_hetero = m_np_hetero + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &
@@ -168,13 +192,9 @@ program main
                         sum(m_np_l3(:,1,2)), ", ", sum(m_np_l4(:,1,2)), ", ", sum(m_np_eroded(:,1,2)), ", ", &
                         sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota, ", ", C_np_biota_noStoredFraction
 
-
                 end if
             end do
         end do
-        write(4, '(i4,A,F12.6,A,F12.6,A,F12.6,A,F12.6,A,F12.6,A,F12.6,A,F12.6)') t, ",", m_np_free, ",", &
-           sum(m_np_hetero), ",", sum(m_np_hetero(:,1)), ",", sum(m_np_hetero(:,2)), ",", &
-           sum(m_np_hetero(:,3)), ",", sum(m_np_hetero(:,4)), ",", sum(m_np_hetero(:,5))
     end do
 
     close(2)                                                                ! Close the output file

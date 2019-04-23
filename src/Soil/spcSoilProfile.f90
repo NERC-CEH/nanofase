@@ -62,6 +62,9 @@ module spcSoilProfile
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
         integer, allocatable :: distributionSediment(:)             !! Distribution to split sediment into
 
+        ! TODO this will probably be modified when we start properly using land use. Currently this is to account for urban soils
+        logical :: isEmpty = .false.
+
         ! ------------------------------------
         ! TODO Q_peak parameters - to be deprecated
         real(dp), allocatable :: usle_alpha_half(:)                 !! Fraction of rainfall falling during maximum half hour [-]

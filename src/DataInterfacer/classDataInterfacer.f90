@@ -1,4 +1,4 @@
-!> Module for interacting with the input data.
+    !> Module for interacting with the input data.
 !! TODO: Re-write to not rely on mo_netcdf to speed things up
 module classDataInterfacer
     use ResultModule
@@ -13,21 +13,6 @@ module classDataInterfacer
         character(len=256) :: inputFilePath
         type(NcDataset) :: inputDataset
         class(NcGroup), allocatable :: grp
-
-        ! FLAT DATA
-        ! Spatiotemporal
-        real(dp), allocatable :: runoff(:,:,:)
-        real(dp), allocatable :: precip(:,:,:)
-        real(dp), allocatable :: evap(:,:,:)
-        ! Spatiol
-        real(dp), allocatable :: soilBulkDensity(:,:)
-        real, allocatable :: soilWaterContentFieldCapacity(:,:)
-        real, allocatable :: soilWaterContentSaturation(:,:)
-        real(dp), allocatable :: soilHydraulicConductivity(:,:)
-        real, allocatable :: soilTextureClayContent(:,:)
-        real, allocatable :: soilTextureSandContent(:,:)
-        real, allocatable :: soilTextureSiltContent(:,:)
-        real, allocatable :: soilTextureCoarseFragContent(:,:)
 
       contains
         procedure, public :: init => initDataInterfacer

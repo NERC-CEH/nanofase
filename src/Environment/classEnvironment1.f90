@@ -309,47 +309,47 @@ module classEnvironment1
         ! what has been imported
 
         ! Runoff [mm/day]
-        var = C%flatDataset%getVariable('runoff')
-        call var%getData(DATA%runoff)
-        DATA%runoff = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
+        ! var = C%flatDataset%getVariable('runoff')
+        ! call var%getData(DATA%runoff)
+        ! DATA%runoff = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
 
-        ! Precipitation [mm/day = kg/m2/day]
-        var = C%flatDataset%getVariable('precip')
-        call var%getData(DATA%precip)
-        DATA%precip = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
+        ! ! Precipitation [mm/day = kg/m2/day]
+        ! var = C%flatDataset%getVariable('precip')
+        ! call var%getData(DATA%precip)
+        ! DATA%precip = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
 
-        ! HACK evap to zero, set this in DataInterfacer eventually.
-        ! TODO calculate precip - evap here
-        allocate(DATA%evap(44, 27, 365))
-        DATA%evap = 0.0_dp
+        ! ! HACK evap to zero, set this in DataInterfacer eventually.
+        ! ! TODO calculate precip - evap here
+        ! allocate(DATA%evap(44, 27, 365))
+        ! DATA%evap = 0.0_dp
 
-        ! Soil bulk density [T/m3]
-        var = C%flatDataset%getVariable('soil_bulk_density')
-        call var%getData(DATA%soilBulkDensity)
-        DATA%soilBulkDensity = DATA%soilBulkDensity * 1.0e3_dp              ! Convert from T/m3 to kg/m3
+        ! ! Soil bulk density [T/m3]
+        ! var = C%flatDataset%getVariable('soil_bulk_density')
+        ! call var%getData(DATA%soilBulkDensity)
+        ! DATA%soilBulkDensity = DATA%soilBulkDensity * 1.0e3_dp              ! Convert from T/m3 to kg/m3
 
-        ! Soil water content at field capacity
-        var = C%flatDataset%getVariable('soil_water_content_field_capacity')
-        call var%getData(DATA%soilWaterContentFieldCapacity)
+        ! ! Soil water content at field capacity
+        ! var = C%flatDataset%getVariable('soil_water_content_field_capacity')
+        ! call var%getData(DATA%soilWaterContentFieldCapacity)
 
-        ! Soil water content at saturation
-        var = C%flatDataset%getVariable('soil_water_content_saturation')
-        call var%getData(DATA%soilWaterContentSaturation)
+        ! ! Soil water content at saturation
+        ! var = C%flatDataset%getVariable('soil_water_content_saturation')
+        ! call var%getData(DATA%soilWaterContentSaturation)
 
-        ! Soil hydraulic conductivity
-        var = C%flatDataset%getVariable('soil_hydraulic_conductivity')
-        call var%getData(DATA%soilHydraulicConductivity)
-        DATA%soilHydraulicConductivity = DATA%soilHydraulicConductivity * 1.0e-2_dp / 86400.0_dp        ! Convert from cm/day to m/s
+        ! ! Soil hydraulic conductivity
+        ! var = C%flatDataset%getVariable('soil_hydraulic_conductivity')
+        ! call var%getData(DATA%soilHydraulicConductivity)
+        ! DATA%soilHydraulicConductivity = DATA%soilHydraulicConductivity * 1.0e-2_dp / 86400.0_dp        ! Convert from cm/day to m/s
 
-        ! Soil texture
-        var = C%flatDataset%getVariable('soil_texture_clay_content')
-        call var%getData(DATA%soilTextureClayContent)
-        var = C%flatDataset%getVariable('soil_texture_sand_content')
-        call var%getData(DATA%soilTextureSandContent)
-        var = C%flatDataset%getVariable('soil_texture_silt_content')
-        call var%getData(DATA%soilTextureSiltContent)
-        var = C%flatDataset%getVariable('soil_texture_coarse_frag_content')
-        call var%getData(DATA%soilTextureCoarseFragContent)
+        ! ! Soil texture
+        ! var = C%flatDataset%getVariable('soil_texture_clay_content')
+        ! call var%getData(DATA%soilTextureClayContent)
+        ! var = C%flatDataset%getVariable('soil_texture_sand_content')
+        ! call var%getData(DATA%soilTextureSandContent)
+        ! var = C%flatDataset%getVariable('soil_texture_silt_content')
+        ! call var%getData(DATA%soilTextureSiltContent)
+        ! var = C%flatDataset%getVariable('soil_texture_coarse_frag_content')
+        ! call var%getData(DATA%soilTextureCoarseFragContent)
         
     end function
     

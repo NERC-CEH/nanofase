@@ -27,6 +27,7 @@ module spcSoilLayer
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in layer [kg]
         real(dp), allocatable :: m_np_perc(:,:,:)                   !! Mass of NM percolating to layer below on given timestep [kg]
         real(dp), allocatable :: m_np_eroded(:,:,:)                 !! Mass of NM eroded on given timestep [kg]
+        real(dp), allocatable :: C_np(:,:,:)                        !! Mass concentration of NM [kg/kg soil]
         ! Hydrology
         real(dp) :: Q_in                                            !! Inflow to this `SoilLayer` [m3 m-2 s-1]
         real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
@@ -36,6 +37,7 @@ module spcSoilLayer
         real(dp) :: V_sat                                           !! Water content at saturation [m3 m-2]
         real(dp) :: V_FC                                            !! Water content at field capacity [m3 m-2]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
+        real(dp) :: bulkDensity                                     !! Bulk density [kg m-3]
         ! Biota
         class(Biota), allocatable :: biota
       contains
@@ -58,7 +60,7 @@ module spcSoilLayer
 
     abstract interface
         !> Create this `SoilLayer`
-        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area) result(r)
+        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity) result(r)
             use Globals, only: dp
             use ResultModule, only: Result
             import SoilLayer
@@ -71,6 +73,7 @@ module spcSoilLayer
             real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
             real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
             real(dp), intent(in) :: area                    !! Area of the containing SoilProfile [m2]
+            real(dp), intent(in) :: bulkDensity             !! Bulk density [kg/m3]
             type(Result) :: r                               !! The `Result` object to return
         end function
 

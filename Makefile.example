@@ -1,11 +1,11 @@
 FC = gfortran
 FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -fopenmp
 DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow
-EXEC_FILE = main
-EXEC_PATH = ./bin/
+EXEC_FILE = fprog_nanofase.exe
+EXEC_PATH = C:/Users/sharrison/code/bin/
 NETCDF = `nf-config --fflags --flibs`
 CONFIG_PATH = ./config/
-CONFIG_FILE = config.nml
+CONFIG_FILE = thames.nml
 
 OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/feh/src/Result.o \
@@ -19,14 +19,14 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/datetime-fortran/mod_datetime.o \
 	vendor/datetime-fortran/mod_clock.o \
 	vendor/datetime-fortran/datetime.o \
-	src/mod_strftime.o \
+	src/mod_strptime.o \
 	src/Globals.o \
 	src/UtilModule.o \
 	src/Logger/classLogger.o \
 	src/DataInterfacer/classDataInterfacer.o \
+	src/classDatabase.o \
 	src/Biota/spcBiota.o \
 	src/Biota/classBiota1.o \
-	src/Biota/classBiota2.o \
 	src/Reactor/spcReactor.o \
 	src/Reactor/classReactor1.o \
 	src/BedSedimentLayer/classFineSediment1.o \
@@ -36,10 +36,10 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/BedSediment/classBedSediment1.o \
 	src/Source/classDiffuseSource.o \
 	src/Source/classPointSource.o \
-	src/RiverReach/spcRiverReach.o \
-	src/RiverReach/classRiverReach1.o \
-	src/Estuary/spcEstuaryReach.o \
-	src/Estuary/classEstuaryReach1.o \
+	src/WaterBody/spcWaterBody.o \
+	src/WaterBody/spcReach.o \
+	src/classRiverReach.o \
+	src/classEstuaryReach.o \
 	src/Soil/spcSoilLayer.o \
 	src/Soil/classSoilLayer1.o \
 	src/Soil/spcSoilProfile.o \
@@ -64,8 +64,7 @@ VPATH = vendor/feh/src \
 	src/BedSedimentLayer \
 	src/BedSediment \
 	src/Source \
-	src/RiverReach \
-	src/Estuary \
+	src/WaterBody \
 	src/Soil \
 	src/GridCell \
 	src/Environment

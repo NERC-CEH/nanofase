@@ -3,7 +3,8 @@ module classGridCell1
     use Globals
     use UtilModule
     use mo_netcdf
-    use classDataInterfacer
+    use classDataInterfacer, only: DATA
+    use classDatabase, only: DATASET
     use classLogger
     use ResultModule
     use ErrorInstanceModule
@@ -532,10 +533,10 @@ module classGridCell1
             .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
             .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.false.) &
         ])
-        ! Convert to m/timestep
-        me%q_runoff_timeSeries = DATA%runoff(me%x, me%y, :)
-        me%q_precip_timeSeries = DATA%precip(me%x, me%y, :)
-        me%q_evap_timeSeries = DATA%evap(me%x, me%y, :)
+        ! FLAT DATA
+        me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
+        me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
+        me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
         
         ! Try and set the group to the demands group. It will produce an error if group
         ! doesn't exist - use this to set me%hasDemands to .false.

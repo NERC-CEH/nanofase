@@ -13,6 +13,7 @@ module Globals
     type, public :: GlobalsType
         ! Config
         character(len=256)  :: inputFile
+        character(len=256)  :: flatInputFile
         character(len=256)  :: outputFile
         character(len=256)  :: outputPath
         character(len=256)  :: logFilePath
@@ -21,7 +22,7 @@ module Globals
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
         integer             :: defaultGridSize = 5000           !! Default GridCell size [m]
-        real(dp)            :: defaultSoilLayerDepth = 0.1_dp   !! Default SoilLayer depth of 10 cm
+        real, allocatable   :: soilLayerDepth(:)                !! Soil layer depth [m]
         real(dp)            :: defaultMeanderingFactor = 1.0_dp !! Default river meandering factor, >1
         real(dp)            :: default_k_att                    !! Default attachment rate
         integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
@@ -33,10 +34,10 @@ module Globals
         logical             :: includeAttachment                !! Should attachment to soil be included?
         integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
         real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
+        integer             :: nSoilLayers                      !! Number of soil layers to modelled
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
-        type(NcDataset)     :: flatDataset                      !! The flat NetCDF dataset
 
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
@@ -94,18 +95,19 @@ module Globals
         character(len=256) :: input_file, flat_input, output_file, output_path, log_file_path, start_date, startDateStr
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
             default_np_forms, default_np_extra_states, warm_up_period
-        integer :: timestep, n_timesteps, max_river_reaches, default_grid_size
+        integer :: timestep, n_timesteps, max_river_reaches, default_grid_size, n_soil_layers
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
-        real(dp) :: epsilon, default_soil_layer_depth, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
+        real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_k_att, default_alpha_hetero_estuary, nanomaterial_density
+        real, allocatable :: soil_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
-                                            default_fractional_comp_size, default_np_forms, default_np_extra_states
+                                            default_fractional_comp_size, default_np_forms, default_np_extra_states, n_soil_layers
         namelist /data/ input_file, flat_input, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp, &
             warm_up_period, nanomaterial_density
-        namelist /soil/ default_soil_layer_depth, include_bioturbation, include_attachment, default_k_att
+        namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_alpha_hetero_estuary, include_bed_sediment
         namelist /sources/ include_point_sources
@@ -125,6 +127,7 @@ module Globals
         allocate(default_distribution_sediment(default_distribution_sediment_size))
         allocate(default_distribution_np(default_distribution_np_size))
         allocate(default_fractional_comp(default_fractional_comp_size))
+        allocate(soil_layer_depth(n_soil_layers))
         ! Carry on reading in the different config groups
         read(10, nml=data)
         read(10, nml=run)
@@ -136,6 +139,7 @@ module Globals
         
         ! Store this data in the Globals variable
         C%inputFile = input_file
+        C%flatInputFile = flat_input
         C%outputFile = output_file
         C%outputPath = output_path
         C%logFilePath = log_file_path
@@ -144,12 +148,13 @@ module Globals
         C%epsilon = epsilon
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
+        C%nSoilLayers = n_soil_layers
         ! TODO: Change default grid size to array (x, y) so default can be rectangles
         C%defaultGridSize = default_grid_size
         C%defaultDistributionSediment = default_distribution_sediment
         C%defaultDistributionNP = default_distribution_np
         C%defaultFractionalComp = default_fractional_comp
-        C%defaultSoilLayerDepth = default_soil_layer_depth
+        C%soilLayerDepth = soil_layer_depth
         C%defaultMeanderingFactor = default_meandering_factor
         C%maxRiverReaches = max_river_reaches
         C%defaultWaterTemperature = default_water_temperature
@@ -202,9 +207,6 @@ module Globals
 
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=errors, on=error_output)
-
-        ! Open the FLAT DATA file
-        C%flatDataset = NcDataset(flat_input, "r")
 
         ! Get the sediment and nanoparticle size classes from data file
         C%dataset = NcDataset(C%inputFile, "r")             ! Open dataset as read-only

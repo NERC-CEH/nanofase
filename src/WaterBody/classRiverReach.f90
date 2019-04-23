@@ -110,7 +110,9 @@ module classRiverReach
         me%j_np = 0
         me%j_ionic = 0
 
-        print *, q_runoff
+
+        print *, "before update reach"
+
         
         ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
         ! getting their outflow on this timestep, rather than the last timestep
@@ -229,10 +231,6 @@ module classRiverReach
                 if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             end if
 
-            ! Write stuff to output file
-            write(7,*) t, ",", (t-1)*C%timeStep + i*C%timeStep/nDisp, ",", me%x, ",", me%y, ",", me%w, ",", &
-                sum(me%m_np), ",", sum(me%C_np), ",", me%volume, ",", me%Q_outflow()
-
             ! TODO Deposit and resuspend NM to/from bed sediment
         end do
 
@@ -285,6 +283,8 @@ module classRiverReach
             me%C_spm = 0.0_dp
             me%C_np = 0.0_dp
         end if
+
+        print *, "after update reach"
 
         ! Update the biota
         ! TODO which forms/states of NM should go to biota?

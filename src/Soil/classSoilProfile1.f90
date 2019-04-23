@@ -3,11 +3,13 @@ module classSoilProfile1
     use Globals                                                 ! Global definitions and constants
     use UtilModule                                              ! Useful functions
     use mo_netcdf                                               ! Input/output handling
+    use netcdf
     use datetime_module
     use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
     use classDataInterfacer, only: DATA
+    use classDatabase, only: DATASET
     implicit none
 
     !> A `SoilProfile` class acts as a container for a collection of
@@ -61,7 +63,8 @@ module classSoilProfile1
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%m_np_in(C%npDim(1), C%npDim(2), C%npDim(3)))
+            me%m_np_in(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%colSoilLayers(C%nSoilLayers))
         ! Initialise variables
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
@@ -83,11 +86,11 @@ module classSoilProfile1
 
         ! Set up the SoilLayers
         ! TODO: Different types of SoilLayer
-        do l = 1, me%nSoilLayers
+        do l = 1, C%nSoilLayers
             allocate(sl)        ! Must be allocated on every time step
             ! Create the SoilLayer and add any errors to Result object
             call r%addErrors(.errors. &
-                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s, me%area) &
+                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s, me%area, me%bulkDensity) &
             )
             call move_alloc(sl, me%colSoilLayers(l)%item)   ! This automatically deallocates sl
         end do
@@ -111,26 +114,30 @@ module classSoilProfile1
         real(dp) :: j_np_diffuseSource(:,:,:)                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
         
-        ! Set the timestep-specific object properties
-        me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
-        me%q_evap = me%q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
-        me%q_in = max(me%q_precip - me%q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
-            ! TODO: Should the minimum q_in be 0, or should evaporation be allowed to remove water from top soil layer?
+        if (.not. me%isEmpty) then
 
-        ! Add NM from the diffuse source
-        me%m_np = me%m_np + j_np_diffuseSource*me%area          ! j_np_diffuseSource is in kg/m2/timestep
-        me%m_np_in = j_np_diffuseSource*me%area
-        
-        ! Perform percolation, erosion and bioturbation simluations
-        call r%addErrors([ &
-            .errors. me%erode(t), &
-            .errors. me%percolate(t, j_np_diffuseSource), &
-            .errors. me%bioturbation() &
-        ])
+            ! Set the timestep-specific object properties
+            me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
+            me%q_evap = me%q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
+            me%q_in = max(me%q_precip - me%q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
+                ! TODO: Should the minimum q_in be 0, or should evaporation be allowed to remove water from top soil layer?
 
-        ! Remove buried NM (eroded NM removed in me%erode)
-        ! TODO unify where me%m_np is updated (or deprecate, see me%erode())
-        me%m_np = me%m_np - me%m_np_buried
+            ! Add NM from the diffuse source
+            me%m_np = me%m_np + j_np_diffuseSource*me%area          ! j_np_diffuseSource is in kg/m2/timestep
+            me%m_np_in = j_np_diffuseSource*me%area
+            
+            ! Perform percolation, erosion and bioturbation simluations
+            call r%addErrors([ &
+                .errors. me%erode(t), &
+                .errors. me%percolate(t, j_np_diffuseSource), &
+                .errors. me%bioturbation() &
+            ])
+
+            ! Remove buried NM (eroded NM removed in me%erode)
+            ! TODO unify where me%m_np is updated (or deprecate, see me%erode())
+            me%m_np = me%m_np - me%m_np_buried
+
+        end if
 
         ! Add this procedure to the Result object's trace                               
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
@@ -153,7 +160,7 @@ module classSoilProfile1
                                          C%npDim(3))
 
         ! Loop through SoilLayers and percolate 
-        do l = 1, me%nSoilLayers
+        do l = 1, C%nSoilLayers
             if (l == 1) then
                  ! If it's the first SoilLayer, water and NM inflow will be from precip - ET
                  ! and the diffuse source, respectively
@@ -188,8 +195,8 @@ module classSoilProfile1
         end do
 
         ! Keep track of "lost" NM and water from the bottom soil layer. Not cumulative.
-        me%V_buried = me%colSoilLayers(me%nSoilLayers)%item%V_perc
-        me%m_np_buried = me%colSoilLayers(me%nSoilLayers)%item%m_np_perc
+        me%V_buried = me%colSoilLayers(C%nSoilLayers)%item%V_perc
+        me%m_np_buried = me%colSoilLayers(C%nSoilLayers)%item%m_np_perc
 
         ! Add this procedure to the Result object's trace
         call r%addToTrace("Percolating water on time step #" // trim(str(t)))
@@ -262,7 +269,7 @@ module classSoilProfile1
         if (C%includeBioturbation) then
             ! Perform bioturbation for each layer, except final layer
             ! TODO set some proper boundary conditions
-            do i = 1, me%nSoilLayers - 1
+            do i = 1, C%nSoilLayers - 1
                 fractionOfLayerToMix = me%colSoilLayers(i)%item%calculateBioturbationRate() * C%timeStep
                 ! Only attached NM are mixed
                 me%colSoilLayers(i)%item%m_np(:,1,2) = me%colSoilLayers(i)%item%m_np(:,1,2) &
@@ -311,7 +318,7 @@ module classSoilProfile1
         ]))
         ! Setup data and soil hydraulic/texture properties
         call r%addErrors([ & 
-            .errors. DATA%get('n_soil_layers', me%nSoilLayers), &
+            ! .errors. DATA%get('n_soil_layers', me%nSoilLayers), &
             ! .errors. DATA%get('WC_sat', me%WC_sat), &               ! Water content at saturation [m3/m3] TODO check between 0 and 1
             ! .errors. DATA%get('WC_FC', me%WC_FC), &                 ! Water content at field capacity [m3/m3] TODO check between 0 and 1
             ! .errors. DATA%get('K_s', me%K_s), &                     ! Saturated hydraulic conductivity [m/s]
@@ -324,18 +331,40 @@ module classSoilProfile1
             .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
         ])
         if (r%hasCriticalError()) return
-        allocate(me%colSoilLayers(me%nSoilLayers))
         ! me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from T/m3 to kg/m3
 
+        print *, "before slicing soil profile data"
+
         ! FLAT DATA
-        me%bulkDensity = DATA%soilBulkDensity(me%x, me%y)
-        me%WC_sat = DATA%soilWaterContentSaturation(me%x, me%y)
-        me%WC_FC = DATA%soilWaterContentFieldCapacity(me%x, me%y)
-        me%K_s = DATA%soilHydraulicConductivity(me%x, me%y)
-        me%clayContent = DATA%soilTextureClayContent(me%x, me%y)
-        me%sandContent = DATA%soilTextureSandContent(me%x, me%y)
-        me%siltContent = DATA%soilTextureSiltContent(me%x, me%y)
-        me%coarseFragContent = DATA%soilTextureCoarseFragContent(me%x, me%y)
+        me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)               ! TODO change to account for bulk density being log
+        print *, me%bulkDensity
+        me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
+        print *, me%WC_sat
+        me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
+        print *, me%WC_FC
+        me%K_s = DATASET%soilHydraulicConductivity(me%x, me%y)
+        print *, me%K_s
+        if ((me%WC_sat == nf90_fill_real) &
+            .or. (me%WC_FC == nf90_fill_real) &
+            .or. (me%K_s == nf90_fill_real)) then
+            me%isEmpty = .true.
+        end if
+        ! ISSUES HERE
+        ! - Bulk density is -Infinity for GridCell_37_16
+        ! - K_s is sometimes negative - check it's not logged. In particular, it's often -4.43e-8.
+        ! - The above conditional never works (they seem to be filled with different values)
+        print *, me%isEmpty
+        me%clayContent = DATASET%soilTextureClayContent(me%x, me%y)
+        print *, me%clayContent
+        me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
+        print *, me%sandContent
+        me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
+        print *, me%siltContent
+        me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
+        print *, me%coarseFragContent
+
+
+        print *, "after slicing soil profile data"
 
         ! Auditing
         call r%addError( &
