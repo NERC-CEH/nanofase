@@ -114,7 +114,7 @@ module classSoilProfile1
         real(dp) :: j_np_diffuseSource(:,:,:)                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
         
-        if (.not. me%isEmpty) then
+        if (.not. me%isUrban) then
 
             ! Set the timestep-specific object properties
             me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
@@ -333,10 +333,8 @@ module classSoilProfile1
         if (r%hasCriticalError()) return
         ! me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from T/m3 to kg/m3
 
-        print *, "before slicing soil profile data"
-
         ! FLAT DATA
-        me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)               ! TODO change to account for bulk density being log
+        me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
         print *, me%bulkDensity
         me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
         print *, me%WC_sat
@@ -344,27 +342,21 @@ module classSoilProfile1
         print *, me%WC_FC
         me%K_s = DATASET%soilHydraulicConductivity(me%x, me%y)
         print *, me%K_s
+        ! Soil hydraulic properties contain no data where in urban areas. For the moment,
+        ! until land cover properly incorporated into model, we'll use this as a proxy
+        ! for urban areas (which therefore contain no soil profile). In the future, we should
+        ! account for this properly by splitting grid cells into different soil profiles.
         if ((me%WC_sat == nf90_fill_real) &
             .or. (me%WC_FC == nf90_fill_real) &
-            .or. (me%K_s == nf90_fill_real)) then
-            me%isEmpty = .true.
+            .or. (me%K_s == nf90_fill_real) &
+            .or. (me%bulkDensity == nf90_fill_real)) then
+            print *, "is urban"
+            me%isUrban = .true.
         end if
-        ! ISSUES HERE
-        ! - Bulk density is -Infinity for GridCell_37_16
-        ! - K_s is sometimes negative - check it's not logged. In particular, it's often -4.43e-8.
-        ! - The above conditional never works (they seem to be filled with different values)
-        print *, me%isEmpty
         me%clayContent = DATASET%soilTextureClayContent(me%x, me%y)
-        print *, me%clayContent
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
-        print *, me%sandContent
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
-        print *, me%siltContent
         me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
-        print *, me%coarseFragContent
-
-
-        print *, "after slicing soil profile data"
 
         ! Auditing
         call r%addError( &

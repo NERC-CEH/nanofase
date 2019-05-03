@@ -32,6 +32,7 @@ module classDatabase
         class(Database)     :: me
         type(NcVariable)    :: var
         character(len=*)    :: inputFile
+        integer             :: x,y
 
         ! Open the dataset
         me%nc = NcDataset(inputFile, 'r')
