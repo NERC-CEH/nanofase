@@ -167,7 +167,11 @@ module spcReach
                 me%T_water &
             )
         end do
-        me%k_settle = me%W_settle_spm/me%depth
+        if (.not. isZero(me%depth)) then
+            me%k_settle = me%W_settle_spm/me%depth
+        else
+            me%k_settle = 0.0_dp
+        end if
 
         ! NP: Calculate this to pass to Reactor
         do i = 1, C%nSizeClassesNP

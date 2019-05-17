@@ -474,6 +474,7 @@ module classEstuaryReach
             ! Hardisty, pg 53. 6 m in mean depth at Southend Pier
             me%meanDepth = 6 * exp(-1.4*me%distanceToMouth/80000)
         end if
+
         
         ! ROUTING: Get the references to the inflow(s) EstuaryReaches and
         ! store in inflowRefs(). Do some auditing as well.

@@ -64,9 +64,17 @@ module Globals
         integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
         integer :: npDim(3)                         !! Default dimensions for arrays of NM
         integer :: ionicDim                         !! Default dimensions for ionic metal
+
+        ! Estuarine and tidal data
         real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2 [-]
         real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2 [-]
         real(dp) :: tidalDatum                      !! Datum that tidal harmonics are calculated relative to [m]
+        real :: estuaryChartedDepthExpA             !! Exponential coef A for charted depth
+        real :: estuaryChartedDepthExpB             !! Exponential coef B for charted depth
+        real :: estuaryMeanDepthExpA                !! Exponential coef A for mean depth
+        real :: estuaryMeanDepthExpB                !! Exponential coef B for mean depth
+        real :: estuaryWidthExpA                    !! Exponential coef A for estuary width
+        real :: estuaryWidthExpB                    !! Exponential coef B for estuary width
 
       contains
         procedure :: rho_w      ! Density of water
@@ -224,8 +232,21 @@ module Globals
         call var%getData(C%tidalM2)
         var = grp%getVariable("tidal_S2")                   ! Tidal harmonic coefficient S2
         call var%getData(C%tidalS2)
-        var = grp%getVariable("tidal_datum")                ! Datum which tidal harmonics are calculated relative to
-        call var%getData(C%tidalDatum)
+        ! The following exponential components are used to calculate depth/width and function of distance to mouth,
+        ! using an expontential equation of the form A*exp(-Bt)
+        var = grp%getVariable("estuary_charted_depth_expA") ! Charted depth exponential A coef
+        call var%getData(C%estuaryChartedDepthExpA)
+        var = grp%getVariable("estuary_charted_depth_expB") ! Charted depth exponential A coef
+        call var%getData(C%estuaryChartedDepthExpB)
+        var = grp%getVariable("estuary_mean_depth_expA")    ! Mean depth exponential A coef
+        call var%getData(C%estuaryMeanDepthExpA)
+        var = grp%getVariable("estuary_mean_depth_expB")    ! Mean depth exponential A coef
+        call var%getData(C%estuaryMeanDepthExpB)
+        var = grp%getVariable("estuary_width_expA")          ! Width exponential A coef
+        call var%getData(C%estuaryWidthExpA)
+        var = grp%getVariable("estuary_width_expB")         ! Width exponential A coef
+        call var%getData(C%estuaryWidthExpB)
+
         call C%dataset%close()                              ! Close the dataset
         ! TODO: Get default water temperature "T_water"
 
