@@ -189,8 +189,6 @@ module classGridCell1
             end do
         end if
 
-        print *, "finished create", me%ref
-
         ! Trigger any errors
         call r%addToTrace("Finalising creation of " // trim(me%ref))
         call LOG%toFile(errors=.errors.r)
@@ -298,6 +296,7 @@ module classGridCell1
                     me%nReaches = 0
                     me%nRiverReaches = 0
                     me%nEstuaryReaches = 0
+                    me%isEmpty = .true.         ! TODO allow grid cells without reaches, but they must be updated outside of routed reaches updating
                     return
                 end if
             end if
