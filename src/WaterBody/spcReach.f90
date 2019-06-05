@@ -159,28 +159,31 @@ module spcReach
     subroutine setSettlingRateReach(me)
         class(Reach) :: me                      !! This `Reach` instance
         integer :: i                            ! Size class iterator
-        ! SPM: Loop through the size classes and calculate settling velocity
-        do i = 1, C%nSizeClassesSpm
-            me%W_settle_spm(i) = me%calculateSettlingVelocity( &
-                C%d_spm(i), &
-                sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
-                me%T_water &
-            )
-        end do
+
         if (.not. isZero(me%depth)) then
+            ! SPM: Loop through the size classes and calculate settling velocity
+            do i = 1, C%nSizeClassesSpm
+                me%W_settle_spm(i) = me%calculateSettlingVelocity( &
+                    C%d_spm(i), &
+                    sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
+                    me%T_water &
+                )
+            end do
             me%k_settle = me%W_settle_spm/me%depth
+
+            ! NP: Calculate this to pass to Reactor
+            do i = 1, C%nSizeClassesNP
+                me%W_settle_np(i) = me%calculateSettlingVelocity( &
+                    C%d_np(i), &
+                    4230.0_dp, &       ! HACK: rho_np, change this to account for different NP materials
+                    me%T_water &
+                )
+            end do
         else
+            me%W_settle_spm = 0.0_dp
+            me%W_settle_np = 0.0_dp
             me%k_settle = 0.0_dp
         end if
-
-        ! NP: Calculate this to pass to Reactor
-        do i = 1, C%nSizeClassesNP
-            me%W_settle_np(i) = me%calculateSettlingVelocity( &
-                C%d_np(i), &
-                4230.0_dp, &       ! HACK: rho_np, change this to account for different NP materials
-                me%T_water &
-            )
-        end do
     end subroutine
 
 
