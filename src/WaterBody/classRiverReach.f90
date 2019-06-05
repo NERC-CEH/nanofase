@@ -101,6 +101,8 @@ module classRiverReach
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
         real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg]
+        real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -205,16 +207,19 @@ module classRiverReach
                 dj_np(4+me%nInflows,:,:,2+j) = -min(me%m_np(:,:,2+j)*fractionSpmDeposited(j), me%m_np(:,:,2+j))   ! Only deposit heteroaggregated NM (index 3+)
             end do
             
+            !-- MASS BALANCES --!
             ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
+            dj_np_outflow = -min(me%m_np, -dj_np(1,:,:,:))               ! Maximum outflow is the current mass
+            dj_spm_outflow = -min(me%m_spm, -dj_spm(1,:))
             me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
             me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
 
             ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
-            ! (inflows, runoff, sources) as they've already been correctly before the disp loop
+            ! (inflows, runoff, sources) as they've already been correctly set before the disp loop
             call me%set_Q_outflow(me%Q_outflow() + dQ(1))
-            call me%set_j_spm_outflow(me%j_spm_outflow() + dj_spm(1,:))
+            call me%set_j_spm_outflow(me%j_spm_outflow() + dj_spm_outflow)
             call me%set_j_spm_deposit(me%j_spm_deposit() + dj_spm(4+me%nInflows,:))
-            call me%set_j_np_outflow(me%j_np_outflow() + dj_np(1,:,:,:))
+            call me%set_j_np_outflow(me%j_np_outflow() + dj_np_outflow)
             call me%set_j_np_deposit(me%j_np_deposit() + dj_np(4+me%nInflows,:,:,:))
 
             ! If we're including bed sediment, then deposit and resuspend to/from
@@ -226,10 +231,6 @@ module classRiverReach
                 call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
                 if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             end if
-
-            ! Write stuff to output file
-            write(7,*) t, ",", (t-1)*C%timeStep + i*C%timeStep/nDisp, ",", me%x, ",", me%y, ",", me%w, ",", &
-                sum(me%m_np), ",", sum(me%C_np), ",", me%volume, ",", me%Q_outflow()
 
             ! TODO Deposit and resuspend NM to/from bed sediment
         end do

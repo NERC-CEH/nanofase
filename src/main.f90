@@ -91,8 +91,7 @@ program main
                    ! RiverReachs
                     do rr = 1, env%colGridCells(x,y)%item%nReaches
                         m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
-                        m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np - &
-                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,:,:)           ! TODO prob get rid of this - only applicable if delaying NP outflow being passed to next reach until next timestep
+                        m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np
                         if (.not. isZero(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume)) then
                             C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         else

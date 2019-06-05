@@ -69,8 +69,8 @@ module Globals
         real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2 [-]
         real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2 [-]
         real(dp) :: tidalDatum                      !! Datum that tidal harmonics are calculated relative to [m]
-        real :: estuaryChartedDepthExpA             !! Exponential coef A for charted depth
-        real :: estuaryChartedDepthExpB             !! Exponential coef B for charted depth
+        ! real :: estuaryChartedDepthExpA             !! Exponential coef A for charted depth
+        ! real :: estuaryChartedDepthExpB             !! Exponential coef B for charted depth
         real :: estuaryMeanDepthExpA                !! Exponential coef A for mean depth
         real :: estuaryMeanDepthExpB                !! Exponential coef B for mean depth
         real :: estuaryWidthExpA                    !! Exponential coef A for estuary width
@@ -234,10 +234,11 @@ module Globals
         call var%getData(C%tidalS2)
         ! The following exponential components are used to calculate depth/width and function of distance to mouth,
         ! using an expontential equation of the form A*exp(-Bt)
-        var = grp%getVariable("estuary_charted_depth_expA") ! Charted depth exponential A coef
-        call var%getData(C%estuaryChartedDepthExpA)
-        var = grp%getVariable("estuary_charted_depth_expB") ! Charted depth exponential A coef
-        call var%getData(C%estuaryChartedDepthExpB)
+        ! TODO check this, but I don't think we need charted depth - everything can be calculated as fn of mean depth (see spreadsheet)
+        ! var = grp%getVariable("estuary_charted_depth_expA") ! Charted depth exponential A coef
+        ! call var%getData(C%estuaryChartedDepthExpA)
+        ! var = grp%getVariable("estuary_charted_depth_expB") ! Charted depth exponential A coef
+        ! call var%getData(C%estuaryChartedDepthExpB)
         var = grp%getVariable("estuary_mean_depth_expA")    ! Mean depth exponential A coef
         call var%getData(C%estuaryMeanDepthExpA)
         var = grp%getVariable("estuary_mean_depth_expB")    ! Mean depth exponential A coef
