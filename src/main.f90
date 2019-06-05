@@ -38,6 +38,9 @@ program main
     character(len=3) :: reachType
     real(dp) :: reachDepth
     integer :: nDisp
+    real(dp) :: total_m_np
+    real(dp) :: total_C_np
+    real(dp) :: bulkDensity
 
     call cpu_time(start)                                                ! Simulation start time
     wallStart = omp_get_wtime()
@@ -63,9 +66,8 @@ program main
     write(2, '(A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
         "total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,reach_depth,river_flow,total_np_pointsource,C_np_biota,"
     write(2, '(A,A)') "C_np_biota_noStoredFraction,reach_type,total_np_outflow"
-    write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
+    write(5, '(A,A)') "t,x,y,total_m_np,total_C_np,bulk_density,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
-    write(7, '(A,A)') "t,time,x,y,rr,total_m_np,total_C_np,reach_volume,reach_flow"
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer
     r = env%create()                                                    ! Create the environment
@@ -85,12 +87,12 @@ program main
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
                     write(3,*) t, ", ", x, ", ", y, ", ", &
                         sum(env%colGridCells(x,y)%item%erodedSediment)
-        
+
                    ! RiverReachs
                     do rr = 1, env%colGridCells(x,y)%item%nReaches
                         m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
                         m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np - &
-                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,:,:)
+                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,:,:)           ! TODO prob get rid of this - only applicable if delaying NP outflow being passed to next reach until next timestep
                         if (.not. isZero(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume)) then
                             C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         else
@@ -152,6 +154,7 @@ program main
                         m_np_free = m_np_free + &
                             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,1)) + &
                             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,1,1))
+
                     end do
         
                     m_np_l1 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np
@@ -164,13 +167,19 @@ program main
                     C_np_biota = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np
                     C_np_biota_noStoredFraction &
                         = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np_noStoredFraction
+                    total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3) + sum(m_np_l4)
+                    if (env%colGridCells(x,y)%item%colSoilProfiles(1)%item%bulkDensity < 0) then
+                        bulkDensity = 1220
+                    else
+                        bulkDensity = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%bulkDensity
+                    end if
+                    total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
                     write(5,*) t, ", ", x, ", ", y, ", ", &
+                        total_m_np, ", ", total_C_np, ", ", bulkDensity, ", ", &
                         sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
                         sum(m_np_l4(:,1,1)), ", ", sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
                         sum(m_np_l3(:,1,2)), ", ", sum(m_np_l4(:,1,2)), ", ", sum(m_np_eroded(:,1,2)), ", ", &
                         sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota, ", ", C_np_biota_noStoredFraction
-
-
                 end if
             end do
         end do
