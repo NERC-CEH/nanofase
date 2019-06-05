@@ -33,7 +33,7 @@ program main
     real(dp) :: npRunoff
     type(datetime) :: currentDate
     real(dp) :: riverVolume
-    real(dp) :: Q_out
+    real(dp) :: Q_out, np_out
     real(dp) :: npPointSource
     character(len=3) :: reachType
     real(dp) :: reachDepth
@@ -62,7 +62,7 @@ program main
     open(unit=7, file=trim(C%outputPath) // 'output_disp.csv')
     write(2, '(A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
         "total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,reach_depth,river_flow,total_np_pointsource,C_np_biota,"
-    write(2, '(A,A)') "C_np_biota_noStoredFraction,reach_type"
+    write(2, '(A,A)') "C_np_biota_noStoredFraction,reach_type,total_np_outflow"
     write(5, '(A,A)') "t,x,y,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
     write(7, '(A,A)') "t,time,x,y,rr,total_m_np,total_C_np,reach_volume,reach_flow"
@@ -106,6 +106,7 @@ program main
                         riverVolume = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
                         reachDepth = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%depth
                         Q_out = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%Q(1)/C%timeStep     ! Converted from m3/timestep to m3/s
+                        np_out = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_outflow())
 
                         ! What type of reach is this?
                         select type (reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
@@ -122,7 +123,7 @@ program main
                         C_np_biota_noStoredFraction &
                             = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np_noStoredFraction
                         ! Write to the data file
-                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
+                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
                             t, ",", &
                             x, ",", &
                             y, ",", &
@@ -142,7 +143,8 @@ program main
                             trim(str(npPointSource)), ",", &
                             trim(str(C_np_biota)), ",", &
                             trim(str(C_np_biota_noStoredFraction)), ",", &
-                            trim(reachType)
+                            trim(reachType), ",", &
+                            trim(str(np_out))
                        
                         m_np_hetero = m_np_hetero + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &

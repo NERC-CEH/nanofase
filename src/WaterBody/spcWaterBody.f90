@@ -159,6 +159,7 @@ module spcWaterBody
         me%C_ionic = 0
         me%m_ionic = 0
         me%T_water = 10             ! TODO set this from data or empirical relationship
+        me%bedArea = 0
     end subroutine
 
     !> Parse input data for this `WaterBody`
