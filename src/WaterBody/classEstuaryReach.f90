@@ -117,6 +117,9 @@ module classEstuaryReach
         real(dp) :: dj_np_in(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: tpm_m_spm(C%nSizeClassesSpm)
 
+        print *, "starting to update estuary reach ", trim(me%ref)
+
+
         ! Initialise flows to zero
         fractionSpmDeposited = 0
         j_spm_deposit = 0
@@ -145,6 +148,8 @@ module classEstuaryReach
         if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
 
         ! TODO Inflows from transfers
+
+        print *, "    after inflows, before sources"
 
         ! Inflows from sources (if there are any):
         ! Run the update method, which sets PointSource's j_np_pointsource variable
@@ -319,7 +324,7 @@ module classEstuaryReach
             else
                 me%C_spm(j) = me%m_spm(j) / me%volume
             end if
-        end do   
+        end do
 
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
