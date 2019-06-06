@@ -26,7 +26,6 @@ module classEstuaryReach
         ! Data handlers
         procedure :: parseInputData => parseInputDataEstuaryReach
         ! Calculators
-        procedure :: calculateWidth => calculateWidth
         procedure :: calculateDepth => calculateDepth
         procedure :: calculateVelocity => calculateVelocity
         procedure :: changeInVolume => changeInVolume
@@ -50,6 +49,7 @@ module classEstuaryReach
         ! Parse input data and allocate/initialise variables. The order here is important:
         ! allocation depends on the input data.
         call rslt%addErrors(.errors. me%parseInputData())
+        call me%setDimensions(0)                ! Make sure the reach has some dimensions to begin with
         call me%allocateAndInitialise()
 
         ! Create the BedSediment for this RiverReach
@@ -116,6 +116,11 @@ module classEstuaryReach
         real(dp) :: dj_spm_in(C%nSizeClassesSpm)
         real(dp) :: dj_np_in(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: tpm_m_spm(C%nSizeClassesSpm)
+        real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
+
+        print *, "starting to update estuary reach ", trim(me%ref)
+
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -145,6 +150,8 @@ module classEstuaryReach
         if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
 
         ! TODO Inflows from transfers
+
+        print *, "    after inflows, before sources"
 
         ! Inflows from sources (if there are any):
         ! Run the update method, which sets PointSource's j_np_pointsource variable
@@ -274,6 +281,8 @@ module classEstuaryReach
             end do
             
             ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
+            dj_np_outflow = -min(me%m_np, -dj_np(1,:,:,:))               ! Maximum outflow is the current mass
+            dj_spm_outflow = -min(me%m_spm, -dj_spm(1,:))
             me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
             me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
             me%m_np_disp(i,:,:,:) = me%m_np
@@ -288,9 +297,9 @@ module classEstuaryReach
             ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
             ! (inflows, runoff, sources) as they've already been correctly before the disp loop
             call me%set_Q_outflow(me%Q_outflow() + dQ(1))
-            call me%set_j_spm_outflow(me%j_spm_outflow() + dj_spm(1,:))
+            call me%set_j_spm_outflow(me%j_spm_outflow() + dj_spm_outflow)
             call me%set_j_spm_deposit(me%j_spm_deposit() + dj_spm(4+me%nInflows,:))
-            call me%set_j_np_outflow(me%j_np_outflow() + dj_np(1,:,:,:))
+            call me%set_j_np_outflow(me%j_np_outflow() + dj_np_outflow)
             call me%set_j_np_deposit(me%j_np_deposit() + dj_np(4+me%nInflows,:,:,:))
 
             ! If we're including bed sediment, then deposit and resuspend to/from
@@ -302,10 +311,6 @@ module classEstuaryReach
                 call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
                 if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             end if
-
-            ! Write stuff to output file
-            write(7,*) t, ",", (t-1)*C%timeStep + i*C%timeStep/nDisp, ",", me%x, ",", me%y, ",", me%w, ",", &
-                sum(me%m_np), ",", sum(me%C_np), ",", me%volume, ",", me%Q_outflow()
 
             ! TODO Deposit and resuspend NM to/from bed sediment
         end do
@@ -319,7 +324,7 @@ module classEstuaryReach
             else
                 me%C_spm(j) = me%m_spm(j) / me%volume
             end if
-        end do   
+        end do
 
         ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
         ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
@@ -376,10 +381,19 @@ module classEstuaryReach
     subroutine setDimensions(me, tHours)
         class(EstuaryReach) :: me
         integer :: tHours
+
+        ! Width, as exponential function of distance from mouth, unless specified in data
+        if (isZero(me%width)) then
+            me%width = C%estuaryWidthExpA * exp(-C%estuaryWidthExpB * me%distanceToMouth)
+        end if
+        
+        ! Mean depth as exponential function of distance from mouth
+        me%meanDepth = C%estuaryMeanDepthExpA * exp(-C%estuaryMeanDepthExpB * me%distanceToMouth)
+        ! Calculate actual depth based on these and number of hours through model run
         me%depth = me%calculateDepth(tHours)
         me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
         me%bedArea = me%width*me%length*me%f_m              ! Calculate the BedSediment area [m2]
-        me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area
+        me%surfaceArea = me%bedArea                         ! TODO maybe alter this for estuaries to make non-rectangular
         me%volume = me%depth*me%width*me%length*me%f_m      ! Reach volume
     end subroutine
 
@@ -454,26 +468,12 @@ module classEstuaryReach
             .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero_estuary), &
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
-            .errors. DATA%get('mean_depth', me%meanDepth, 0.0_dp), &
             .errors. DATA%get('width', me%width, 0.0_dp), &
-            .errors. DATA%get('tidal_M2', me%tidalM2, C%tidalM2), &
-            .errors. DATA%get('tidal_S2', me%tidalS2, C%tidalS2), &
             .errors. DATA%get('distance_to_mouth', me%distanceToMouth), &
             .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
 
-        ! HACK for the width of the Thames
-        if (me%width == 0.0_dp) then
-            ! Hardisty, pg 50
-            me%width = 5000 * exp(-4.25*me%distanceToMouth/80000)
-        end if
-
-        ! HACK for depth of Thames
-        if (me%meanDepth == 0.0_dp) then
-            ! Hardisty, pg 53. 6 m in mean depth at Southend Pier
-            me%meanDepth = 6 * exp(-1.4*me%distanceToMouth/80000)
-        end if
         
         ! ROUTING: Get the references to the inflow(s) EstuaryReaches and
         ! store in inflowRefs(). Do some auditing as well.
@@ -533,22 +533,6 @@ module classEstuaryReach
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function
 
-    !> Calculate the width \( W \) of the river based on the discharge:
-    !! $$
-    !!      W = 1.22Q^{0.557}
-    !! $$
-    !! References:
-    !! <ul>
-    !!  <li>[Dumont et al., 2012](https://doi.org/10.1080/02626667.2012.715747)</li>
-    !!  <li>[Allen et al., 1994](https://doi.org/10.1111/j.1752-1688.1994.tb03321.x)</li>
-    !! </ul>
-    function calculateWidth(me, Q) result(width)
-        class(EstuaryReach), intent(in) :: me     !! The `EstuaryReach` instance
-        real(dp), intent(in) :: Q               !! `GridCell` discharge \( Q \) [m3/s]
-        real(dp) :: width                       !! The calculated width \( W \) [m]
-        width = 1.22*Q**0.557
-    end function
-
     !> Calculate water depth from tidal harmonics.
     !! $$
     !!      D(x,t) = A_{S2} \cos \left( 2\pi \frac{t}{12} \right) + A_{M2} \cos \left( 2\pi \frac{t}{12.42} \right) + /
@@ -560,10 +544,10 @@ module classEstuaryReach
         integer, intent(in) :: tHours             !! The current timestep (in hours)
         real(dp) :: depth
 
-        depth = me%tidalS2 * cos(2.0_dp*C%pi*tHours/12.0_dp) + me%tidalM2 * cos(2.0_dp*C%pi*tHours/12.42_dp) &
-            + (0.75_dp) * ((me%distanceToMouth * me%tidalM2 ** 2)/(me%meanDepth * 22356.0_dp * sqrt(9.81_dp * me%meanDepth))) &
-            * cos(2*C%pi*tHours/6.21_dp) + C%tidalDatum
-        ! If the depth is negative, set it to zero
+        depth = C%tidalS2 * cos(2.0_dp*C%pi*tHours/12.0_dp) + C%tidalM2 * cos(2.0_dp*C%pi*tHours/12.42_dp) &
+            + (0.75_dp) * ((me%distanceToMouth * C%tidalM2 ** 2)/(me%meanDepth * 22356.0_dp * sqrt(9.81_dp * me%meanDepth))) &
+            * cos(2*C%pi*tHours/6.21_dp) + me%meanDepth
+        ! If the depth is negative (which it really shouldn't be...), set it to zero
         if (depth < 0) depth = 0.0_dp
     end function
 

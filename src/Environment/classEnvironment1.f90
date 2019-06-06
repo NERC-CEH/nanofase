@@ -289,6 +289,7 @@ module classEnvironment1
                 ) &
             )
         end if
+
     end function
     
     !> Obtain and parse input data for this `Environment` object
