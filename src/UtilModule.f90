@@ -51,11 +51,12 @@ module UtilModule
                 print *, ""
             end do
         end subroutine
+
         !> Convert an integer to a logical value
-        function lgcl(i)
+        elemental function lgcl(i)
             integer, intent(in) :: i
             logical :: lgcl
-            if (i == 0) then
+            if (i .le. 0) then
                 lgcl = .false.
             else
                 lgcl = .true.

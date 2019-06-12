@@ -69,6 +69,9 @@ module classGridCell1
 
             r = me%parseInputData()                         ! Parse and store input data in this object
 
+            print *, DATASET%landUse(me%x, me%y, :)
+            error stop
+
             ! Create the DiffuseSource object(s), if this cell has any
             if (me%hasDiffuseSource) then
                 do s = 1, size(me%diffuseSources, 1)
