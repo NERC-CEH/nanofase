@@ -5,8 +5,9 @@ module classEnvironment1
     use UtilModule
     use spcEnvironment
     use ResultModule
-    use classGridCell1
+    use classGridCell2
     use classDataInterfacer, only: DATA
+    use classDatabase, only: DATASET
     implicit none
     private
     
@@ -38,68 +39,85 @@ module classEnvironment1
         integer :: x, y, rr, i, j, b, ix, iy                    ! Iterators
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
-        ! type(ReachPointer), allocatable :: tmpRoutedRiverReaches(:,:)    ! Temporary array to store routedRiverReaches in
-        ! type(GridCellPointer), allocatable :: tmpHeadwaters(:)  ! Temporary array to store headwater array in
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
-        ! allocate(me%headwaters(0))
-        ! me%nHeadwaters = 0
-        call r%addErrors(.errors. me%parseInputData())
-        allocate(me%routedReaches(size(me%routedReachIndices,3), size(me%routedReachIndices,2)))
+        ! call r%addErrors(.errors. me%parseInputData())
+        ! allocate(me%routedReaches(size(me%routedReachIndices,3), size(me%routedReachIndices,2)))
         ! Make sure everything is null to begin with
-        do j = 1, size(me%routedReaches,2)
-            do i = 1, size(me%routedReaches,1)
-                me%routedReaches(i,j)%item => null()
+        ! do j = 1, size(me%routedReaches,2)
+            ! do i = 1, size(me%routedReaches,1)
+                ! me%routedReaches(i,j)%item => null()
+            ! end do
+        ! end do
+
+        ! Set the grid shape
+        allocate(me%colGridCells(DATASET%gridShape(1), DATASET%gridShape(2)))
+        ! Loop over grid and create cells
+        do y = 1, DATASET%gridShape(2)
+            do x = 1, DATASET%gridShape(1)
+                ! If this grid cell isn't masked, create it
+                if (.not. DATASET%gridMask(x,y)) then
+                    allocate(GridCell2::me%colGridCells(x,y)%item)
+                    call r%addErrors(.errors. &
+                        me%colGridCells(x,y)%item%create(x,y) &
+                    )
+                ! If it is masked, still create it but tell it that it's empty
+                else
+                    allocate(GridCell2::me%colGridCells(x,y)%item)
+                    call r%addErrors(.errors. &
+                        me%colGridCells(x,y)%item%create(x,y,isEmpty=.true.) &
+                    )
+                end if
             end do
         end do
         
         if (.not. r%hasCriticalError()) then    
 
-            ! Set the size of Environment variable that holds the grid cells
-            allocate(me%colGridCells(me%gridDimensions(1),me%gridDimensions(2)))
+        !     ! Set the size of Environment variable that holds the grid cells
+        !     allocate(me%colGridCells(me%gridDimensions(1),me%gridDimensions(2)))
             
-            do y = 1, me%gridDimensions(2)                                ! Loop through the y dimensions of the grid
-                do x = 1, me%gridDimensions(1)                            ! Loop through the x dimensions of the grid
-                    gridCellRef = ref("GridCell", x, y)
-                    ! We need to reset the group to the Environment each time as the below loop
-                    ! sets the group to the grid cell group
-                    call r%addErrors(.errors. DATA%setGroup(['Environment']))
-                    ! Check if the GridCell is defined in the data file before creating
-                    ! it and adding to colGridCells. If it doesn't exist, specify it is
-                    ! an empty GridCell.
+        !     do y = 1, me%gridDimensions(2)                                ! Loop through the y dimensions of the grid
+        !         do x = 1, me%gridDimensions(1)                            ! Loop through the x dimensions of the grid
+        !             gridCellRef = ref("GridCell", x, y)
+        !             ! We need to reset the group to the Environment each time as the below loop
+        !             ! sets the group to the grid cell group
+        !             call r%addErrors(.errors. DATA%setGroup(['Environment']))
+        !             ! Check if the GridCell is defined in the data file before creating
+        !             ! it and adding to colGridCells. If it doesn't exist, specify it is
+        !             ! an empty GridCell.
 
-                    if (DATA%grp%hasGroup(trim(gridCellRef))) then
-                        ! Get the type of the GridCell (e.g., GridCell1, GridCell2) to
-                        ! create, from the data file.
-                        call r%addErrors(.errors. DATA%setGroup([character(len=100) :: 'Environment', trim(gridCellRef)]))
-                        call r%addErrors(.errors. DATA%get('type', gridCellType, 1))
-                        select case (gridCellType)
-                            case (1)
-                                allocate(GridCell1::me%colGridCells(x,y)%item)  ! Allocate to type 1, GridCell1
-                                call r%addErrors(.errors. &                     ! Call the create method to create the GridCell
-                                    me%colGridCells(x,y)%item%create(x,y) &
-                                )
-                                ! if (me%colGridCells(x,y)%item%isHeadwater) then
-                                !     me%nHeadwaters = me%nHeadwaters + 1
-                                !     allocate(tmpHeadwaters(me%nHeadwaters))                             ! Extend the me%headwaters array by 1
-                                !     tmpHeadwaters(1:me%nHeadwaters-1) = me%headwaters
-                                !     call move_alloc(tmpHeadwaters, me%headwaters)
-                                !     me%headwaters(me%nHeadwaters)%item => me%colGridCells(x,y)%item     ! Point to this grid cell
-                                ! end if
-                            case default
-                                call r%addError( &                              ! Invalid type error
-                                    ErrorInstance(110,"Invalid GridCell type index for " // &
-                                        trim(gridCellRef) // ": " // trim(str(gridCellType)) // ".") &
-                                )
-                        end select
-                    else
-                        allocate(GridCell1::me%colGridCells(x,y)%item)          ! Otherwise, create an empty GridCell1
-                        call r%addErrors(.errors. &
-                            me%colGridCells(x,y)%item%create(x,y,isEmpty=.true.) &
-                        )
-                    end if
-                end do
-            end do
+        !             if (DATA%grp%hasGroup(trim(gridCellRef))) then
+        !                 ! Get the type of the GridCell (e.g., GridCell1, GridCell2) to
+        !                 ! create, from the data file.
+        !                 call r%addErrors(.errors. DATA%setGroup([character(len=100) :: 'Environment', trim(gridCellRef)]))
+        !                 call r%addErrors(.errors. DATA%get('type', gridCellType, 1))
+        !                 select case (gridCellType)
+        !                     case (1)
+        !                         allocate(GridCell1::me%colGridCells(x,y)%item)  ! Allocate to type 1, GridCell1
+        !                         call r%addErrors(.errors. &                     ! Call the create method to create the GridCell
+        !                             me%colGridCells(x,y)%item%create(x,y) &
+        !                         )
+        !                         ! if (me%colGridCells(x,y)%item%isHeadwater) then
+        !                         !     me%nHeadwaters = me%nHeadwaters + 1
+        !                         !     allocate(tmpHeadwaters(me%nHeadwaters))                             ! Extend the me%headwaters array by 1
+        !                         !     tmpHeadwaters(1:me%nHeadwaters-1) = me%headwaters
+        !                         !     call move_alloc(tmpHeadwaters, me%headwaters)
+        !                         !     me%headwaters(me%nHeadwaters)%item => me%colGridCells(x,y)%item     ! Point to this grid cell
+        !                         ! end if
+        !                     case default
+        !                         call r%addError( &                              ! Invalid type error
+        !                             ErrorInstance(110,"Invalid GridCell type index for " // &
+        !                                 trim(gridCellRef) // ": " // trim(str(gridCellType)) // ".") &
+        !                         )
+        !                 end select
+        !             else
+        !                 allocate(GridCell1::me%colGridCells(x,y)%item)          ! Otherwise, create an empty GridCell1
+        !                 call r%addErrors(.errors. &
+        !                     me%colGridCells(x,y)%item%create(x,y,isEmpty=.true.) &
+        !                 )
+        !             end if
+        !         end do
+        !     end do
             
             ! Now we need to create links between RiverReaches, which wasn't possible before all GridCells
             ! and their RiverReaches were created:
@@ -304,6 +322,8 @@ module classEnvironment1
             .errors. DATA%get('grid_dimensions', me%gridDimensions), &
             .errors. DATA%get('routed_reaches', me%routedReachIndices) &
         ])
+
+        ! TODO eventually this will be removed
 
         ! FLAT DATA
         ! TODO eventually move into data interfacer. Deal with unit conversions here. Maybe print

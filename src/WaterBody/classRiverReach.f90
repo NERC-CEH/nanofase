@@ -28,17 +28,22 @@ module classRiverReach
 
   contains
 
-    function createRiverReach(me, x, y, w, gridCellArea) result(rslt)
+    function createRiverReach(me, x, y, w, gridCellArea, neighbours) result(rslt)
         class(RiverReach) :: me                 !! This `RiverReach` instance
         integer :: x                            !! Grid cell x-position index
         integer :: y                            !! Grid cell y-position index
         integer :: w                            !! Water body index within the cell
         real(dp) :: gridCellArea                !! Containing grid cell area [m2]
+        integer, optional :: neighbours(:,:,:,:)!! Neighbouring waterbodies. First element is the outflow.
         type(Result) :: rslt                    !! Result object to return errors in
         integer :: i, j                         ! Iterator
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area
-        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
+        if (present(neighbours)) then
+            call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea, neighbours))
+        else
+            call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
+        end if
         me%ref = trim(ref("RiverReach", x, y, w))
 
         ! Parse input data and allocate/initialise variables. The order here is important:
