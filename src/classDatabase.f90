@@ -97,7 +97,7 @@ module classDatabase
         call var%getData(me%nWaterbodies)
         var = me%nc%getVariable('is_estuary')
         call var%getData(isEstuaryInt)
-        me%isEstuary = lgcl(isHeadwaterInt)         ! Convert int to logical
+        me%isEstuary = lgcl(isEstuaryInt)         ! Convert int to logical
 
         ! Use the nWaterbodies array to set the grid mask
         allocate(me%gridMask(me%gridShape(1), me%gridShape(2)))

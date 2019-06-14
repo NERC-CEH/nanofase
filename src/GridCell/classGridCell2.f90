@@ -143,15 +143,19 @@ module classGridCell2
         do w = 1, me%nReaches
             ! What type of waterbody is this?
             if (me%reachTypes(w) == 'riv') then
+                print *, "river", w
                 allocate(RiverReach::me%colRiverReaches(w)%item)
             else if (me%reachTypes(w) == 'est') then
+                print *, "est"
                 allocate(EstuaryReach::me%colRiverReaches(w)%item)
             else
+                print *, "error", w
                 call rslt%addError(ErrorInstance( &
                     message="Trying to create waterbody of unknown type " // trim(me%reachTypes(w)) // "." &
                 ))
             end if
             ! Call creation method
+            print *, "about to create", w
             call rslt%addErrors(.errors. &
                 me%colRiverReaches(w)%item%create(me%x, me%y, w, me%area) &
             )
@@ -337,8 +341,11 @@ module classGridCell2
 
         ! Get the number of waterbodies
         me%nReaches = DATASET%nWaterbodies(me%x, me%y)
+        allocate(me%colRiverReaches(me%nReaches))
         allocate(me%reachTypes(me%nReaches))
         ! What are the types of those waterbodies?
+
+        print *, "is estuary", DATASET%isEstuary(me%x, me%y)
         if (DATASET%isEstuary(me%x, me%y)) then
             me%reachTypes = 'est'
         else

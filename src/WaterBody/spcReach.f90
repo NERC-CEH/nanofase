@@ -349,7 +349,7 @@ module spcReach
             inflowCell = DATASET%inflows(:, me%w, me%x, me%y)
             ! Then use the number of waterbodies in that cell to get the number of inflowing reaches
             ! to this reach (remember each cell can only have one outflow)
-            me%nInflows = DATASET%nWaterbodies(inflowCell(1), inflowCell(2))
+            me%nInflows = DATASET%nWaterbodies(inflowCell(2), inflowCell(1))
             allocate(me%inflowsArr(3, me%nInflows))
             do i = 1, me%nInflows
                 me%inflowsArr(:, i) = [me%w, inflowCell]

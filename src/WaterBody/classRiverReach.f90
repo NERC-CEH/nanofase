@@ -341,6 +341,7 @@ module classRiverReach
             ref('GridCell', me%x, me%y), &
             me%ref &
         ]))
+        print *, me%ref
         me%ncGroup = DATA%grp
 
         ! Check if this reach has/   any diffuse sources. me%hasDiffuseSource defauls to .false.
