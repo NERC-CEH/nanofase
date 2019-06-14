@@ -5,6 +5,7 @@ module spcReach
     use ErrorInstanceModule
     use spcWaterBody
     use mo_netcdf               ! See below TODO re me%ncGroup
+    use classDatabase, only: DATASET
     implicit none
 
     !> `ReachPointer` used for `Reach` inflows array, so the elements within can
@@ -17,7 +18,9 @@ module spcReach
     !! (rivers, estuaries).
     type, abstract, public, extends(WaterBody) :: Reach
         ! Linking water bodies
-        type(WaterBodyRef), allocatable :: inflowRefs(:)            !! References to inflow reaches
+        type(WaterBodyRef), allocatable :: inflowRefs(:)            !! References to inflow reaches TODO deprecate
+        integer, allocatable :: inflowsArr(:,:)
+        integer :: outflowArr(3)
         type(ReachPointer), allocatable :: inflows(:)               !! Array of points to inflow reaches
         type(ReachPointer) :: outflow                               !! Pointer to the outflow from this reach
         integer, allocatable :: domainOutflow(:)
@@ -48,6 +51,8 @@ module spcReach
       contains
         ! Data
         procedure :: allocateAndInitialise => allocateAndInitialiseReach
+        procedure :: parseInflowsAndOutflow => parseInflowsAndOutflowReach
+        procedure :: setReachLength => setReachLengthReach
         ! Simulators
         procedure :: setResuspensionRate => setResuspensionRateReach
         procedure :: setSettlingRate => setSettlingRateReach
@@ -325,6 +330,77 @@ module spcReach
         real(dp), intent(in) :: f_fr                            !! Friction factor \( f \) [-]
         real(dp) :: k_res(C%nSizeClassesSpm)                    !! Calculated resuspension flux \( j_{\text{res}} \) [s-1]
         k_res = beta*L*W*M_prop*omega*f_fr
+    end function
+
+    function parseInflowsAndOutflowReach(me) result(rslt)
+        class(Reach) :: me
+        type(Result) :: rslt
+        integer :: i                                ! Loop iterator
+        integer :: inflowCell(2)
+        integer :: outflowCell(2)
+        integer :: i_out
+        ! If we're not in a headwater cell, use the grid cell inflows and outflow to set the
+        ! inflows to this reach. This is assuming the model conventions that each branch in the
+        ! cell has one reach, and thus the cell outflow is the outflow for all reaches in the cell,
+        ! and the inflows are the inflows to each reach.
+        if (.not. DATASET%isHeadwater(me%x, me%y)) then
+            ! First, use this reach's index to get the inflowing cell (making sure we use the
+            ! same convention when setting outflows)
+            inflowCell = DATASET%inflows(:, me%w, me%x, me%y)
+            ! Then use the number of waterbodies in that cell to get the number of inflowing reaches
+            ! to this reach (remember each cell can only have one outflow)
+            me%nInflows = DATASET%nWaterbodies(inflowCell(1), inflowCell(2))
+            allocate(me%inflowsArr(3, me%nInflows))
+            do i = 1, me%nInflows
+                me%inflowsArr(:, i) = [me%w, inflowCell]
+            end do
+        else
+            ! If we're in a headwater cell, this must be the only reach and it won't have an inflow
+            me%isHeadwater = .true.
+            me%nInflows = 0
+            allocate(me%inflowsArr(0,0))
+        end if
+        ! Allocate inflows() array (the array of pointers) to the correct size
+        allocate(me%inflows(me%nInflows))
+        ! Now we have to look at the outflow cell's inflow cells (from DATASET) to figure
+        ! which waterbody index to use for this cell's outflow - the above creates reaches
+        ! simply by looping through the indices starting with the first it encounters in
+        ! DATASET%inflows, so the outflow reach ref will follow this convention
+        outflowCell = DATASET%outflow(:, me%x, me%y)
+        if (.not. DATASET%inModelDomain(outflowCell(1), outflowCell(2))) then
+            me%isDomainOutflow = .true.
+        end if
+        ! Loop through outflow cell reaches and find index where inflow (x,y) equals
+        ! this cell (x,y)
+        do i = 1, DATASET%nWaterbodies(outflowCell(1),outflowCell(2))
+            if (DATASET%inflows(1, i, outflowCell(1), outflowCell(2)) == outflowCell(1) &
+                .and. DATASET%inflows(2, i, outflowCell(1), outflowCell(2)) == outflowCell(2)) then
+                i_out = i
+            end if
+        end do
+        ! Set reach outflow based on this
+        me%outflowArr =  [i_out, outflowCell(1), outflowCell(2)]
+    end function
+
+    function setReachLengthReach(me) result(rslt)
+        class(Reach) :: me
+        type(Result) :: rslt
+        real :: dx, dy
+
+        if (me%isHeadwater) then
+            ! If headwater, assume reach starts in centre of cell
+            dx = (me%x - me%outflowArr(2)) * 0.5 * DATASET%gridRes(1)
+            dy = (me%y - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2)
+        else
+            ! If not headwater, use distance between inflow and outflow to calculate length
+            ! All inflows to this reach will be from same cell, so just use first in array
+            dx = (me%inflowsArr(1,2) - me%outflowArr(2)) * 0.5 * DATASET%gridRes(1)
+            dy = (me%inflowsArr(1,3) - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2)
+        end if
+        ! A touch of trig to calculate reach length
+        me%length = sqrt(dx**2 + dy**2)
+
+        !TODO MEANDERING FACTOR
     end function
 
 !-------------!

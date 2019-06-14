@@ -58,7 +58,6 @@ module classDatabase
         integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
         integer, allocatable :: isEstuaryInt(:,:)
 
-
         ! Open the dataset
         me%nc = NcDataset(inputFile, 'r')
 

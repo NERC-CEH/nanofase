@@ -25,8 +25,8 @@ module spcGridCell
         type(NcGroup) :: ncGroup                                        !! The NetCDF group for this dataset
         integer :: x                                                    !! `GridCell` x reference
         integer :: y                                                    !! `GridCell` y reference
-        integer :: dx                                                   !! Size of `GridCell` in x direction [m]
-        integer :: dy                                                   !! Size of `GridCell` in y direction [m]
+        real :: dx                                                      !! Size of `GridCell` in x direction [m]
+        real :: dy                                                      !! Size of `GridCell` in y direction [m]
         real(dp) :: area                                                !! Area of the `GridCell`
         type(ReachElement), allocatable :: colRiverReaches(:)           !! Array of `RiverReachElement` objects to hold the RiverReaches
         character(len=3), allocatable :: reachTypes(:)                  !! Type of each indexed reach within this cell - 'riv' or 'est'

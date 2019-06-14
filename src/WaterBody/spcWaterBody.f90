@@ -51,7 +51,7 @@ module spcWaterBody
         real(dp), allocatable :: m_np_disp(:,:,:,:)                 !! Mass of nanomaterial on each displacement [kg]
         real(dp), allocatable :: C_np_disp(:,:,:,:)                 !! Concentration of nanomaterial on each displacement [kg]
         ! Flows and fluxes
-        integer, allocatable :: neighboursArray(:,:,:,:)            !! Neighbouring waterbodies, as array of indices
+        integer, allocatable :: neighboursArray(:,:)                !! Neighbouring waterbodies, as array of indices
         type(WaterBodyPointer), allocatable :: neighbours(:)        !! Neighbouring waterbodies
         real(dp), allocatable :: Q(:)
             !! Flow of water to neighbouring compartments. Size of array corresponds to the number
@@ -114,22 +114,16 @@ module spcWaterBody
   contains
 
     !> Create this `WaterBody`
-    function createWaterBody(me, x, y, w, gridCellArea, neighbours) result(rslt)
+    function createWaterBody(me, x, y, w, gridCellArea) result(rslt)
         class(WaterBody) :: me                                  !! The `WaterBody` instance
         integer :: x, y, w                                      !! `GridCell` and `WaterBody` identifiers
         real(dp) :: gridCellArea                                !! Area of the containing `GridCell`
-        integer, optional :: neighbours(:,:,:,:)                          !! Neighbouring water bodies
         type(Result) :: rslt                                    !! The Result object
         ! Set reach indices and grid cell area
         me%x = x
         me%y = y
         me%w = w
         me%gridCellArea = gridCellArea
-        if (present(neighbours)) then
-            me%neighboursArray = neighbours
-        else
-            allocate(me%neighboursArray(0,0,0,0))
-        end if
     end function
 
     !> Update this `WaterBody` on given time step

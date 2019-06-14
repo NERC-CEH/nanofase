@@ -6,6 +6,7 @@ module classRiverReach
     use classBedSediment1
     use classLogger, only: LOG
     use classDataInterfacer, only: DATA
+    use classDatabase, only: DATASET
     use classReactor1
     use classBiota1
     implicit none
@@ -28,22 +29,17 @@ module classRiverReach
 
   contains
 
-    function createRiverReach(me, x, y, w, gridCellArea, neighbours) result(rslt)
+    function createRiverReach(me, x, y, w, gridCellArea) result(rslt)
         class(RiverReach) :: me                 !! This `RiverReach` instance
         integer :: x                            !! Grid cell x-position index
         integer :: y                            !! Grid cell y-position index
         integer :: w                            !! Water body index within the cell
         real(dp) :: gridCellArea                !! Containing grid cell area [m2]
-        integer, optional :: neighbours(:,:,:,:)!! Neighbouring waterbodies. First element is the outflow.
         type(Result) :: rslt                    !! Result object to return errors in
         integer :: i, j                         ! Iterator
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area
-        if (present(neighbours)) then
-            call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea, neighbours))
-        else
-            call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
-        end if
+        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
         me%ref = trim(ref("RiverReach", x, y, w))
 
         ! Parse input data and allocate/initialise variables. The order here is important:
@@ -395,62 +391,18 @@ module classRiverReach
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
             .errors. DATA%get('stream_order', me%streamOrder) &
         ])
-        if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
+        ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         
-        ! ROUTING: Get the references to the inflow(s) RiverReaches and
-        ! store in inflowRefs(). Do some auditing as well.
-        if (DATA%grp%hasVariable("inflows")) then
-            call rslt%addErrors(.errors. DATA%get('inflows', inflowArray))
-            ! There mustn't be more than 7 inflows to a reach (one from
-            ! each side/corner of the inflow GridCell)
-            if (size(inflowArray, 2) > 7) then
-                call rslt%addError(ErrorInstance(code=403))
-            ! If there is an inflow group but nothing in it, this reach
-            ! must be a headwater
-            else if (size(inflowArray, 2) == 0) then
-                allocate(me%inflowRefs(0))                          
-                me%nInflows = 0
-                me%isHeadwater = .true.
-            else
-                ! Set the number of inflows from the input inflowArray
-                allocate(me%inflowRefs(size(inflowArray, 2)))
-                me%nInflows = size(me%inflowRefs)
-                ! Loop through the inflow from data and store them at the object level
-                do i = 1, me%nInflows                               ! Loop through the inflows
-                    me%inflowRefs(i)%x = inflowArray(1,i)           ! Inflow x reference
-                    me%inflowRefs(i)%y = inflowArray(2,i)           ! Inflow y reference
-                    me%inflowRefs(i)%w = inflowArray(3,i)           ! Inflow RiverReach reference
-                    ! Check the inflow is from a neighbouring RiverReach
-                    if (abs(me%inflowRefs(i)%x - me%x) > 1 .or. abs(me%inflowRefs(i)%y - me%y) > 1) then
-                        call rslt%addError(ErrorInstance(code=401))
-                    end if
-                    ! Is this reach an inflow to the GridCell (i.e., are the inflows to this reach
-                    ! from another GridCell)? We only need to check for the first inflow (i=1),
-                    ! as the next bit checks that all inflows are from the same GridCell
-                    if (i == 1 .and. (me%inflowRefs(i)%x /= me%x .or. me%inflowRefs(i)%y /= me%y)) then
-                        me%isGridCellInflow = .true.
-                    end if
-                    ! If there is more than one inflow to the reach, it must be
-                    ! an inflow to the cell. Therefore, we need to check all
-                    ! inflows are from the same cell
-                    if (i > 1 .and. me%inflowRefs(i)%x /= me%inflowRefs(1)%x .and. me%inflowRefs(i)%y /= me%inflowRefs(1)%y) then
-                        call rslt%addError(ErrorInstance(code=402))
-                    end if
-                end do
-            end if
-        else
-        ! Else there mustn't be any inflows (i.e. it's a headwater)
-            allocate(me%inflowRefs(0))                          
-            me%nInflows = 0
-            me%isHeadwater = .true.
-        end if
-        ! Allocate inflows() array (the array of pointers) to the correct size
-        allocate(me%inflows(me%nInflows))
-        
-        ! If the data has an outflow to the model domain specified, set that
-        if (me%ncGroup%hasVariable("domain_outflow")) then
-            me%isDomainOutflow = .true.
-        end if
+        ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
+        ! set until all reaches created
+        call rslt%addErrors( &
+            .errors. me%parseInflowsAndOutflow() &
+        )
+
+        ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
+        call rslt%addErrors( &
+            .errors. me%setReachLength() &
+        )
 
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function

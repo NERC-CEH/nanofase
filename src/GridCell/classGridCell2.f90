@@ -137,43 +137,25 @@ module classGridCell2
         class(GridCell2), target :: me          !! This `GridCell2` instance
         type(Result) :: rslt                    !! The `Result` object to return any errors in
         integer :: w
+        integer, allocatable :: neighbours(:,:,:,:)
 
         ! Loop through waterbodies and create them
         do w = 1, me%nReaches
             ! What type of waterbody is this?
             if (me%reachTypes(w) == 'riv') then
-                allocate(RiverReach::me%colRiverReaches(rr)%item)
+                allocate(RiverReach::me%colRiverReaches(w)%item)
             else if (me%reachTypes(w) == 'est') then
-                allocate(EstuaryReach::me%colRiverReaches(rr)%item)
+                allocate(EstuaryReach::me%colRiverReaches(w)%item)
             else
                 call rslt%addError(ErrorInstance( &
                     message="Trying to create waterbody of unknown type " // trim(me%reachTypes(w)) // "." &
                 ))
             end if
-            ! Call creation method, passing the outflow and inflows from the input data.
-            ! This is presuming that each branch in the cell has one reach, and thus the
-            ! grid cell outflow is the outflow for all reaches in the cell, and the inflows
-            ! are the inflows to each reach
-            if (.not. DATASET%isHeadwater(me%x, me%y)) then
-                call rslt%addErrors(.errors. me%colRiverReaches(w)%item%create( &
-                    me%x, &
-                    me%y, &
-                    w, &
-                    me%area, &
-                    [DATASET%outflow(:, me%x, me%y), DATASET%inflows(:, w, me%x, me%y)] &
-                ))
-            else
-                print *, DATASET%inflows(:, w, me%x, me%y)
-                call rslt%addErrors(.errors. me%colRiverReaches(w)%item%create( &
-                    me%x, &
-                    me%y, &
-                    w, &
-                    me%area, &
-                    [DATASET%outflow(:, me%x, me%y)] &
-                ))
-            end if 
+            ! Call creation method
+            call rslt%addErrors(.errors. &
+                me%colRiverReaches(w)%item%create(me%x, me%y, w, me%area) &
+            )
         end do
-
 
     end function
 
