@@ -112,10 +112,6 @@ module classRiverReach
         me%j_spm = 0
         me%j_np = 0
         me%j_ionic = 0
-
-
-        print *, "before update reach"
-
         
         ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
         ! getting their outflow on this timestep, rather than the last timestep
@@ -290,8 +286,6 @@ module classRiverReach
             me%C_np = 0.0_dp
         end if
 
-        print *, "after update reach"
-
         ! Update the biota
         ! TODO which forms/states of NM should go to biota?
         call rslt%addErrors(.errors. me%biota%update(t, [sum(me%C_np), 0.0_dp]))
@@ -341,7 +335,6 @@ module classRiverReach
             ref('GridCell', me%x, me%y), &
             me%ref &
         ]))
-        print *, me%ref
         me%ncGroup = DATA%grp
 
         ! Check if this reach has/   any diffuse sources. me%hasDiffuseSource defauls to .false.

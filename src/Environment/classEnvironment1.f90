@@ -36,7 +36,7 @@ module classEnvironment1
         class(Environment1), target :: me
             !! This `Environment` instace. Must be target so `SubRiver`s can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
-        integer :: x, y, rr, i, j, b, ix, iy                    ! Iterators
+        integer :: x, y, w, i, j, b, ix, iy, iw, rr                    ! Iterators
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
@@ -119,86 +119,100 @@ module classEnvironment1
         !         end do
         !     end do
             
-            ! Now we need to create links between RiverReaches, which wasn't possible before all GridCells
-            ! and their RiverReaches were created:
-            ! - Firstly, point RiverReaches' inflows array element to GridCells' colRiverReaches array elements.
-            ! - Also, point those inflows' outflow property to the correct reach.
-            ! After this, all RiverReaches will point to their inflow(s) and outflow correctly.
-            ! Most auditing is already done by RiverReach%parseInputData().
-            do y = 1, me%gridDimensions(2)
-                do x = 1, me%gridDimensions(1)
+            ! Now we need to create links between waterbodies, which wasn't possible before all cells
+            ! and their waterbodies were created. We do this by pointing reach%inflows and reach%outflow
+            ! to correct waterbody object.
+            do y = 1, DATASET%gridShape(2)
+                do x = 1, DATASET%gridShape(1)
                     if (.not. me%colGridCells(x,y)%item%isEmpty) then
-                        do rr = 1, size(me%colGridCells(x,y)%item%colRiverReaches)  ! Loop through the reaches
-                            associate (riverReach => me%colGridCells(x,y)%item%colRiverReaches(rr)%item)
-                                do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
-                                    ix = riverReach%inflowRefs(i)%x
-                                    iy = riverReach%inflowRefs(i)%y
-
-                                    ! Check the inflow specified exists in the model domain
-                                    if (ix > 0 .and. ix .le. me%gridDimensions(1) &
-                                        .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
-                                        ! Point this reach's inflow to the actual RiverReach
-                                        riverReach%inflows(i)%item => &
-                                            me%colGridCells(ix,iy)%item%colRiverReaches(riverReach%inflowRefs(i)%w)%item
-                                        ! Set this inflow's outflow to this reach
-                                        riverReach%inflows(i)%item%outflow%item => riverReach
-                                        ! If this is a GridCell inflow, then set its inflows to be GridCell outflows
-                                        if (riverReach%isGridCellInflow) then
-                                            riverReach%inflows(i)%item%isGridCellOutflow = .true.
-                                            ! Also set the inflow grid cell's outflow pointer
-                                            me%colGridCells(ix,iy)%item%outflow%item => me%colGridCells(x,y)%item
-                                        end if
-                                        ! If the inflow is a river and this reach is an estuary, set the estuary to
-                                        ! be the tidal limit
-                                        if (riverReach%ref(1:3) == 'Est' &
-                                            .and. riverReach%inflows(i)%item%ref(1:3) == 'Riv') then
-                                            riverReach%isTidalLimit = .true.
-                                        end if
-                                    else
-                                        ! TODO For the moment, if the inflow doesn't exist in the
-                                        ! model domain, it is just ignored. In the future, it should
-                                        ! be implemented as a domain inflow of some sort
-                                        riverReach%nInflows = 0
-                                        deallocate(riverReach%inflows)
-                                        allocate(riverReach%inflows(0))
+                        do w = 1, me%colGridCells(x,y)%item%nReaches      ! Loop through the reaches
+                            associate (reach => me%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                                ! Loop through the inflows for this reach
+                                do i = 1, reach%nInflows
+                                    iw = reach%inflowsArr(i,1)
+                                    ix = reach%inflowsArr(i,2)
+                                    iy = reach%inflowsArr(i,3)
+                                    ! We've already checked the inflows are in the model domain, so set this
+                                    ! reach's inflow to the correct river
+                                    reach%inflows(i)%item => me%colGridCells(ix,iy)%item%colRiverReaches(iw)%item
+                                    ! Set the outflow of this reach's inflow to this reach
+                                    reach%inflows(i)%item%outflow%item => reach
+                                    ! If the inflow is a river and this reach is an estuary, set the estuary to
+                                    ! be the tidal limit
+                                    if (reach%ref(1:3) == 'Est' .and. reach%inflows(i)%item%ref(1:3) == 'Riv') then
+                                        reach%isTidalLimit = .true.
                                     end if
                                 end do
+
+                                ! do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
+                                !     ix = riverReach%inflowRefs(i)%x
+                                !     iy = riverReach%inflowRefs(i)%y
+
+                                !     ! Check the inflow specified exists in the model domain
+                                !     if (ix > 0 .and. ix .le. me%gridDimensions(1) &
+                                !         .and. iy > 0 .and. iy .le. me%gridDimensions(2)) then
+                                !         ! Point this reach's inflow to the actual RiverReach
+                                !         riverReach%inflows(i)%item => &
+                                !             me%colGridCells(ix,iy)%item%colRiverReaches(riverReach%inflowRefs(i)%w)%item
+                                !         ! Set this inflow's outflow to this reach
+                                !         riverReach%inflows(i)%item%outflow%item => riverReach
+                                !         ! If this is a GridCell inflow, then set its inflows to be GridCell outflows
+                                !         if (riverReach%isGridCellInflow) then
+                                !             riverReach%inflows(i)%item%isGridCellOutflow = .true.
+                                !             ! Also set the inflow grid cell's outflow pointer
+                                !             me%colGridCells(ix,iy)%item%outflow%item => me%colGridCells(x,y)%item
+                                !         end if
+                                !         ! If the inflow is a river and this reach is an estuary, set the estuary to
+                                !         ! be the tidal limit
+                                !         if (riverReach%ref(1:3) == 'Est' &
+                                !             .and. riverReach%inflows(i)%item%ref(1:3) == 'Riv') then
+                                !             riverReach%isTidalLimit = .true.
+                                !         end if
+                                !     else
+                                !         ! TODO For the moment, if the inflow doesn't exist in the
+                                !         ! model domain, it is just ignored. In the future, it should
+                                !         ! be implemented as a domain inflow of some sort
+                                !         riverReach%nInflows = 0
+                                !         deallocate(riverReach%inflows)
+                                !         allocate(riverReach%inflows(0))
+                                !     end if
+                                ! end do
                             end associate
                         end do
                     end if
                 end do
             end do
-            
+
             ! Finally, we can populate the GridCell%routedRiverReaches array and do
             ! things like determine reach lengths
-            do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
-                do x = 1, size(me%colGridCells, 1)              ! Loop through the rows
-                    call r%addErrors(.errors. me%colGridCells(x,y)%item%finaliseCreate())
-                end do
-            end do
+            ! do y = 1, size(me%colGridCells, 2)                  ! Loop through the columns
+            !     do x = 1, size(me%colGridCells, 1)              ! Loop through the rows
+            !         call r%addErrors(.errors. me%colGridCells(x,y)%item%finaliseCreate())
+            !     end do
+            ! end do
 
             ! Now we can use the routed reach indices from the data file to point the routed reaches array
             ! to the correct reaches. This must be done after the finaliseCreate method, as that may
             ! deallocate reaches that are both headwaters and domain outflows - we want to make sure we're
             ! not pointing to anything that is deallocated
-            do j = 1, size(me%routedReachIndices, 2)            ! Seeds
-                do i = 1, size(me%routedReachIndices, 3)        ! Branches
-                    x = me%routedReachIndices(1,j,i)
-                    y = me%routedReachIndices(2,j,i)
-                    rr = me%routedReachIndices(3,j,i)
+            ! do j = 1, size(me%routedReachIndices, 2)            ! Seeds
+            !     do i = 1, size(me%routedReachIndices, 3)        ! Branches
+            !         x = me%routedReachIndices(1,j,i)
+            !         y = me%routedReachIndices(2,j,i)
+            !         rr = me%routedReachIndices(3,j,i)
 
-                    ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
-                    ! so empty elements are set as zero in input data).
-                    if (x > 0 .and. y > 0 .and. rr > 0) then
-                        if (allocated(me%colGridCells(x,y)%item%colRiverReaches) .and. &
-                            size(me%colGridCells(x,y)%item%colRiverReaches) > 0) then
-                            me%routedReaches(i,j)%item => me%colGridCells(x,y)%item%colRiverReaches(rr)%item
-                        end if
-                    else
-                        me%routedReaches(i,j)%item => null()
-                    end if
-                end do
-            end do
+            !         ! Check this element is actually a reach reference (Fortran doesn't have ragged arrays
+            !         ! so empty elements are set as zero in input data).
+            !         if (x > 0 .and. y > 0 .and. rr > 0) then
+            !             if (allocated(me%colGridCells(x,y)%item%colRiverReaches) .and. &
+            !                 size(me%colGridCells(x,y)%item%colRiverReaches) > 0) then
+            !                 me%routedReaches(i,j)%item => me%colGridCells(x,y)%item%colRiverReaches(rr)%item
+            !             end if
+            !         else
+            !             me%routedReaches(i,j)%item => null()
+            !         end if
+            !     end do
+            ! end do
         end if
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
@@ -227,6 +241,9 @@ module classEnvironment1
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
+
+        ! TODO Update this to not use roued reaches array
+        error stop "update begin"
 
         ! Loop through the routed reaches
         do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
@@ -322,55 +339,6 @@ module classEnvironment1
             .errors. DATA%get('grid_dimensions', me%gridDimensions), &
             .errors. DATA%get('routed_reaches', me%routedReachIndices) &
         ])
-
-        ! TODO eventually this will be removed
-
-        ! FLAT DATA
-        ! TODO eventually move into data interfacer. Deal with unit conversions here. Maybe print
-        ! what has been imported
-
-        ! Runoff [mm/day]
-        ! var = C%flatDataset%getVariable('runoff')
-        ! call var%getData(DATA%runoff)
-        ! DATA%runoff = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
-
-        ! ! Precipitation [mm/day = kg/m2/day]
-        ! var = C%flatDataset%getVariable('precip')
-        ! call var%getData(DATA%precip)
-        ! DATA%precip = (DATA%runoff * 1.0e-3_dp / 86400) * C%timeStep        ! Convert from mm/day to m/timestep
-
-        ! ! HACK evap to zero, set this in DataInterfacer eventually.
-        ! ! TODO calculate precip - evap here
-        ! allocate(DATA%evap(44, 27, 365))
-        ! DATA%evap = 0.0_dp
-
-        ! ! Soil bulk density [T/m3]
-        ! var = C%flatDataset%getVariable('soil_bulk_density')
-        ! call var%getData(DATA%soilBulkDensity)
-        ! DATA%soilBulkDensity = DATA%soilBulkDensity * 1.0e3_dp              ! Convert from T/m3 to kg/m3
-
-        ! ! Soil water content at field capacity
-        ! var = C%flatDataset%getVariable('soil_water_content_field_capacity')
-        ! call var%getData(DATA%soilWaterContentFieldCapacity)
-
-        ! ! Soil water content at saturation
-        ! var = C%flatDataset%getVariable('soil_water_content_saturation')
-        ! call var%getData(DATA%soilWaterContentSaturation)
-
-        ! ! Soil hydraulic conductivity
-        ! var = C%flatDataset%getVariable('soil_hydraulic_conductivity')
-        ! call var%getData(DATA%soilHydraulicConductivity)
-        ! DATA%soilHydraulicConductivity = DATA%soilHydraulicConductivity * 1.0e-2_dp / 86400.0_dp        ! Convert from cm/day to m/s
-
-        ! ! Soil texture
-        ! var = C%flatDataset%getVariable('soil_texture_clay_content')
-        ! call var%getData(DATA%soilTextureClayContent)
-        ! var = C%flatDataset%getVariable('soil_texture_sand_content')
-        ! call var%getData(DATA%soilTextureSandContent)
-        ! var = C%flatDataset%getVariable('soil_texture_silt_content')
-        ! call var%getData(DATA%soilTextureSiltContent)
-        ! var = C%flatDataset%getVariable('soil_texture_coarse_frag_content')
-        ! call var%getData(DATA%soilTextureCoarseFragContent)
         
     end function
     

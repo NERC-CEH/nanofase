@@ -1,6 +1,7 @@
 !> Module with a handful of useful globally-available procedures
 module UtilModule
     use Globals
+    use netcdf
     implicit none
 
     !> Return a string from an integer or real number
@@ -52,7 +53,7 @@ module UtilModule
             end do
         end subroutine
 
-        !> Convert an integer to a logical value
+        !> Convert a signed integer to a logical value
         elemental function lgcl(i)
             integer, intent(in) :: i
             logical :: lgcl
@@ -60,6 +61,17 @@ module UtilModule
                 lgcl = .false.
             else
                 lgcl = .true.
+            end if
+        end function
+
+        !> Convert an unsigned integer (uint1, ubyte) to a logical value
+        elemental function ulgcl(i)
+            integer, intent(in) :: i
+            logical :: ulgcl
+            if (i .le. 0 .or. i .ge. nf90_fill_uint1) then
+                ulgcl = .false.
+            else
+                ulgcl = .true.
             end if
         end function
     
