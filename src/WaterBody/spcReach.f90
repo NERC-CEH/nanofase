@@ -395,7 +395,7 @@ module spcReach
             ! If not headwater, use distance between inflow and outflow to calculate length
             ! All inflows to this reach will be from same cell, so just use first in array
             dx = (me%inflowsArr(1,2) - me%outflowArr(2)) * 0.5 * DATASET%gridRes(1)
-            dy = (me%inflowsArr(1,3) - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2)
+            dy = (me%inflowsArr(1,3) - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2s )
         end if
         ! A touch of trig to calculate reach length
         me%length = sqrt(dx**2 + dy**2)
