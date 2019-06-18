@@ -335,13 +335,9 @@ module classSoilProfile1
 
         ! FLAT DATA
         me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
-        print *, me%bulkDensity
         me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
-        print *, me%WC_sat
         me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
-        print *, me%WC_FC
         me%K_s = DATASET%soilHydraulicConductivity(me%x, me%y)
-        print *, me%K_s
         ! Soil hydraulic properties contain no data where in urban areas. For the moment,
         ! until land cover properly incorporated into model, we'll use this as a proxy
         ! for urban areas (which therefore contain no soil profile). In the future, we should
@@ -350,13 +346,14 @@ module classSoilProfile1
             .or. (me%WC_FC == nf90_fill_real) &
             .or. (me%K_s == nf90_fill_real) &
             .or. (me%bulkDensity == nf90_fill_real)) then
-            print *, "is urban"
             me%isUrban = .true.
         end if
         me%clayContent = DATASET%soilTextureClayContent(me%x, me%y)
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
-        me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
+        if (me%coarseFragContent == nf90_fill_real) then
+            me%coarseFragContent = 0.0
+        end if
 
         ! Auditing
         call r%addError( &

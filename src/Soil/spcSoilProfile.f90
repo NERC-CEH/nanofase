@@ -40,10 +40,10 @@ module spcSoilProfile
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
         real(dp) :: V_buried                                        !! Volume of buried water (from the bottom `SoilLayer`) [m3 m-2]
         ! Soil properties. Sand + silt + clay = 100 %
-        integer :: sandContent                                      !! Sand content of the soil [%]
-        integer :: siltContent                                      !! Silt content of the soil [%]
-        integer :: clayContent                                      !! Clay content of the soil [%]
-        integer :: coarseFragContent                                !! Coarse fragment content of the soil [%]
+        real :: sandContent                                         !! Sand content of the soil [%]
+        real :: siltContent                                         !! Silt content of the soil [%]
+        real :: clayContent                                         !! Clay content of the soil [%]
+        real :: coarseFragContent                                   !! Coarse fragment content of the soil [%]
         real(dp) :: porosity                                        !! Soil porosity [%]
         real(dp) :: bulkDensity                                     !! Soil bulk density [kg/m3]
         real(dp) :: earthwormDensity

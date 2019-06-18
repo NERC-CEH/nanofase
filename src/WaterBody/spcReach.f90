@@ -350,9 +350,9 @@ module spcReach
             ! Then use the number of waterbodies in that cell to get the number of inflowing reaches
             ! to this reach (remember each cell can only have one outflow)
             me%nInflows = DATASET%nWaterbodies(inflowCell(1), inflowCell(2))
-            allocate(me%inflowsArr(3, me%nInflows))
+            allocate(me%inflowsArr(me%nInflows, 3))
             do i = 1, me%nInflows
-                me%inflowsArr(:, i) = [me%w, inflowCell]
+                me%inflowsArr(i, :) = [i, inflowCell]
             end do
         else
             ! If we're in a headwater cell, this must be the only reach and it won't have an inflow
@@ -360,6 +360,7 @@ module spcReach
             me%nInflows = 0
             allocate(me%inflowsArr(0,0))
         end if
+
         ! Allocate inflows() array (the array of pointers) to the correct size
         allocate(me%inflows(me%nInflows))
         ! Now we have to look at the outflow cell's inflow cells (from DATASET) to figure

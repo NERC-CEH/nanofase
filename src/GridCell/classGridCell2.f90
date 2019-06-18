@@ -337,6 +337,7 @@ module classGridCell2
 
         ! Get the number of waterbodies
         me%nReaches = DATASET%nWaterbodies(me%x, me%y)
+        allocate(me%colRiverReaches(me%nReaches))
         allocate(me%reachTypes(me%nReaches))
         ! What are the types of those waterbodies?
         if (DATASET%isEstuary(me%x, me%y)) then
