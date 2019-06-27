@@ -36,9 +36,10 @@ module classEnvironment1
         class(Environment1), target :: me
             !! This `Environment` instace. Must be target so `SubRiver`s can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
-        integer :: x, y, w, i, j, b, ix, iy, iw, rr                    ! Iterators
+        integer :: x, y, w, i, j, b, ix, iy, iw, rr             ! Iterators
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
+        type(WaterbodyPointer), allocatable :: tmpHeadwaters(:) ! Temporary headwaters array
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
         ! call r%addErrors(.errors. me%parseInputData())
@@ -50,7 +51,7 @@ module classEnvironment1
             ! end do
         ! end do
 
-        ! Set the grid shape
+        ! Allocate grid cells array to be the shape of the grid
         allocate(me%colGridCells(DATASET%gridShape(1), DATASET%gridShape(2)))
         ! Loop over grid and create cells
         do y = 1, DATASET%gridShape(2)
@@ -143,6 +144,16 @@ module classEnvironment1
                                         reach%isTidalLimit = .true.
                                     end if
                                 end do
+                                ! If this is a headwater, add to headwaters array to start routing from
+                                if (reach%isHeadwater) then
+                                    me%nHeadwaters = me%nHeadwaters + 1                 ! Extend nHeadwater by one
+                                    allocate(tmpHeadwaters(me%nHeadwaters))         ! Move around the allocation to add extra element
+                                    if (me%nHeadwaters > 1) then
+                                        tmpHeadwaters(1:me%nHeadwaters-1) = me%headwaters
+                                    end if
+                                    call move_alloc(tmpHeadwaters, me%headwaters)
+                                    me%headwaters(me%nHeadwaters)%item => reach         ! Point to this reach
+                                end if
 
                                 ! do i = 1, riverReach%nInflows                       ! Loop through the inflows for this reach
                                 !     ix = riverReach%inflowRefs(i)%x
@@ -243,7 +254,15 @@ module classEnvironment1
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
         ! TODO Update this to not use roued reaches array
-        error stop "update begin"
+
+        ! TODO Update all grid cells first
+
+        ! Loop through the grid cells
+        do i = 1, me%nHeadwaters
+            print *, me%headwaters(i)%item%ref
+        end do
+
+        error stop "update begun"
 
         ! Loop through the routed reaches
         do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
