@@ -119,9 +119,6 @@ module classEstuaryReach
         real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
 
-        print *, "starting to update estuary reach ", trim(me%ref)
-
-
         ! Initialise flows to zero
         fractionSpmDeposited = 0
         j_spm_deposit = 0
@@ -150,8 +147,6 @@ module classEstuaryReach
         if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
 
         ! TODO Inflows from transfers
-
-        print *, "    after inflows, before sources"
 
         ! Inflows from sources (if there are any):
         ! Run the update method, which sets PointSource's j_np_pointsource variable
@@ -359,18 +354,8 @@ module classEstuaryReach
         ! TODO which forms/states of NM should go to biota?
         call rslt%addErrors(.errors. me%biota%update(t, [sum(me%C_np), 0.0_dp]))
 
-        ! If there's no SPM left, add the "all SPM advected" warning
-        ! TODO Maybe the same for NPs
-        do i = 1, C%nSizeClassesSpm
-            if (isZero(me%m_spm(i)) .and. j_spm_in_total(i) /= 0) then
-                call rslt%addError(ErrorInstance( &
-                    code = 500, &
-                    message = "All SPM in size class " // trim(str(i)) // " (" // trim(str(C%d_spm(i)*1e6)) // &
-                            " um) advected from EstuaryReach.", &
-                    isCritical = .false.) &
-                )
-            end if 
-        end do
+        ! Set the updated flag to true
+        me%isUpdated = .true.
 
         ! Add what we're doing here to the error trace
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))

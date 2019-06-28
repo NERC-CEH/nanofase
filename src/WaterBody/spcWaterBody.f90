@@ -85,7 +85,8 @@ module spcWaterBody
         type(DiffuseSource), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
         integer :: nDiffuseSources                                  !! How many diffuse sources this water body has
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
-        logical :: isTidalLimit = .false.
+        logical :: isTidalLimit = .false.                           !! Is this water body at the tidal limit?
+        logical :: isUpdated = .false.                              !! Has the waterbody been updated on this time step yet?
 
       contains
         ! Create
@@ -179,6 +180,7 @@ module spcWaterBody
         me%j_spm_final = me%j_spm
         me%j_np_final = me%j_np
         me%j_ionic_final = me%j_ionic
+        me%isUpdated = .false.
     end subroutine
 
     function j_np_runoffWaterBody(me) result(j_np_runoff)

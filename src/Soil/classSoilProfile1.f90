@@ -58,7 +58,7 @@ module classSoilProfile1
         ! Allocate the object properties that need to be
         allocate(me%usle_C(C%nTimeSteps), &
             me%usle_alpha_half(C%nTimeSteps), &
-            me%erodedSediment(C%nTimeSteps), &
+            me%erodedSediment(C%nSizeClassesSpm), &
             me%distributionSediment(C%nSizeClassesSpm), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -113,9 +113,8 @@ module classSoilProfile1
         integer :: t                                            !! The current timestep
         real(dp) :: j_np_diffuseSource(:,:,:)                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
-        
-        if (.not. me%isUrban) then
 
+        if (.not. me%isUrban) then
             ! Set the timestep-specific object properties
             me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
             me%q_evap = me%q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
@@ -137,6 +136,9 @@ module classSoilProfile1
             ! TODO unify where me%m_np is updated (or deprecate, see me%erode())
             me%m_np = me%m_np - me%m_np_buried
 
+        else
+            ! If this is an urban cell, presume nothing for the moment
+            me%erodedSediment = 0
         end if
 
         ! Add this procedure to the Result object's trace                               

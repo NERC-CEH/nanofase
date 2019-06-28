@@ -92,6 +92,7 @@ module spcGridCell
         procedure(get_j_spm_outGridCell), deferred :: get_j_spm_out
         procedure(get_j_np_outGridCell), deferred :: get_j_np_out
         procedure(get_m_spmGridCell), deferred :: get_m_spm
+        procedure(getTotalReachLengthGridCell), deferred :: getTotalReachLength
     end type
       
     !> Container type for polymorphic `GridCell`s
@@ -184,6 +185,13 @@ module spcGridCell
             class(GridCell) :: me
             integer, optional :: b
             real(dp) :: m_np(C%nSizeClassesNP)
+        end function
+
+        function getTotalReachLengthGridCell(me) result(totalReachLength)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: totalReachLength
         end function
     end interface
 end module

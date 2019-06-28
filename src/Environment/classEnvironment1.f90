@@ -39,7 +39,7 @@ module classEnvironment1
         integer :: x, y, w, i, j, b, ix, iy, iw, rr             ! Iterators
         character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
         integer :: gridCellType                                 ! Integer representing the GridCell type
-        type(WaterbodyPointer), allocatable :: tmpHeadwaters(:) ! Temporary headwaters array
+        type(ReachPointer), allocatable :: tmpHeadwaters(:)     ! Temporary headwaters array
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
         ! call r%addErrors(.errors. me%parseInputData())
@@ -250,51 +250,87 @@ module classEnvironment1
         integer :: i, j, x, y
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length in cell
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
+        logical :: goDownstream                                 ! Have all the inflow reaches been updated yet?
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
         ! TODO Update this to not use roued reaches array
 
-        ! TODO Update all grid cells first
-
-        ! Loop through the grid cells
-        do i = 1, me%nHeadwaters
-            print *, me%headwaters(i)%item%ref
+        ! Update all grid cells first
+        ! TODO do this in parallel
+        !!$omp parallel do private(y)
+        do y = 1, DATASET%gridShape(2)
+            do x = 1, DATASET%gridShape(1)
+                call r%addErrors(.errors. me%colGridCells(x,y)%item%update(t))
+            end do
         end do
+        !!$omp end parallel do
 
-        error stop "update begun"
-
-        ! Loop through the routed reaches
-        do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
-            !!$omp parallel do private(reach, i) firstprivate(r)
-            do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
-                if (associated(me%routedReaches(i,j)%item)) then
-                    ! Update this reach, also updating the containing grid cell (if it hasn't been already)
-                    reach%item => me%routedReaches(i,j)%item
+        ! Loop through the headwaters and route from these downstream
+        do i = 1, me%nHeadwaters
+            reach%item => me%headwaters(i)%item
+            ! Update the headwater
+            call r%addErrors(.errors. me%updateReach(t, reach))
+            ! Check this reach has an outflow, before moving on to the outflow and updating that,
+            ! and so on downstream until we hit a reach that has inflows that haven't been updated.
+            ! If this is the case, we exit the loop and another headwater's downstream routing
+            ! will pick up where the current headwater's routing has stopped. We also check that
+            ! there is a downstream reach. The goDownstream flag is in charge of telling the loop
+            ! whether to proceed or not.
+            if (associated(reach%item%outflow%item)) then
+                reach%item => reach%item%outflow%item
+                goDownstream = .true.
+                do while (goDownstream)
                     call r%addErrors(.errors. me%updateReach(t, reach))
-                    ! Check this reach has an outflow, before moving on to it and looping until we hit
-                    ! a stream junction
-                    if (associated(reach%item%outflow%item)) then
+                    if (.not. associated(reach%item%outflow%item)) then
+                        goDownstream = .false.
+                    else
+                        ! Point reach to the next downstream reach
                         reach%item => reach%item%outflow%item
-                        do while (reach%item%nInflows == 1)
-                            ! Update this reach (and its grid cell, if need be)
-                            call r%addErrors(.errors. me%updateReach(t, reach))
-                            if (.not. associated(reach%item%outflow%item)) then
-                                exit
-                            else
-                                reach%item => reach%item%outflow%item
+                        ! Check all of the next reach's inflows have been updated,
+                        ! otherwise the do loop will stop and another headwater's
+                        ! downstream routing will pick up where we've left off
+                        do j = 1, reach%item%nInflows
+                            if (.not. reach%item%inflows(j)%item%isUpdated) then
+                                goDownstream = .false.
                             end if
                         end do
                     end if
-                end if
-            end do
-            !!$omp end parallel do
+                end do
+            end if
         end do
+
+        ! ! Loop through the routed reaches
+        ! do j = 1, size(me%routedReaches, 2)                 ! Iterate over successively higher stream orders
+        !     !!$omp parallel do private(reach, i) firstprivate(r)
+        !     do i = 1, size(me%routedReaches, 1)             ! Iterate over seeds in this stream order
+        !         if (associated(me%routedReaches(i,j)%item)) then
+        !             ! Update this reach, also updating the containing grid cell (if it hasn't been already)
+        !             reach%item => me%routedReaches(i,j)%item
+        !             call r%addErrors(.errors. me%updateReach(t, reach))
+        !             ! Check this reach has an outflow, before moving on to it and looping until we hit
+        !             ! a stream junction
+        !             if (associated(reach%item%outflow%item)) then
+        !                 reach%item => reach%item%outflow%item
+        !                 do while (reach%item%nInflows == 1)
+        !                     ! Update this reach (and its grid cell, if need be)
+        !                     call r%addErrors(.errors. me%updateReach(t, reach))
+        !                     if (.not. associated(reach%item%outflow%item)) then
+        !                         exit
+        !                     else
+        !                         reach%item => reach%item%outflow%item
+        !                     end if
+        !                 end do
+        !             end if
+        !         end if
+        !     end do
+        !     !!$omp end parallel do
+        ! end do
 
         ! Finalise the routing by setting outflows to temporary outflows that were stored
         ! to avoid routing using the wrong timestep's outflow as an inflow.
-        do y = 1, size(me%colGridCells, 2)                      ! Loop through the rows
-            do x = 1, size(me%colGridCells, 1)                  ! Loop through the columns
+        do y = 1, DATASET%gridShape(2)
+            do x = 1, DATASET%gridShape(1)
                 call me%colGridCells(x,y)%item%finaliseUpdate()
             end do
         end do
@@ -304,46 +340,27 @@ module classEnvironment1
     !! already been updated.
     function updateReachEnvironment1(me, t, reach) result(rslt)
         class(Environment1), target :: me   !! This `Environment1` instance
-        integer :: t                    !! Time step
-        type(ReachPointer) :: reach     !! Pointer to the reach to update
-        type(Result) :: rslt            !! The Result object to return any errors in
-        type(GridCellPointer) :: cell   ! Pointer to this reach's grid cell
+        integer :: t                        !! Time step
+        type(ReachPointer) :: reach         !! Pointer to the reach to update
+        type(Result) :: rslt                !! The Result object to return any errors in
+        type(GridCellPointer) :: cell       ! Pointer to this reach's grid cell
         real(dp) :: lengthRatio             ! Length ratio of this reach to the total reach length in cell
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))     ! Proportion of cell's NM runoff going to this reach
 
-        ! Point cell to this reach's grid cell
         cell%item => me%colGridCells(reach%item%x, reach%item%y)%item
-        ! If this GridCell hasn't already been updated, run its update method first
-        if (.not. cell%item%isUpdated) then
-            call rslt%addErrors(.errors. cell%item%update(t))
-        end if
         ! Determine the proportion of this reach's length to the the total
         ! river length in this GridCell and use it to proportion NM runoff
-        lengthRatio = reach%item%length/sum(cell%item%branchLengths)
+        lengthRatio = reach%item%length/cell%item%getTotalReachLength()
         j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
-
-        if (reach%item%ref(1:3) == 'Riv') then
-            ! Update the reach for this timestep
-            call rslt%addErrors(.errors. &
-                reach%item%update( &
-                    t = t, &
-                    q_runoff = cell%item%q_runoff_timeSeries(t), &
-                    j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
-                    j_np_runoff = j_np_runoff &
-                ) &
-            )
-        else
-            ! Update the reach for this timestep
-            call rslt%addErrors(.errors. &
-                reach%item%update( &
-                    t = t, &
-                    q_runoff = cell%item%q_runoff_timeSeries(t), &
-                    j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
-                    j_np_runoff = j_np_runoff &
-                ) &
-            )
-        end if
-
+        ! Update the reach for this timestep
+        call rslt%addErrors(.errors. &
+            reach%item%update( &
+                t = t, &
+                q_runoff = cell%item%q_runoff_timeSeries(t), &
+                j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
+                j_np_runoff = j_np_runoff &
+            ) &
+        )
     end function
     
     !> Obtain and parse input data for this `Environment` object
