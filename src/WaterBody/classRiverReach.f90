@@ -290,18 +290,8 @@ module classRiverReach
         ! TODO which forms/states of NM should go to biota?
         call rslt%addErrors(.errors. me%biota%update(t, [sum(me%C_np), 0.0_dp]))
 
-        ! If there's no SPM left, add the "all SPM advected" warning
-        ! TODO Maybe the same for NPs
-        do i = 1, C%nSizeClassesSpm
-            if (isZero(me%m_spm(i)) .and. j_spm_in_total(i) /= 0) then
-                call rslt%addError(ErrorInstance( &
-                    code = 500, &
-                    message = "All SPM in size class " // trim(str(i)) // " (" // trim(str(C%d_spm(i)*1e6)) // &
-                            " um) advected from RiverReach.", &
-                    isCritical = .false.) &
-                )
-            end if 
-        end do
+        ! Set the updated flag to true
+        me%isUpdated = .true.
 
         ! Add what we're doing here to the error trace
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))

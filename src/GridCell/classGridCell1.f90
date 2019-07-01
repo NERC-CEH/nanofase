@@ -38,6 +38,7 @@ module classGridCell1
         procedure :: get_j_np_out => get_j_np_outGridCell1
         procedure :: get_m_spm => get_m_spmGridCell1
         procedure :: get_m_np => get_m_npGridCell1
+        procedure :: getTotalReachLength => getTotalReachLengthGridCell1
     end type
 
   contains
@@ -651,6 +652,18 @@ module classGridCell1
         real(dp) :: m_np(C%nSizeClassesNP)
         m_np = 0
         ! TODO: Sum NP masses here
+    end function
+
+    !> Get the total length of all reaches in the cell
+    function getTotalReachLengthGridCell1(me) result(totalReachLength)
+        class(GridCell1)    :: me
+        real(dp)            :: totalReachLength
+        integer             :: r
+        totalReachLength = 0
+        ! Loop through reaches to get total length
+        do r = 1, me%nReaches
+            totalReachLength = totalReachLength + me%colRiverReaches(r)%item%length
+        end do
     end function
     
 end module

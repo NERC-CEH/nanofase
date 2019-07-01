@@ -35,6 +35,7 @@ module classGridCell2
         procedure :: get_j_np_out => get_j_np_outGridCell2
         procedure :: get_m_spm => get_m_spmGridCell2
         procedure :: get_m_np => get_m_npGridCell2
+        procedure :: getTotalReachLength => getTotalReachLengthGridCell2
     end type
 
   contains
@@ -184,15 +185,21 @@ module classGridCell2
 
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
+
             ! Reset variables
             me%j_np_diffuseSource = 0.0_dp
-            
+
             ! Get any inputs from diffuse source
             if (me%hasDiffuseSource) then
                 do i = 1, size(me%diffuseSources)
                     call r%addErrors(.errors. me%diffuseSources(i)%update(t))
                     me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
                 end do
+            end if
+            
+            if ((me%x == 16 .or. me%x == 17) .and. me%y == 27) then
+                print *, trim(me%ref), " has", size(me%diffuseSources), "diffuse sources"
+                print *, sum(me%j_np_diffuseSource)
             end if
             
             ! Demands and transfers
@@ -473,6 +480,18 @@ module classGridCell2
         real(dp) :: m_np(C%nSizeClassesNP)
         m_np = 0
         ! TODO: Sum NP masses here
+    end function
+
+    !> Get the total length of all reaches in the cell
+    function getTotalReachLengthGridCell2(me) result(totalReachLength)
+        class(GridCell2)    :: me
+        real(dp)            :: totalReachLength
+        integer             :: r
+        totalReachLength = 0
+        ! Loop through reaches to get total length
+        do r = 1, me%nReaches
+            totalReachLength = totalReachLength + me%colRiverReaches(r)%item%length
+        end do
     end function
     
 end module
