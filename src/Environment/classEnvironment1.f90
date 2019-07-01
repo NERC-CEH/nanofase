@@ -242,7 +242,7 @@ module classEnvironment1
 
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
-        ! TODO Update this to not use roued reaches array
+        ! TODO Update this to not use routed reaches array
         error stop "update begin"
 
         ! Loop through the routed reaches
