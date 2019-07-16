@@ -43,8 +43,10 @@ module spcWaterBody
         real(dp) :: T_water                                         !! Water temperature [C]
         ! Concentrations
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
+        real(dp), allocatable :: C_spm_final(:)                     !! Sediment concentration [kg/m3]
         real(dp), allocatable :: m_spm(:)                           !! Sediment mass [kg/m3]
         real(dp), allocatable :: C_np(:,:,:)                        !! NM mass concentration [kg/m3]
+        real(dp), allocatable :: C_np_final(:,:,:)                  !! NM mass concentration [kg/m3]
         real(dp), allocatable :: m_np(:,:,:)                        !! NM mass mass [kg/m3]
         real(dp), allocatable :: C_ionic(:)                         !! Ionic metal concentration [kg/m3]
         real(dp), allocatable :: m_ionic(:)                         !! Ionic metal mass [kg/m3]
@@ -144,8 +146,10 @@ module spcWaterBody
     subroutine allocateAndInitialiseWaterBody(me)
         class(WaterBody) :: me
         allocate(me%C_spm(C%nSizeClassesSpm), &
+            me%C_spm_final(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
             me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%C_np_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%C_ionic(C%ionicDim), &
             me%m_ionic(C%ionicDim), &
@@ -155,6 +159,8 @@ module spcWaterBody
             me%W_settle_np(C%nSizeClassesNP) &
         )
         me%C_spm = 0
+        me%C_spm_final = 0
+        me%C_np_final = 0
         me%m_spm = 0
         me%C_np = 0
         me%m_np = 0
@@ -180,6 +186,7 @@ module spcWaterBody
         me%j_spm_final = me%j_spm
         me%j_np_final = me%j_np
         me%j_ionic_final = me%j_ionic
+        me%C_spm_final = me%C_spm
         me%isUpdated = .false.
     end subroutine
 

@@ -19,7 +19,7 @@ timestep = 86400
 n_timesteps = 365
 start_date = "2015-01-01"
 epsilon = 1e-50,
-error_output = .true.
+error_output = .false.
 log_file_path = "log/"
 /
 
@@ -46,6 +46,8 @@ default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .false.
+default_alpha_resus = 0.001
+default_beta_resus = 1e-6
 /
 
 &sources

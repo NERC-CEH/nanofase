@@ -344,15 +344,15 @@ module classSoilProfile1
         ! until land cover properly incorporated into model, we'll use this as a proxy
         ! for urban areas (which therefore contain no soil profile). In the future, we should
         ! account for this properly by splitting grid cells into different soil profiles.
-        if ((me%WC_sat == nf90_fill_real) &
-            .or. (me%WC_FC == nf90_fill_real) &
-            .or. (me%K_s == nf90_fill_real) &
-            .or. (me%bulkDensity == nf90_fill_real)) then
-            me%isUrban = .true.
-        end if
+        if (me%WC_sat == nf90_fill_real) me%WC_sat = 0.8
+        if (me%WC_FC == nf90_fill_real) me%WC_FC = 0.5
+        if (me%K_s == nf90_fill_real) me%K_s = 1e-6
+        if (me%bulkDensity == nf90_fill_real) me%bulkDensity = 1220
+
         me%clayContent = DATASET%soilTextureClayContent(me%x, me%y)
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
+        me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
         if (me%coarseFragContent == nf90_fill_real) then
             me%coarseFragContent = 0.0
         end if

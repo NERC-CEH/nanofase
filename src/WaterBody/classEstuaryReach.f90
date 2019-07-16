@@ -118,6 +118,9 @@ module classEstuaryReach
         real(dp) :: tpm_m_spm(C%nSizeClassesSpm)
         real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
+        integer :: f
+
+
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -142,9 +145,10 @@ module classEstuaryReach
         end do
 
         ! Inflows from runoff
-        if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep to m3/timestep] TODO what does HMF output?
+        if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep] to [m3/timestep]
         if (present(j_spm_runoff)) call me%set_j_spm_runoff(j_spm_runoff)
         if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
+
 
         ! TODO Inflows from transfers
 
@@ -218,11 +222,12 @@ module classEstuaryReach
         allocate(me%C_np_disp(nDisp, C%npDim(1), C%npDim(2), C%npDim(3)))   ! Allocate the NM conc array for each displacement
 
         do i = 1, nDisp
-            ! Calculate the change in volume between this displacement and the next
-            changeInVolume = me%changeInVolume((t-1)*24 + (i-1)*(int(dt)/3600), (t-1)*24 + i*(int(dt)/3600))
+
             ! Calculate the timestep in hours from the displacement length, and pass to setDimensions
             ! to use to calculate tidal harmonics
             call me%setDimensions((t-1)*C%timeStep/3600 + i*(int(dt)/3600))
+            ! Calculate the change in volume between this displacement and the next
+            changeInVolume = me%changeInVolume((t-1)*24 + (i-1)*(int(dt)/3600), (t-1)*24 + i*(int(dt)/3600))
             ! Water mass balance (outflow = all the inflows + change in volume)
             dQ(1) = -sum(dQ(2:)) + changeInVolume
 
@@ -231,27 +236,39 @@ module classEstuaryReach
             ! +ve, then it must be a function of the outflow reach's SPM/NM conc (if that
             ! outflow reach exists)
             if (dQ(1) < 0 .and. .not. isZero(me%volume)) then
+                f = 1
                 dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)  ! SPM outflow
                 dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np) ! NM outflow
                 dj_spm_in = sum(dj_spm(2:,:), dim=1) - dj_spm(4+me%nInflows,:)    ! Total SPM input to this displacement (not deposition)
                 dj_np_in = sum(dj_np(2:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)     ! Total NM input to this displacement (not deposition)
             else if (dQ(1) > 0 .and. associated(me%outflow%item)) then
-                dj_spm(1,:) = me%outflow%item%C_spm * dQ(1)                 ! SPM outflow
-                dj_np(1,:,:,:) = me%outflow%item%C_np * dQ(1)               ! NM outflow
+                f = 2
+                dj_spm(1,:) = me%outflow%item%C_spm_final * dQ(1)                 ! SPM outflow
+
+                !!!!!! NEED TO REMOVE SPM, NM FROM THE OUTFLOW REACH !!!!!!!!!
+                !!!!!! AND MAKE SURE IT'S NOT ALL ADVECTED !!!!!!!!!!!!!!!!!!!
+
+                dj_np(1,:,:,:) = me%outflow%item%C_np_final * dQ(1)               ! NM outflow
                 dj_spm_in = dj_spm(1,:) + sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)              ! Total SPM input
                 dj_np_in = dj_np(1,:,:,:) + sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)    ! Total NM input
             else if (dQ(1) > 0 .and. .not. associated(me%outflow%item)) then
-                ! If there is no outflow but tidal flow is in, set inflow SPM/NM to zero
+                ! HACK If there is no outflow but tidal flow is in, set inflow SPM/NM to zero
+                f = 3
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
                 dj_spm_in = sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)
                 dj_np_in = sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)
             else
+                f = 4
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
                 dj_spm_in = 0.0_dp
                 dj_np_in = 0.0_dp
             end if
+
+            ! if ((me%x == 26) .and. (me%y == 17) .and. (me%w == 1)) then
+            !     print *, "dj_spm(1) outflow disp i", i, sum(dj_spm(1,:)), f, sum(max(me%m_spm * dQ(1) / me%volume, -me%m_spm))
+            ! end if
 
             tpm_m_spm = max(me%m_spm + dj_spm_in, 0.0_dp)           ! Check the SPM isn't making the new mass negative
             ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
@@ -259,7 +276,6 @@ module classEstuaryReach
             dj_spm_deposit = min(me%k_settle*dt*(tpm_m_spm), &
                 tpm_m_spm)
             dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
-
 
             ! Calculate the fraction of SPM from each size class that was deposited, for use in calculating mass of NM deposited
             do j = 1, C%nSizeClassesSpm 
@@ -309,6 +325,11 @@ module classEstuaryReach
 
             ! TODO Deposit and resuspend NM to/from bed sediment
         end do
+
+        ! if ((me%x == 26) .and. (me%y == 17) .and. (me%w == 1)) then
+        !     print *, "j_spm(1) outflow after disps", sum(me%j_spm, dim=2)
+        ! end if
+        ! if (t == 2) error stop
 
         ! Update the SPM concentration. isZero check used to avoid numerical errors
         ! from very small m_spm numbers.
@@ -447,9 +468,9 @@ module classEstuaryReach
                 ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
                 ! not physicaly possible within the reach (e.g. too short)       
             .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
-            .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
-            .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
-            .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
+            .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &              ! Meandering factor
+            ! .errors. DATA%get('alpha_res', me%alpha_resus, C%default_alpha_resus), &    ! Resuspension alpha parameter
+            ! .errors. DATA%get('beta_res', me%beta_resus, C%default_beta_resus), &       ! Resuspension beta parameter
             .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero_estuary), &
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
@@ -458,6 +479,10 @@ module classEstuaryReach
             .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
+
+        ! HACK set alpha_resus and beta_resus always to the default value
+        me%alpha_resus = C%default_alpha_resus
+        me%beta_resus = C%default_beta_resus
 
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created

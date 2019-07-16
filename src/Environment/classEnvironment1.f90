@@ -255,7 +255,6 @@ module classEnvironment1
         call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
         ! Update all grid cells first
-        ! TODO do this in parallel
         !!$omp parallel do private(y)
         do y = 1, DATASET%gridShape(2)
             do x = 1, DATASET%gridShape(1)

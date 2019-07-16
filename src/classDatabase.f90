@@ -13,10 +13,10 @@ module classDatabase
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
         real, allocatable :: gridBounds(:)      ! Bounding box of grid, indexed as left, bottom, right, top [m]
         logical, allocatable :: gridMask(:,:)   ! Logical mask for extent of grid [-]
-        real, allocatable :: x(:)            ! Centre of cell [m]
-        real, allocatable :: x_l(:)          ! Left side of cell [m]
-        real, allocatable :: y(:)            ! Centre of cell [m]
-        real, allocatable :: y_u(:)          ! Upper side of cell [m]
+        real, allocatable :: x(:)               ! Centre of cell [m]
+        real, allocatable :: x_l(:)             ! Left side of cell [m]
+        real, allocatable :: y(:)               ! Centre of cell [m]
+        real, allocatable :: y_u(:)             ! Upper side of cell [m]
         integer, allocatable :: t(:)            ! Seconds since start date
         ! Routing variables
         integer, allocatable :: outflow(:,:,:)

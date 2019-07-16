@@ -368,14 +368,18 @@ module classRiverReach
                 ! not physicaly possible within the reach (e.g. too short)       
             .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
             .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
-            .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
-            .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
+            ! .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
+            ! .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
             .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero), &
                 ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
             .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
+        
+        ! HACK set alpha_resus and beta_resus always to the default value
+        me%alpha_resus = C%default_alpha_resus
+        me%beta_resus = C%default_beta_resus
         
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created

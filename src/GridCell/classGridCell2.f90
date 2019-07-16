@@ -197,11 +197,6 @@ module classGridCell2
                 end do
             end if
             
-            if ((me%x == 16 .or. me%x == 17) .and. me%y == 27) then
-                print *, trim(me%ref), " has", size(me%diffuseSources), "diffuse sources"
-                print *, sum(me%j_np_diffuseSource)
-            end if
-            
             ! Demands and transfers
             call r%addErrors([ &
                 .errors. me%demands(), &

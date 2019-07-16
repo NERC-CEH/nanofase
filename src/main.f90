@@ -16,6 +16,7 @@ program main
     type(Result) :: r                                               ! Result object
     integer :: x, y, rr, t, i, s, j                                 ! Loop iterators
     real(dp) :: m_spm(5)
+    real(dp) :: C_spm(5)
     type(Environment1) :: env                                       ! Environment object
     real(dp) :: m_np(5, 4, 7)
     real(dp) :: m_np_l1(5, 4, 7)
@@ -62,9 +63,10 @@ program main
     open(unit=2, file=trim(C%outputPath) // C%outputFile)
     open(unit=3, file=trim(C%outputPath) // 'output_erosion.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
-    write(2, '(A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
-        "total_C_np,total_np_dep,total_np_runoff,total_spm,river_volume,reach_depth,river_flow,total_np_pointsource,C_np_biota,"
-    write(2, '(A,A)') "C_np_biota_noStoredFraction,reach_type,total_np_outflow"
+    write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
+        "total_C_np,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
+        "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow"
+    write(2, '(A,A)') ""
     write(5, '(A,A)') "t,x,y,total_m_np,total_C_np,bulk_density,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
 
@@ -91,6 +93,7 @@ program main
                    ! RiverReachs
                     do rr = 1, env%colGridCells(x,y)%item%nReaches
                         m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
+                        C_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_spm
                         m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np
                         if (.not. isZero(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume)) then
                             C_np = m_np/env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
@@ -124,7 +127,7 @@ program main
                         C_np_biota_noStoredFraction &
                             = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np_noStoredFraction
                         ! Write to the data file
-                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
+                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
                             t, ",", &
                             x, ",", &
                             y, ",", &
@@ -138,6 +141,7 @@ program main
                             trim(str(sum(npDep))), ",", &
                             trim(str(npRunoff)), ",", &
                             trim(str(sum(m_spm))), ",", &
+                            trim(str(sum(C_spm))), ",", &
                             trim(str(riverVolume)), ",", &
                             trim(str(reachDepth)), ",", &
                             trim(str(Q_out)), ",", &
