@@ -236,30 +236,33 @@ module classEstuaryReach
             ! +ve, then it must be a function of the outflow reach's SPM/NM conc (if that
             ! outflow reach exists)
             if (dQ(1) < 0 .and. .not. isZero(me%volume)) then
-                f = 1
                 dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)  ! SPM outflow
                 dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np) ! NM outflow
                 dj_spm_in = sum(dj_spm(2:,:), dim=1) - dj_spm(4+me%nInflows,:)    ! Total SPM input to this displacement (not deposition)
                 dj_np_in = sum(dj_np(2:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)     ! Total NM input to this displacement (not deposition)
             else if (dQ(1) > 0 .and. associated(me%outflow%item)) then
-                f = 2
+                ! Add SPM inflowing from downstream reach
                 dj_spm(1,:) = me%outflow%item%C_spm_final * dQ(1)                 ! SPM outflow
-
+                ! Al
                 !!!!!! NEED TO REMOVE SPM, NM FROM THE OUTFLOW REACH !!!!!!!!!
                 !!!!!! AND MAKE SURE IT'S NOT ALL ADVECTED !!!!!!!!!!!!!!!!!!!
 
                 dj_np(1,:,:,:) = me%outflow%item%C_np_final * dQ(1)               ! NM outflow
+
+                ! HACK
+                dj_spm(1,:) = 0.0_dp
+                dj_np(1,:,:,:) = 0.0_dp
+
+
                 dj_spm_in = dj_spm(1,:) + sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)              ! Total SPM input
                 dj_np_in = dj_np(1,:,:,:) + sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)    ! Total NM input
             else if (dQ(1) > 0 .and. .not. associated(me%outflow%item)) then
                 ! HACK If there is no outflow but tidal flow is in, set inflow SPM/NM to zero
-                f = 3
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
                 dj_spm_in = sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)
                 dj_np_in = sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)
             else
-                f = 4
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
                 dj_spm_in = 0.0_dp

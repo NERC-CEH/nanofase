@@ -117,9 +117,9 @@ module classRiverReach
         ! getting their outflow on this timestep, rather than the last timestep
         do i = 1, me%nInflows
             ! TODO for some reason the getters j_spm_outflow_final() and j_np... don't work here with gfortran (internal compiler error)
-            call me%set_Q_inflow(-me%inflows(i)%item%Q_final(1), i)
-            call me%set_j_spm_inflow(-me%inflows(i)%item%j_spm_final(1,:), i)
-            call me%set_j_np_inflow(-me%inflows(i)%item%j_np_final(1,:,:,:), i)
+            call me%set_Q_inflow(-me%inflows(i)%item%Q(1), i)
+            call me%set_j_spm_inflow(-me%inflows(i)%item%j_spm(1,:), i)
+            call me%set_j_np_inflow(-me%inflows(i)%item%j_np(1,:,:,:), i)
         end do
 
         ! Inflows from runoff
