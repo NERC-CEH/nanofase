@@ -47,6 +47,10 @@ module spcReach
         real(dp) :: alpha_hetero                                    !! Heteroaggregation attachment efficiency, 0-1 [-]
         ! TODO NetCDF group needed to pass to bed sediment. Need to deprecate this eventually to save memory
         type(NcGroup) :: ncGroup
+        ! Boundary conditions for calibration
+        logical :: isBoundary = .false.
+        real(dp) :: boundary_C_spm
+        real(dp) :: boundary_Q
 
       contains
         ! Data

@@ -37,6 +37,13 @@ module Globals
         integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
         real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
         integer             :: nSoilLayers                      !! Number of soil layers to modelled
+        
+        ! Calibration
+        logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
+        character(len=256)  :: siteData                         !! Where is the data about the sampling sites stored?
+        character(len=6)    :: startSite                        !! Where does the calibration start from?
+        character(len=6)    :: endSite                          !! Where does the calibration end?
+        character(len=6), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
@@ -102,17 +109,23 @@ module Globals
         character(len=256) :: configFilePath
         integer :: configFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, flat_input, output_file, output_path, log_file_path, start_date, startDateStr
+        character(len=256) :: input_file, flat_input, output_file, output_path, log_file_path, start_date, startDateStr, &
+            site_data
+        character(len=6) :: start_site, end_site
+        character(len=6), allocatable :: other_sites(:)
         integer :: default_distribution_sediment_size, default_distribution_np_size, default_fractional_comp_size, &
             default_np_forms, default_np_extra_states, warm_up_period
-        integer :: timestep, n_timesteps, max_river_reaches, default_grid_size, n_soil_layers
+        integer :: timestep, n_timesteps, max_river_reaches, default_grid_size, n_soil_layers, n_other_sites
         integer, allocatable :: default_distribution_sediment(:), default_distribution_np(:), default_fractional_comp(:)
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_k_att, default_alpha_hetero_estuary, nanomaterial_density, default_alpha_resus, default_beta_resus
         real, allocatable :: soil_layer_depth(:)
-        logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment
+        logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
+            calibration_run
+        namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
         namelist /allocatable_array_sizes/ default_distribution_sediment_size, default_distribution_np_size, &
-                                            default_fractional_comp_size, default_np_forms, default_np_extra_states, n_soil_layers
+                                            default_fractional_comp_size, default_np_forms, default_np_extra_states, &
+                                            n_soil_layers, n_other_sites
         namelist /data/ input_file, flat_input, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_grid_size, default_distribution_sediment, default_distribution_np, default_fractional_comp, &
@@ -138,7 +151,9 @@ module Globals
         allocate(default_distribution_np(default_distribution_np_size))
         allocate(default_fractional_comp(default_fractional_comp_size))
         allocate(soil_layer_depth(n_soil_layers))
+        allocate(other_sites(n_other_sites))
         ! Carry on reading in the different config groups
+        read(10, nml=calibrate)
         read(10, nml=data)
         read(10, nml=run)
         read(10, nml=global)
@@ -159,7 +174,12 @@ module Globals
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
         C%nSoilLayers = n_soil_layers
-        ! TODO: Change default grid size to array (x, y) so default can be rectangles
+        ! Calibration
+        C%calibrationRun = calibration_run
+        C%siteData = site_data
+        C%startSite = start_site
+        C%endSite = end_site
+        C%otherSites = other_sites
         C%defaultGridSize = default_grid_size
         C%defaultDistributionSediment = default_distribution_sediment
         C%defaultDistributionNP = default_distribution_np

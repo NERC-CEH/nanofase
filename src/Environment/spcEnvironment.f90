@@ -4,6 +4,7 @@ module spcEnvironment
     use ResultModule
     use spcGridCell
     use mo_netcdf
+    use classSampleSite, only: SampleSite
     implicit none
     private
 
@@ -16,6 +17,8 @@ module spcEnvironment
         integer, allocatable                :: routedReachIndices(:,:,:)    !! Indices of the routed reaches, use to construct the routedReaches pointer
         integer                             :: nHeadwaters = 0      !! The number of headwaters in the Environment
         type(NcGroup)                       :: ncGroup              !! NetCDF group for this `Environment` object
+        type(SampleSite), allocatable :: sites(:)                   !! Sample sites for calibrating with
+        type(SampleSite), pointer :: startSite, endSite             !! Start and end calibration sites
       contains
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy
@@ -48,7 +51,7 @@ module spcEnvironment
         function updateEnvironment(me, t) result(r)
             use ResultModule, only: Result
             import Environment
-            class(Environment) :: me                    !! This `Environment` instance
+            class(Environment), target :: me            !! This `Environment` instance
             integer :: t                                !! The current time step
             type(Result) :: r                           !! `Result` object containing any errors
         end function
