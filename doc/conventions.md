@@ -1,7 +1,5 @@
 # Conventions
 
-*Work in progress*
-
 List of code style, formatting and naming conventions to follow. Semantics based loosely on these style guides, as well as following some [Pythonic conventions](https://www.python.org/dev/peps/pep-0008/):
 - [fortran90.org: Fortran Best Practices](http://www.fortran90.org/src/best-practices.html)
 - [fortran.com: Fortran Style](http://www.fortran.com/Fortran_Style.pdf)

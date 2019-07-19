@@ -63,6 +63,11 @@ program main
     open(unit=2, file=trim(C%outputPath) // C%outputFile)
     open(unit=3, file=trim(C%outputPath) // 'output_erosion.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
+    if (C%calibrationRun) then
+        open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
+        write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
+                    "reach_type,total_m_spm(kg),total_C_spm(g/l)"
+    end if
     write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
         "total_C_np,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
         "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow"
@@ -157,6 +162,27 @@ program main
                         m_np_free = m_np_free + &
                             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,1)) + &
                             sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,1,1))
+
+                        if (C%calibrationRun) then
+                            if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%startSite) then
+                                write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", rr, ",", &
+                                            trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
+                                            trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
+                            else if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%endSite) then
+                                write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", rr, ",", &
+                                            trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
+                                            trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
+                            else
+                                do i = 1, size(C%otherSites)
+                                    if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef &
+                                        == C%otherSites(i)) then
+                                        write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", rr, ",", &
+                                            trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
+                                            trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
+                                    end if
+                                end do
+                            end if
+                        end if
 
                     end do
         

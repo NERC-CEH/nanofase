@@ -1,5 +1,7 @@
 # Config options
 
+*Below options massively out of date. Await update in ~Aug 2019.*
+
 The configuration file - specified in [Globals.f90](/src/Globals.f90), currently `config.nml` - is used to provide configuration options to run the model, such as input and output file paths and model run information (how many time steps and of what length). The file is a [Fortran Namelist](http://owen.sj.ca.us/~rk/howto/slides/f90model/slides/namelist.html) file.
 
 

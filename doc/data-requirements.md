@@ -1,5 +1,7 @@
 # Data requirements
 
+*Below options massively out of date. Await update in ~Aug 2019.*
+
 List of the parameters required in the input data, along with any defaults. See [here](/doc/config.md) for config file options required. Required fields (&#10004;) throw an error when they're not included. Non-required fields (&#10060;) silently default to a certain value. Recommended fields (&#9888;) default to a certain value, but this default should be used with caution.
 
 The [convention](/doc/conventions.md) is that input data is parsed in an object's `parseInputData()` method. If an internal variable name isn't specified, then the name is the same as the external variable name. Required dimensions are given below the data. See [conventions](/doc/conventions.md) for variable naming conventions.

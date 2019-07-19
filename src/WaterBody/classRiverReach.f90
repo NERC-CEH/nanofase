@@ -289,11 +289,15 @@ module classRiverReach
 
         ! Else, if this is a boundary reach, just set the SPM concentration from data
         else
-            ! Set the dimensions based on boundary flow, so we can calculated the mass from C_spm
-            me%Q_in_total = me%boundary_Q
+            ! Still do the hydrology
+            do i = 1, me%nInflows
+                call me%set_Q_inflow(-me%inflows(i)%item%Q(1), i)
+            end do
+            if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)
+            me%Q_in_total = sum(me%Q(2:))
+            ! Set the dimensions so we can calculate concentration from boundary C_spm
             call rslt%addErrors(.errors. me%setDimensions())
-            ! Set the outflow to the boundary flow
-            me%Q(1) = -me%boundary_Q
+            me%Q(1) = -sum(me%Q(2:))
             ! Set the SPM conc and apply default sediment size class distribution
             me%C_spm = me%boundary_C_spm * C%defaultDistributionSediment * 0.01
             me%m_spm = me%C_spm / me%volume

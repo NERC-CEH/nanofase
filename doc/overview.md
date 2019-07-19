@@ -1,5 +1,7 @@
 # Model overview
 
+*Below description somewhat out of date. Await update in ~Aug 2019.*
+
 This is a high-level overview of how the NanoFASE model operates.
 
 ## Data input/output
@@ -24,12 +26,12 @@ The following list shows the current hierarchical structure of the model. The sy
         	- `Reactor`
             - `BedSediment`
                 - &#128461; `BedSedimentLayer`
-        - &#128461; `EstuaryReach` - *not currently implemented*
+        - &#128461; `EstuaryReach`
             - `PointSource`
         	- `Reactor`
             - `BedSediment`
                 - &#128461; `BedSedimentLayer`
-    	- `DiffuseSource` - *not currently implemented*
+    	- `DiffuseSource`
 
 ### `create` and `update`
 Most of these environmental compartment objects contain `create` and an `update` methods. `create` methods are called only once and are primarily responsible for allocating memory, getting input data (usually via a `parseInputData` method) and setting up the object hierarchy below that object (i.e., calling its contained objects' `create` methods). `update` methods are called on every time step, and run the object's simulation for that step (e.g., simulating different environmental processes, and calling contained-object `update` methods).

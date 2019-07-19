@@ -19,6 +19,7 @@ module spcEnvironment
         type(NcGroup)                       :: ncGroup              !! NetCDF group for this `Environment` object
         type(SampleSite), allocatable :: sites(:)                   !! Sample sites for calibrating with
         type(SampleSite), pointer :: startSite, endSite             !! Start and end calibration sites
+        type(SampleSite), allocatable :: otherSites(:)
       contains
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy

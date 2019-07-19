@@ -1,5 +1,7 @@
 # Inputing data using the `DataInterfacer` class
 
+*July 2019: `DataInterfacer` being gradually deprecated in favour of non-hierarchical CF-compliant NetCDF input file. Docs will be ready ~September 2019.*
+
 The [`DataInterfacer`](/src/DataInterfacer/classDataInterfacer.f90) class provides a convenient interface for processing input data.
 
 A `DataInterfacer` object, named `DATA`, is defined in [Globals.f90](/src/Globals.f90) and initialised in [main.f90](/src/main.f90). The object `DATA` is then available globally.

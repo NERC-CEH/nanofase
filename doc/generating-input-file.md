@@ -1,3 +1,3 @@
 # Generating an input file
 
-*Documentation on how to create a JSON input file for the NanoFASE model.*
+*Updated July 2019: Input data generation moved to separate repo [nanofase-data](https://github.com/nerc-ceh/nanofase-data). Docs ready ~September 2019.*

@@ -48,9 +48,10 @@ module spcReach
         ! TODO NetCDF group needed to pass to bed sediment. Need to deprecate this eventually to save memory
         type(NcGroup) :: ncGroup
         ! Boundary conditions for calibration
-        logical :: isBoundary = .false.
-        real(dp) :: boundary_C_spm
-        real(dp) :: boundary_Q
+        logical :: isBoundary = .false.                             !! Is this a sampling site for calibrating?
+        real(dp) :: boundary_C_spm                                  !! Boundary condition for C_spm
+        real(dp) :: boundary_Q                                      !! Boundary condition for Q
+        character(len=6) :: calibrationSiteRef                      !! Reference of the calibration site
 
       contains
         ! Data
