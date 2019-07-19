@@ -1,8 +1,8 @@
 FC = gfortran
 FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -fopenmp
 DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow
-EXEC_FILE = fprog_nanofase.exe
-EXEC_PATH = C:/Users/sharrison/code/bin/
+EXEC_FILE = main
+EXEC_PATH = ./bin/
 NETCDF = `nf-config --fflags --flibs`
 CONFIG_PATH = ./config/
 CONFIG_FILE = thames.nml
@@ -40,12 +40,14 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/WaterBody/spcReach.o \
 	src/classRiverReach.o \
 	src/classEstuaryReach.o \
+	src/classSampleSite.o \
 	src/Soil/spcSoilLayer.o \
 	src/Soil/classSoilLayer1.o \
 	src/Soil/spcSoilProfile.o \
 	src/Soil/classSoilProfile1.o \
 	src/GridCell/classCrop.o \
 	src/GridCell/spcGridCell.o \
+	src/GridCell/classGridCell2.o \
 	src/GridCell/classGridCell1.o \
 	src/Environment/spcEnvironment.o \
 	src/Environment/classEnvironment1.o \
