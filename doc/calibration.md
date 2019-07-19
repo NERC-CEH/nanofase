@@ -2,7 +2,7 @@
 
 The model can be run in "calibration" mode to enable the input of suspended particulate matter (SPM) as upstream boundary conditions, and the comparison of modelled SPM concentrations vs observed SPM concentrations at a downstream point.
 
-The calibration works as in the following schematic. The green circles show the location of the sampling sites, and the goal is to provide SPM concentrations at the "start site" and run the model downstream to enable comparison between observed and modelled concentrations at the "end site". In going downstream, the model passes a number of tributaries. If a sampling site is available on this tributary, the model uses observed concentrations from this site and models downstream from this. If there is no sampling site, the model runs the entire tributary, i.e. from the headwater. (Actually, the model still runs for the entire catchment when in calibration mode, but model outputs for reaches upstream from sampling sites should be disregarded.)
+The calibration works as per the following schematic. The green circles show the location of the sampling sites, and the goal is to provide SPM concentrations at the "start site" and run the model downstream to enable comparison between observed and modelled concentrations at the "end site". In going downstream, the model passes a number of tributaries. If a sampling site is available on this tributary, the model uses observed concentrations from this site and models downstream from this. If there is no sampling site, the model runs the entire tributary, i.e. from the headwater. (Actually, the model still runs for the entire catchment when in calibration mode, but model outputs for reaches upstream from sampling sites should be disregarded.)
 
 ![Calibration schematic](./img/calibration.png)
 
@@ -61,7 +61,7 @@ An example file for the Thames catchment is provided at `data/thames/spm-samplin
 
 ### Geolocating sites
 
-As per the previous section, you must provide an `(x,y,r)` reference for the sampling site. This isn't done automatically by the model as nearest modelled reach to the exact geographical location of the site *isn't necessarily the most appropriate reach*. For example, imagine a site on a tributary that is geographically close to the main river; it might be the case that the modelled river has a reach from the main river closer to that geographical location that the tributary, or indeed the tributary might be so small that it isn't modelled.
+As per the previous section, you must provide an `(x,y,r)` reference for the sampling site. This isn't done automatically by the model as the nearest modelled reach to the exact geographical location of the site *isn't necessarily the most appropriate reach*. For example, imagine a site on a tributary that is geographically close to the main river; it might be the case that the modelled river has a reach from the main river closer to that geographical location than the tributary, or indeed the tributary might be so small that it isn't modelled.
 
 This is demonstrated in the following figure. Green lines show the real river, blue lines the modelled river, and black circles the sample sites. Look at the site highlighted in red: It is clearly on a tributary in "real life" (green line), but is closest to a modelled reach of the main river (blue line). Therefore, you must manually tell the model (by declaring in the `site_data` file) that the site should in fact be on the tributary reach.
 
@@ -73,6 +73,19 @@ This is demonstrated in the following figure. Green lines show the real river, b
 <img src="http://latex.codecogs.com/gif.latex?y%20%3D%20%5Cfrac%7B260000%20-%20N%20-%20%28N%20%5Cmod%205000%29%7D%7B5000%7D">
 
 where *E* is the BNG eastings and *N* is the BNG northings.
+
+## Variables to calibrate
+
+The SPM resuspension algorithm contains two parameters that require calibration, `alpha_resus` and `beta_resus`. These are set globally for the entire catchment by the config file, in the `&river` group:
+
+```&river
+default_alpha_resus = 0.001
+default_beta_resus = 1e-6
+...
+/
+```
+
+Calibration could be performed by iterative model runs with different `alpha_resus` and/or `beta_resus` values specified in the config file.
 
 ## Model output
 
