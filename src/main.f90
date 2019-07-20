@@ -45,7 +45,7 @@ program main
     real(dp) :: bulkDensity
 
     call cpu_time(start)                                                ! Simulation start time
-    wallStart = omp_get_wtime()
+    !wallStart = omp_get_wtime()
 
     ! Set up global vars and constants, and initialise data interfacer.
     ! These vars are available globally
@@ -219,8 +219,8 @@ program main
     
     ! Timings
     call cpu_time(finish)
-    wallFinish = omp_get_wtime()
+    !wallFinish = omp_get_wtime()
     print *, 'CPU time taken to simulate and write data (s): ', finish - start
-    print *, 'Wall time taken to simulate and write data (s):', wallFinish - wallStart
+    !print *, 'Wall time taken to simulate and write data (s):', wallFinish - wallStart
 
 end program

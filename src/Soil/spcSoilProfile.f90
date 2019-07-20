@@ -2,6 +2,7 @@
 module spcSoilProfile
     use Globals                                                     ! global declarations
     use spcSoilLayer                                                ! use containing object type
+    use ResultModule, only: Result
     implicit none                                                   ! force declaration of all variables
 
     !> Abstract base class for `SoilProfile`. Defines properties and methods
@@ -109,7 +110,8 @@ module spcSoilProfile
                                    q_precip_timeSeries, &
                                    q_evap_timeSeries) result(r)
             use Globals
-            import SoilProfile, Result
+            use ResultModule
+            import SoilProfile
             class(SoilProfile)  :: me                           !! The `SoilProfile` instance.
             integer             :: x                            !! Containing `GridCell` x position
             integer             :: y                            !! Containing `GridCell` y position
@@ -124,7 +126,8 @@ module spcSoilProfile
 
         !> Destroy the `SoilProfile` object
         function destroySoilProfile(me) result(r)
-            import SoilProfile, Result
+            use ResultModule, only: Result
+            import SoilProfile
             class(SoilProfile) :: me                            !! The `SoilProfile` instance
             type(Result) :: r                                   !! `Result` object to return
         end function
@@ -132,7 +135,8 @@ module spcSoilProfile
         !> Perform the `SoilProfile`'s simulation for one timestep
         function updateSoilProfile(me, t, j_np_diffuseSource) result(r)
             use Globals, only: dp
-            import SoilProfile, Result
+            use ResultModule, only: Result
+            import SoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current time step
             real(dp) :: j_np_diffuseSource(:,:,:)               !! Difffuse source of NM for this timestep
@@ -142,7 +146,8 @@ module spcSoilProfile
         !> Percolate water through the `SoilProfile` for the current time step
         function percolateSoilProfile(me, t, j_np_diffuseSource) result(r)
             use Globals, only: dp
-            import SoilProfile, Result
+            use ResultModule, only: Result
+            import SoilProfile
             class(SoilProfile)  :: me                           !! This `SoilProfile` instance
             integer             :: t                            !! The current time step
             real(dp)            :: j_np_diffuseSource(:,:,:)    !! Difffuse source of NM for this timestep
@@ -151,14 +156,16 @@ module spcSoilProfile
 
         !> Erode soil for the current time step
         function erodeSoilProfile(me, t) result(r)
-            import SoilProfile, Result
+            use ResultModule, only: Result
+            import SoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current timestep
             type(Result) :: r                                   !! `Result` object to return
         end function
 
         function bioturbationSoilProfile(me) result(rslt)
-            import SoilProfile, Result
+            use ResultModule, only: Result
+            import SoilProfile
             class(SoilProfile)  :: me
             type(Result)        :: rslt
         end function
@@ -175,7 +182,8 @@ module spcSoilProfile
 
         !> Parses the input data for the `SoilProfile` from the data file
         function parseInputDataSoilProfile(me) result(r)
-            import SoilProfile, Result
+            use ResultModule, only: Result
+            import SoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             type(Result) :: r                                   !! `Result` object to return
         end function

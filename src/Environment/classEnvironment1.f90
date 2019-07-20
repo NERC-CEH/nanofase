@@ -281,27 +281,6 @@ module classEnvironment1
             end do
         end do
     end function
-
-    !> Go check all upstream reaches from this reach's inflow i, to see if one is a sample site
-    recursive function hasUpstreamBoundarySite(me, reach, i)
-        class(Environment1) :: me
-        type(ReachPointer) :: reach
-        integer :: i
-        integer :: j
-        logical :: hasUpstreamBoundarySite
-        logical :: goUpstream
-
-        goUpstream = .true.
-        ! do while (goUpstream)
-        !     reach%item => reach%item%inflows(i)%item
-        !     do j = 1, size(me%sites)
-        !         if (trim(reach%item%ref) == trim(me%sites(j)%reach%item%ref)) then
-        !             hasUpstreamBoundarySite = .true.
-        !         end if
-        !     end do
-        ! end do
-
-    end function
     
     !> Update an individual reach, also updating the containng grid cell, if it hasn't
     !! already been updated.
