@@ -5,6 +5,15 @@ default_fractional_comp_size = 4
 default_np_forms = 4
 default_np_extra_states = 2
 n_soil_layers = 4
+n_other_sites = 1
+/
+
+&calibrate
+calibration_run = .false.
+site_data = ""
+start_site = ""
+end_site = ""
+other_sites = ""
 /
 
 &data
