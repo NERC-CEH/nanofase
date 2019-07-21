@@ -65,10 +65,11 @@ program main
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     if (C%calibrationRun) then
         open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
-        write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
-                    "reach_type,total_m_spm(kg),total_C_spm(g/l)"
+        write(7, '(A,A,A)', advance="no") "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
+            "reach_type,total_m_spm(kg),total_C_spm(g/l)"
+        write(7, '(A)') ""
     end if
-    write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
+    write(2, '(A,A,A,A)', advance="no") "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
         "total_C_np,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
         "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow"
     write(2, '(A,A)') ""
@@ -165,20 +166,26 @@ program main
 
                         if (C%calibrationRun) then
                             if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%startSite) then
-                                write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", rr, ",", &
+                                write(7, '(A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)', advance="NO") trim(str(t)), ",", trim(C%startSite), ",", "start_site,", &
+                                            trim(str(x)), ",", trim(str(y)), ",", trim(str(rr)), ",", &
                                             trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
                                             trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
+                                write(7, '(A)') ""
                             else if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%endSite) then
-                                write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", rr, ",", &
+                                write(7, '(A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)', advance="NO") trim(str(t)), ",", trim(C%endSite), ",", "end_site,", &
+                                            trim(str(x)), ",", trim(str(y)), ",", trim(str(rr)), ",", &
                                             trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
                                             trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
+                                write(7, '(A)') ""
                             else
                                 do i = 1, size(C%otherSites)
                                     if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef &
                                         == C%otherSites(i)) then
-                                        write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", rr, ",", &
+                                        write(7, '(A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)', advance="NO") trim(str(t)), ",", trim(C%otherSites(i)), ",", "other_site,", &
+                                            trim(str(x)), ",", trim(str(y)), ",", trim(str(rr)), ",", &
                                             trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
                                             trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
+                                        write(7, '(A)') ""
                                     end if
                                 end do
                             end if
