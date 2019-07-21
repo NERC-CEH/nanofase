@@ -25,10 +25,10 @@ $ cd nanofase
 $ git submodule update --init --recursive
 ```
 
-You also need to create a couple of new directories, `cache` and `log`:
+You may also need to create a couple of new directories, if you use the default config files provided: `log` and `data/output`:
 
 ```shell
-$ mkdir cache log
+$ mkdir data/output log
 ```
 
 ## Step 2, creating a Fortran project
