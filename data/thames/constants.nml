@@ -1,0 +1,8 @@
+&allocatable_array_sizes
+    n_default_nm_size_distribution = 5
+    n_nm_size_classes = 5
+/
+&size_classes
+    default_nm_size_distribution = 50, 30, 10, 7, 3
+    nm_size_classes = 1e-08, 3e-08, 1e-07, 3e-07, 1e-06
+/

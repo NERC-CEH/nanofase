@@ -4,7 +4,7 @@
 module spcWaterBody
     use Globals
     use classPointSource
-    use classDiffuseSource
+    use classDiffuseSource2
     use spcBedSediment
     use spcReactor
     use classBiota1
@@ -84,7 +84,7 @@ module spcWaterBody
         type(PointSource), allocatable :: pointSources(:)           !! Contained `PointSource` objects
         logical :: hasPointSource = .false.                         !! Does this water body have any point sources?
         integer :: nPointSources                                    !! How many point sources this water body has
-        type(DiffuseSource), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
+        type(DiffuseSource2), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
         integer :: nDiffuseSources                                  !! How many diffuse sources this water body has
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
         logical :: isTidalLimit = .false.                           !! Is this water body at the tidal limit?
@@ -127,6 +127,11 @@ module spcWaterBody
         me%y = y
         me%w = w
         me%gridCellArea = gridCellArea
+        ! Create the diffuse sources. One for water, one for atmospheric
+        allocate(me%diffuseSources(2))
+        call me%diffuseSources(1)%create(me%x, me%y, 1, 'water')
+        call me%diffuseSources(2)%create(me%x, me%y, 2, 'atmospheric')
+        me%nDiffuseSources = 2
     end function
 
     !> Update this `WaterBody` on given time step

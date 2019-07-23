@@ -70,11 +70,11 @@ module classEstuaryReach
             end do
         end if
         ! Create the DiffuseSource object(s), if this reach has any
-        if (me%hasDiffuseSource) then
-            do i = 1, size(me%diffuseSources)
-                call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
-            end do
-        end if
+        ! if (me%hasDiffuseSource) then
+        !     do i = 1, size(me%diffuseSources)
+        !         call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
+        !     end do
+        ! end if
 
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
@@ -157,7 +157,7 @@ module classEstuaryReach
         ! for this time step. j_np_pointsource = 0 if there isn't a point source
         ! Same for diffuse sources, convert j_np_diffuseSource from kg/m2/timestep to kg/reach/timestep
         do i = 1, me%nDiffuseSources
-            call rslt%addErrors(.errors. me%diffuseSources(i)%update(t))
+            call me%diffuseSources(i)%update(t)
             call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
         end do
         do i = 1, me%nPointSources

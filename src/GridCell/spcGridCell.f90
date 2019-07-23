@@ -6,7 +6,7 @@ module spcGridCell
     use ErrorInstanceModule
     use spcReach
     use spcSoilProfile
-    use classDiffuseSource
+    use classDiffuseSource2
     use classPointSource
     use classCrop
     implicit none
@@ -37,7 +37,7 @@ module spcGridCell
         real(dp), allocatable :: branchLengths(:)                       !! Calculated (or specified) lengths of river branches in this `GridCell`
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
-        type(DiffuseSource), allocatable :: diffuseSources(:)           !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
+        type(DiffuseSource2), allocatable :: diffuseSources(:)          !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
         logical :: hasDiffuseSource = .false.                           !! Does this `GridCell` have a `DiffuseSource`?
         integer :: nRiverReaches = 0                                    !! TODO deprecate - Number of contained `RiverReach`es
         integer :: nEstuaryReaches = 0                                  !! TODO deprecate - Number of contained `EstuaryReach`es

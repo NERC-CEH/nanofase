@@ -65,11 +65,11 @@ module classRiverReach
             end do
         end if
         ! Create the DiffuseSource object(s), if this reach has any
-        if (me%hasDiffuseSource) then
-            do i = 1, size(me%diffuseSources)
-                call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
-            end do
-        end if
+        ! if (me%hasDiffuseSource) then
+        !     do i = 1, size(me%diffuseSources)
+        !         call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
+        !     end do
+        ! end if
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
@@ -135,7 +135,7 @@ module classRiverReach
             ! for this time step. j_np_pointsource = 0 if there isn't a point source
             ! Same for diffuse sources, convert j_np_diffuseSource from kg/m2/timestep to kg/reach/timestep
             do i = 1, me%nDiffuseSources
-                call rslt%addErrors(.errors. me%diffuseSources(i)%update(t))
+                call me%diffuseSources(i)%update(t)
                 call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
             end do
             do i = 1, me%nPointSources
@@ -365,21 +365,21 @@ module classRiverReach
             me%nPointSources = 0
         end if
 
-        ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
-        ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
-        if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
-            me%hasDiffuseSource = .true.
-            allocate(me%diffuseSources(1))
-            i = 2               ! Any extra diffuse sources?
-            do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
-                deallocate(me%diffuseSources)
-                allocate(me%diffuseSources(i))
-                i = i+1
-            end do
-            me%nDiffuseSources = size(me%diffuseSources)
-        else
-            me%nDiffuseSources = 0
-        end if
+        ! ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
+        ! ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
+        ! if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
+        !     me%hasDiffuseSource = .true.
+        !     allocate(me%diffuseSources(1))
+        !     i = 2               ! Any extra diffuse sources?
+        !     do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
+        !         deallocate(me%diffuseSources)
+        !         allocate(me%diffuseSources(i))
+        !         i = i+1
+        !     end do
+        !     me%nDiffuseSources = size(me%diffuseSources)
+        ! else
+        !     me%nDiffuseSources = 0
+        ! end if
 
         ! Get the length of the reach, if present. Otherwise, set to 0 and GridCell will deal with calculating
         ! length. Note that errors might be thrown from GridCell if the reaches lengths within the GridCell are

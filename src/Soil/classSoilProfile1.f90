@@ -3,7 +3,7 @@ module classSoilProfile1
     use Globals                                                 ! Global definitions and constants
     use UtilModule                                              ! Useful functions
     use mo_netcdf                                               ! Input/output handling
-    use netcdf
+    use netcdf, only: nf90_fill_real
     use datetime_module
     use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class

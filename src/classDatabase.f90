@@ -8,6 +8,9 @@ module classDatabase
 
     type, public :: Database
         type(NcDataset)     :: nc
+        ! Constants
+        integer, allocatable :: defaultNMSizeDistribution(:)    ! Default distribution to use to split NM across size classes
+        real, allocatable :: nmSizeClasses(:)   ! Diameter of each NM size class [m]
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
@@ -37,11 +40,19 @@ module classDatabase
         real, allocatable :: soilTextureSandContent(:,:)
         real, allocatable :: soilTextureSiltContent(:,:)
         real, allocatable :: soilTextureCoarseFragContent(:,:)
+        ! Emissions
+        real(dp), allocatable :: emissionsArealSoilPristine(:,:)
+        real(dp), allocatable :: emissionsArealSoilTransformed(:,:)
+        real(dp), allocatable :: emissionsArealSoilDissolved(:,:)
+        real(dp), allocatable :: emissionsArealWaterPristine(:,:)
+        real(dp), allocatable :: emissionsArealWaterTransformed(:,:)
+        real(dp), allocatable :: emissionsArealWaterDissolved(:,:)
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
         ! Constants
       contains
         procedure, public :: init => initDatabase
+        procedure, private :: parseConstants => parseConstantsDatabase
         procedure, private :: mask => maskDatabase
         procedure, public :: inModelDomain => inModelDomainDatabase
     end type
@@ -50,17 +61,19 @@ module classDatabase
 
   contains
 
-    subroutine initDatabase(me, inputFile)
+    subroutine initDatabase(me, inputFile, constantsFile)
         class(Database)     :: me
         type(NcVariable)    :: var
         character(len=*)    :: inputFile
+        character(len=*)    :: constantsFile
         integer             :: x,y
         integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
         integer, allocatable :: isEstuaryInt(:,:)
-
-        ! Open the dataset
+        
+        ! Open the dataset and constants NML file
         me%nc = NcDataset(inputFile, 'r')
-
+        call me%parseConstants(constantsFile)
+        
         ! Variable units: These will already have been converted to the correct
         ! units for use in the model by nanofase-data (the input data compilation
         ! script). Hence, no maths need be done on variables here to convert and
@@ -142,6 +155,51 @@ module classDatabase
         call var%getData(me%soilTextureSiltContent)
         var = me%nc%getVariable('soil_texture_coarse_frag_content')
         call var%getData(me%soilTextureCoarseFragContent)
+        ! Emissions - areal                         [kg/m2/s]
+        ! Soil
+        if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
+            var = me%nc%getVariable('emissions_areal_soil_pristine')
+            call var%getData(me%emissionsArealSoilPristine)
+        else
+            allocate(me%emissionsArealSoilPristine(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealSoilPristine = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
+            var = me%nc%getVariable('emissions_areal_soil_transformed')
+            call var%getData(me%emissionsArealSoilTransformed)
+        else
+            allocate(me%emissionsArealSoilTransformed(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealSoilTransformed = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_areal_soil_dissolved')) then
+            var = me%nc%getVariable('emissions_areal_soil_dissolved')
+            call var%getData(me%emissionsArealSoilDissolved)
+        else
+            allocate(me%emissionsArealSoilDissolved(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealSoilDissolved = nf90_fill_double
+        end if
+        ! Water
+        if (me%nc%hasVariable('emissions_areal_water_pristine')) then
+            var = me%nc%getVariable('emissions_areal_water_pristine')
+            call var%getData(me%emissionsArealWaterPristine)
+        else
+            allocate(me%emissionsArealWaterPristine(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealWaterPristine = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_areal_water_transformed')) then
+            var = me%nc%getVariable('emissions_areal_water_transformed')
+            call var%getData(me%emissionsArealWaterTransformed)
+        else
+            allocate(me%emissionsArealWaterTransformed(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealWaterTransformed = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_areal_water_dissolved')) then
+            var = me%nc%getVariable('emissions_areal_water_dissolved')
+            call var%getData(me%emissionsArealWaterDissolved)
+        else
+            allocate(me%emissionsArealWaterDissolved(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealWaterDissolved = nf90_fill_double
+        end if
 
         ! SPATIAL 1D VARIABLES
         ! Land use                                  [-]
@@ -152,6 +210,27 @@ module classDatabase
         call me%nc%close()
 
         call LOG%add("Initialising database: success")
+    end subroutine
+
+    subroutine parseConstantsDatabase(me, constantsFile)
+        class(Database)         :: me
+        character(len=*)        :: constantsFile
+        integer :: n_default_nm_size_distribution, n_nm_size_classes
+        integer, allocatable :: default_nm_size_distribution(:)
+        real, allocatable :: nm_size_classes(:)
+        namelist /allocatable_array_sizes/ n_default_nm_size_distribution, n_nm_size_classes
+        namelist /size_classes/ default_nm_size_distribution, nm_size_classes
+        ! Open and read the NML file
+        open(11, file=constantsFile, status="old")
+        read(11, nml=allocatable_array_sizes)
+        ! Allocate the appropriate
+        allocate(default_nm_size_distribution(n_default_nm_size_distribution))
+        allocate(nm_size_classes(n_nm_size_classes))
+        read(11, nml=size_classes)
+        close(11)
+        ! Save these to class variables
+        me%defaultNMSizeDistribution = default_nm_size_distribution
+        me%nmSizeClasses = nm_size_classes
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)

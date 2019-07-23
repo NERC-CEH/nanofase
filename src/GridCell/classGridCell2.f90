@@ -67,12 +67,18 @@ module classGridCell2
             ! Parse the input data for this cell
             rslt = me%parseInputData()
 
-            ! Create the DiffuseSource object(s), if this cell has any
-            if (me%hasDiffuseSource) then
-                do s = 1, size(me%diffuseSources, 1)
-                    call rslt%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s))
-                end do
-            end if
+            ! Create two diffuse sources, atmospheric and soil. Water will be
+            ! dealt with separately by waterbody classes
+            allocate(me%diffuseSources(2))
+            call me%diffuseSources(1)%create(me%x, me%y, 1, 'soil')
+            call me%diffuseSources(2)%create(me%x, me%y, 2, 'atmospheric')
+
+            ! ! Create the DiffuseSource object(s), if this cell has any
+            ! if (me%hasDiffuseSource) then
+            !     do s = 1, size(me%diffuseSources, 1)
+            !         call rslt%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s))
+            !     end do
+            ! end if
 
             ! Create a soil profile and add to this GridCell
             call rslt%addErrors(.errors. &
@@ -189,13 +195,10 @@ module classGridCell2
             ! Reset variables
             me%j_np_diffuseSource = 0.0_dp
 
-            ! Get any inputs from diffuse source
-            if (me%hasDiffuseSource) then
-                do i = 1, size(me%diffuseSources)
-                    call r%addErrors(.errors. me%diffuseSources(i)%update(t))
-                    me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
-                end do
-            end if
+            do i = 1, size(me%diffuseSources)
+                call me%diffuseSources(i)%update(t)
+                me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
+            end do
             
             ! Demands and transfers
             call r%addErrors([ &
@@ -213,29 +216,6 @@ module classGridCell2
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
 
             ! Reaches will be updated separately in reach routing order, by the `Environment` object
-
-            ! Loop through the reaches in their routed order, and call their update methods for this
-            ! timestep, providing them the eroded sediment split according to their length
-            ! TODO Add diffuse source to reaches
-            ! do b = 1, me%nBranches
-            !     do rr = 1, me%nReachesInBranch(b)
-            !         ! Determine the proportion of this reach's length to the the total
-            !         ! river length in this GridCell
-            !         lengthRatio = me%routedRiverReaches(b,rr)%item%length/sum(me%branchLengths)
-            !         ! HACK to set NP runoff to 1e-9 SPM runoff
-            !         ! j_np_runoff = lengthRatio*sum(me%erodedSediment)*0
-            !         j_np_runoff = lengthRatio*me%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
-            !         ! Update the reach for this timestep
-            !         call r%addErrors(.errors. &
-            !             me%routedRiverReaches(b,rr)%item%update( &
-            !                 t = t, &
-            !                 q_runoff = me%q_runoff_timeSeries(t), &
-            !                 j_spm_runoff = me%erodedSediment*lengthRatio, &
-            !                 j_np_runoff = j_np_runoff &
-            !             ) &
-            !         )
-            !     end do
-            ! end do
         end if
 
         ! Set flag to see we've run the update for this timestep
@@ -324,18 +304,18 @@ module classGridCell2
         ! Set the data interfacer's group to the group for this GridCell
         call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
 
-        ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
-        ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
-        if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
-            me%hasDiffuseSource = .true.
-            allocate(me%diffuseSources(1))
-            i = 2               ! Any extra diffuse sources?
-            do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
-                deallocate(me%diffuseSources)
-                allocate(me%diffuseSources(i))
-                i = i+1
-            end do
-        end if
+        ! ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
+        ! ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
+        ! if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
+        !     me%hasDiffuseSource = .true.
+        !     allocate(me%diffuseSources(1))
+        !     i = 2               ! Any extra diffuse sources?
+        !     do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
+        !         deallocate(me%diffuseSources)
+        !         allocate(me%diffuseSources(i))
+        !         i = i+1
+        !     end do
+        ! end if
 
         ! Get the number of waterbodies
         me%nReaches = DATASET%nWaterbodies(me%x, me%y)
