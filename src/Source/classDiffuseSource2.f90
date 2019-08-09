@@ -53,11 +53,11 @@ module classDiffuseSource2
             end if
             ! Dissolved
             if (.not. DATASET%emissionsArealSoilDissolved(me%x, me%y) == nf90_fill_double) then
-                me%j_dissolved_diffuseSource = DATASET%emissionsArealSoilPristine(me%x, me%y)
+                me%j_dissolved_diffuseSource = DATASET%emissionsArealSoilDissolved(me%x, me%y)
             end if
             ! Transformed
             if (.not. DATASET%emissionsArealSoilTransformed(me%x, me%y) == nf90_fill_double) then
-                me%j_transformed_diffuseSource = DATASET%emissionsArealSoilPristine(me%x, me%y)
+                me%j_transformed_diffuseSource = DATASET%emissionsArealSoilTransformed(me%x, me%y)
             end if
         else if (trim(me%compartment) == 'water') then
             ! Pristine NM
@@ -66,14 +66,43 @@ module classDiffuseSource2
             end if
             ! Dissolved
             if (.not. DATASET%emissionsArealWaterDissolved(me%x, me%y) == nf90_fill_double) then
-                me%j_dissolved_diffuseSource = DATASET%emissionsArealWaterPristine(me%x, me%y)
+                me%j_dissolved_diffuseSource = DATASET%emissionsArealWaterDissolved(me%x, me%y)
             end if
             ! Transformed
             if (.not. DATASET%emissionsArealWaterTransformed(me%x, me%y) == nf90_fill_double) then
-                me%j_transformed_diffuseSource = DATASET%emissionsArealWaterPristine(me%x, me%y)
+                me%j_transformed_diffuseSource = DATASET%emissionsArealWaterTransformed(me%x, me%y)
             end if
         else if (trim(me%compartment) == 'atmospheric') then
-            ! TODO
+            ! Dry depo
+            ! Pristine NM
+            if (.not. DATASET%emissionsAtmosphericDryDepoPristine(me%x, me%y, t) == nf90_fill_double) then
+                me%j_np_diffuseSource(:,1,1) = DATASET%emissionsAtmosphericDryDepoPristine(me%x, me%y, t) &
+                    * DATASET%defaultNMSizeDistribution
+            end if
+            ! Dissolved
+            if (.not. DATASET%emissionsAtmosphericDryDepoDissolved(me%x, me%y, t) == nf90_fill_double) then
+                me%j_dissolved_diffuseSource = DATASET%emissionsAtmosphericDryDepoDissolved(me%x, me%y, t)
+            end if
+            ! Transformed
+            if (.not. DATASET%emissionsAtmosphericDryDepoTransformed(me%x, me%y, t) == nf90_fill_double) then
+                me%j_transformed_diffuseSource = DATASET%emissionsAtmosphericDryDepoTransformed(me%x, me%y, t)
+            end if
+            ! Wet depo
+            ! Pristine NM
+            if (.not. DATASET%emissionsAtmosphericWetDepoPristine(me%x, me%y, t) == nf90_fill_double) then
+                me%j_np_diffuseSource(:,1,1) = me%j_np_diffuseSource(:,1,1) &
+                    + DATASET%emissionsAtmosphericWetDepoPristine(me%x, me%y, t) * DATASET%defaultNMSizeDistribution
+            end if
+            ! Dissolved
+            if (.not. DATASET%emissionsAtmosphericWetDepoDissolved(me%x, me%y, t) == nf90_fill_double) then
+                me%j_dissolved_diffuseSource = me%j_dissolved_diffuseSource &
+                    + DATASET%emissionsAtmosphericWetDepoDissolved(me%x, me%y, t)
+            end if
+            ! Transformed
+            if (.not. DATASET%emissionsAtmosphericWetDepoTransformed(me%x, me%y, t) == nf90_fill_double) then
+                me%j_transformed_diffuseSource = me%j_transformed_diffuseSource &
+                    + DATASET%emissionsAtmosphericWetDepoTransformed(me%x, me%y, t)
+            end if
         end if
     end subroutine
 

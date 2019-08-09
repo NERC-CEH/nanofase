@@ -3,7 +3,7 @@
 !! are water bodies.
 module spcWaterBody
     use Globals
-    use classPointSource
+    use classPointSource2
     use classDiffuseSource2
     use spcBedSediment
     use spcReactor
@@ -81,7 +81,7 @@ module spcWaterBody
         class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
         class(Biota), allocatable :: biota                          !! Contained `Biota` object
         class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
-        type(PointSource), allocatable :: pointSources(:)           !! Contained `PointSource` objects
+        type(PointSource2), allocatable :: pointSources(:)           !! Contained `PointSource` objects
         logical :: hasPointSource = .false.                         !! Does this water body have any point sources?
         integer :: nPointSources                                    !! How many point sources this water body has
         type(DiffuseSource2), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
@@ -122,6 +122,7 @@ module spcWaterBody
         integer :: x, y, w                                      !! `GridCell` and `WaterBody` identifiers
         real(dp) :: gridCellArea                                !! Area of the containing `GridCell`
         type(Result) :: rslt                                    !! The Result object
+        integer :: i                                            ! Iterator
         ! Set reach indices and grid cell area
         me%x = x
         me%y = y
@@ -132,6 +133,12 @@ module spcWaterBody
         call me%diffuseSources(1)%create(me%x, me%y, 1, 'water')
         call me%diffuseSources(2)%create(me%x, me%y, 2, 'atmospheric')
         me%nDiffuseSources = 2
+        ! Create the point sources, the number already determined by DATASET%nPointSources
+        me%nPointSources = DATASET%nPointSources(me%x, me%y)
+        allocate(me%pointSources(me%nPointSources))
+        do i = 1, me%nPointSources
+            call me%pointSources(i)%create(me%x, me%y, i, 'water')
+        end do
     end function
 
     !> Update this `WaterBody` on given time step

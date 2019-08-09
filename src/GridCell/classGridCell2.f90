@@ -199,7 +199,7 @@ module classGridCell2
                 call me%diffuseSources(i)%update(t)
                 me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
             end do
-            
+
             ! Demands and transfers
             call r%addErrors([ &
                 .errors. me%demands(), &
@@ -208,7 +208,6 @@ module classGridCell2
 
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
-            ! TODO Add DiffuseSource to soil profile
             call r%addErrors( &
                 .errors. me%colSoilProfiles(1)%item%update(t, me%j_np_diffuseSource) &
             )
@@ -303,19 +302,6 @@ module classGridCell2
         
         ! Set the data interfacer's group to the group for this GridCell
         call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
-
-        ! ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
-        ! ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
-        ! if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
-        !     me%hasDiffuseSource = .true.
-        !     allocate(me%diffuseSources(1))
-        !     i = 2               ! Any extra diffuse sources?
-        !     do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
-        !         deallocate(me%diffuseSources)
-        !         allocate(me%diffuseSources(i))
-        !         i = i+1
-        !     end do
-        ! end if
 
         ! Get the number of waterbodies
         me%nReaches = DATASET%nWaterbodies(me%x, me%y)

@@ -38,7 +38,8 @@ module classRiverReach
         type(Result) :: rslt                    !! Result object to return errors in
         integer :: i, j                         ! Iterator
 
-        ! Set reach references (indices set in WaterBody%create) and grid cell area
+        ! Set reach references (indices set in WaterBody%create) and grid cell area.
+        ! Diffuse and point sources are created in WaterBody%create
         call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
         me%ref = trim(ref("RiverReach", x, y, w))
 
@@ -57,19 +58,7 @@ module classRiverReach
             .errors. me%reactor%create(me%x, me%y, me%alpha_hetero), &
             .errors. me%biota%create() &
         ])
-        
-        ! Create the PointSource object(s), if this reach has any
-        if (me%hasPointSource) then
-            do i = 1, size(me%pointSources)
-                call rslt%addErrors(.errors. me%pointSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
-            end do
-        end if
-        ! Create the DiffuseSource object(s), if this reach has any
-        ! if (me%hasDiffuseSource) then
-        !     do i = 1, size(me%diffuseSources)
-        !         call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
-        !     end do
-        ! end if
+
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
     end function
@@ -131,15 +120,16 @@ module classRiverReach
             ! TODO Inflows from transfers
 
             ! Inflows from sources (if there are any):
-            ! Run the update method, which sets PointSource's j_np_pointsource variable
-            ! for this time step. j_np_pointsource = 0 if there isn't a point source
-            ! Same for diffuse sources, convert j_np_diffuseSource from kg/m2/timestep to kg/reach/timestep
+            ! Run the update method, which sets the sources' j_np_pointsource variable
+            ! for this time step. j_np_pointsource = 0 if there isn't a source.
+            ! Diffuse sources converted from kg/m2/timestep to kg/reach/timestep
             do i = 1, me%nDiffuseSources
                 call me%diffuseSources(i)%update(t)
                 call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
             end do
+    
             do i = 1, me%nPointSources
-                call rslt%addErrors(.errors. me%pointSources(i)%update(t))
+                call me%pointSources(i)%update(t)
                 call me%set_j_np_pointsource(me%pointSources(i)%j_np_pointSource, i)
             end do
 

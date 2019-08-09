@@ -55,6 +55,12 @@ module classDatabase
         real(dp), allocatable :: emissionsAtmosphericWetDepoPristine(:,:,:)
         real(dp), allocatable :: emissionsAtmosphericWetDepoTransformed(:,:,:)
         real(dp), allocatable :: emissionsAtmosphericWetDepoDissolved(:,:,:)
+        ! Emisions - point
+        real(dp), allocatable :: emissionsPointWaterPristine(:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterTransformed(:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterDissolved(:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterCoords(:,:,:,:)
+        integer, allocatable :: nPointSources(:,:)
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
         ! Constants
@@ -63,6 +69,7 @@ module classDatabase
         procedure, private :: parseConstants => parseConstantsDatabase
         procedure, private :: mask => maskDatabase
         procedure, public :: inModelDomain => inModelDomainDatabase
+        procedure, private :: calculateNPointSources => calculateNPointSourcesDatabase
     end type
 
     type(Database) :: DATASET
@@ -74,9 +81,10 @@ module classDatabase
         type(NcVariable)    :: var
         character(len=*)    :: inputFile
         character(len=*)    :: constantsFile
-        integer             :: x,y
         integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
         integer, allocatable :: isEstuaryInt(:,:)
+        type(NcDimension)   :: p_dim
+        integer             :: maxPointSources
         
         ! Open the dataset and constants NML file
         me%nc = NcDataset(inputFile, 'r')
@@ -215,43 +223,75 @@ module classDatabase
             var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
             call var%getData(me%emissionsAtmosphericDryDepoPristine)
         else
-            allocate(me%emissionsAtmosphericDryDepoPristine(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            allocate(me%emissionsAtmosphericDryDepoPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericDryDepoPristine = nf90_fill_double
         end if
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
             call var%getData(me%emissionsAtmosphericDryDepoTransformed)
         else
-            allocate(me%emissionsAtmosphericDryDepoTransformed(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            allocate(me%emissionsAtmosphericDryDepoTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericDryDepoTransformed = nf90_fill_double
         end if
-        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
-            var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_dissolved')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_dissolved')
             call var%getData(me%emissionsAtmosphericDryDepoDissolved)
         else
-            allocate(me%emissionsAtmosphericDryDepoDissolved(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            allocate(me%emissionsAtmosphericDryDepoDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericDryDepoDissolved = nf90_fill_double
         end if
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
             call var%getData(me%emissionsAtmosphericWetDepoPristine)
         else
-            allocate(me%emissionsAtmosphericWetDepoPristine(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            allocate(me%emissionsAtmosphericWetDepoPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericWetDepoPristine = nf90_fill_double
         end if
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
             call var%getData(me%emissionsAtmosphericWetDepoTransformed)
         else
-            allocate(me%emissionsAtmosphericWetDepoTransformed(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            allocate(me%emissionsAtmosphericWetDepoTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericWetDepoTransformed = nf90_fill_double
         end if
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
             call var%getData(me%emissionsAtmosphericWetDepoDissolved)
         else
-            allocate(me%emissionsAtmosphericWetDepoDissolved(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            allocate(me%emissionsAtmosphericWetDepoDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericWetDepoDissolved = nf90_fill_double
+        end if
+        ! Emissions - point (all water)                     [kg/timestep]
+        p_dim = me%nc%getDimension('p')
+        maxPointSources = p_dim%getLength()
+        if (me%nc%hasVariable('emissions_point_water_pristine')) then
+            var = me%nc%getVariable('emissions_point_water_pristine')
+            call var%getData(me%emissionsPointWaterPristine)
+        else
+            allocate(me%emissionsPointWaterPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            me%emissionsPointWaterPristine = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_point_water_transformed')) then
+            var = me%nc%getVariable('emissions_point_water_transformed')
+            call var%getData(me%emissionsPointWaterTransformed)
+        else
+            allocate(me%emissionsPointWaterTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            me%emissionsPointWaterTransformed = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_point_water_dissolved')) then
+            var = me%nc%getVariable('emissions_point_water_dissolved')
+            call var%getData(me%emissionsPointWaterDissolved)
+        else
+            allocate(me%emissionsPointWaterDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            me%emissionsPointWaterDissolved = nf90_fill_double
+        end if
+        ! Emissions - point coordinates
+        if (me%nc%hasVariable('emissions_point_water_pristine_coords')) then
+            var = me%nc%getVariable('emissions_point_water_pristine_coords')
+            call var%getData(me%emissionsPointWaterCoords)
+        else
+            allocate(me%emissionsPointWaterCoords(me%gridShape(1), me%gridShape(2), maxPointSources, 2))
+            me%emissionsPointWaterCoords = nf90_fill_double
         end if
 
         ! SPATIAL 1D VARIABLES
@@ -296,6 +336,24 @@ module classDatabase
             mask = .false.
         end if
     end function
+
+    subroutine calculateNPointSourcesDatabase(me, maxPointSources)
+        class(Database) :: me
+        integer         :: maxPointSources
+        integer :: i, j, k, n
+        allocate(me%nPointSources(me%gridShape(1), me%gridShape(2)))
+        do j = 1, me%gridShape(2)
+            do i = 1, me%gridShape(1)
+                n = 0
+                do k = 1, maxPointSources
+                    if (me%emissionsPointWaterCoords(i, j, k, 1) /= nf90_fill_double) then
+                        n = n + 1
+                    end if
+                end do
+                me%nPointSources(i, j) = n
+            end do
+        end do
+    end subroutine
 
     function inModelDomainDatabase(me, x, y) result(inModelDomain)
         class(Database), intent(in) :: me

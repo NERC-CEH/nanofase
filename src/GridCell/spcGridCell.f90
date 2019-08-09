@@ -7,7 +7,6 @@ module spcGridCell
     use spcReach
     use spcSoilProfile
     use classDiffuseSource2
-    use classPointSource
     use classCrop
     implicit none
 

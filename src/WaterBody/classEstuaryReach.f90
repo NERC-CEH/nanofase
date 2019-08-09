@@ -62,19 +62,6 @@ module classEstuaryReach
             .errors. me%reactor%create(me%x, me%y, me%alpha_hetero), &
             .errors. me%biota%create() &
         ])
-        
-        ! Create the PointSource object(s), if this reach has any
-        if (me%hasPointSource) then
-            do i = 1, size(me%pointSources)
-                call rslt%addErrors(.errors. me%pointSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
-            end do
-        end if
-        ! Create the DiffuseSource object(s), if this reach has any
-        ! if (me%hasDiffuseSource) then
-        !     do i = 1, size(me%diffuseSources)
-        !         call rslt%addErrors(.errors. me%diffuseSources(i)%create(me%x, me%y, i, [trim(me%ref)]))
-        !     end do
-        ! end if
 
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOG%toFile("Creating " // trim(me%ref) // ": success")
@@ -161,7 +148,7 @@ module classEstuaryReach
             call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
         end do
         do i = 1, me%nPointSources
-            call rslt%addErrors(.errors. me%pointSources(i)%update(t))
+            call me%pointSources(i)%update(t)
             call me%set_j_np_pointsource(me%pointSources(i)%j_np_pointSource, i)
         end do
 
