@@ -7,7 +7,7 @@ program main
     use classEnvironment1
     use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
-    use classLogger, only: LOG
+    use classLogger, only: LOG, timestamp
     use datetime_module
     use omp_lib
     implicit none

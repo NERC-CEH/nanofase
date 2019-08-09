@@ -17,6 +17,7 @@ module Globals
         character(len=256)  :: outputFile
         character(len=256)  :: outputPath
         character(len=256)  :: logFilePath
+        character(len=256)  :: configFilePath
         type(datetime)      :: startDate                        !! Datetime object representing the start date
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
@@ -140,8 +141,10 @@ module Globals
         ! Open the config file and read the different config groups
         if (configFilePathLength > 0) then
             open(10, file=trim(configFilePath), status="old")
+            C%configFilePath = configFilePath
         else
             open(10, file="config/config.nml", status="old")
+            C%configFilePath = "config/config.nml"
         end if
 
         read(10, nml=allocatable_array_sizes)

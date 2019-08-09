@@ -447,21 +447,21 @@ module classEstuaryReach
             me%nPointSources = 0
         end if
 
-        ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
-        ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
-        if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
-            me%hasDiffuseSource = .true.
-            allocate(me%diffuseSources(1))
-            i = 2               ! Any extra diffuse sources?
-            do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
-                deallocate(me%diffuseSources)
-                allocate(me%diffuseSources(i))
-                i = i+1
-            end do
-            me%nDiffuseSources = size(me%diffuseSources)
-        else
-            me%nDiffuseSources = 0
-        end if
+        ! ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
+        ! ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
+        ! if (DATA%grp%hasGroup("DiffuseSource") .or. DATA%grp%hasGroup("DiffuseSource_1")) then
+        !     me%hasDiffuseSource = .true.
+        !     allocate(me%diffuseSources(1))
+        !     i = 2               ! Any extra diffuse sources?
+        !     do while (DATA%grp%hasGroup("DiffuseSource_" // trim(str(i))))
+        !         deallocate(me%diffuseSources)
+        !         allocate(me%diffuseSources(i))
+        !         i = i+1
+        !     end do
+        !     me%nDiffuseSources = size(me%diffuseSources)
+        ! else
+        !     me%nDiffuseSources = 0
+        ! end if
 
         ! Get the length of the reach, if present. Otherwise, set to 0 and GridCell will deal with calculating
         ! length. Note that errors might be thrown from GridCell if the reaches lengths within the GridCell are

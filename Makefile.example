@@ -6,6 +6,10 @@ EXEC_PATH = ./bin/
 NETCDF = `nf-config --fflags --flibs`
 CONFIG_PATH = ./config/
 CONFIG_FILE = thames.nml
+GIT_HASH = `git rev-parse HEAD`
+COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'`
+GIT_BRANCH = `git rev-parse --abbrev-ref HEAD`
+COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_BRANCH)
 
 OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/feh/src/Result.o \
@@ -34,7 +38,7 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/BedSedimentLayer/classBedSedimentLayer1.o \
 	src/BedSediment/spcBedSediment.o \
 	src/BedSediment/classBedSediment1.o \
-	src/Source/classDiffuseSource.o \
+	src/Source/classDiffuseSource2.o \
 	src/Source/classPointSource.o \
 	src/WaterBody/spcWaterBody.o \
 	src/WaterBody/spcReach.o \
@@ -48,7 +52,6 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/GridCell/classCrop.o \
 	src/GridCell/spcGridCell.o \
 	src/GridCell/classGridCell2.o \
-	src/GridCell/classGridCell1.o \
 	src/Environment/spcEnvironment.o \
 	src/Environment/classEnvironment1.o \
 	src/main.o 
@@ -79,6 +82,7 @@ VPATH = vendor/feh/src \
 # 	Solution is to use -O1 or higher.
 $(EXEC_FILE): $(OBJECTS)
 	$(FC) $(FCFLAGS) $(DEBUGFLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
+	echo $(COMP_META) > $(EXEC_PATH)comp_meta
 %.o: %.f90
 	$(FC) -c $(FCFLAGS) $(DEBUGFLAGS) $< $(NETCDF)
 test:

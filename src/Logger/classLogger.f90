@@ -1,6 +1,7 @@
 module classLogger
     use UtilModule
     use ErrorInstanceModule
+    use Globals
     implicit none
 
     !> The `Logger` object is responsible to outputting messages

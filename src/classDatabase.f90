@@ -20,7 +20,8 @@ module classDatabase
         real, allocatable :: x_l(:)             ! Left side of cell [m]
         real, allocatable :: y(:)               ! Centre of cell [m]
         real, allocatable :: y_u(:)             ! Upper side of cell [m]
-        integer, allocatable :: t(:)            ! Seconds since start date
+        integer, allocatable :: t(:)            ! Seconds since start date [s]
+        integer :: nTimesteps                   ! Number of timesteps for the model run [-]
         ! Routing variables
         integer, allocatable :: outflow(:,:,:)
         integer, allocatable :: inflows(:,:,:,:)
@@ -40,13 +41,20 @@ module classDatabase
         real, allocatable :: soilTextureSandContent(:,:)
         real, allocatable :: soilTextureSiltContent(:,:)
         real, allocatable :: soilTextureCoarseFragContent(:,:)
-        ! Emissions
+        ! Emissions - areal
         real(dp), allocatable :: emissionsArealSoilPristine(:,:)
         real(dp), allocatable :: emissionsArealSoilTransformed(:,:)
         real(dp), allocatable :: emissionsArealSoilDissolved(:,:)
         real(dp), allocatable :: emissionsArealWaterPristine(:,:)
         real(dp), allocatable :: emissionsArealWaterTransformed(:,:)
         real(dp), allocatable :: emissionsArealWaterDissolved(:,:)
+        ! Emissions - atmospheric depo
+        real(dp), allocatable :: emissionsAtmosphericDryDepoPristine(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericDryDepoTransformed(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericDryDepoDissolved(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericWetDepoPristine(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericWetDepoTransformed(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericWetDepoDissolved(:,:,:)
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
         ! Constants
@@ -97,6 +105,7 @@ module classDatabase
         me%y_u = me%y + 0.5 * me%gridRes(2)
         var = me%nc%getVariable('t')
         call var%getData(me%t)
+        me%nTimesteps = size(me%t)
 
         ! ROUTING VARIABLES
         var = me%nc%getVariable('outflow')
@@ -155,7 +164,7 @@ module classDatabase
         call var%getData(me%soilTextureSiltContent)
         var = me%nc%getVariable('soil_texture_coarse_frag_content')
         call var%getData(me%soilTextureCoarseFragContent)
-        ! Emissions - areal                         [kg/m2/s]
+        ! Emissions - areal                         [kg/m2/timestep]
         ! Soil
         if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
             var = me%nc%getVariable('emissions_areal_soil_pristine')
@@ -199,6 +208,50 @@ module classDatabase
         else
             allocate(me%emissionsArealWaterDissolved(me%gridShape(1), me%gridShape(2)))
             me%emissionsArealWaterDissolved = nf90_fill_double
+        end if
+
+        ! Emissions - atmospheric                   [kg/m2/timestep]
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_pristine')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
+            call var%getData(me%emissionsAtmosphericDryDepoPristine)
+        else
+            allocate(me%emissionsAtmosphericDryDepoPristine(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            me%emissionsAtmosphericDryDepoPristine = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
+            call var%getData(me%emissionsAtmosphericDryDepoTransformed)
+        else
+            allocate(me%emissionsAtmosphericDryDepoTransformed(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            me%emissionsAtmosphericDryDepoTransformed = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
+            call var%getData(me%emissionsAtmosphericDryDepoDissolved)
+        else
+            allocate(me%emissionsAtmosphericDryDepoDissolved(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            me%emissionsAtmosphericDryDepoDissolved = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
+            call var%getData(me%emissionsAtmosphericWetDepoPristine)
+        else
+            allocate(me%emissionsAtmosphericWetDepoPristine(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            me%emissionsAtmosphericWetDepoPristine = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
+            call var%getData(me%emissionsAtmosphericWetDepoTransformed)
+        else
+            allocate(me%emissionsAtmosphericWetDepoTransformed(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            me%emissionsAtmosphericWetDepoTransformed = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
+            call var%getData(me%emissionsAtmosphericWetDepoDissolved)
+        else
+            allocate(me%emissionsAtmosphericWetDepoDissolved(me%nTimesteps, me%gridShape(1), me%gridShape(2)))
+            me%emissionsAtmosphericWetDepoDissolved = nf90_fill_double
         end if
 
         ! SPATIAL 1D VARIABLES
