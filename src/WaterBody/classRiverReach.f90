@@ -341,19 +341,19 @@ module classRiverReach
 
         ! Check if this reach has/   any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.
-        if (DATA%grp%hasGroup("PointSource") .or. DATA%grp%hasGroup("PointSource_1")) then
-            me%hasPointSource = .true.
-            allocate(me%pointSources(1))
-            i = 2               ! Any extra point sources?
-            do while (DATA%grp%hasGroup("PointSource_" // trim(str(i))))
-                deallocate(me%pointSources)
-                allocate(me%pointSources(i))
-                i = i+1
-            end do
-            me%nPointSources = size(me%pointSources)
-        else
-            me%nPointSources = 0
-        end if
+        ! if (DATA%grp%hasGroup("PointSource") .or. DATA%grp%hasGroup("PointSource_1")) then
+        !     me%hasPointSource = .true.
+        !     allocate(me%pointSources(1))
+        !     i = 2               ! Any extra point sources?
+        !     do while (DATA%grp%hasGroup("PointSource_" // trim(str(i))))
+        !         deallocate(me%pointSources)
+        !         allocate(me%pointSources(i))
+        !         i = i+1
+        !     end do
+        !     me%nPointSources = size(me%pointSources)
+        ! else
+        !     me%nPointSources = 0
+        ! end if
 
         ! ! Check if this reach has any diffuse sources. me%hasDiffuseSource defauls to .false.
         ! ! Allocate me%diffuseSources accordingly. The DiffuseSource class actually gets the data.

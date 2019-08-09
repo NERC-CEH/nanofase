@@ -294,6 +294,8 @@ module classDatabase
             me%emissionsPointWaterCoords = nf90_fill_double
         end if
 
+        call me%calculateNPointSources(maxPointSources)
+
         ! SPATIAL 1D VARIABLES
         ! Land use                                  [-]
         var = me%nc%getVariable('land_use')

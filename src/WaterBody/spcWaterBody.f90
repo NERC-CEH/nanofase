@@ -5,6 +5,7 @@ module spcWaterBody
     use Globals
     use classPointSource2
     use classDiffuseSource2
+    use classDatabase, only: DATASET
     use spcBedSediment
     use spcReactor
     use classBiota1
