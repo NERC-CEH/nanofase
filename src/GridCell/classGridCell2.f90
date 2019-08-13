@@ -75,13 +75,6 @@ module classGridCell2
             call me%diffuseSources(1)%create(me%x, me%y, 1, 'soil')
             call me%diffuseSources(2)%create(me%x, me%y, 2, 'atmospheric')
 
-            ! ! Create the DiffuseSource object(s), if this cell has any
-            ! if (me%hasDiffuseSource) then
-            !     do s = 1, size(me%diffuseSources, 1)
-            !         call rslt%addErrors(.errors. me%diffuseSources(s)%create(me%x, me%y, s))
-            !     end do
-            ! end if
-
             ! Create a soil profile and add to this GridCell
             call rslt%addErrors(.errors. &
                 soilProfile%create( &
