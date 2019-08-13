@@ -151,7 +151,7 @@ module classDatabase
             var = me%nc%getVariable('evap')
             call var%getData(me%evap)
         else
-            allocate(me%evap(me%gridSize(1), me%gridSize(2), C%nTimesteps)) ! HACK
+            allocate(me%evap(me%gridShape(1), me%gridShape(2), C%nTimesteps)) ! HACK
             me%evap = 0.0
         end if
 
