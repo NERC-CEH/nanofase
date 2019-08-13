@@ -36,6 +36,8 @@ module classGridCell2
         procedure :: get_m_spm => get_m_spmGridCell2
         procedure :: get_m_np => get_m_npGridCell2
         procedure :: getTotalReachLength => getTotalReachLengthGridCell2
+        ! Calculators
+        procedure :: reachLineParamsFromInflowsOutflow => reachLineParamsFromInflowsOutflowGridCell2
     end type
 
   contains
@@ -115,35 +117,71 @@ module classGridCell2
         end if
     end function
 
-    !> Set the routedRiverReaches array, presuming that the first reach in each
-    !! branch has already been set by the GridCell%create method. Then set
-    !! river reach lengths.
-    function finaliseCreateGridCell2(me) result(r)
+    !> Finalise creation should be done after routing is complete, and is meant for
+    !! procedures that rely on waterbodies being linked to their inflows/outflow
+    function finaliseCreateGridCell2(me) result(rslt)
         class(GridCell2) :: me              !! This `GridCell2` instance
-        type(Result) :: r                   !! The `Result` object to return
-        integer :: b                        ! River branch iterator
-        integer :: rr                       ! RiverReach iterator
-        ! Loop through the branch and call the setBranchRouting
-        ! function, which follows a particular branch downstream and fills
-        ! routedRiverReaches accordingly
-        ! if (.not. me%isEmpty) then
-        !     do b = 1, me%nBranches
-        !         call r%addErrors(.errors. me%setBranchRouting(b,1))
-        !         call r%addErrors(.errors. me%setRiverReachLengths(b))
-        !     end do
-        ! end if
+        type(Result) :: rslt                !! The `Result` object to return
+        integer :: i, j
+        real, allocatable :: lineParams(:,:)
+        real, allocatable :: distanceToReach(:)
+        real :: x0, y0
+        real :: fracIndicies(2)
+        integer :: reachIndexToSnapTo
+
+        ! If there's just one reach, just all point sources to that
+        if (me%nReaches == 1) then
+            do j = 1, DATASET%nPointSources(me%x, me%y)
+                call me%colRiverReaches(1)%item%addPointSource(j)
+            end do
+        ! Else if there is more than one reach, we need to figure out which reach to snap each
+        ! point to
+        else if (me%nReaches > 1) then
+            ! Generate reach coord, with axis placed at bottom left of cell and representing each
+            ! cell as being 2x2, so we can calculate distance between point sources and each reach
+            allocate(lineParams(me%nReaches,3), &
+                distanceToReach(me%nReaches))
+            do i = 1, me%nReaches
+                lineParams(i,:) = me%reachLineParamsFromInflowsOutflow(i)
+            end do
+            ! Loop through the point sources and find the closest line by using
+            ! d = |ax0 + by0 + c|/sqrt(a^2 + b^2), where ax + by + c = 0 is the line of
+            ! the reach, and (x0, y0) is the point source coords in index notation
+            do j = 1, DATASET%nPointSources(me%x, me%y)
+                x0 = DATASET%emissionsPointWaterCoords(me%x, me%y, j, 1)
+                y0 = DATASET%emissionsPointWaterCoords(me%x, me%y, j, 2)
+                fracIndicies = DATASET%coordsToFractionalCellIndex(x0, y0)
+                do i = 1, me%nReaches
+                    ! Calculate distance from point given by fracIndicies and the line
+                    ! with params lineParams(i,:)
+                    distanceToReach(i) = abs(lineParams(i,1) * fracIndicies(1) + lineParams(i,2) * fracIndicies(2) &
+                        + lineParams(i,3)) / sqrt(lineParams(i,1) ** 2 + lineParams(i,2) ** 2)
+                end do
+                ! Use minloc to get the index of the minimum value in the distanceToReach array,
+                ! and use that to add this point source to the correct reach
+                reachIndexToSnapTo = minloc(distanceToReach, dim=1)
+                call me%colRiverReaches(reachIndexToSnapTo)%item%addPointSource(j)
+            end do
+        end if
+
+        ! Run each waterbody's finalise creation method, which at the moment
+        ! just allocates variables (which need to be done after point sources
+        ! were set up)
+        do i = 1, me%nReaches
+            call me%colRiverReaches(i)%item%finaliseCreate()
+        end do
 
         ! Trigger any errors
-        call r%addToTrace("Finalising creation of " // trim(me%ref))
-        call LOG%toFile(errors=.errors.r)
-        call ERROR_HANDLER%trigger(errors = .errors. r)
-        call r%clear()                  ! Clear errors from the Result object so they're not reported twice
+        call rslt%addToTrace("Finalising creation of " // trim(me%ref))
+        call LOG%toFile(errors = .errors. rslt)
+        call ERROR_HANDLER%trigger(errors = .errors. rslt)
+        call rslt%clear()           ! Clear errors from the Result object so they're not reported twice
     end function
 
     function createReaches(me) result(rslt)
         class(GridCell2), target :: me          !! This `GridCell2` instance
         type(Result) :: rslt                    !! The `Result` object to return any errors in
-        integer :: w
+        integer :: i, w
         integer, allocatable :: neighbours(:,:,:,:)
 
         ! Loop through waterbodies and create them
@@ -163,14 +201,7 @@ module classGridCell2
                 me%colRiverReaches(w)%item%create(me%x, me%y, w, me%area) &
             )
         end do
-
     end function
-
-    ! FINALISE CREATE?
-
-    ! SET BRANCH ROUTING?
-
-    ! SET REACH LENGTHS?
 
     !> Destroy this `GridCell`
     function destroyGridCell2(Me) result(r)
@@ -453,6 +484,47 @@ module classGridCell2
         do r = 1, me%nReaches
             totalReachLength = totalReachLength + me%colRiverReaches(r)%item%length
         end do
+    end function
+
+    function reachLineParamsFromInflowsOutflowGridCell2(me, i) result(lineParams)
+        class(GridCell2)    :: me
+        integer             :: i        !! The reach to calculate line equation for
+        real                :: lineParams(3)
+        integer             :: j
+        integer             :: x_in, y_in, x_out, y_out
+        real                :: x0, y0, x1, y1, a, b, c
+        ! Calculate the point of the inflow and outflow of each reach
+        if (me%colRiverReaches(i)%item%nInflows > 0) then
+            x_in = me%colRiverReaches(i)%item%inflows(1)%item%x
+            y_in = me%colRiverReaches(i)%item%inflows(1)%item%y
+            x0 = (x_in + 0.5) + 0.5 * (me%x - x_in)
+            y0 = (y_in + 0.5) + 0.5 * (me%y - y_in)
+        else        ! Must be the centre of the cell (headwater)
+            x0 = me%x + 0.5
+            y0 = me%y + 0.5
+        end if
+
+        if (.not. me%colRiverReaches(i)%item%isDomainOutflow) then
+            x_out = me%colRiverReaches(i)%item%outflow%item%x
+            y_out = me%colRiverReaches(i)%item%outflow%item%y
+        else
+            x_out = me%colRiverReaches(i)%item%domainOutflow(1)
+            y_out = me%colRiverReaches(i)%item%domainOutflow(2)
+        end if
+        x1 = (x_out + 0.5) + 0.5 * (me%x - x_out)
+        y1 = (y_out + 0.5) + 0.5 * (me%y - y_out)
+        ! Calculate the parameters to the general straight line
+        ! ax + bx + c = 0 from this, which can be used to calculate
+        ! distance to point
+        if ((x1 - x0) /= 0) then
+            a = -(y1 - y0)/(x1 - x0)
+            b = 1
+        else
+            a = 1
+            b = 0
+        end if
+        c = -(a * x0 + b * y0)
+        lineParams = [a, b, c]
     end function
     
 end module

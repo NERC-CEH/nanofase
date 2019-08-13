@@ -82,10 +82,10 @@ module spcWaterBody
         class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
         class(Biota), allocatable :: biota                          !! Contained `Biota` object
         class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
-        type(PointSource2), allocatable :: pointSources(:)           !! Contained `PointSource` objects
+        type(PointSource2), allocatable :: pointSources(:)          !! Contained `PointSource` objects
         logical :: hasPointSource = .false.                         !! Does this water body have any point sources?
-        integer :: nPointSources                                    !! How many point sources this water body has
-        type(DiffuseSource2), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
+        integer :: nPointSources = 0                                !! How many point sources this water body has
+        type(DiffuseSource2), allocatable :: diffuseSources(:)      !! Contained `DiffuseSource` objects
         integer :: nDiffuseSources                                  !! How many diffuse sources this water body has
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
         logical :: isTidalLimit = .false.                           !! Is this water body at the tidal limit?
@@ -93,19 +93,21 @@ module spcWaterBody
 
       contains
         ! Create
-        procedure:: create => createWaterBody
+        procedure :: create => createWaterBody
+        procedure :: finaliseCreate => finaliseCreateWaterBody
+        procedure :: addPointSource => addPointSourceWaterBody
         ! Simulators
-        procedure:: update => updateWaterBody
+        procedure :: update => updateWaterBody
         procedure :: finaliseUpdate
         ! Data handlers
         procedure :: allocateAndInitialise => allocateAndInitialiseWaterBody
-        procedure:: parseInputData => parseInputDataWaterBody
+        procedure :: parseInputData => parseInputDataWaterBody
         ! Getters
-        procedure:: j_np_runoff => j_np_runoffWaterBody
-        procedure:: j_np_transfer => j_np_transferWaterBody
-        procedure:: j_np_deposit => j_np_depositWaterBody
-        procedure:: j_np_diffusesource => j_np_diffusesourceWaterBody
-        procedure:: j_np_pointsource => j_np_pointsourceWaterBody
+        procedure :: j_np_runoff => j_np_runoffWaterBody
+        procedure :: j_np_transfer => j_np_transferWaterBody
+        procedure :: j_np_deposit => j_np_depositWaterBody
+        procedure :: j_np_diffusesource => j_np_diffusesourceWaterBody
+        procedure :: j_np_pointsource => j_np_pointsourceWaterBody
     end type
       
     !> Container type for `class(WaterBody)`, the actual type of the `WaterBody` class.
@@ -134,13 +136,16 @@ module spcWaterBody
         call me%diffuseSources(1)%create(me%x, me%y, 1, 'water')
         call me%diffuseSources(2)%create(me%x, me%y, 2, 'atmospheric')
         me%nDiffuseSources = 2
-        ! Create the point sources, the number already determined by DATASET%nPointSources
-        me%nPointSources = DATASET%nPointSources(me%x, me%y)
-        allocate(me%pointSources(me%nPointSources))
-        do i = 1, me%nPointSources
-            call me%pointSources(i)%create(me%x, me%y, i, 'water')
-        end do
     end function
+
+    !> Perform creation operations that required routing and point source snapping
+    !! to reaches to be done.
+    subroutine finaliseCreateWaterBody(me)
+        class(WaterBody) :: me
+        ! We can't allocate j_np until we know the number of point sources, which
+        ! is calculated during GridCell%finaliseCreate. Hence this is done here
+        call me%allocateAndInitialise()
+    end subroutine
 
     !> Update this `WaterBody` on given time step
     function updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
@@ -181,6 +186,20 @@ module spcWaterBody
         me%m_ionic = 0
         me%T_water = 10             ! TODO set this from data or empirical relationship
         me%bedArea = 0
+    end subroutine
+
+    subroutine addPointSourceWaterBody(me, index)
+        class(WaterBody)    :: me       !! This WaterBody
+        integer             :: index    !! Point source index
+        type(PointSource2)  :: newSource
+        type(PointSource2), allocatable :: oldPointSources(:)
+        ! Create the new source
+        call newSource%create(me%x, me%y, index, 'water')
+        ! Store old point sources
+        call move_alloc(from=me%pointSources, to=oldPointSources)
+        me%pointSources = [oldPointSources, newSource]
+        ! Update number of point sources
+        me%nPointSources = size(me%pointSources)
     end subroutine
 
     !> Parse input data for this `WaterBody`

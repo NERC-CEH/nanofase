@@ -46,7 +46,6 @@ module classRiverReach
         ! Parse input data and allocate/initialise variables. The order here is important:
         ! allocation depends on the input data.
         call rslt%addErrors(.errors. me%parseInputData())
-        call me%allocateAndInitialise()
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst

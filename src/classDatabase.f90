@@ -9,7 +9,7 @@ module classDatabase
     type, public :: Database
         type(NcDataset)     :: nc
         ! Constants
-        integer, allocatable :: defaultNMSizeDistribution(:)    ! Default distribution to use to split NM across size classes
+        real, allocatable :: defaultNMSizeDistribution(:)    ! Default distribution to use to split NM across size classes
         real, allocatable :: nmSizeClasses(:)   ! Diameter of each NM size class [m]
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
@@ -60,6 +60,9 @@ module classDatabase
         real(dp), allocatable :: emissionsPointWaterTransformed(:,:,:,:)
         real(dp), allocatable :: emissionsPointWaterDissolved(:,:,:,:)
         real(dp), allocatable :: emissionsPointWaterCoords(:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterBodyPristine(:,:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterBodyTransformed(:,:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterBodyDissolved(:,:,:,:,:)
         integer, allocatable :: nPointSources(:,:)
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
@@ -70,6 +73,8 @@ module classDatabase
         procedure, private :: mask => maskDatabase
         procedure, public :: inModelDomain => inModelDomainDatabase
         procedure, private :: calculateNPointSources => calculateNPointSourcesDatabase
+        procedure, public :: coordsToCellIndex => coordsToCellIndexDatabase
+        procedure, public :: coordsToFractionalCellIndex => coordsToFractionalCellIndexDatabase
     end type
 
     type(Database) :: DATASET
@@ -294,6 +299,7 @@ module classDatabase
             me%emissionsPointWaterCoords = nf90_fill_double
         end if
 
+        ! Calculate the number of point source per cell
         call me%calculateNPointSources(maxPointSources)
 
         ! SPATIAL 1D VARIABLES
@@ -324,7 +330,7 @@ module classDatabase
         read(11, nml=size_classes)
         close(11)
         ! Save these to class variables
-        me%defaultNMSizeDistribution = default_nm_size_distribution
+        me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
         me%nmSizeClasses = nm_size_classes
     end subroutine
 
@@ -339,6 +345,7 @@ module classDatabase
         end if
     end function
 
+    !> Calculate the number of point sources per grid cell
     subroutine calculateNPointSourcesDatabase(me, maxPointSources)
         class(Database) :: me
         integer         :: maxPointSources
@@ -376,6 +383,28 @@ module classDatabase
         else
             inModelDomain = .false.
         end if
+    end function
+
+    function coordsToCellIndexDatabase(me, easts, norths) result(indicies)
+        class(Database) :: me
+        real :: easts
+        real :: norths
+        integer :: indicies(2)
+        integer :: x, y
+        x = (int(easts) - mod(int(easts), int(me%gridRes(1))) - int(me%gridBounds(1)))/int(me%gridRes(1)) + 1
+        y = (int(me%gridBounds(4)) - (int(norths) - mod(int(norths), int(me%gridRes(2)))))/int(me%gridRes(2))
+        indicies = [x, y]
+    end function
+
+    function coordsToFractionalCellIndexDatabase(me, easts, norths) result(fracIndicies)
+        class(Database) :: me
+        real :: easts
+        real :: norths
+        real :: fracIndicies(2)
+        integer :: indicies(2)
+        indicies = me%coordsToCellIndex(easts, norths)
+        fracIndicies(1) = indicies(1) + mod(easts, me%gridRes(1)) / me%gridRes(1) 
+        fracIndicies(2) = indicies(2) + 1 - mod(norths, me%gridRes(2)) / me%gridRes(2)
     end function
 
 end module

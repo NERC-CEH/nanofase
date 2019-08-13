@@ -105,6 +105,15 @@ module classEnvironment1
                 end do
             end do
 
+            ! Finally, perform any creation operations that required proper cell linking (e.g. snapping point sources
+            ! to the correct cells)
+
+            do y = 1, DATASET%gridShape(2)
+                do x = 1, DATASET%gridShape(1)
+                    call r%addErrors(.errors. me%colGridCells(x, y)%item%finaliseCreate())
+                end do
+            end do
+
             ! Now parse the calibration data, if we're meant to be calibrating
             if (C%calibrationRun) then
                 allocate(me%sites(18))         ! TODO get number of sites at runtime

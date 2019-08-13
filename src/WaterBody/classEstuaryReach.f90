@@ -50,7 +50,6 @@ module classEstuaryReach
         ! allocation depends on the input data.
         call rslt%addErrors(.errors. me%parseInputData())
         call me%setDimensions(0)                ! Make sure the reach has some dimensions to begin with
-        call me%allocateAndInitialise()
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
