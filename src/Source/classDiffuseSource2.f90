@@ -37,8 +37,9 @@ module classDiffuseSource2
     end subroutine
 
     subroutine updateDiffuseSource2(me, t)
-        class(DiffuseSource2) :: me
-        integer :: t
+        class(DiffuseSource2)   :: me       !! This diffuse source
+        integer                 :: t        !! Current time step
+        integer                 :: i        ! Iterator
         ! Default to zero
         me%j_np_diffuseSource = 0.0_dp
         me%j_dissolved_diffuseSource = 0.0_dp
@@ -51,6 +52,11 @@ module classDiffuseSource2
             if (.not. DATASET%emissionsArealSoilPristine(me%x, me%y) == nf90_fill_double) then
                 me%j_np_diffuseSource(:,1,1) = DATASET%emissionsArealSoilPristine(me%x, me%y) * DATASET%defaultNMSizeDistribution
             end if
+            ! Matrix-embedded NM
+            if (.not. DATASET%emissionsArealSoilMatrixEmbedded(me%x, me%y) == nf90_fill_double) then
+                me%j_np_diffuseSource(:,1,2) = DATASET%emissionsArealSoilMatrixEmbedded(me%x, me%y) &
+                    * DATASET%defaultNMSizeDistribution
+            end if 
             ! Dissolved
             if (.not. DATASET%emissionsArealSoilDissolved(me%x, me%y) == nf90_fill_double) then
                 me%j_dissolved_diffuseSource = DATASET%emissionsArealSoilDissolved(me%x, me%y)
@@ -64,6 +70,13 @@ module classDiffuseSource2
             if (.not. DATASET%emissionsArealWaterPristine(me%x, me%y) == nf90_fill_double) then
                 me%j_np_diffuseSource(:,1,1) = DATASET%emissionsArealWaterPristine(me%x, me%y) * DATASET%defaultNMSizeDistribution
             end if
+            ! Matrix-embedded NM
+            if (.not. DATASET%emissionsArealWaterMatrixEmbedded(me%x, me%y) == nf90_fill_double) then
+                do i = 1, DATASET%nSizeClassesNM
+                    me%j_np_diffuseSource(i,1,3:) = DATASET%emissionsArealWaterMatrixEmbedded(me%x, me%y) &
+                        * DATASET%defaultMatrixEmbeddedDistributionToSpm * DATASET%defaultNMSizeDistribution(i)
+                end do
+            end if 
             ! Dissolved
             if (.not. DATASET%emissionsArealWaterDissolved(me%x, me%y) == nf90_fill_double) then
                 me%j_dissolved_diffuseSource = DATASET%emissionsArealWaterDissolved(me%x, me%y)

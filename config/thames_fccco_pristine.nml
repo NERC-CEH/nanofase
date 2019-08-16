@@ -1,6 +1,4 @@
 &allocatable_array_sizes
-default_distribution_sediment_size = 5
-default_distribution_np_size = 5
 default_fractional_comp_size = 4
 default_np_forms = 4
 default_np_extra_states = 2
@@ -18,7 +16,8 @@ other_sites = ""
 
 &data
 input_file = "data/thames/data.nc"
-flat_input = "data/thames/flat_ag_2000.nc"
+flat_input = "data/thames/flat_fccco_pristine.nc"
+constants_file = "data/thames/constants_fccco.nml"
 output_file = "output.csv"
 output_path = "data/output/"
 /
@@ -26,19 +25,16 @@ output_path = "data/output/"
 &run
 timestep = 86400
 n_timesteps = 365
-start_date = "2000-01-01"
+start_date = "2015-01-01"
 epsilon = 1e-50,
-error_output = .false.
+error_output = .true.
 log_file_path = "log/"
 /
 
 &global
-default_grid_size = 5000
-default_distribution_sediment = 50, 30, 10, 7, 3
-default_distribution_np = 50, 30, 10, 7, 3
 default_fractional_comp = 30, 30, 30, 10
 warm_up_period = 0
-nanomaterial_density = 10500
+nanomaterial_density = 4320
 /
 
 &soil

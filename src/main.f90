@@ -76,7 +76,7 @@ program main
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
-    call DATASET%init(C%flatInputFile, 'data/thames/constants.nml')    ! Initialise the flat dataset - this closes the input data file as well
+    call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
     r = env%create()                                                    ! Create the environment
     call DATA%close()                                                   ! We should be done with the data input now, so close the file
 

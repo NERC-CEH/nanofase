@@ -61,7 +61,7 @@ module spcSoilProfile
         real(dp) :: erosivity_I30                                   !! Maximum half-hour rainfall [mm/hr]
         real(dp) :: erosivity_b                                     !! Rainfall erosivity parameter
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
-        integer, allocatable :: distributionSediment(:)             !! Distribution to split sediment into
+        real, allocatable :: distributionSediment(:)                !! Distribution to split sediment into
 
         ! TODO this will probably be modified when we start properly using land cover. Currently this is to account for urban soils
         logical :: isUrban = .false.

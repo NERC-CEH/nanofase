@@ -2,6 +2,8 @@ module classDatabase
     use mo_netcdf
     use netcdf
     use Globals
+    use ResultModule, only: Result
+    use ErrorInstanceModule, only: ErrorInstance
     use classLogger, only: LOG
     use UtilModule
     implicit none
@@ -9,8 +11,13 @@ module classDatabase
     type, public :: Database
         type(NcDataset)     :: nc
         ! Constants
-        real, allocatable :: defaultNMSizeDistribution(:)    ! Default distribution to use to split NM across size classes
+        real, allocatable :: defaultNMSizeDistribution(:)   ! Default distribution to split NM across size classes
+        real, allocatable :: defaultSpmSizeDistribution(:)  ! Default distribution to split SPM across size classes
         real, allocatable :: nmSizeClasses(:)   ! Diameter of each NM size class [m]
+        real, allocatable :: spmSizeClasses(:)  ! Diameter of each SPM size class [m]
+        real, allocatable :: defaultMatrixEmbeddedDistributionToSpm(:)  ! Default distribution to proportion matrix-embedded releases to SPM size classes
+        integer :: nSizeClassesSpm              ! Number of SPM size classes
+        integer :: nSizeClassesNM               ! Number of NM size classes
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
@@ -43,30 +50,31 @@ module classDatabase
         real, allocatable :: soilTextureCoarseFragContent(:,:)
         ! Emissions - areal
         real(dp), allocatable :: emissionsArealSoilPristine(:,:)
+        real(dp), allocatable :: emissionsArealSoilMatrixEmbedded(:,:)
         real(dp), allocatable :: emissionsArealSoilTransformed(:,:)
         real(dp), allocatable :: emissionsArealSoilDissolved(:,:)
         real(dp), allocatable :: emissionsArealWaterPristine(:,:)
+        real(dp), allocatable :: emissionsArealWaterMatrixEmbedded(:,:)
         real(dp), allocatable :: emissionsArealWaterTransformed(:,:)
         real(dp), allocatable :: emissionsArealWaterDissolved(:,:)
         ! Emissions - atmospheric depo
         real(dp), allocatable :: emissionsAtmosphericDryDepoPristine(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericDryDepoMatrixEmbedded(:,:,:)
         real(dp), allocatable :: emissionsAtmosphericDryDepoTransformed(:,:,:)
         real(dp), allocatable :: emissionsAtmosphericDryDepoDissolved(:,:,:)
         real(dp), allocatable :: emissionsAtmosphericWetDepoPristine(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericWetDepoMatrixEmbedded(:,:,:)
         real(dp), allocatable :: emissionsAtmosphericWetDepoTransformed(:,:,:)
         real(dp), allocatable :: emissionsAtmosphericWetDepoDissolved(:,:,:)
         ! Emisions - point
         real(dp), allocatable :: emissionsPointWaterPristine(:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterMatrixEmbedded(:,:,:,:)
         real(dp), allocatable :: emissionsPointWaterTransformed(:,:,:,:)
         real(dp), allocatable :: emissionsPointWaterDissolved(:,:,:,:)
         real(dp), allocatable :: emissionsPointWaterCoords(:,:,:,:)
-        real(dp), allocatable :: emissionsPointWaterBodyPristine(:,:,:,:,:)
-        real(dp), allocatable :: emissionsPointWaterBodyTransformed(:,:,:,:,:)
-        real(dp), allocatable :: emissionsPointWaterBodyDissolved(:,:,:,:,:)
         integer, allocatable :: nPointSources(:,:)
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
-        ! Constants
       contains
         procedure, public :: init => initDatabase
         procedure, private :: parseConstants => parseConstantsDatabase
@@ -86,6 +94,7 @@ module classDatabase
         type(NcVariable)    :: var
         character(len=*)    :: inputFile
         character(len=*)    :: constantsFile
+        type(Result)        :: rslt
         integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
         integer, allocatable :: isEstuaryInt(:,:)
         type(NcDimension)   :: p_dim
@@ -186,6 +195,13 @@ module classDatabase
             allocate(me%emissionsArealSoilPristine(me%gridShape(1), me%gridShape(2)))
             me%emissionsArealSoilPristine = nf90_fill_double
         end if
+        if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
+            var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
+            call var%getData(me%emissionsArealSoilMatrixEmbedded)
+        else
+            allocate(me%emissionsArealSoilMatrixEmbedded(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealSoilMatrixEmbedded = nf90_fill_double
+        end if
         if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
             var = me%nc%getVariable('emissions_areal_soil_transformed')
             call var%getData(me%emissionsArealSoilTransformed)
@@ -207,6 +223,13 @@ module classDatabase
         else
             allocate(me%emissionsArealWaterPristine(me%gridShape(1), me%gridShape(2)))
             me%emissionsArealWaterPristine = nf90_fill_double
+        end if
+        if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
+            var = me%nc%getVariable('emissions_areal_water_matrixembedded')
+            call var%getData(me%emissionsArealWaterMatrixEmbedded)
+        else
+            allocate(me%emissionsArealWaterMatrixEmbedded(me%gridShape(1), me%gridShape(2)))
+            me%emissionsArealWaterMatrixEmbedded = nf90_fill_double
         end if
         if (me%nc%hasVariable('emissions_areal_water_transformed')) then
             var = me%nc%getVariable('emissions_areal_water_transformed')
@@ -231,6 +254,13 @@ module classDatabase
             allocate(me%emissionsAtmosphericDryDepoPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericDryDepoPristine = nf90_fill_double
         end if
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_matrixembedded')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_matrixembedded')
+            call var%getData(me%emissionsAtmosphericDryDepoMatrixEmbedded)
+        else
+            allocate(me%emissionsAtmosphericDryDepoMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps))
+            me%emissionsAtmosphericDryDepoMatrixEmbedded = nf90_fill_double
+        end if
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
             call var%getData(me%emissionsAtmosphericDryDepoTransformed)
@@ -252,6 +282,13 @@ module classDatabase
             allocate(me%emissionsAtmosphericWetDepoPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericWetDepoPristine = nf90_fill_double
         end if
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_matrixembedded')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_matrixembedded')
+            call var%getData(me%emissionsAtmosphericWetDepoMatrixEmbedded)
+        else
+            allocate(me%emissionsAtmosphericWetDepoMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps))
+            me%emissionsAtmosphericWetDepoMatrixEmbedded = nf90_fill_double
+        end if
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
             call var%getData(me%emissionsAtmosphericWetDepoTransformed)
@@ -269,16 +306,41 @@ module classDatabase
         ! Emissions - point (all water)                     [kg/timestep]
         p_dim = me%nc%getDimension('p')
         maxPointSources = p_dim%getLength()
+        ! Pristine
         if (me%nc%hasVariable('emissions_point_water_pristine')) then
             var = me%nc%getVariable('emissions_point_water_pristine')
             call var%getData(me%emissionsPointWaterPristine)
+            ! Get point source coords
+            if (me%nc%hasVariable('emissions_point_water_pristine_coords')) then
+                var = me%nc%getVariable('emissions_point_water_pristine_coords')
+                call var%getData(me%emissionsPointWaterCoords)
+            end if
         else
             allocate(me%emissionsPointWaterPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
             me%emissionsPointWaterPristine = nf90_fill_double
         end if
+        ! Matrix-embedded
+        if (me%nc%hasVariable('emissions_point_water_matrixembedded')) then
+            var = me%nc%getVariable('emissions_point_water_matrixembedded')
+            call var%getData(me%emissionsPointWaterMatrixEmbedded)
+            ! Get point source coords
+            if (me%nc%hasVariable('emissions_point_water_matrixembedded_coords')) then
+                var = me%nc%getVariable('emissions_point_water_matrixembedded_coords')
+                call var%getData(me%emissionsPointWaterCoords)
+            end if
+        else
+            allocate(me%emissionsPointWaterMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            me%emissionsPointWaterMatrixEmbedded = nf90_fill_double
+        end if
+        ! Transformed
         if (me%nc%hasVariable('emissions_point_water_transformed')) then
             var = me%nc%getVariable('emissions_point_water_transformed')
             call var%getData(me%emissionsPointWaterTransformed)
+            ! Get point source coords
+            if (me%nc%hasVariable('emissions_point_water_transformed_coords')) then
+                var = me%nc%getVariable('emissions_point_water_transformed_coords')
+                call var%getData(me%emissionsPointWaterCoords)
+            end if
         else
             allocate(me%emissionsPointWaterTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
             me%emissionsPointWaterTransformed = nf90_fill_double
@@ -286,17 +348,23 @@ module classDatabase
         if (me%nc%hasVariable('emissions_point_water_dissolved')) then
             var = me%nc%getVariable('emissions_point_water_dissolved')
             call var%getData(me%emissionsPointWaterDissolved)
+            ! Get point source coords
+            if (me%nc%hasVariable('emissions_point_water_dissolved_coords')) then
+                var = me%nc%getVariable('emissions_point_water_dissolved_coords')
+                call var%getData(me%emissionsPointWaterCoords)
+            end if
         else
             allocate(me%emissionsPointWaterDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
             me%emissionsPointWaterDissolved = nf90_fill_double
         end if
-        ! Emissions - point coordinates
-        if (me%nc%hasVariable('emissions_point_water_pristine_coords')) then
-            var = me%nc%getVariable('emissions_point_water_pristine_coords')
-            call var%getData(me%emissionsPointWaterCoords)
-        else
-            allocate(me%emissionsPointWaterCoords(me%gridShape(1), me%gridShape(2), maxPointSources, 2))
-            me%emissionsPointWaterCoords = nf90_fill_double
+        ! Emissions - point coordinates. We only need to use one form's point coords (they should
+        ! all be the same), so we'll go through them all until we hit one that exists (in case
+        ! we're only inputting a certain form)
+        if ((maxPointSources > 0) .and. (.not. allocated(me%emissionsPointWaterCoords))) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance( &
+                message="Unable to find coordinates for point sources in input data. Check point sources " // &
+                        "have coordinates sidecar variables." &
+            ))
         end if
 
         ! Calculate the number of point source per cell
@@ -310,28 +378,42 @@ module classDatabase
         ! Close the dataset
         call me%nc%close()
 
+        call rslt%addToTrace('Initialising database')
+        call ERROR_HANDLER%trigger(errors=.errors.rslt)
         call LOG%add("Initialising database: success")
     end subroutine
 
     subroutine parseConstantsDatabase(me, constantsFile)
         class(Database)         :: me
         character(len=*)        :: constantsFile
-        integer :: n_default_nm_size_distribution, n_nm_size_classes
-        integer, allocatable :: default_nm_size_distribution(:)
-        real, allocatable :: nm_size_classes(:)
-        namelist /allocatable_array_sizes/ n_default_nm_size_distribution, n_nm_size_classes
-        namelist /size_classes/ default_nm_size_distribution, nm_size_classes
+        integer :: n_default_nm_size_distribution, n_nm_size_classes, n_default_spm_size_distribution, &
+            n_spm_size_classes, n_default_matrixembedded_distribution_to_spm
+        integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
+            default_matrixembedded_distribution_to_spm(:)
+        real, allocatable :: nm_size_classes(:), spm_size_classes(:)
+        namelist /allocatable_array_sizes/ n_default_nm_size_distribution, n_nm_size_classes, &
+            n_default_spm_size_distribution, n_spm_size_classes, n_default_matrixembedded_distribution_to_spm
+        namelist /size_classes/ default_nm_size_distribution, nm_size_classes, default_spm_size_distribution, &
+            spm_size_classes, default_matrixembedded_distribution_to_spm
         ! Open and read the NML file
         open(11, file=constantsFile, status="old")
         read(11, nml=allocatable_array_sizes)
         ! Allocate the appropriate
         allocate(default_nm_size_distribution(n_default_nm_size_distribution))
         allocate(nm_size_classes(n_nm_size_classes))
+        allocate(default_spm_size_distribution(n_default_spm_size_distribution))
+        allocate(spm_size_classes(n_spm_size_classes))
+        allocate(default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm))
         read(11, nml=size_classes)
         close(11)
         ! Save these to class variables
         me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
+        me%defaultSpmSizeDistribution = default_spm_size_distribution / 100.0
         me%nmSizeClasses = nm_size_classes
+        me%spmSizeClasses = spm_size_classes
+        me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
+        me%nSizeClassesSpm = n_spm_size_classes
+        me%nSizeClassesNM = n_nm_size_classes    
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)

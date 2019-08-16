@@ -6,7 +6,7 @@
     n_spm_size_classes = 5
 /
 &size_classes
-    default_matrixembedded_distribution_to_spm = 20, 20, 20, 20, 20
+    default_matrixembedded_distribution_to_spm = 50, 40, 10, 0, 0
     default_nm_size_distribution = 50, 30, 10, 7, 3
     default_spm_size_distribution = 50, 30, 10, 7, 3
     nm_size_classes = 1e-08, 3e-08, 1e-07, 3e-07, 1e-06

@@ -291,7 +291,7 @@ module classSoilProfile1
         real(dp)            :: distribution(C%nSizeClassesSpm)  !! The resulting distribution
         integer             :: s                                ! Loop iterator for size classes
         do s = 1, C%nSizeClassesSpm
-            distribution(s) = mass*me%distributionSediment(s)*0.01
+            distribution(s) = mass*me%distributionSediment(s)
         end do
     end function
 
@@ -327,15 +327,16 @@ module classSoilProfile1
             ! .errors. DATA%get('sand_content', me%sandContent), &
             ! .errors. DATA%get('silt_content', me%siltContent), &
             ! .errors. DATA%get('clay_content', me%clayContent), &
-            .errors. DATA%get('porosity', me%porosity, 50.0_dp), &
+            .errors. DATA%get('porosity', me%porosity, 50.0_dp) &
             ! .errors. DATA%get('coarse_frag_content', me%coarseFragContent), &
             ! .errors. DATA%get('bulk_density', me%bulkDensity), &
-            .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
+            ! .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
         ])
         if (r%hasCriticalError()) return
         ! me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from T/m3 to kg/m3
 
         ! FLAT DATA
+        me%distributionSediment = DATASET%defaultSpmSizeDistribution
         me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
         me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
         me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
@@ -361,7 +362,7 @@ module classSoilProfile1
         call r%addError( &
             ERROR_HANDLER%equal( &
                 value = sum(me%distributionSediment), &
-                criterion = 100, &
+                criterion = 1.0, &
                 message = "Specified size class distribution for sediments " &
                             // "does not sum to 100%." &
             ) &
