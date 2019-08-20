@@ -1,6 +1,4 @@
 &allocatable_array_sizes
-default_distribution_sediment_size = 5
-default_distribution_np_size = 5
 default_fractional_comp_size = 4
 default_np_forms = 4
 default_np_extra_states = 2
@@ -18,7 +16,8 @@ other_sites = "TC1", "TC3", "TC4", "TC8", "TC9", "TC10", "TC11", "TC12", "TC14",
 
 &data
 input_file = "data/thames/data.nc"
-flat_input = "data/thames/flat.nc"
+flat_input = "data/thames/flat_fccco.nc"
+constants_file = "data/thames/constants_fccco.nml"
 output_file = "output.csv"
 output_path = "data/output/"
 /
@@ -28,14 +27,11 @@ timestep = 86400
 n_timesteps = 365
 start_date = "2015-01-01"
 epsilon = 1e-50,
-error_output = .false.
+error_output = .true.
 log_file_path = "log/"
 /
 
 &global
-default_grid_size = 5000
-default_distribution_sediment = 50, 30, 10, 7, 3
-default_distribution_np = 50, 30, 10, 7, 3
 default_fractional_comp = 30, 30, 30, 10
 warm_up_period = 0
 nanomaterial_density = 4320
@@ -55,8 +51,8 @@ default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .false.
-default_alpha_resus = 0.001
-default_beta_resus = 1e-6
+default_alpha_resus = 5e-4
+default_beta_resus = 5e-8
 /
 
 &sources

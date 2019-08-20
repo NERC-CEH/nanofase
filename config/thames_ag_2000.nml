@@ -1,6 +1,4 @@
 &allocatable_array_sizes
-default_distribution_sediment_size = 5
-default_distribution_np_size = 5
 default_fractional_comp_size = 4
 default_np_forms = 4
 default_np_extra_states = 2
@@ -19,6 +17,7 @@ other_sites = ""
 &data
 input_file = "data/thames/data.nc"
 flat_input = "data/thames/flat_ag_2000.nc"
+constants_file = "data/thames/constants_ag.nml"
 output_file = "output.csv"
 output_path = "data/output/"
 /
@@ -33,9 +32,6 @@ log_file_path = "log/"
 /
 
 &global
-default_grid_size = 5000
-default_distribution_sediment = 50, 30, 10, 7, 3
-default_distribution_np = 50, 30, 10, 7, 3
 default_fractional_comp = 30, 30, 30, 10
 warm_up_period = 0
 nanomaterial_density = 10500
@@ -55,8 +51,8 @@ default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .false.
-default_alpha_resus = 0.001
-default_beta_resus = 1e-6
+default_alpha_resus = 5e-4
+default_beta_resus = 5e-8
 /
 
 &sources

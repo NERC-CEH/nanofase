@@ -38,6 +38,11 @@ module spcSoilLayer
         real(dp) :: V_FC                                            !! Water content at field capacity [m3 m-2]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
         real(dp) :: bulkDensity                                     !! Bulk density [kg m-3]
+        real(dp) :: d_grain                                         !! Average grain diameter [m]
+        real(dp) :: porosity                                        !! Porosity [-]
+        ! NM transformations
+        real :: alpha_att                                           !! Attachment efficiency to soil matrix [-]
+        real, allocatable :: k_att(:)                               !! Attachment rate to soil matrix [s-1]
         ! Biota
         class(Biota), allocatable :: biota
       contains
@@ -60,7 +65,7 @@ module spcSoilLayer
 
     abstract interface
         !> Create this `SoilLayer`
-        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity) result(r)
+        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity) result(r)
             use Globals, only: dp
             use ResultModule, only: Result
             import SoilLayer
@@ -74,6 +79,8 @@ module spcSoilLayer
             real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
             real(dp), intent(in) :: area                    !! Area of the containing SoilProfile [m2]
             real(dp), intent(in) :: bulkDensity             !! Bulk density [kg/m3]
+            real(dp), intent(in) :: d_grain                 !! Average grain diameter [m]
+            real(dp), intent(in) :: porosity                !! Porosity [-]
             type(Result) :: r                               !! The `Result` object to return
         end function
 

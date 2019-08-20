@@ -89,7 +89,8 @@ module classRiverReach
         real(dp) :: dj_np(size(me%j_np, 1), C%npDim(1), C%npDim(2), C%npDim(3))   ! NM flow array (j_np) for each displacement
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
-        real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg]
+        real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg/disp]
+        real(dp) :: dj_spm_resus_perArea(C%nSizeClassesSpm)     ! Mass of each sediment size class resuspended on each displacement, per unit area [kg/m2/disp]
         real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
 
@@ -213,10 +214,15 @@ module classRiverReach
                 call me%set_j_np_outflow(me%j_np_outflow() + dj_np_outflow)
                 call me%set_j_np_deposit(me%j_np_deposit() + dj_np(4+me%nInflows,:,:,:))
 
+                if (isZero(me%bedArea)) then
+                    dj_spm_resus_perArea = 0.0_dp
+                else
+                    dj_spm_resus_perArea = dj_spm_resus / me%bedArea
+                end if
                 ! If we're including bed sediment, then deposit and resuspend to/from
                 if (C%includeBedSediment) then
                     call rslt%addErrors(.errors. &
-                        me%bedSediment%resuspend(dj_spm_resus / me%bedArea))    ! remove resuspended SPM from BedSediment
+                        me%bedSediment%resuspend(dj_spm_resus_perArea))    ! remove resuspended SPM from BedSediment
                     if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
 
                     call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
@@ -287,11 +293,12 @@ module classRiverReach
             ! Set the dimensions so we can calculate concentration from boundary C_spm
             call rslt%addErrors(.errors. me%setDimensions())
             me%Q(1) = -sum(me%Q(2:))
+
             ! Set the SPM conc and apply default sediment size class distribution
-            me%C_spm = me%boundary_C_spm * C%defaultDistributionSediment * 0.01
+            me%C_spm = me%boundary_C_spm * DATASET%defaultSpmSizeDistribution
             me%m_spm = me%C_spm / me%volume
             me%j_spm(1,:) = me%C_spm * me%Q(1)
-            ! HACK set NM to zero for the moment
+            ! We're not modelling NM, so just set these to zero
             me%m_np = 0.0_dp
             me%C_np = 0.0_dp
             me%j_np = 0.0_dp

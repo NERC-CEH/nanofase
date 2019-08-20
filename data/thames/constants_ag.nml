@@ -12,3 +12,11 @@
     nm_size_classes = 1e-08, 3e-08, 1e-07, 3e-07, 1e-06
     spm_size_classes = 1e-06, 3e-06, 1e-05, 3e-05, 0.0001
 /
+
+&soil
+    darcy_velocity = 9e-06
+    default_attachment_efficiency = 0.08
+    default_porosity = 0.456
+    hamaker_constant = 2.02e-20
+    particle_density = 2500.0
+/

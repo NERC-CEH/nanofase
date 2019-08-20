@@ -24,6 +24,7 @@ module classSoilProfile1
         procedure :: erode => erodeSoilProfile1                     ! Erode soil on a given time step
         procedure :: bioturbation => bioturbationSoilProfile1       ! Bioturbate soil on a given time step
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
+        procedure :: calculateAverageGrainSize => calculateAverageGrainSizeSoilProfile1 ! Calculate the average grain diameter from soil texture
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
     end type
 
@@ -90,7 +91,19 @@ module classSoilProfile1
             allocate(sl)        ! Must be allocated on every time step
             ! Create the SoilLayer and add any errors to Result object
             call r%addErrors(.errors. &
-                sl%create(me%x, me%y, me%p, l, me%WC_sat, me%WC_FC, me%K_s, me%area, me%bulkDensity) &
+                sl%create( &
+                    me%x, &
+                    me%y, &
+                    me%p, &
+                    l, &
+                    me%WC_sat, &
+                    me%WC_FC, &
+                    me%K_s, &
+                    me%area, &
+                    me%bulkDensity, &
+                    me%d_grain, &
+                    me%porosity &
+                ) &
             )
             call move_alloc(sl, me%colSoilLayers(l)%item)   ! This automatically deallocates sl
         end do
@@ -295,6 +308,16 @@ module classSoilProfile1
         end do
     end function
 
+    !> Calculate the average grain size from soil texture properties, using RUSLE handbook
+    !! http://www.grr.ulaval.ca/gae_3005/Documents/References/RUSLE/ah703_ch3.pdf (p76):
+    !! d_grain = exp(%clay * ln(0.001) + %silt * ln(0.026) + %sand * ln(1.025))
+    function calculateAverageGrainSizeSoilProfile1(me, clay, silt, sand) result(d_grain)
+        class(SoilProfile1) :: me           ! This soil profile
+        real :: clay, silt, sand            ! Percentage clay, silt and sand
+        real :: d_grain                     ! The average grain size
+        d_grain = 1e-3*exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
+    end function
+
     !> Get the data from the input file and set object properties
     !! accordingly, including the allocation of arrays that depend on
     !! this input data
@@ -318,22 +341,6 @@ module classSoilProfile1
             ref('GridCell', me%x, me%y), &
             me%ref &
         ]))
-        ! Setup data and soil hydraulic/texture properties
-        call r%addErrors([ & 
-            ! .errors. DATA%get('n_soil_layers', me%nSoilLayers), &
-            ! .errors. DATA%get('WC_sat', me%WC_sat), &               ! Water content at saturation [m3/m3] TODO check between 0 and 1
-            ! .errors. DATA%get('WC_FC', me%WC_FC), &                 ! Water content at field capacity [m3/m3] TODO check between 0 and 1
-            ! .errors. DATA%get('K_s', me%K_s), &                     ! Saturated hydraulic conductivity [m/s]
-            ! .errors. DATA%get('sand_content', me%sandContent), &
-            ! .errors. DATA%get('silt_content', me%siltContent), &
-            ! .errors. DATA%get('clay_content', me%clayContent), &
-            .errors. DATA%get('porosity', me%porosity, 50.0_dp) &
-            ! .errors. DATA%get('coarse_frag_content', me%coarseFragContent), &
-            ! .errors. DATA%get('bulk_density', me%bulkDensity), &
-            ! .errors. DATA%get('distribution_sediment', me%distributionSediment, C%defaultDistributionSediment) & ! Sediment size class dist, sums to 100
-        ])
-        if (r%hasCriticalError()) return
-        ! me%bulkDensity = me%bulkDensity*1.0e3_dp            ! Convert bulk density from T/m3 to kg/m3
 
         ! FLAT DATA
         me%distributionSediment = DATASET%defaultSpmSizeDistribution
@@ -357,6 +364,9 @@ module classSoilProfile1
         if (me%coarseFragContent == nf90_fill_real) then
             me%coarseFragContent = 0.0
         end if
+        ! Calculate the average grain diameter from soil texture
+        me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+        me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
 
         ! Auditing
         call r%addError( &

@@ -199,8 +199,9 @@ module spcReach
 
     function depositToBedReach(me, spmDep) result(rslt)
         class(Reach)        :: me                           !! This Reach instance
-        real(dp)            :: spmDep(C%nSizeClassesSpm)    !! The SPM to deposit [kg/reach]
+        real(dp)            :: spmDep(C%nSizeClassesSpm)    !! The SPM to deposit [kg]
         type(Result)        :: rslt                         !! The data object to return any errors in
+        real(dp)            :: spmDep_perArea(C%nSizeClassesSpm)    ! The SPM to deposit, per unit area [kg/m2]
         type(Result0D)      :: depositRslt                  !! Result from the bed sediment's deposit procedure
         real(dp)            :: V_water_toDeposit            !! Volume of water to deposit to bed sediment [m3/m2]
         type(FineSediment1) :: fineSediment(C%nSizeClassesSpm) ! FineSediment object to pass to BedSediment
@@ -209,26 +210,26 @@ module spcReach
         ! (converting units of Mf_in to kg/m2), then give that object
         ! to the BedSediment
         ! TODO: What f_comp should be input? SL: THAT OF THE DEPOSITING SEDIMENT
+        if (isZero(me%bedArea)) then
+            spmDep_perArea = 0.0_dp
+        else
+            spmDep_perArea = spmDep/me%bedArea
+        end if
         do n = 1, C%nSizeClassesSpm
             !HACK
             call rslt%addErrors(.errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n)), 4))
             !TODO: allow number of compositional fractions to be set 
             call rslt%addErrors(.errors. fineSediment(n)%set( &
-                Mf_in=spmDep(n)/me%bedArea, &
+                Mf_in=spmDep_perArea(n), &
                 f_comp_in=C%defaultFractionalComp/100.0_dp &
             ))
         end do
         
-        ! COMMENTED BEDSEDIMENT STUFF OUT TO GET MODEL RUNNING WITHOUT FPE ERRORS
-        ! AND WITH REASONABLE RUNTIME
-
         if (C%includeBedSediment) then
             ! Deposit the fine sediment to the bed sediment
             depositRslt = Me%bedSediment%deposit(fineSediment)
             call rslt%addErrors(.errors. depositRslt)
             if (rslt%hasCriticalError()) then
-                ! print *, "Error in DepositSediment"
-                ! call rslt%addToTrace("Depositing SPM to BedSediment")
                 return
             end if
         end if

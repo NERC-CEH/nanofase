@@ -4,6 +4,7 @@ module classSoilLayer1
     use UtilModule
     use spcSoilLayer
     use classDataInterfacer, only: DATA
+    use classDatabase, only: DATASET
     use classBiota1
     implicit none
 
@@ -16,13 +17,14 @@ module classSoilLayer1
         procedure :: addPooledWater => addPooledWaterSoilLayer1
         procedure :: erode => erodeSoilLayer1
         procedure :: attachment => attachmentSoilLayer1
-        procedure :: parseInputData => parseInputDataSoilLayer1
+        procedure :: calculateAttachmentRate => calculateAttachmentRateSoilLayer1
         procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer1
+        procedure :: parseInputData => parseInputDataSoilLayer1
     end type
 
   contains
     !> Create this `SoilLayer` and call the input data parsing procedure
-    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity) result(r)
+    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer, intent(in) :: x                        !! Containing `GridCell` x index
         integer, intent(in) :: y                        !! Containing `GridCell` y index
@@ -33,6 +35,8 @@ module classSoilLayer1
         real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
         real(dp), intent(in) :: area                    !! Area of the containing SoilProfile [m2]
         real(dp), intent(in) :: bulkDensity             !! Bulk density [kg/m3]
+        real(dp), intent(in) :: d_grain                 !! Average grain diameter [m]
+        real(dp), intent(in) :: porosity                !! Porosity [-]
         type(Result) :: r
             !! The `Result` object to return, with any errors from parsing input data.
 
@@ -45,12 +49,15 @@ module classSoilLayer1
         me%area = area
         me%depth = C%soilLayerDepth(l)
         me%bulkDensity = bulkDensity
+        me%d_grain = d_grain
+        me%porosity = porosity
 
         ! Allocate and initialise variables
         allocate(me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%m_np_perc(C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%k_att(C%npDim(1)))
         me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
         me%m_np_perc = 0.0_dp                           ! Just to be on the safe side
         me%m_np_eroded = 0.0_dp
@@ -64,6 +71,13 @@ module classSoilLayer1
         me%V_sat = WC_sat*me%depth
         me%V_FC = WC_FC*me%depth
         me%K_s = K_s                                    ! Hydraulic conductivity [m/s]
+
+        ! Has attachment rate been set by input data? If not, then calculate it from
+        ! attachment efficiency. Attachment efficiency will be either spatial (if
+        ! provided), or set by default value in constants file
+        if (me%k_att(1) == nf90_fill_real) then
+            me%k_att = me%calculateAttachmentRate()
+        end if
 
         ! Allocate and create the Biota object
         allocate(Biota1 :: me%biota)
@@ -162,13 +176,12 @@ module classSoilLayer1
     !> TODO move this to a Reactor of some sort
     subroutine attachmentSoilLayer1(me)
         class(SoilLayer1)   :: me
-        real(dp)            :: k_att
-        real(dp)            :: dm_att(C%nSizeClassesNP)
+        integer             :: i
+        real(dp)            :: dm_att
         if (C%includeAttachment) then
-            ! HACK Set to attachment rate as in SB4N SI for the moment:
-            ! https://pubs.acs.org/doi/suppl/10.1021/es500548h/suppl_file/es500548h_si_001.pdf
-            k_att = C%default_k_att
-            dm_att = min(k_att*C%timeStep*me%m_np(:,1,1), me%m_np(:,1,1))           ! Mass to move from free -> attached, max of the current mass
+            do i = 1, DATASET%nSizeClassesNM
+                dm_att = min(me%k_att(i)*C%timeStep*me%m_np(i,1,1), me%m_np(i,1,1))           ! Mass to move from free -> attached, max of the current mass
+            end do
             me%m_np(:,1,1) = me%m_np(:,1,1) - dm_att                                ! Remove from free
             me%m_np(:,1,2) = me%m_np(:,1,2) + dm_att                                ! Add to attached (bound)
         end if
@@ -201,21 +214,46 @@ module classSoilLayer1
         bioturbationRate = (earthwormDensity * bioturb_alpha) / me%depth
     end function
 
+    !> Calculate the attachment rate from the attachment efficiency and soil properties, using
+    !! coloid filtration theory. References:
+    !!  - Meesters et al. 2014 (SI): https://doi.org/10.1021/es500548h
+    !!  - Tufenkji et al. 2004: https://doi.org/10.1021/es034049r
+    function calculateAttachmentRateSoilLayer1(me) result(k_att)
+        class(SoilLayer1) :: me
+        real :: k_att(C%nSizeClassesNP)
+        integer :: i
+        real(dp) :: gamma, r_i, kBT, N_G, N_VDW, N_Pe, N_R, A_s, eta_grav, eta_intercept, &
+            eta_0, lambda_filter, D_i, eta_Brownian
+
+        gamma = (1 - me%porosity) ** 0.333
+        kBT = C%k_B*C%defaultWaterTemperature
+        N_VDW = DATASET%soilHamakerConstant / kBT                                       ! Van der Waals number
+        A_s = 2 * (1 - gamma**5) / (2 - 3 * gamma + 3 * gamma**5 - 2 * gamma**6)        ! Porosity dependent param
+        ! Loop through NM size classes for the parameters that are dependent on NM size
+        do i = 1, DATASET%nSizeClassesNM
+            r_i = DATASET%nmSizeClasses(i) * 0.5                                        ! NM radius
+            D_i = kBT / (6 * C%pi * C%mu_w(C%defaultWaterTemperature) * r_i)            ! Diffusivity of NM particle
+            N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                         ! Peclet number
+            N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(C%defaultWaterTemperature)) * C%g &
+                / (9 * C%mu_w(C%defaultWaterTemperature) * DATASET%soilDarcyVelocity)   ! Gravity number
+            N_R = r_i / (me%d_grain * 0.5)                                              ! Aspect ratio number
+            eta_grav = 2.22 * N_R**(-0.024) * N_G**1.11 * N_VDW**0.053                  ! Gravitational collection efficiency
+            eta_intercept = 0.55 * N_R**1.55 * N_Pe**(-0.125) * N_VDW**0.125            ! Interception collection efficiency
+            eta_Brownian = 2.4 * A_s**0.33 * N_R**(-0.081) * N_Pe**(-0.715) * N_VDW**0.053 ! Brownian motion collection efficiency
+            eta_0 = eta_grav + eta_intercept + eta_Brownian                             ! Total collection efficiency
+            lambda_filter = 1.5 * (1 - me%porosity) / (me%d_grain * me%porosity)        ! Filtration
+            k_att(i) = me%alpha_att * lambda_filter * eta_0 * DATASET%soilDarcyVelocity    ! Attachment rate [/s]
+        end do
+    end function
+
     !> Get the data from the input file and set object properties
     !! accordingly, including allocation of arrays that depend on
     !! input data
     function parseInputDataSoilLayer1(me) result(r)
         class(SoilLayer1) :: me         !! This SoilLayer1 instance
         type(Result) :: r               !! The Result object to return any errors relating to the input data file
-
-         ! Set the data interfacer's group to the group for this GridCell
-        call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
-            'Environment', &
-            ref('GridCell', me%x, me%y), &
-            ref("SoilProfile", me%x, me%y, me%p), &
-            "SoilLayer_" // trim(str(me%l)) &
-        ]))
-
+        me%k_att(:) = DATASET%soilAttachmentRate(me%x, me%y)
+        me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
     end function
 
 end module

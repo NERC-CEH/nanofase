@@ -18,6 +18,12 @@ module classDatabase
         real, allocatable :: defaultMatrixEmbeddedDistributionToSpm(:)  ! Default distribution to proportion matrix-embedded releases to SPM size classes
         integer :: nSizeClassesSpm              ! Number of SPM size classes
         integer :: nSizeClassesNM               ! Number of NM size classes
+        real(dp) :: soilDarcyVelocity           ! Darcy velocity in soil [m/s]
+        real(dp) :: soilDefault_alpha_att       ! Default attachment efficiency [-]
+        real(dp) :: soilDefaultPorosity         ! Default porosity [-]  ! TODO deprecate this in favour of spatially resolved porosity
+        real(dp) :: soilHamakerConstant         ! Hamaker constant for soil [J]
+        real(dp) :: soilParticleDensity         ! Particle density of soil [kg m-3]
+        real :: soilDefaultAttachmentEfficiency ! Attachment efficiency to soil matrix [-]
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
@@ -48,6 +54,8 @@ module classDatabase
         real, allocatable :: soilTextureSandContent(:,:)
         real, allocatable :: soilTextureSiltContent(:,:)
         real, allocatable :: soilTextureCoarseFragContent(:,:)
+        real, allocatable :: soilAttachmentEfficiency(:,:)
+        real, allocatable :: soilAttachmentRate(:,:)
         ! Emissions - areal
         real(dp), allocatable :: emissionsArealSoilPristine(:,:)
         real(dp), allocatable :: emissionsArealSoilMatrixEmbedded(:,:)
@@ -186,6 +194,24 @@ module classDatabase
         call var%getData(me%soilTextureSiltContent)
         var = me%nc%getVariable('soil_texture_coarse_frag_content')
         call var%getData(me%soilTextureCoarseFragContent)
+        ! Soil attachment efficienecy/rate
+        ! Try and get attachment rate. This is used preferentially by soil profile
+        if (me%nc%hasVariable('soil_attachment_rate')) then
+            var = me%nc%getVariable('soil_attachment_rate')
+            call var%getData(me%soilAttachmentRate)
+        else
+            allocate(me%soilAttachmentRate(me%gridShape(1), me%gridShape(2)))
+            me%soilAttachmentRate = nf90_fill_real
+        end if
+        ! Try and get attachment efficiency. This is used to calculate rate
+        ! if rate not present. Defaults to to value given in constants file
+        if (me%nc%hasVariable('soil_attachment_efficiency')) then
+            var = me%nc%getVariable('soil_attachment_efficiency')
+            call var%getData(me%soilAttachmentEfficiency)
+        else
+            allocate(me%soilAttachmentEfficiency(me%gridShape(1), me%gridShape(2)))
+            me%soilAttachmentEfficiency = me%soilDefaultAttachmentEfficiency
+        end if
         ! Emissions - areal                         [kg/m2/timestep]
         ! Soil
         if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
@@ -391,10 +417,14 @@ module classDatabase
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:)
         real, allocatable :: nm_size_classes(:), spm_size_classes(:)
+        real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density
+        real(dp) :: hamaker_constant
         namelist /allocatable_array_sizes/ n_default_nm_size_distribution, n_nm_size_classes, &
             n_default_spm_size_distribution, n_spm_size_classes, n_default_matrixembedded_distribution_to_spm
         namelist /size_classes/ default_nm_size_distribution, nm_size_classes, default_spm_size_distribution, &
             spm_size_classes, default_matrixembedded_distribution_to_spm
+        namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density
+
         ! Open and read the NML file
         open(11, file=constantsFile, status="old")
         read(11, nml=allocatable_array_sizes)
@@ -405,6 +435,7 @@ module classDatabase
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm))
         read(11, nml=size_classes)
+        read(11, soil)
         close(11)
         ! Save these to class variables
         me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
@@ -413,7 +444,12 @@ module classDatabase
         me%spmSizeClasses = spm_size_classes
         me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
         me%nSizeClassesSpm = n_spm_size_classes
-        me%nSizeClassesNM = n_nm_size_classes    
+        me%nSizeClassesNM = n_nm_size_classes
+        me%soilDarcyVelocity = darcy_velocity       ! TODO maybe calculate from water flow, though it doesn't massively affect alpha_att calc
+        me%soilDefaultAttachmentEfficiency = default_attachment_efficiency
+        me%soilDefaultPorosity = default_porosity
+        me%soilHamakerConstant = hamaker_constant
+        me%soilParticleDensity = particle_density
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)

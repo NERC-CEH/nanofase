@@ -122,7 +122,7 @@ module classGridCell2
         real :: fracIndicies(2)
         integer :: reachIndexToSnapTo
 
-        ! If there's just one reach, just all point sources to that
+        ! If there's just one reach, just snap all point sources to that
         if (me%nReaches == 1) then
             do j = 1, DATASET%nPointSources(me%x, me%y)
                 call me%colRiverReaches(1)%item%addPointSource(j)

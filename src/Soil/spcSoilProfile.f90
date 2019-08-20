@@ -45,6 +45,7 @@ module spcSoilProfile
         real :: siltContent                                         !! Silt content of the soil [%]
         real :: clayContent                                         !! Clay content of the soil [%]
         real :: coarseFragContent                                   !! Coarse fragment content of the soil [%]
+        real(dp) :: d_grain                                         !! Average grain size [m]
         real(dp) :: porosity                                        !! Soil porosity [%]
         real(dp) :: bulkDensity                                     !! Soil bulk density [kg/m3]
         real(dp) :: earthwormDensity
@@ -86,6 +87,7 @@ module spcSoilProfile
         procedure(erodeSoilProfile), deferred :: erode                      ! Erode soil for given time step
         procedure(bioturbationSoilProfile), deferred :: bioturbation        ! Bioturbate soil for a given time step
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
+        procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
     end type
 
@@ -178,6 +180,13 @@ module spcSoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             real(dp) :: mass                                    !! The mass to split into a distribution
             real(dp) :: distribution(C%nSizeClassesSpm)
+        end function
+
+        function calculateAverageGrainSizeSoilProfile(me, clay, silt, sand) result(d_grain)
+            import SoilProfile
+            class(SoilProfile) :: me            ! This soil profile
+            real :: clay, silt, sand            ! Percentage clay, silt and sand
+            real :: d_grain                     ! The average grain size
         end function
 
         !> Parses the input data for the `SoilProfile` from the data file
