@@ -412,6 +412,7 @@ module classDatabase
     subroutine parseConstantsDatabase(me, constantsFile)
         class(Database)         :: me
         character(len=*)        :: constantsFile
+        integer :: n
         integer :: n_default_nm_size_distribution, n_nm_size_classes, n_default_spm_size_distribution, &
             n_spm_size_classes, n_default_matrixembedded_distribution_to_spm
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
@@ -450,6 +451,43 @@ module classDatabase
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
+
+        ! HACK to override Globals values, need to unify all this
+        C%nSizeClassesSpm = me%nSizeClassesSPM
+        C%nSizeClassesNP = me%nSizeClassesNM
+        deallocate(C%d_np, C%d_spm, C%d_spm_low, C%d_spm_upp)
+        C%d_np = me%nmSizeClasses
+        C%d_spm = me%spmSizeClasses
+
+        ! Set the number of size classes
+        C%nSizeClassesSpm = size(C%d_spm)
+        C%nSizeClassesNP = size(C%d_np)
+        C%nFracCompsSpm = size(C%rho_spm)
+        allocate(C%d_spm_low(C%nSizeClassesSpm))
+        allocate(C%d_spm_upp(C%nSizeClassesSpm))
+        ! Set the upper and lower bounds of each size class, if treated as a distribution
+        do n = 1, C%nSizeClassesSpm
+            ! Set the upper and lower limit of the size class's distributions
+            if (n == C%nSizeClassesSpm) then
+                C%d_spm_upp(n) = 1                                              ! failsafe overall upper size limit
+            else
+                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
+            end if                
+        end do
+        do n = 1, C%nSizeClassesSpm
+            if (n == 1) then
+                C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
+            else
+                C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
+            end if
+        end do        
+
+        ! Array to store default NM and ionic array dimensions. NM:
+        !   1: NP size class
+        !   2: form (core, shell, coating, corona)
+        !   3: state (free, bound, heteroaggregated)
+        ! Ionic: Form (free ion, solution, adsorbed)
+        C%npDim = [C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2]
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)

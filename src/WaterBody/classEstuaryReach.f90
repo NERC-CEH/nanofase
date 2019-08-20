@@ -90,7 +90,7 @@ module classEstuaryReach
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
         real(dp) :: fractionSpmDeposited(C%nSizeClassesSpm)     ! Fraction of SPM deposited on each time step [-]
-        integer :: i, j                                         ! Iterator
+        integer :: i, j, k                                      ! Iterator
         integer :: nDisp                                        ! Number of displacements to split this time step into
         real(dp) :: dt                                          ! Length of each displacement [s]
         real(dp) :: dQ(size(me%Q))                              ! Water flow array (Q) for each displacement
@@ -228,18 +228,24 @@ module classEstuaryReach
                 dj_np_in = sum(dj_np(2:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)     ! Total NM input to this displacement (not deposition)
             else if (dQ(1) > 0 .and. associated(me%outflow%item)) then
                 ! Add SPM inflowing from downstream reach
-                dj_spm(1,:) = me%outflow%item%C_spm_final * dQ(1)                 ! SPM outflow
+                do j = 1, C%nSizeClassesSpm
+                    dj_spm(1,j) = min(me%outflow%item%C_spm_final(j) * dQ(1), me%outflow%item%m_spm(j))    ! SPM outflow
+                end do
+                do j = 1, C%nSizeClassesNP
+                    dj_np(1,j,:,:) = min(me%outflow%item%C_np_final(j,:,:) * dQ(1), me%outflow%item%m_np(j,:,:))
+                end do
                 ! Al
                 !!!!!! NEED TO REMOVE SPM, NM FROM THE OUTFLOW REACH !!!!!!!!!
                 !!!!!! AND MAKE SURE IT'S NOT ALL ADVECTED !!!!!!!!!!!!!!!!!!!
 
-                dj_np(1,:,:,:) = me%outflow%item%C_np_final * dQ(1)               ! NM outflow
+                ! dj_np(1,:,:,:) = me%outflow%item%C_np_final * dQ(1)               ! NM outflow
 
                 ! HACK
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
 
-
+                ! dj_spm_in = dj_spm(1,:) - dj_spm(4+me%nInflows,:)               ! Total SPM input
+                ! dj_np_in = dj_np(1,:,:,:) - dj_np(4+me%nInflows,:,:,:)          ! Total NM input
                 dj_spm_in = dj_spm(1,:) + sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)              ! Total SPM input
                 dj_np_in = dj_np(1,:,:,:) + sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)    ! Total NM input
             else if (dQ(1) > 0 .and. .not. associated(me%outflow%item)) then
@@ -248,6 +254,8 @@ module classEstuaryReach
                 dj_np(1,:,:,:) = 0.0_dp
                 dj_spm_in = sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)
                 dj_np_in = sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)
+                ! dj_spm_in = 0.0_dp
+                ! dj_np_in = 0.0_dp
             else
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
