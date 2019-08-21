@@ -24,6 +24,15 @@ module classDatabase
         real(dp) :: soilHamakerConstant         ! Hamaker constant for soil [J]
         real(dp) :: soilParticleDensity         ! Particle density of soil [kg m-3]
         real :: soilDefaultAttachmentEfficiency ! Attachment efficiency to soil matrix [-]
+        integer :: earthwormDensityArable           ! Earthworm density arable [individuals/m2]
+        integer :: earthwormDensityConiferous       ! Earthworm density coniferous [individuals/m2]
+        integer :: earthwormDensityDeciduous        ! Earthworm density deciduous [individuals/m2]
+        integer :: earthwormDensityGrassland        ! Earthworm density grassland [individuals/m2]
+        integer :: earthwormDensityHeathland        ! Earthworm density heathland [individuals/m2]
+        integer :: earthwormDensityUrbanCapped      ! Earthworm density urban_capped [individuals/m2]
+        integer :: earthwormDensityUrbanGardens     ! Earthworm density urban_gardens [individuals/m2]
+        integer :: earthwormDensityUrbanParks       ! Earthworm density urban_parks [individuals/m2]
+        real, allocatable :: earthwormVerticalDistribution(:)   ! Vertical distribution of earthworms
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
@@ -414,14 +423,18 @@ module classDatabase
         character(len=*)        :: constantsFile
         integer :: n
         integer :: n_default_nm_size_distribution, n_nm_size_classes, n_default_spm_size_distribution, &
-            n_spm_size_classes, n_default_matrixembedded_distribution_to_spm
+            n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, n_vertical_distribution
+        integer :: arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
-            default_matrixembedded_distribution_to_spm(:)
+            default_matrixembedded_distribution_to_spm(:), vertical_distribution(:)
         real, allocatable :: nm_size_classes(:), spm_size_classes(:)
         real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density
         real(dp) :: hamaker_constant
         namelist /allocatable_array_sizes/ n_default_nm_size_distribution, n_nm_size_classes, &
-            n_default_spm_size_distribution, n_spm_size_classes, n_default_matrixembedded_distribution_to_spm
+            n_default_spm_size_distribution, n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, &
+            n_vertical_distribution
+        namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, &
+            urban_parks, vertical_distribution
         namelist /size_classes/ default_nm_size_distribution, nm_size_classes, default_spm_size_distribution, &
             spm_size_classes, default_matrixembedded_distribution_to_spm
         namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density
@@ -435,8 +448,10 @@ module classDatabase
         allocate(default_spm_size_distribution(n_default_spm_size_distribution))
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm))
+        allocate(vertical_distribution(n_vertical_distribution))
+        read(11, nml=earthworm_densities)
         read(11, nml=size_classes)
-        read(11, soil)
+        read(11, nml=soil)
         close(11)
         ! Save these to class variables
         me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
@@ -451,6 +466,16 @@ module classDatabase
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
+        ! Earthworm densities
+        me%earthwormDensityArable = arable
+        me%earthwormDensityConiferous = coniferous
+        me%earthwormDensityDeciduous = deciduous
+        me%earthwormDensityGrassland = grassland
+        me%earthwormDensityHeathland = heathland
+        me%earthwormDensityUrbanCapped = urban_capped
+        me%earthwormDensityUrbanGardens = urban_gardens
+        me%earthwormDensityUrbanParks = urban_parks
+        me%earthwormVerticalDistribution = vertical_distribution / 100.0
 
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM

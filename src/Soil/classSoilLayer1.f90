@@ -24,7 +24,7 @@ module classSoilLayer1
 
   contains
     !> Create this `SoilLayer` and call the input data parsing procedure
-    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity) result(r)
+    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity, earthwormDensity) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer, intent(in) :: x                        !! Containing `GridCell` x index
         integer, intent(in) :: y                        !! Containing `GridCell` y index
@@ -37,6 +37,7 @@ module classSoilLayer1
         real(dp), intent(in) :: bulkDensity             !! Bulk density [kg/m3]
         real(dp), intent(in) :: d_grain                 !! Average grain diameter [m]
         real(dp), intent(in) :: porosity                !! Porosity [-]
+        real(dp), intent(in) :: earthwormDensity        !! Earthworm density [individuals/m2]
         type(Result) :: r
             !! The `Result` object to return, with any errors from parsing input data.
 
@@ -51,6 +52,7 @@ module classSoilLayer1
         me%bulkDensity = bulkDensity
         me%d_grain = d_grain
         me%porosity = porosity
+        me%earthwormDensity = earthwormDensity
 
         ! Allocate and initialise variables
         allocate(me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)))
@@ -99,7 +101,7 @@ module classSoilLayer1
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         integer :: i, j, k
             !! The `Result` object to return. Contains warning if all water on this time step removed.
-            
+
         ! Set the inflow to this SoilLayer and store initial water in layer
         me%q_in = q_in
         initial_V_w = me%V_w
@@ -209,9 +211,12 @@ module classSoilLayer1
     function calculateBioturbationRateSoilLayer1(me) result(bioturbationRate)
         class(SoilLayer1) :: me
         real(dp) :: bioturbationRate
-        real(dp) :: earthwormDensity = 0.01e8     ! [worms/m3]
-        real(dp) :: bioturb_alpha = 1.341e-14
-        bioturbationRate = (earthwormDensity * bioturb_alpha) / me%depth
+        real(dp) :: earthwormDensity_perVolume              ! [individuals/m3]
+        real(dp) :: bioturb_alpha = 3.56e-9                ! Bioturbation fitting parameter [m4/s]
+        ! Convert from worms/layer to worms/m3 for the bioturbation model
+        earthwormDensity_perVolume = me%earthwormDensity * me%depth
+        ! Calculate the bioturbation rate based on this worm density
+        bioturbationRate = (earthwormDensity_perVolume * bioturb_alpha) / me%depth
     end function
 
     !> Calculate the attachment rate from the attachment efficiency and soil properties, using

@@ -40,6 +40,7 @@ module spcSoilProfile
         real(dp) :: WC_FC                                           !! Water content at field capacity [m3 m-3]
         real(dp) :: K_s                                             !! Saturated hydraulic conductivity [m s-1]
         real(dp) :: V_buried                                        !! Volume of buried water (from the bottom `SoilLayer`) [m3 m-2]
+            !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil properties. Sand + silt + clay = 100 %
         real :: sandContent                                         !! Sand content of the soil [%]
         real :: siltContent                                         !! Silt content of the soil [%]
@@ -48,8 +49,7 @@ module spcSoilProfile
         real(dp) :: d_grain                                         !! Average grain size [m]
         real(dp) :: porosity                                        !! Soil porosity [%]
         real(dp) :: bulkDensity                                     !! Soil bulk density [kg/m3]
-        real(dp) :: earthwormDensity
-            !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
+        real(dp) :: earthwormDensity                                !! Earthworm density [individuals/m2]
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]
         real(dp) :: usle_K                                          !! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]

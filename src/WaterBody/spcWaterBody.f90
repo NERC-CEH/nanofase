@@ -136,6 +136,8 @@ module spcWaterBody
         call me%diffuseSources(1)%create(me%x, me%y, 1, 'water')
         call me%diffuseSources(2)%create(me%x, me%y, 2, 'atmospheric')
         me%nDiffuseSources = 2
+        ! Make sure there are no point source to begin with (they're added one at a time)
+        allocate(me%pointSources(0))
     end function
 
     !> Perform creation operations that required routing and point source snapping

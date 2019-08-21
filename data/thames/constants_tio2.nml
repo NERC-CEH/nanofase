@@ -4,7 +4,21 @@
     n_default_spm_size_distribution = 5
     n_nm_size_classes = 5
     n_spm_size_classes = 5
+    n_vertical_distribution = 3
 /
+
+&earthworm_densities
+    arable = 30
+    coniferous = 150
+    deciduous = 400
+    grassland = 250
+    heathland = 20
+    urban_capped = 0
+    urban_gardens = 150
+    urban_parks = 250
+    vertical_distribution = 50, 35, 15
+/
+
 &size_classes
     default_matrixembedded_distribution_to_spm = 20, 20, 20, 20, 20
     default_nm_size_distribution = 50, 30, 10, 7, 3

@@ -102,7 +102,8 @@ module classSoilProfile1
                     me%area, &
                     me%bulkDensity, &
                     me%d_grain, &
-                    me%porosity &
+                    me%porosity, &
+                    me%earthwormDensity * DATASET%earthwormVerticalDistribution(l) &    ! Split earthworm density into vertical distribution
                 ) &
             )
             call move_alloc(sl, me%colSoilLayers(l)%item)   ! This automatically deallocates sl
@@ -324,6 +325,8 @@ module classSoilProfile1
     function parseInputDataSoilProfile1(me) result(r)
         class(SoilProfile1)     :: me                       !! This `SoilProfile` instance
         type(Result)            :: r                        !! `Result` object to return
+        integer                 :: i                        ! Iterator
+        integer                 :: landUse                  ! Index of max land use fraction in this profile
         real(dp), allocatable   :: usle_C_min(:)            ! Minimum cover factor for USLE
         real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
         integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param
@@ -367,6 +370,33 @@ module classSoilProfile1
         ! Calculate the average grain diameter from soil texture
         me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
         me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
+
+        ! Get earthworm density from land use. Select the maximum land use fraction and use all
+        ! of profile is that.
+        landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
+        ! TODO get these values more intelligently
+        select case (landUse)
+            case (1)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
+            case (2)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanParks
+            case (3)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+            case (4)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+            case (5)
+                me%earthwormDensity = DATASET%earthwormDensityArable
+            case (6)
+                me%earthwormDensity = DATASET%earthwormDensityGrassland
+            case (7)
+                me%earthwormDensity = DATASET%earthwormDensityDeciduous
+            case (8)
+                me%earthwormDensity = DATASET%earthwormDensityConiferous
+            case (9)
+                me%earthwormDensity = DATASET%earthwormDensityHeathland
+            case default
+                me%earthwormDensity = 0.0_dp
+        end select
 
         ! Auditing
         call r%addError( &

@@ -40,6 +40,7 @@ module spcSoilLayer
         real(dp) :: bulkDensity                                     !! Bulk density [kg m-3]
         real(dp) :: d_grain                                         !! Average grain diameter [m]
         real(dp) :: porosity                                        !! Porosity [-]
+        real(dp) :: earthwormDensity                                !! Earthworm density [individuals/layer]
         ! NM transformations
         real :: alpha_att                                           !! Attachment efficiency to soil matrix [-]
         real, allocatable :: k_att(:)                               !! Attachment rate to soil matrix [s-1]
@@ -65,7 +66,8 @@ module spcSoilLayer
 
     abstract interface
         !> Create this `SoilLayer`
-        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity) result(r)
+        function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, &
+            bulkDensity, d_grain, porosity, earthwormDensity) result(r)
             use Globals, only: dp
             use ResultModule, only: Result
             import SoilLayer
@@ -81,6 +83,7 @@ module spcSoilLayer
             real(dp), intent(in) :: bulkDensity             !! Bulk density [kg/m3]
             real(dp), intent(in) :: d_grain                 !! Average grain diameter [m]
             real(dp), intent(in) :: porosity                !! Porosity [-]
+            real(dp), intent(in) :: earthwormDensity        !! Earthworm density [individuals/layer]
             type(Result) :: r                               !! The `Result` object to return
         end function
 
