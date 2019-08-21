@@ -99,7 +99,7 @@ module classSoilLayer1
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         integer :: i, j, k
             !! The `Result` object to return. Contains warning if all water on this time step removed.
-
+            
         ! Set the inflow to this SoilLayer and store initial water in layer
         me%q_in = q_in
         initial_V_w = me%V_w
@@ -180,10 +180,10 @@ module classSoilLayer1
         real(dp)            :: dm_att
         if (C%includeAttachment) then
             do i = 1, DATASET%nSizeClassesNM
-                dm_att = min(me%k_att(i)*C%timeStep*me%m_np(i,1,1), me%m_np(i,1,1))           ! Mass to move from free -> attached, max of the current mass
+                dm_att = min(me%k_att(i)*C%timeStep*me%m_np(i,1,1), me%m_np(i,1,1))     ! Mass to move from free -> attached, max of the current mass
+                me%m_np(i,1,1) = me%m_np(i,1,1) - dm_att                                ! Remove from free
+                me%m_np(i,1,2) = me%m_np(i,1,2) + dm_att                                ! Add to attached (bound)
             end do
-            me%m_np(:,1,1) = me%m_np(:,1,1) - dm_att                                ! Remove from free
-            me%m_np(:,1,2) = me%m_np(:,1,2) + dm_att                                ! Add to attached (bound)
         end if
     end subroutine
 

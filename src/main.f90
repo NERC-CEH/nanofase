@@ -29,7 +29,7 @@ program main
     real(dp), allocatable :: C_np(:,:,:)
     real(dp) :: C_np_biota, C_np_biota_noStoredFraction
     real(dp), allocatable :: npDep(:,:,:)
-    real(dp) :: m_np_hetero(1, 5)
+    real(dp) :: m_np_hetero(5, 5)
     real(dp) :: m_np_free
     real(dp) :: bedSedimentMass
     real(dp) :: npRunoff
@@ -68,12 +68,12 @@ program main
         write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
                     "reach_type,total_m_spm(kg),total_C_spm(g/l)"
     end if
-    write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np_1,", &
+    write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
         "total_C_np,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
         "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow"
     write(2, '(A,A)') ""
-    write(5, '(A,A)') "t,x,y,total_m_np,total_C_np,bulk_density,m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l4_free,", &
-        "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_l4_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
+    write(5, '(A,A)') "t,x,y,total_m_np,total_C_np,bulk_density,m_np_l1_free,m_np_l2_free,m_np_l3_free,", &
+        "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
     call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
@@ -151,10 +151,10 @@ program main
                             y, ",", &
                             rr, ",", &
                             trim(str(sum(m_np(1,:,:)))), ",", &
-                            ! trim(str(sum(m_np(2,:,:)))), ",", &
-                            ! trim(str(sum(m_np(3,:,:)))), ",", &
-                            ! trim(str(sum(m_np(4,:,:)))), ",", &
-                            ! trim(str(sum(m_np(5,:,:)))), ",", &
+                            trim(str(sum(m_np(2,:,:)))), ",", &
+                            trim(str(sum(m_np(3,:,:)))), ",", &
+                            trim(str(sum(m_np(4,:,:)))), ",", &
+                            trim(str(sum(m_np(5,:,:)))), ",", &
                             trim(str(sum(C_np))), ",", &
                             trim(str(sum(npDep))), ",", &
                             trim(str(npRunoff)), ",", &
@@ -202,14 +202,14 @@ program main
                     m_np_l1 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np
                     m_np_l2 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%m_np
                     m_np_l3 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%m_np
-                    m_np_l4 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(4)%item%m_np
+                    ! m_np_l4 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(4)%item%m_np
                     m_np_eroded = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np_eroded
                     m_np_buried = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_buried
                     m_np_in = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_in
                     C_np_biota = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np
                     C_np_biota_noStoredFraction &
                         = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np_noStoredFraction
-                    total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3) + sum(m_np_l4)
+                    total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3)
                     if (env%colGridCells(x,y)%item%colSoilProfiles(1)%item%bulkDensity < 0) then
                         bulkDensity = 1220
                     else
@@ -219,8 +219,8 @@ program main
                     write(5,*) t, ", ", x, ", ", y, ", ", &
                         total_m_np, ", ", total_C_np, ", ", bulkDensity, ", ", &
                         sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
-                        sum(m_np_l4(:,1,1)), ", ", sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
-                        sum(m_np_l3(:,1,2)), ", ", sum(m_np_l4(:,1,2)), ", ", sum(m_np_eroded(:,1,2)), ", ", &
+                        sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
+                        sum(m_np_l3(:,1,2)), ", ", sum(m_np_eroded(:,1,2)), ", ", &
                         sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota, ", ", C_np_biota_noStoredFraction
 
                 end if
