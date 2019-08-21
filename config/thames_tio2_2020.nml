@@ -2,7 +2,7 @@
 default_fractional_comp_size = 4
 default_np_forms = 4
 default_np_extra_states = 2
-n_soil_layers = 4
+n_soil_layers = 3
 n_other_sites = 1
 /
 
@@ -38,7 +38,7 @@ nanomaterial_density = 4320
 /
 
 &soil
-soil_layer_depth = 0.1, 0.1, 0.1, 0.1
+soil_layer_depth = 0.05, 0.15, 0.2
 default_k_att = 3.65d-3
 include_bioturbation = .true.
 include_attachment = .true.
