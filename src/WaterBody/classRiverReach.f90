@@ -170,7 +170,7 @@ module classRiverReach
             ! (but don't acutally settle until we're looping through
             ! displacements). This can be done now as settling/resuspension rates
             ! don't depend on anything that changes on each displacement
-            call me%setResuspensionRate()                   ! Computes resuspension rate [s-1] over complete timestep
+            call me%setResuspensionRate(me%Q_in_total)      ! Computes resuspension rate [s-1] over complete timestep
             call me%setSettlingRate()                       ! Computes settling rate [s-1] over complete timestep
 
             ! If Q_in for this timestep is bigger than the reach volume, then we need to

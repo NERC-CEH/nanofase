@@ -234,8 +234,13 @@ module spcWaterBody
         me%Q_final = me%Q
         me%j_spm_final = me%j_spm
         me%j_np_final = me%j_np
+        me%j_transformed_final = me%j_transformed
+        me%j_dissolved_final = me%j_dissolved
         me%j_ionic_final = me%j_ionic
         me%C_spm_final = me%C_spm
+        me%C_np_final = me%C_np
+        me%C_transformed_final = me%C_transformed
+        me%C_dissolved_final = me%C_dissolved
         me%isUpdated = .false.
     end subroutine
 

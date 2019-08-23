@@ -201,7 +201,7 @@ module classEstuaryReach
         ! (but don't acutally settle until we're looping through
         ! displacements). This can be done now as settling/resuspension rates
         ! don't depend on anything that changes on each displacement
-        call me%setResuspensionRate()                   ! Computes resuspension rate [s-1] over complete timestep
+        call me%setResuspensionRate(me%Q_in_total)      ! Computes resuspension rate [s-1] over complete timestep
         call me%setSettlingRate()                       ! Computes settling rate [s-1] over complete timestep
 
         ! If Q_in for this timestep is bigger than the reach volume, then we need to
@@ -228,6 +228,8 @@ module classEstuaryReach
             changeInVolume = me%changeInVolume((t-1)*24 + (i-1)*(int(dt)/3600), (t-1)*24 + i*(int(dt)/3600))
             ! Water mass balance (outflow = all the inflows + change in volume)
             dQ(1) = -sum(dQ(2:)) + changeInVolume
+            ! As flow changes so much over displacement, set resuspension rate on each
+            call me%setResuspensionRate(abs(dQ(1)))
 
             ! If this displacement's outflow is -ve, tidal flow must be downstream and
             ! outflowing SPM/NM is a function of this reach's SPM/NM conc, else if it is
@@ -245,24 +247,31 @@ module classEstuaryReach
             else if (dQ(1) > 0 .and. associated(me%outflow%item)) then
                 ! Add SPM inflowing from downstream reach
                 do j = 1, C%nSizeClassesSpm
-                    dj_spm(1,j) = min(me%outflow%item%C_spm_final(j) * dQ(1), me%outflow%item%m_spm(j))    ! SPM outflow
+                    dj_spm(1,j) = min(me%outflow%item%C_spm_final(j) * dQ(1), &
+                        me%outflow%item%m_spm(j)/me%outflow%item%nInflows)    ! SPM outflow
                 end do
                 do j = 1, C%nSizeClassesNP
-                    dj_np(1,j,:,:) = min(me%outflow%item%C_np_final(j,:,:) * dQ(1), me%outflow%item%m_np(j,:,:))
+                    dj_np(1,j,:,:) = min(me%outflow%item%C_np_final(j,:,:) * dQ(1), &
+                        me%outflow%item%m_np(j,:,:)/me%outflow%item%nInflows)
                 end do
-                dj_transformed(1) = min(me%outflow%item%C_transformed_final * dQ(1), me%outflow%item%m_transformed)
-                dj_dissolved(1) = min(me%outflow%item%C_dissolved_final * dQ(1), me%outflow%item%m_dissolved)
-                ! Al
+                dj_transformed(1) = min(me%outflow%item%C_transformed_final * dQ(1), &
+                    me%outflow%item%m_transformed/me%outflow%item%nInflows)
+                dj_dissolved(1) = min(me%outflow%item%C_dissolved_final * dQ(1), &
+                    me%outflow%item%m_dissolved/me%outflow%item%nInflows)
+
+                ! Set the "inflow" (upstream) based on this
+                dj_spm(2+me%nInflows,:) = -min(me%C_spm * dQ(1), me%m_spm)
+                dj_np(2+me%nInflows,:,:,:) = -min(me%C_np * dQ(1), me%m_np)
+                dj_transformed(2+me%nInflows) = -min(me%C_transformed * dQ(1), me%m_transformed)
+                dj_dissolved(2+me%nInflows) = -min(me%C_dissolved * dQ(1), me%m_dissolved)
                 !!!!!! NEED TO REMOVE SPM, NM FROM THE OUTFLOW REACH !!!!!!!!!
                 !!!!!! AND MAKE SURE IT'S NOT ALL ADVECTED !!!!!!!!!!!!!!!!!!!
 
-                ! dj_np(1,:,:,:) = me%outflow%item%C_np_final * dQ(1)               ! NM outflow
-
                 ! HACK
-                dj_spm(1,:) = 0.0_dp
-                dj_np(1,:,:,:) = 0.0_dp
-                dj_transformed = 0.0_dp
-                dj_dissolved = 0.0_dp
+                ! dj_spm(1,:) = 0.0_dp
+                ! dj_np(1,:,:,:) = 0.0_dp
+                ! dj_transformed = 0.0_dp
+                ! dj_dissolved = 0.0_dp
 
                 ! dj_spm_in = dj_spm(1,:) - dj_spm(4+me%nInflows,:)               ! Total SPM input
                 ! dj_np_in = dj_np(1,:,:,:) - dj_np(4+me%nInflows,:,:,:)          ! Total NM input
@@ -271,7 +280,7 @@ module classEstuaryReach
                 dj_transformed_in = dj_transformed(1) + sum(dj_transformed(2+me%nInflows:)) - dj_transformed(4+me%nInflows)
                 dj_dissolved_in = dj_dissolved(1) + sum(dj_dissolved(2+me%nInflows:)) - dj_dissolved(4+me%nInflows)
             else if (dQ(1) > 0 .and. .not. associated(me%outflow%item)) then
-                ! HACK If there is no outflow but tidal flow is in, set inflow SPM/NM to zero
+                ! If there is no outflow but tidal flow is in, set inflow SPM/NM to zero
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
                 dj_transformed(1) = 0.0_dp
@@ -326,10 +335,12 @@ module classEstuaryReach
             me%m_dissolved = max(me%m_dissolved + sum(dj_dissolved), 0.0_dp)
             
             if (.not. isZero(me%volume)) then
+                me%C_spm = me%m_spm / me%volume
                 me%C_np = me%m_np / me%volume
                 me%C_transformed = me%m_transformed / me%volume
                 me%C_dissolved = me%m_dissolved / me%volume
             else
+                me%C_spm = 0
                 me%C_np = 0
                 me%C_transformed = 0
                 me%C_dissolved = 0

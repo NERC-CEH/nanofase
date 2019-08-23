@@ -267,10 +267,10 @@ module spcReach
 
     !> Compute the resuspension rate [s-1] for a time step
     !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
-    subroutine setResuspensionRateReach(me)
+    subroutine setResuspensionRateReach(me, Q)
         class(Reach) :: me                      !! This `Reach` instance
         !--- Locals ---!
-        real(dp) :: Q_in_total                  ! Total inflow to this reach
+        real(dp) :: Q                           ! Flow
         real(dp) :: d_max                       ! Maximum resuspendable particle size [m]
         integer :: i                            ! Iterator
         real(dp) :: M_prop(C%nSizeClassesSpm)   ! Proportion of size class that can be resuspended [-]

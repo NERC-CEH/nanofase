@@ -65,7 +65,7 @@ program main
 
     ! Open the output files to print to
     open(unit=2, file=trim(C%outputPath) // C%outputFile)
-    open(unit=3, file=trim(C%outputPath) // 'output_erosion.csv')
+    open(unit=3, file=trim(C%outputPath) // 'output_spm.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     if (C%calibrationRun) then
         open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
@@ -76,6 +76,7 @@ program main
         "m_dissolved,C_dissolved,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
         "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow,k_settle,k_resus"
     write(2, '(A,A)') ""
+    write(3, *) "t,x,y,rr,m_spm,j_spm_runoff,j_spm_outflow,j_spm_deposit,reach_type"
     write(5, *) "t,x,y,total_m_np,total_C_np,total_C_transformed,total_C_dissolved,bulk_density,", &
         "m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l1_att,m_np_l2_att,m_np_l3_att,", &
         "C_transformed_l1,C_transformed_l2,C_transformed_l3,C_dissolved_l1,C_dissolved_l2,C_dissolved_l3,", &
@@ -109,8 +110,7 @@ program main
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
             do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
-                    write(3,*) t, ", ", x, ", ", y, ", ", &
-                        sum(env%colGridCells(x,y)%item%erodedSediment)
+                    
 
                    ! RiverReachs
                     do rr = 1, env%colGridCells(x,y)%item%nReaches
@@ -175,12 +175,13 @@ program main
                             trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%k_settle))), ",", &
                             trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%k_resus)))
                        
-                        m_np_hetero = m_np_hetero + &
-                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &
-                            env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,1,3:)
-                        m_np_free = m_np_free + &
-                            sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,1)) + &
-                            sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np(1,:,1,1))
+                        write(3,*) t, ", ", x, ", ", y, ", ", rr, ", ", &
+                            trim(str(sum(m_spm))), ",", &
+                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_spm_runoff()))), ",", &
+                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_spm_outflow()))), ",", &
+                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_spm_deposit()))), ",", &
+                            trim(reachType)
+
 
                         if (C%calibrationRun) then
                             if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%startSite) then
