@@ -70,7 +70,7 @@ program main
     end if
     write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np,total_C_np,m_transformed,C_transformed,", &
         "m_dissolved,C_dissolved,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
-        "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow"
+        "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow,k_settle,k_resus"
     write(2, '(A,A)') ""
     write(5, '(A,A)') "t,x,y,total_m_np,total_C_np,bulk_density,m_np_l1_free,m_np_l2_free,m_np_l3_free,", &
         "m_np_l1_att,m_np_l2_att,m_np_l3_att,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
@@ -143,11 +143,11 @@ program main
                         C_np_biota_noStoredFraction &
                             = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np_noStoredFraction
                         ! Write to the data file
-                        write(2, '(i4,A,i2,A,i2,A,i2,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A,A)') &
-                            t, ",", &
-                            x, ",", &
-                            y, ",", &
-                            rr, ",", &
+                        write(2, *) &
+                            trim(str(t)), ",", &
+                            trim(str(x)), ",", &
+                            trim(str(y)), ",", &
+                            trim(str(rr)), ",", &
                             trim(str(sum(m_np(1,:,:)))), ",", &
                             trim(str(sum(m_np(2,:,:)))), ",", &
                             trim(str(sum(m_np(3,:,:)))), ",", &
@@ -165,7 +165,9 @@ program main
                             trim(str(C_np_biota)), ",", &
                             trim(str(C_np_biota_noStoredFraction)), ",", &
                             trim(reachType), ",", &
-                            trim(str(np_out))
+                            trim(str(np_out)), ",", &
+                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%k_settle))), ",", &
+                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%k_resus)))
                        
                         m_np_hetero = m_np_hetero + &
                             env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np(:,1,3:) + &

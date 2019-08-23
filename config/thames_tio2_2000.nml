@@ -24,7 +24,7 @@ output_path = "data/output/"
 
 &run
 timestep = 86400
-n_timesteps = 365
+n_timesteps = 366
 start_date = "2000-01-01"
 epsilon = 1e-50,
 error_output = .false.

@@ -6,7 +6,6 @@
     n_spm_size_classes = 5
     n_vertical_distribution = 3
 /
-
 &earthworm_densities
     arable = 30
     coniferous = 150
