@@ -80,6 +80,8 @@ module classRiverReach
         !--- Locals ---!
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
+        real(dp) :: j_transformed_in_total                      ! Total inflow of transformed NM [kg/timestep]
+        real(dp) :: j_dissolved_in_total                        ! Total inflow of dissolved species [kg/timestep]
         real(dp) :: fractionSpmDeposited(C%nSizeClassesSpm)     ! Fraction of SPM deposited on each time step [-]
         integer :: i, j, k                                      ! Iterators
         integer :: nDisp                                        ! Number of displacements to split this time step into
@@ -87,12 +89,16 @@ module classRiverReach
         real(dp) :: dQ(size(me%Q))                              ! Water flow array (Q) for each displacement
         real(dp) :: dj_spm(size(me%j_spm, 1), C%nSizeClassesSpm)   ! SPM flow array (j_spm) for each displacement
         real(dp) :: dj_np(size(me%j_np, 1), C%npDim(1), C%npDim(2), C%npDim(3))   ! NM flow array (j_np) for each displacement
+        real(dp) :: dj_transformed(size(me%j_transformed))      ! Transformed NM flow for each displacement [kg/disp]
+        real(dp) :: dj_dissolved(size(me%j_dissolved))          ! Dissolved NM flow for reach displacement [kg/disp]
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
         real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg/disp]
         real(dp) :: dj_spm_resus_perArea(C%nSizeClassesSpm)     ! Mass of each sediment size class resuspended on each displacement, per unit area [kg/m2/disp]
         real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
+        real(dp) :: dj_transformed_outflow
+        real(dp) :: dj_dissolved_outflow
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -100,6 +106,8 @@ module classRiverReach
         me%Q = 0                    ! Final Q, j_spm etc still stored in Q_final, j_spm_final etc for other reaches to use
         me%j_spm = 0
         me%j_np = 0
+        me%j_transformed = 0
+        me%j_dissolved = 0
         me%j_ionic = 0
         
         if (.not. me%isBoundary) then
@@ -110,6 +118,8 @@ module classRiverReach
                 call me%set_Q_inflow(-me%inflows(i)%item%Q(1), i)
                 call me%set_j_spm_inflow(-me%inflows(i)%item%j_spm(1,:), i)
                 call me%set_j_np_inflow(-me%inflows(i)%item%j_np(1,:,:,:), i)
+                call me%set_j_transformed_inflow(-me%inflows(i)%item%j_transformed(1), i)
+                call me%set_j_dissolved_inflow(-me%inflows(i)%item%j_dissolved(1), i)
             end do
 
             ! Inflows from runoff
@@ -126,17 +136,23 @@ module classRiverReach
             do i = 1, me%nDiffuseSources
                 call me%diffuseSources(i)%update(t)
                 call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
+                call me%set_j_transformed_diffusesource(me%diffuseSources(i)%j_transformed_diffuseSource*me%bedArea, i)
+                call me%set_j_dissolved_diffusesource(me%diffuseSources(i)%j_dissolved_diffuseSource*me%bedArea, i)
             end do
-    
+            ! Point sources are kg/point
             do i = 1, me%nPointSources
                 call me%pointSources(i)%update(t)
                 call me%set_j_np_pointsource(me%pointSources(i)%j_np_pointSource, i)
+                call me%set_j_transformed_pointsource(me%pointSources(i)%j_transformed_pointSource, i)
+                call me%set_j_dissolved_pointsource(me%pointSources(i)%j_dissolved_pointSource, i)
             end do
 
             ! Total inflows = inflow water bodies + runoff + transfers (+ sources for NM)
             me%Q_in_total = sum(me%Q(2:))
             j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
             j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
+            j_transformed_in_total = sum(me%j_transformed(2:))
+            j_dissolved_in_total = sum(me%j_dissolved(2:))
 
             ! Set the reach dimensions and calculate the velocity
             call rslt%addErrors(.errors. me%setDimensions())
@@ -165,6 +181,8 @@ module classRiverReach
             dQ = me%Q/nDisp                                     ! Water flow array for each displacement
             dj_spm = me%j_spm/nDisp                             ! SPM flow array for each displacement
             dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
+            dj_transformed = me%j_transformed/nDisp             ! Transformed flow array for each displacement
+            dj_dissolved = me%j_dissolved/nDisp                 ! Dissolved flow array for each displacement
 
             do i = 1, nDisp
                 ! Water mass balance (outflow = all the inflows)
@@ -175,9 +193,13 @@ module classRiverReach
                     ! Outflows are negative, up to a maximum of total masses currently in reach
                     dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)
                     dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np)
+                    dj_transformed(1) = max(me%m_transformed * dQ(1) / me%volume, -me%m_transformed)
+                    dj_dissolved(1) = max(me%m_dissolved * dQ(1) / me%volume, -me%m_dissolved)
                 else
                     dj_spm(1,:) = 0
                     dj_np(1,:,:,:) = 0
+                    dj_transformed(1) = 0
+                    dj_dissolved(1) = 0
                 end if
                 
                 ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
@@ -203,6 +225,8 @@ module classRiverReach
                 ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
                 dj_np_outflow = -min(me%m_np, -dj_np(1,:,:,:))               ! Maximum outflow is the current mass
                 dj_spm_outflow = -min(me%m_spm, -dj_spm(1,:))
+                dj_transformed_outflow = -min(me%m_transformed, -dj_transformed(1))
+                dj_dissolved_outflow = -min(me%m_dissolved, -dj_dissolved(1))
                 me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
                 me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
 
@@ -213,6 +237,8 @@ module classRiverReach
                 call me%set_j_spm_deposit(me%j_spm_deposit() + dj_spm(4+me%nInflows,:))
                 call me%set_j_np_outflow(me%j_np_outflow() + dj_np_outflow)
                 call me%set_j_np_deposit(me%j_np_deposit() + dj_np(4+me%nInflows,:,:,:))
+                call me%set_j_transformed_outflow(me%j_transformed_outflow() + dj_transformed_outflow)
+                call me%set_j_dissolved_outflow(me%j_dissolved_outflow() + dj_dissolved_outflow)
 
                 if (isZero(me%bedArea)) then
                     dj_spm_resus_perArea = 0.0_dp
@@ -252,6 +278,18 @@ module classRiverReach
                     end do
                 end do
             end do
+            ! Tranformed
+            if (isZero(me%m_transformed) .or. isZero(me%volume)) then
+                me%m_transformed = 0.0_dp
+            else
+                me%C_transformed = me%m_transformed / me%volume
+            end if
+            ! Dissolved
+            if (isZero(me%m_dissolved) .or. isZero(me%volume)) then
+                me%m_dissolved = 0.0_dp
+            else
+                me%C_dissolved = me%m_dissolved / me%volume
+            end if
 
             ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
             ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
@@ -302,6 +340,12 @@ module classRiverReach
             me%m_np = 0.0_dp
             me%C_np = 0.0_dp
             me%j_np = 0.0_dp
+            me%m_transformed = 0.0_dp
+            me%C_transformed = 0.0_dp
+            me%j_transformed = 0.0_dp
+            me%m_dissolved = 0.0_dp
+            me%C_dissolved = 0.0_dp
+            me%j_dissolved = 0.0_dp
         end if
 
         ! Update the biota

@@ -68,8 +68,8 @@ program main
         write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
                     "reach_type,total_m_spm(kg),total_C_spm(g/l)"
     end if
-    write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np_1,total_m_np_2,total_m_np_3,total_m_np_4,total_m_np_5,", &
-        "total_C_np,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
+    write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np,total_C_np,m_transformed,C_transformed,", &
+        "m_dissolved,C_dissolved,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
         "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow"
     write(2, '(A,A)') ""
     write(5, '(A,A)') "t,x,y,total_m_np,total_C_np,bulk_density,m_np_l1_free,m_np_l2_free,m_np_l3_free,", &
@@ -91,8 +91,6 @@ program main
         C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
         npDep(C%npDim(1), C%npDim(2), C%npDim(3)) &
     )
-
-    print *, C%npDim
 
     do t = 1, C%nTimeSteps
         m_np_free = 0

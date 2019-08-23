@@ -48,7 +48,11 @@ module spcWaterBody
         real(dp), allocatable :: m_spm(:)                           !! Sediment mass [kg/m3]
         real(dp), allocatable :: C_np(:,:,:)                        !! NM mass concentration [kg/m3]
         real(dp), allocatable :: C_np_final(:,:,:)                  !! NM mass concentration [kg/m3]
-        real(dp), allocatable :: m_np(:,:,:)                        !! NM mass mass [kg/m3]
+        real(dp), allocatable :: m_np(:,:,:)                        !! NM mass mass [kg]
+        real(dp) :: m_transformed                                   !! Transformed NM mass [kg]
+        real(dp) :: C_transformed                                   !! Transformed NM concentration [kg/m3]
+        real(dp) :: m_dissolved                                     !! Dissolved NM mass [kg]
+        real(dp) :: C_dissolved                                     !! Dissolved NM concentration [kg/m3]
         real(dp), allocatable :: C_ionic(:)                         !! Ionic metal concentration [kg/m3]
         real(dp), allocatable :: m_ionic(:)                         !! Ionic metal mass [kg/m3]
         real(dp), allocatable :: m_np_disp(:,:,:,:)                 !! Mass of nanomaterial on each displacement [kg]
@@ -71,6 +75,10 @@ module spcWaterBody
             !! Flow of NM, same conventions as Q [kg/timestep]. 2nd-4th dimensions are the NM size class,
             !! NM form and NM state, respectively.
         real(dp), allocatable :: j_np_final(:,:,:,:)                !! Final NM flux array - see Q_final [kg/timestep]
+        real(dp), allocatable :: j_transformed(:)                   !! Transformed NM flux array [kg/timestep]
+        real(dp), allocatable :: j_transformed_final(:)             !! Final transformed flux array [kg/timestep]
+        real(dp), allocatable :: j_dissolved(:)                     !! Dissolved species flux array [kg/timestep]
+        real(dp), allocatable :: j_dissolved_final(:)               !! Final dissolved flux array [kg/timestep]
         real(dp), allocatable :: j_ionic(:,:)
             !! Flow of ionic metal, same conventions as Q [kg/timestep]. 2nd dimension is the state of ionic metal
         real(dp), allocatable :: j_ionic_final(:,:)                 !! Final ionic flux array - see Q_final [kg/timestep]
@@ -184,6 +192,10 @@ module spcWaterBody
         me%m_spm = 0
         me%C_np = 0
         me%m_np = 0
+        me%C_transformed = 0
+        me%m_transformed = 0
+        me%C_dissolved = 0
+        me%m_dissolved = 0
         me%C_ionic = 0
         me%m_ionic = 0
         me%T_water = 10             ! TODO set this from data or empirical relationship

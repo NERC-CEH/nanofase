@@ -42,8 +42,9 @@ module classPointSource2
     end subroutine
     
     subroutine updatePointSource(me, t)
-        class(PointSource2) :: me
-        integer :: t
+        class(PointSource2) :: me   ! This point source
+        integer :: t                ! Current time step
+        integer :: i                ! Iterator
         ! Default to zero
         me%j_np_pointSource = 0
         me%j_dissolved_pointSource = 0
@@ -54,9 +55,17 @@ module classPointSource2
         if (C%includePointSources .and. t .ge. C%warmUpPeriod) then
             ! There are only point sources to water (for the moment)
             if (trim(me%compartment) == 'water') then
+                ! Pristine
                 if (.not. DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) == nf90_fill_double) then
                     me%j_np_pointSource(:,1,1) = DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) &
                         * DATASET%defaultNMSizeDistribution
+                end if
+                ! Matrix-embedded
+                if (.not. DATASET%emissionsPointWaterMatrixEmbedded(me%x, me%y, t, me%s) == nf90_fill_double) then
+                    do i = 1, DATASET%nSizeClassesNM
+                        me%j_np_pointSource(i,1,3:) = DATASET%emissionsPointWaterMatrixEmbedded(me%x, me%y, t, me%s) &
+                            * DATASET%defaultMatrixEmbeddedDistributionToSpm * DATASET%defaultNMSizeDistribution(i)
+                    end do
                 end if
                 ! Dissolved
                 if (.not. DATASET%emissionsPointWaterDissolved(me%x, me%y, t, me%s) == nf90_fill_double) then
