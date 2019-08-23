@@ -65,6 +65,10 @@ module classSoilProfile1
             me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_in(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_transformed_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_transformed_eroded(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_transformed_in(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%colSoilLayers(C%nSoilLayers))
         ! Initialise variables
         me%x = x                                            ! GridCell x index
@@ -80,6 +84,13 @@ module classSoilProfile1
         me%m_np = 0.0_dp                                    ! Nanomaterial mass
         me%m_np_eroded = 0.0_dp
         me%m_np_in = 0.0_dp
+        me%m_transformed = 0.0_dp
+        me%m_transformed_eroded = 0.0_dp
+        me%m_transformed_in = 0.0_dp
+        me%m_transformed_buried = 0.0_dp
+        me%m_dissolved = 0.0_dp
+        me%m_dissolved_in = 0.0_dp
+        me%m_dissolved_buried = 0.0_dp
         
         ! Parse and store input data in this object's properties
         call r%addErrors(.errors. me%parseInputData())
@@ -122,10 +133,12 @@ module classSoilProfile1
     !!  <li>Percolate soil through all SoilLayers</li>
     !!  <li>Erode sediment</li>
     !! </ul>
-    function updateSoilProfile1(me, t, j_np_diffuseSource) result(r)
+    function updateSoilProfile1(me, t, j_np_diffuseSource, j_transformed_diffuseSource, j_dissolved_diffuseSource) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         integer :: t                                            !! The current timestep
         real(dp) :: j_np_diffuseSource(:,:,:)                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
+        real(dp) :: j_transformed_diffuseSource(:,:,:)          !! Diffuse source of NM for this timestep [kg/m2/timestep]
+        real(dp) :: j_dissolved_diffuseSource                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
 
         if (.not. me%isUrban) then
@@ -136,13 +149,17 @@ module classSoilProfile1
                 ! TODO: Should the minimum q_in be 0, or should evaporation be allowed to remove water from top soil layer?
 
             ! Add NM from the diffuse source
-            me%m_np = me%m_np + j_np_diffuseSource*me%area          ! j_np_diffuseSource is in kg/m2/timestep
-            me%m_np_in = j_np_diffuseSource*me%area
+            me%m_np = me%m_np + j_np_diffuseSource * me%area          ! j_np_diffuseSource is in kg/m2/timestep
+            me%m_np_in = j_np_diffuseSource * me%area
+            me%m_transformed_in = j_transformed_diffuseSource * me%area
+            me%m_transformed = me%m_transformed + me%m_transformed_in
+            me%m_dissolved_in = j_dissolved_diffuseSource * me%area
+            me%m_dissolved = me%m_dissolved + me%m_dissolved_in
             
             ! Perform percolation, erosion and bioturbation simluations
             call r%addErrors([ &
                 .errors. me%erode(t), &
-                .errors. me%percolate(t, j_np_diffuseSource), &
+                .errors. me%percolate(t, j_np_diffuseSource, j_transformed_diffuseSource, j_dissolved_diffuseSource), &
                 .errors. me%bioturbation() &
             ])
 
@@ -164,16 +181,20 @@ module classSoilProfile1
     !! percolated and pooled flows between `SoilLayer`s. Pooled water from top
     !! `SoilLayer` forms surface runoff, and "lost" water from bottom `SoilLayer`
     !! is kept track of in `me%V_buried`
-    function percolateSoilProfile1(me, t, j_np_diffuseSource) result(r)
+    function percolateSoilProfile1(me, t, j_np_diffuseSource, j_transformed_diffuseSource, j_dissolved_diffuseSource) result(r)
         class(SoilProfile1) :: me                               !! This `SoilProfile1` instance
         integer             :: t                                !! The current time step
         real(dp)            :: j_np_diffuseSource(:,:,:)        !! Difffuse source of NM for this timestep [kg/m2/timestep]
+        real(dp)            :: j_transformed_diffuseSource(:,:,:)
+        real(dp)            :: j_dissolved_diffuseSource
         type(Result)        :: r                                !! The `Result` object to return
         integer             :: l, i                             ! Loop iterator for SoilLayers
         real(dp)            :: q_l_in                           ! Temporary water inflow for a particular SoilLayer
         real(dp)            :: m_np_l_in(C%npDim(1), &          ! Temporary NM inflow for particular SoilLayer
                                          C%npDim(2), &
                                          C%npDim(3))
+        real(dp)            :: m_transformed_l_in(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp)            :: m_dissolved_l_in
 
         ! Loop through SoilLayers and percolate 
         do l = 1, C%nSoilLayers
@@ -181,16 +202,20 @@ module classSoilProfile1
                  ! If it's the first SoilLayer, water and NM inflow will be from precip - ET
                  ! and the diffuse source, respectively
                 q_l_in = me%q_in                                    ! [m3/m2/timestep]
-                m_np_l_in = j_np_diffuseSource*me%area              ! [kg/timestep]
+                m_np_l_in = j_np_diffuseSource * me%area            ! [kg/timestep]
+                m_transformed_l_in = j_transformed_diffuseSource * me%area
+                m_dissolved_l_in = j_dissolved_diffuseSource * me%area
             else
                 ! Otherwise, they'll be from the layer above
                 q_l_in = me%colSoilLayers(l-1)%item%V_perc          ! [m3/m2/timestep]
                 m_np_l_in = me%colSoilLayers(l-1)%item%m_np_perc    ! [kg/timestep]
+                m_transformed_l_in = me%colSoilLayers(l-1)%item%m_transformed_perc  ! [kg/timestep]
+                m_dissolved_l_in = me%colSoilLayers(l-1)%item%m_dissolved_perc      ! [kg/timestep]
             end if
 
             ! Run the percolation simulation for individual layer, setting V_perc, V_pool, m_np_perc etc.
             call r%addErrors(.errors. &
-                me%colSoilLayers(l)%item%update(t, q_l_in, m_np_l_in) &
+                me%colSoilLayers(l)%item%update(t, q_l_in, m_np_l_in, m_transformed_l_in, m_dissolved_l_in) &
             )
             ! If there is pooled water, we must push up to the previous layer, recursively
             ! for each SoilLayer above this
@@ -213,6 +238,8 @@ module classSoilProfile1
         ! Keep track of "lost" NM and water from the bottom soil layer. Not cumulative.
         me%V_buried = me%colSoilLayers(C%nSoilLayers)%item%V_perc
         me%m_np_buried = me%colSoilLayers(C%nSoilLayers)%item%m_np_perc
+        me%m_transformed_buried = me%colSoilLayers(C%nSoilLayers)%item%m_transformed_perc
+        me%m_dissolved_buried = me%colSoilLayers(C%nSoilLayers)%item%m_dissolved_perc
 
         ! Add this procedure to the Result object's trace
         call r%addToTrace("Percolating water on time step #" // trim(str(t)))
@@ -264,15 +291,17 @@ module classSoilProfile1
         ! means updating NM mass in both the profile and the individual layers
 
         do i = 1, C%nSizeClassesNP
-            ! TODO think about this more
             ! Transfer NM eroded from attached to heteroaggregated, by imposing the size distribution
             ! as for eroded SPM. The logic here is that the soil the NM is attached to will end up
             ! as SPM and thus the NM attached it will be heteroaggregated rather than attached/bound.
             me%m_np_eroded(i,1,3:) = me%imposeSizeDistribution(me%colSoilLayers(1)%item%m_np_eroded(i,1,2))     ! [kg/gridcell/timestep]
+            me%m_transformed_eroded(i,1,3:) = me%imposeSizeDistribution(me%colSoilLayers(1)%item%m_transformed_eroded(i,1,2))
         end do
-
+        ! TODO why is attached being set? m_np_eroded has double the mass it should now
         me%m_np_eroded(:,1,2) = me%colSoilLayers(1)%item%m_np_eroded(:,1,2)
+        me%m_transformed_eroded(:,1,2) = me%colSoilLayers(1)%item%m_transformed_eroded(:,1,2)
         me%m_np(:,1,2) = me%m_np(:,1,2) - me%m_np_eroded(:,1,2)     ! Remove the eroded NM from the soil
+        me%m_transformed(:,1,2) = me%m_transformed(:,1,2) - me%m_transformed_eroded(:,1,2) 
     end function
 
     !> Perform bioturbation on a time step by mixing calculated depth of two layers together
@@ -292,6 +321,13 @@ module classSoilProfile1
                     + fractionOfLayerToMix * (me%colSoilLayers(i+1)%item%m_np(:,1,2) - me%colSoilLayers(i)%item%m_np(:,1,2))
                 me%colSoilLayers(i+1)%item%m_np(:,1,2) = me%colSoilLayers(i+1)%item%m_np(:,1,2) &
                     + fractionOfLayerToMix * (me%colSoilLayers(i)%item%m_np(:,1,2) - me%colSoilLayers(i+1)%item%m_np(:,1,2))
+                ! Same for transformed NM
+                me%colSoilLayers(i)%item%m_transformed(:,1,2) &
+                    = me%colSoilLayers(i)%item%m_transformed(:,1,2) + fractionOfLayerToMix &
+                    * (me%colSoilLayers(i+1)%item%m_transformed(:,1,2) - me%colSoilLayers(i)%item%m_transformed(:,1,2))
+                me%colSoilLayers(i+1)%item%m_transformed(:,1,2) &
+                    = me%colSoilLayers(i+1)%item%m_transformed(:,1,2) + fractionOfLayerToMix &
+                    * (me%colSoilLayers(i)%item%m_transformed(:,1,2) - me%colSoilLayers(i+1)%item%m_transformed(:,1,2))
             end do
         end if
     end function

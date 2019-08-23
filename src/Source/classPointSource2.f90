@@ -12,8 +12,8 @@ module classPointSource2
         real :: y_coord                     !! Exact northings of this point source
         character(len=11) :: compartment    !! Which environmental compartment is this source for?
         real(dp), allocatable :: j_np_pointSource(:,:,:)            !! Nanomaterial inflow for a given timestep [kg/timestep]
+        real(dp), allocatable :: j_transformed_pointSource(:,:,:)
         real(dp) :: j_dissolved_pointSource
-        real(dp) :: j_transformed_pointSource
       contains
         procedure :: create => createPointSource
         procedure :: update => updatePointSource
@@ -33,7 +33,8 @@ module classPointSource2
         me%y = y
         me%s = s
         me%compartment = compartment
-        allocate(me%j_np_pointSource(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%j_np_pointSource(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%j_transformed_pointSource(C%npDim(1), C%npDim(2), C%npDim(3)))
         ! Get the exact coordinates of this point source
         if (.not. DATASET%emissionsPointWaterCoords(me%x, me%y, me%s, 1) == nf90_fill_double) then
             me%x_coord = DATASET%emissionsPointWaterCoords(me%x, me%y, me%s, 1)
@@ -73,7 +74,8 @@ module classPointSource2
                 end if
                 ! Transformed
                 if (.not. DATASET%emissionsPointWaterTransformed(me%x, me%y, t, me%s) == nf90_fill_double) then
-                    me%j_transformed_pointSource = DATASET%emissionsPointWaterTransformed(me%x, me%y, t, me%s)
+                    me%j_transformed_pointSource(:,1,1) = DATASET%emissionsPointWaterTransformed(me%x, me%y, t, me%s) &
+                        * DATASET%defaultNMSizeDistribution
                 end if
             end if
         end if

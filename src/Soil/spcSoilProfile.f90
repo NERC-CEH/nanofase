@@ -27,6 +27,13 @@ module spcSoilProfile
         real(dp), allocatable :: m_np_in(:,:,:)                     !! Mass of NM deposited to profile on a time step [kg]
         real(dp), allocatable :: m_np_buried(:,:,:)                 !! Cumulative mass of NM "lost" from the bottom `SoilLayer` [kg]
         real(dp), allocatable :: m_np_eroded(:,:,:)                 !! Mass of NM eroded on current timestep [kg]
+        real(dp), allocatable :: m_transformed(:,:,:)               !! Mass of transformed NM currently in profile [kg]
+        real(dp), allocatable :: m_transformed_in(:,:,:)            !! Mass of transformed NM deposited to profile on a time step [kg]
+        real(dp), allocatable :: m_transformed_buried(:,:,:)        !! Cumulative mass of transformed NM "lost" from the bottom `SoilLayer` [kg]
+        real(dp), allocatable :: m_transformed_eroded(:,:,:)        !! Mass of transformed NM eroded on current timestep [kg]
+        real(dp), allocatable :: m_dissolved                        !! Mass of dissolved NM currently in profile [kg]
+        real(dp), allocatable :: m_dissolved_in                     !! Mass of dissolved NM deposited to profile on a time step [kg]
+        real(dp), allocatable :: m_dissolved_buried                 !! Cumulative mass of dissolved NM "lost" from the bottom `SoilLayer` [kg]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
         real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
@@ -135,24 +142,28 @@ module spcSoilProfile
         end function
 
         !> Perform the `SoilProfile`'s simulation for one timestep
-        function updateSoilProfile(me, t, j_np_diffuseSource) result(r)
+        function updateSoilProfile(me, t, j_np_diffuseSource, j_transformed_diffuseSource, j_dissolved_diffuseSource) result(r)
             use Globals, only: dp
             use ResultModule, only: Result
             import SoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             integer :: t                                        !! The current time step
-            real(dp) :: j_np_diffuseSource(:,:,:)               !! Difffuse source of NM for this timestep
+            real(dp) :: j_np_diffuseSource(:,:,:)               !! Difffuse source of NM for this timestep [kg/m2/timestep]
+            real(dp) :: j_transformed_diffuseSource(:,:,:)      !! Diffuse source of NM for this timestep [kg/m2/timestep]
+            real(dp) :: j_dissolved_diffuseSource               !! Diffuse source of NM for this timestep [kg/m2/timestep]
             type(Result) :: r                                   !! `Result` object to return
         end function
 
         !> Percolate water through the `SoilProfile` for the current time step
-        function percolateSoilProfile(me, t, j_np_diffuseSource) result(r)
+        function percolateSoilProfile(me, t, j_np_diffuseSource, j_transformed_diffuseSource, j_dissolved_diffuseSource) result(r)
             use Globals, only: dp
             use ResultModule, only: Result
             import SoilProfile
             class(SoilProfile)  :: me                           !! This `SoilProfile` instance
             integer             :: t                            !! The current time step
             real(dp)            :: j_np_diffuseSource(:,:,:)    !! Difffuse source of NM for this timestep
+            real(dp)            :: j_transformed_diffuseSource(:,:,:)
+            real(dp)            :: j_dissolved_diffuseSource
             type(Result)        :: r                            !! The `Result` object to return
         end function
 

@@ -300,20 +300,23 @@ module classEnvironment1
         type(Result) :: rslt                !! The Result object to return any errors in
         type(GridCellPointer) :: cell       ! Pointer to this reach's grid cell
         real(dp) :: lengthRatio             ! Length ratio of this reach to the total reach length in cell
-        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))     ! Proportion of cell's NM runoff going to this reach
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))             ! Proportion of cell's NM runoff going to this reach
+        real(dp) :: j_transformed_runoff(C%npDim(1), C%npDim(2), C%npDim(3))    ! Proportion of cell's transformed NM runoff going to this reach
 
         cell%item => me%colGridCells(reach%item%x, reach%item%y)%item
         ! Determine the proportion of this reach's length to the the total
         ! river length in this GridCell and use it to proportion NM runoff
         lengthRatio = reach%item%length/cell%item%getTotalReachLength()
         j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+        j_transformed_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_transformed_eroded    ! [kg/timestep]
         ! Update the reach for this timestep
         call rslt%addErrors(.errors. &
             reach%item%update( &
                 t = t, &
                 q_runoff = cell%item%q_runoff_timeSeries(t), &
                 j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
-                j_np_runoff = j_np_runoff &
+                j_np_runoff = j_np_runoff, &
+                j_transformed_runoff = j_transformed_runoff &
             ) &
         )
     end function

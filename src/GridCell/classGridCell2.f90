@@ -211,17 +211,23 @@ module classGridCell2
         type(Result) :: r                                       !! `Result` object to return errors in
         integer :: i, b                                            ! Iterator
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
-        real(dp) :: j_np_runoff(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) ! NP runoff for this time step
+        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
+        real(dp) :: j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: j_dissolved_diffuseSource
 
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
 
             ! Reset variables
             me%j_np_diffuseSource = 0.0_dp
+            j_transformed_diffuseSource = 0.0_dp
+            j_dissolved_diffuseSource = 0.0_dp
 
             do i = 1, size(me%diffuseSources)
                 call me%diffuseSources(i)%update(t)
                 me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
+                j_transformed_diffuseSource = j_transformed_diffuseSource + me%diffuseSources(i)%j_transformed_diffuseSource
+                j_dissolved_diffuseSource = j_dissolved_diffuseSource + me%diffuseSources(i)%j_dissolved_diffuseSource
             end do
 
             ! Demands and transfers
@@ -233,7 +239,12 @@ module classGridCell2
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
             call r%addErrors( &
-                .errors. me%colSoilProfiles(1)%item%update(t, me%j_np_diffuseSource) &
+                .errors. me%colSoilProfiles(1)%item%update( &
+                    t, &
+                    me%j_np_diffuseSource, &
+                    j_transformed_diffuseSource, &
+                    j_dissolved_diffuseSource &
+                ) &
             )
             if (r%hasCriticalError()) return
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment

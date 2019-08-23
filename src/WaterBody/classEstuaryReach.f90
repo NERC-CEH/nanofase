@@ -75,12 +75,13 @@ module classEstuaryReach
     end function
 
     !> Run the estuary reach simulation for this timestep
-    function updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
+    function updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff) result(rslt)
         class(EstuaryReach) :: me
         integer :: t
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
+        real(dp), optional :: j_transformed_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         type(Result) :: rslt
         !--- Locals ---!
         real(dp) :: Q_outflow
@@ -96,17 +97,21 @@ module classEstuaryReach
         real(dp) :: dQ(size(me%Q))                              ! Water flow array (Q) for each displacement
         real(dp) :: dj_spm(size(me%j_spm, 1), C%nSizeClassesSpm)   ! SPM flow array (j_spm) for each displacement
         real(dp) :: dj_np(size(me%j_np, 1), C%npDim(1), C%npDim(2), C%npDim(3))   ! NM flow array (j_np) for each displacement
+        real(dp) :: dj_transformed(size(me%j_transformed))      ! Transformed NM flow for each displacement [kg/disp]
+        real(dp) :: dj_dissolved(size(me%j_dissolved))          ! Dissolved NM flow for reach displacement [kg/disp]
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm)           ! Deposited SPM for each displacement
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)            ! To keep track of SPM deposited
         real(dp) :: dj_spm_resus(C%nSizeClassesSpm)             ! Mass of each sediment size class resuspended on each displacement [kg]
         real(dp) :: dj_spm_in(C%nSizeClassesSpm)
         real(dp) :: dj_np_in(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: dj_transformed_in
+        real(dp) :: dj_dissolved_in
         real(dp) :: tpm_m_spm(C%nSizeClassesSpm)
         real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
+        real(dp) :: dj_transformed_outflow
+        real(dp) :: dj_dissolved_outflow
         integer :: f
-
-
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -114,6 +119,8 @@ module classEstuaryReach
         me%Q = 0                    ! Final Q, j_spm etc still stored in Q_final, j_spm_final etc for other reaches to use
         me%j_spm = 0
         me%j_np = 0
+        me%j_transformed = 0
+        me%j_dissolved = 0
         me%j_ionic = 0
         if (t == 1) then
             previousVolume = 0.0_dp
@@ -128,12 +135,15 @@ module classEstuaryReach
             call me%set_Q_inflow(-me%inflows(i)%item%Q_final(1), i)
             call me%set_j_spm_inflow(-me%inflows(i)%item%j_spm_final(1,:), i)
             call me%set_j_np_inflow(-me%inflows(i)%item%j_np_final(1,:,:,:), i)
+            call me%set_j_transformed_inflow(-me%inflows(i)%item%j_transformed(1), i)
+            call me%set_j_dissolved_inflow(-me%inflows(i)%item%j_dissolved(1), i)
         end do
 
         ! Inflows from runoff
         if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep] to [m3/timestep]
         if (present(j_spm_runoff)) call me%set_j_spm_runoff(j_spm_runoff)
         if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
+        if (present(j_transformed_runoff)) call me%set_j_transformed_runoff(sum(j_transformed_runoff))
 
 
         ! TODO Inflows from transfers
@@ -145,10 +155,14 @@ module classEstuaryReach
         do i = 1, me%nDiffuseSources
             call me%diffuseSources(i)%update(t)
             call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
+            call me%set_j_transformed_diffusesource(sum(me%diffuseSources(i)%j_transformed_diffuseSource) * me%bedArea, i)
+            call me%set_j_dissolved_diffusesource(me%diffuseSources(i)%j_dissolved_diffuseSource*me%bedArea, i)
         end do
         do i = 1, me%nPointSources
             call me%pointSources(i)%update(t)
             call me%set_j_np_pointsource(me%pointSources(i)%j_np_pointSource, i)
+            call me%set_j_transformed_pointsource(sum(me%pointSources(i)%j_transformed_pointSource), i)
+            call me%set_j_dissolved_pointsource(me%pointSources(i)%j_dissolved_pointSource, i)
         end do
 
         ! Set the reach dimensions (using the timestep in hours for tidal harmonics) and calculate the velocity
@@ -202,10 +216,8 @@ module classEstuaryReach
         dQ = me%Q/nDisp                                     ! Water flow array for each displacement
         dj_spm = me%j_spm/nDisp                             ! SPM flow array for each displacement
         dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
-        if (allocated(me%m_np_disp)) deallocate(me%m_np_disp)               ! Deallocate if already allocated from previous time step
-        if (allocated(me%C_np_disp)) deallocate(me%C_np_disp)               ! Deallocate if already allocated from previous time step
-        allocate(me%m_np_disp(nDisp, C%npDim(1), C%npDim(2), C%npDim(3)))   ! Allocate the NM mass array for each displacement
-        allocate(me%C_np_disp(nDisp, C%npDim(1), C%npDim(2), C%npDim(3)))   ! Allocate the NM conc array for each displacement
+        dj_transformed = me%j_transformed/nDisp             ! Transformed flow array for each displacement
+        dj_dissolved = me%j_dissolved/nDisp                 ! Dissolved flow array for each displacement
 
         do i = 1, nDisp
 
@@ -224,8 +236,12 @@ module classEstuaryReach
             if (dQ(1) < 0 .and. .not. isZero(me%volume)) then
                 dj_spm(1,:) = max(me%m_spm * dQ(1) / me%volume, -me%m_spm)  ! SPM outflow
                 dj_np(1,:,:,:) = max(me%m_np * dQ(1) / me%volume, -me%m_np) ! NM outflow
-                dj_spm_in = sum(dj_spm(2:,:), dim=1) - dj_spm(4+me%nInflows,:)    ! Total SPM input to this displacement (not deposition)
-                dj_np_in = sum(dj_np(2:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)     ! Total NM input to this displacement (not deposition)
+                dj_transformed(1) = max(me%m_transformed * dQ(1) / me%volume, -me%m_transformed)
+                dj_dissolved(1) = max(me%m_dissolved * dQ(1) / me%volume, -me%m_dissolved)
+                dj_spm_in = sum(dj_spm(2:,:), dim=1) - dj_spm(4+me%nInflows,:)                  ! Total SPM input to this displacement (not deposition)
+                dj_np_in = sum(dj_np(2:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)             ! Total NM input to this displacement (not deposition)
+                dj_transformed_in = sum(dj_transformed(2:)) - dj_transformed(4+me%nInflows)     ! Total transformed input to this displacement (not deposition)
+                dj_dissolved_in = sum(dj_dissolved(2:)) - dj_dissolved(4+me%nInflows)           ! Total dissolved input to this displacement (not deposition)
             else if (dQ(1) > 0 .and. associated(me%outflow%item)) then
                 ! Add SPM inflowing from downstream reach
                 do j = 1, C%nSizeClassesSpm
@@ -234,6 +250,8 @@ module classEstuaryReach
                 do j = 1, C%nSizeClassesNP
                     dj_np(1,j,:,:) = min(me%outflow%item%C_np_final(j,:,:) * dQ(1), me%outflow%item%m_np(j,:,:))
                 end do
+                dj_transformed(1) = min(me%outflow%item%C_transformed_final * dQ(1), me%outflow%item%m_transformed)
+                dj_dissolved(1) = min(me%outflow%item%C_dissolved_final * dQ(1), me%outflow%item%m_dissolved)
                 ! Al
                 !!!!!! NEED TO REMOVE SPM, NM FROM THE OUTFLOW REACH !!!!!!!!!
                 !!!!!! AND MAKE SURE IT'S NOT ALL ADVECTED !!!!!!!!!!!!!!!!!!!
@@ -243,29 +261,37 @@ module classEstuaryReach
                 ! HACK
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
+                dj_transformed = 0.0_dp
+                dj_dissolved = 0.0_dp
 
                 ! dj_spm_in = dj_spm(1,:) - dj_spm(4+me%nInflows,:)               ! Total SPM input
                 ! dj_np_in = dj_np(1,:,:,:) - dj_np(4+me%nInflows,:,:,:)          ! Total NM input
                 dj_spm_in = dj_spm(1,:) + sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)              ! Total SPM input
                 dj_np_in = dj_np(1,:,:,:) + sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)    ! Total NM input
+                dj_transformed_in = dj_transformed(1) + sum(dj_transformed(2+me%nInflows:)) - dj_transformed(4+me%nInflows)
+                dj_dissolved_in = dj_dissolved(1) + sum(dj_dissolved(2+me%nInflows:)) - dj_dissolved(4+me%nInflows)
             else if (dQ(1) > 0 .and. .not. associated(me%outflow%item)) then
                 ! HACK If there is no outflow but tidal flow is in, set inflow SPM/NM to zero
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
+                dj_transformed(1) = 0.0_dp
+                dj_dissolved(1) = 0.0_dp
                 dj_spm_in = sum(dj_spm(2+me%nInflows:,:), dim=1) - dj_spm(4+me%nInflows,:)
                 dj_np_in = sum(dj_np(2+me%nInflows:,:,:,:), dim=1) - dj_np(4+me%nInflows,:,:,:)
+                dj_transformed_in = sum(dj_transformed(2+me%nInflows:)) - dj_transformed(4+me%nInflows)
+                dj_dissolved_in = sum(dj_dissolved(2+me%nInflows:)) - dj_dissolved(4+me%nInflows)
                 ! dj_spm_in = 0.0_dp
                 ! dj_np_in = 0.0_dp
             else
                 dj_spm(1,:) = 0.0_dp
                 dj_np(1,:,:,:) = 0.0_dp
+                dj_transformed(1) = 0.0_dp
+                dj_dissolved(1) = 0.0_dp
                 dj_spm_in = 0.0_dp
                 dj_np_in = 0.0_dp
+                dj_transformed_in = 0.0_dp
+                dj_dissolved_in = 0.0_dp
             end if
-
-            ! if ((me%x == 26) .and. (me%y == 17) .and. (me%w == 1)) then
-            !     print *, "dj_spm(1) outflow disp i", i, sum(dj_spm(1,:)), f, sum(max(me%m_spm * dQ(1) / me%volume, -me%m_spm))
-            ! end if
 
             tpm_m_spm = max(me%m_spm + dj_spm_in, 0.0_dp)           ! Check the SPM isn't making the new mass negative
             ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
@@ -288,18 +314,25 @@ module classEstuaryReach
                 dj_np(4+me%nInflows,:,:,2+j) = -min(me%m_np(:,:,2+j)*fractionSpmDeposited(j), me%m_np(:,:,2+j))   ! Only deposit heteroaggregated NM (index 3+)
             end do
             
+            !-- MASS BALANCES --!
             ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
             dj_np_outflow = -min(me%m_np, -dj_np(1,:,:,:))               ! Maximum outflow is the current mass
             dj_spm_outflow = -min(me%m_spm, -dj_spm(1,:))
+            dj_transformed_outflow = -min(me%m_transformed, -dj_transformed(1))
+            dj_dissolved_outflow = -min(me%m_dissolved, -dj_dissolved(1))
             me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
             me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
-            me%m_np_disp(i,:,:,:) = me%m_np
+            me%m_transformed = max(me%m_transformed + sum(dj_transformed), 0.0_dp)
+            me%m_dissolved = max(me%m_dissolved + sum(dj_dissolved), 0.0_dp)
+            
             if (.not. isZero(me%volume)) then
                 me%C_np = me%m_np / me%volume
-                me%C_np_disp(i,:,:,:) = me%m_np / me%volume
+                me%C_transformed = me%m_transformed / me%volume
+                me%C_dissolved = me%m_dissolved / me%volume
             else
                 me%C_np = 0
-                me%C_np_disp(i,:,:,:) = 0.0_dp
+                me%C_transformed = 0
+                me%C_dissolved = 0
             end if
 
             ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
@@ -309,6 +342,8 @@ module classEstuaryReach
             call me%set_j_spm_deposit(me%j_spm_deposit() + dj_spm(4+me%nInflows,:))
             call me%set_j_np_outflow(me%j_np_outflow() + dj_np_outflow)
             call me%set_j_np_deposit(me%j_np_deposit() + dj_np(4+me%nInflows,:,:,:))
+            call me%set_j_transformed_outflow(me%j_transformed_outflow() + dj_transformed_outflow)
+            call me%set_j_dissolved_outflow(me%j_dissolved_outflow() + dj_dissolved_outflow)
 
             ! If we're including bed sediment, then deposit and resuspend to/from
             if (C%includeBedSediment) then
@@ -319,14 +354,7 @@ module classEstuaryReach
                 call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
                 if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
             end if
-
-            ! TODO Deposit and resuspend NM to/from bed sediment
         end do
-
-        ! if ((me%x == 26) .and. (me%y == 17) .and. (me%w == 1)) then
-        !     print *, "j_spm(1) outflow after disps", sum(me%j_spm, dim=2)
-        ! end if
-        ! if (t == 2) error stop
 
         ! Update the SPM concentration. isZero check used to avoid numerical errors
         ! from very small m_spm numbers.
@@ -363,9 +391,13 @@ module classEstuaryReach
         if (.not. isZero(me%volume)) then
             me%C_spm = me%m_spm/me%volume
             me%C_np = me%m_np/me%volume
+            me%C_transformed = me%m_transformed / me%volume
+            me%C_dissolved = me%m_dissolved / me%volume
         else
             me%C_spm = 0.0_dp
             me%C_np = 0.0_dp
+            me%C_transformed = 0.0_dp
+            me%C_dissolved = 0.0_dp
         end if
 
         ! Update the biota

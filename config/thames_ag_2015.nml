@@ -41,7 +41,7 @@ nanomaterial_density = 10500
 soil_layer_depth = 0.05, 0.15, 0.2
 default_k_att = 3.65d-3
 include_bioturbation = .true.
-include_attachment = .true.
+include_attachment = .false.
 /
 
 &river

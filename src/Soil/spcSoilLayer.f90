@@ -28,6 +28,14 @@ module spcSoilLayer
         real(dp), allocatable :: m_np_perc(:,:,:)                   !! Mass of NM percolating to layer below on given timestep [kg]
         real(dp), allocatable :: m_np_eroded(:,:,:)                 !! Mass of NM eroded on given timestep [kg]
         real(dp), allocatable :: C_np(:,:,:)                        !! Mass concentration of NM [kg/kg soil]
+        real(dp), allocatable :: m_transformed(:,:,:)
+        real(dp), allocatable :: m_transformed_perc(:,:,:)
+        real(dp), allocatable :: m_transformed_eroded(:,:,:)
+        real(dp), allocatable :: C_transformed(:,:,:)
+        real(dp), allocatable :: m_dissolved
+        real(dp), allocatable :: m_dissolved_perc
+        real(dp), allocatable :: m_dissolved_eroded
+        real(dp), allocatable :: C_dissolved
         ! Hydrology
         real(dp) :: Q_in                                            !! Inflow to this `SoilLayer` [m3 m-2 s-1]
         real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
@@ -88,7 +96,7 @@ module spcSoilLayer
         end function
 
         !> Update the `SoilLayer` on a given timestep
-        function updateSoilLayer(me, t, q_in, m_np_in) result(r)
+        function updateSoilLayer(me, t, q_in, m_np_in, m_transformed_in, m_dissolved_in) result(r)
             use ResultModule, only: Result
             use Globals, only: dp
             import SoilLayer
@@ -96,6 +104,8 @@ module spcSoilLayer
             integer :: t                                    !! The current time step
             real(dp) :: q_in                                !! Water into the layer on this time step [m/timestep]
             real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step [kg/timestep]
+            real(dp) :: m_transformed_in(:,:,:)             !! Transformed NM into the layer on this time step [kg/timestep]
+            real(dp) :: m_dissolved_in                      !! Dissolved species into the layer on this time step [kg/timestep]
             type(Result) :: r                               !! The `Result` object to return, with no data
         end function
 

@@ -12,8 +12,8 @@ module classDiffuseSource2
         integer :: s                                                    !! Diffuse source reference
         character(len=11) :: compartment                                !! Which environmental compartment is this source for?
         real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! NM input for given timestep [kg/m2/timestep]
+        real(dp), allocatable :: j_transformed_diffuseSource(:,:,:)     !! Transformed input for given timestep [kg/m2/timestep]
         real(dp) :: j_dissolved_diffuseSource                           !! Dissolved input for given timestep [kg/m2/timestep]
-        real(dp) :: j_transformed_diffuseSource                         !! Transformed input for given timestep [kg/m2/timestep]
       contains
         procedure :: create => createDiffuseSource2
         procedure :: update => updateDiffuseSource2
@@ -33,7 +33,8 @@ module classDiffuseSource2
         me%y = y
         me%s = s
         me%compartment = compartment
-        allocate(me%j_np_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%j_np_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
     end subroutine
 
     subroutine updateDiffuseSource2(me, t)
@@ -63,7 +64,8 @@ module classDiffuseSource2
             end if
             ! Transformed
             if (.not. DATASET%emissionsArealSoilTransformed(me%x, me%y) == nf90_fill_double) then
-                me%j_transformed_diffuseSource = DATASET%emissionsArealSoilTransformed(me%x, me%y)
+                me%j_transformed_diffuseSource(:,1,1) = DATASET%emissionsArealSoilTransformed(me%x, me%y) &
+                    * DATASET%defaultNMSizeDistribution
             end if
         else if (trim(me%compartment) == 'water') then
             ! Pristine NM
@@ -83,7 +85,8 @@ module classDiffuseSource2
             end if
             ! Transformed
             if (.not. DATASET%emissionsArealWaterTransformed(me%x, me%y) == nf90_fill_double) then
-                me%j_transformed_diffuseSource = DATASET%emissionsArealWaterTransformed(me%x, me%y)
+                me%j_transformed_diffuseSource(:,1,1) = DATASET%emissionsArealWaterTransformed(me%x, me%y) &
+                     * DATASET%defaultNMSizeDistribution
             end if
         else if (trim(me%compartment) == 'atmospheric') then
             ! Dry depo
@@ -105,7 +108,8 @@ module classDiffuseSource2
             end if
             ! Transformed
             if (.not. DATASET%emissionsAtmosphericDryDepoTransformed(me%x, me%y, t) == nf90_fill_double) then
-                me%j_transformed_diffuseSource = DATASET%emissionsAtmosphericDryDepoTransformed(me%x, me%y, t)
+                me%j_transformed_diffuseSource(:,1,1) = DATASET%emissionsAtmosphericDryDepoTransformed(me%x, me%y, t) &
+                    * DATASET%defaultNMSizeDistribution
             end if
             ! Wet depo
             ! Pristine NM
@@ -116,7 +120,8 @@ module classDiffuseSource2
             ! Matrix-embedded NM
             if (.not. DATASET%emissionsAtmosphericWetDepoMatrixEmbedded(me%x, me%y, t) == nf90_fill_double) then
                 do i = 1, DATASET%nSizeClassesNM
-                    me%j_np_diffuseSource(i,1,3:) = DATASET%emissionsAtmosphericWetDepoMatrixEmbedded(me%x, me%y, t) &
+                    me%j_np_diffuseSource(i,1,3:) = me%j_np_diffuseSource(i,1,3:) &
+                        + DATASET%emissionsAtmosphericWetDepoMatrixEmbedded(me%x, me%y, t) &
                         * DATASET%defaultMatrixEmbeddedDistributionToSpm * DATASET%defaultNMSizeDistribution(i)
                 end do
             end if 
@@ -127,8 +132,8 @@ module classDiffuseSource2
             end if
             ! Transformed
             if (.not. DATASET%emissionsAtmosphericWetDepoTransformed(me%x, me%y, t) == nf90_fill_double) then
-                me%j_transformed_diffuseSource = me%j_transformed_diffuseSource &
-                    + DATASET%emissionsAtmosphericWetDepoTransformed(me%x, me%y, t)
+                me%j_transformed_diffuseSource(:,1,1) = me%j_transformed_diffuseSource(:,1,1) &
+                    + DATASET%emissionsAtmosphericWetDepoTransformed(me%x, me%y, t) * DATASET%defaultNMSizeDistribution
             end if
         end if
     end subroutine

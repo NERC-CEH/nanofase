@@ -59,11 +59,21 @@ module classSoilLayer1
         allocate(me%m_np_perc(C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%m_np_eroded(C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%m_transformed_perc(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%m_transformed_eroded(C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%C_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%k_att(C%npDim(1)))
         me%m_np = 0.0_dp                                ! Set initial NM mass to 0 [kg]
         me%m_np_perc = 0.0_dp                           ! Just to be on the safe side
         me%m_np_eroded = 0.0_dp
+        me%m_transformed = 0.0_dp
+        me%m_transformed_perc = 0.0_dp
+        me%m_transformed_eroded = 0.0_dp
+        me%m_dissolved = 0.0_dp
         me%C_np = 0.0_dp
+        me%C_transformed = 0.0_dp
+        me%C_dissolved = 0.0_dp
         me%V_w = 0.0_dp                                 ! Set initial water content to 0 [m3/m2]
 
         ! Parse the input data into the object properties
@@ -92,11 +102,13 @@ module classSoilLayer1
     !> Update the `SoilLayer1` on a given time step, based on specified inflow.
     !! Calculate percolation to next layer and, if saturated, the amount
     !! to pool to the above layer (or surface runoff, if this is the top layer)
-    function updateSoilLayer1(me, t, q_in, m_np_in) result(r)
+    function updateSoilLayer1(me, t, q_in, m_np_in, m_transformed_in, m_dissolved_in) result(r)
         class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
         integer :: t                                    !! The current time step [s]
         real(dp) :: q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
         real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
+        real(dp) :: m_transformed_in(:,:,:)             !! Transformed NM into the layer on this time step [kg/timestep]
+        real(dp) :: m_dissolved_in                      !! Dissolved species into the layer on this time step [kg/timestep]
         type(Result) :: r                               !! The Result object to return any errors in
         real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
         integer :: i, j, k
@@ -108,6 +120,8 @@ module classSoilLayer1
 
         ! Add in the NM from the above layer/source
         me%m_np = me%m_np + m_np_in                             ! [kg]
+        me%m_transformed = me%m_transformed + m_transformed_in  ! [kg]
+        me%m_dissolved = me%m_dissolved + m_dissolved_in        ! [kg]
 
         ! Attachment
         call me%attachment()                                    ! Transfers free -> attached
@@ -128,16 +142,20 @@ module classSoilLayer1
                         me%V_w)
         ! Use this to calculate the amount of nanomaterial percolated as a fraction of that in layer,
         ! then remove this and the water. Check if (near) zero to avoid FPE.
-        if (isZero(me%V_perc)) then
-            me%m_np_perc = 0.0_dp
-        else
-            ! Only free (porewater) particles will percolate, otherise m_np_perc is 0
-            me%m_np_perc = 0.0_dp
+        me%m_np_perc = 0.0_dp
+        me%m_transformed_perc = 0.0_dp
+        me%m_dissolved_perc = 0.0_dp
+        if (.not. isZero(me%V_perc)) then
+            ! Only free (porewater) particles will percolate, otherise m_np_perc is 0 (as set above)
             me%m_np_perc(:,1,1) = (me%V_perc/me%V_w)*me%m_np(:,1,1)     ! V_perc/V_w will be 1 at maximum
+            me%m_transformed_perc(:,1,1) = (me%V_perc/me%V_w)*me%m_transformed(:,1,1)
+            me%m_dissolved_perc = (me%V_perc/me%V_w)*me%m_dissolved          ! All dissolved percolates
         end if
         me%m_np = me%m_np - me%m_np_perc                        ! Get rid of percolated NM
+        me%m_transformed = me%m_transformed - me%m_transformed_perc     ! Get rid of percolated transformed NM
+        me%m_dissolved = me%m_dissolved - me%m_dissolved_perc   ! Get rid of dissovled species
         me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
-        do k = 1, C%npDim(3)                                    ! Calculate the concentration
+        do k = 1, C%npDim(3)                                    ! Calculate the concentration TODO can we get rid of is zero check?
             do j = 1, C%npDim(2)
                 do i = 1, C%npDim(1)
                     if (isZero(me%m_np(i,j,k))) then
@@ -148,6 +166,8 @@ module classSoilLayer1
                 end do
             end do
         end do
+        me%C_transformed = me%m_transformed / (me%depth * me%area * me%bulkDensity)
+        me%C_dissolved = me%m_dissolved / (me%depth * me%area * me%bulkDensity)
 
         ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
         ! in floating point numbers. Here, we're really checking whether me%V_w == 0
@@ -182,9 +202,14 @@ module classSoilLayer1
         real(dp)            :: dm_att
         if (C%includeAttachment) then
             do i = 1, DATASET%nSizeClassesNM
+                ! Pristine NM
                 dm_att = min(me%k_att(i)*C%timeStep*me%m_np(i,1,1), me%m_np(i,1,1))     ! Mass to move from free -> attached, max of the current mass
                 me%m_np(i,1,1) = me%m_np(i,1,1) - dm_att                                ! Remove from free
                 me%m_np(i,1,2) = me%m_np(i,1,2) + dm_att                                ! Add to attached (bound)
+                ! Same for transformed NM
+                dm_att = min(me%k_att(i)*C%timeStep*me%m_transformed(i,1,1), me%m_transformed(i,1,1))
+                me%m_transformed(i,1,1) = me%m_transformed(i,1,1) - dm_att
+                me%m_transformed(i,1,2) = me%m_transformed(i,1,2) + dm_att
             end do
         end if
     end subroutine
@@ -203,9 +228,14 @@ module classSoilLayer1
         
         m_soil_l1 = bulkDensity * area * me%depth           ! Calculate the mass of the soil in this soil layer
         propEroded = sum(erodedSediment)*area/m_soil_l1     ! Proportion of this that is eroded, convert erodedSediment to kg/gridcell/day
+        ! Pristine NM
         erodedNP = me%m_np(:,1,2)*propEroded                ! Only erode attached NM
         me%m_np(:,1,2) = me%m_np(:,1,2) - erodedNP          ! Remove the eroded NM from the layer
         me%m_np_eroded(:,1,2) = erodedNP
+        ! Transformed NM
+        erodedNP = me%m_transformed(:,1,2)*propEroded
+        me%m_transformed(:,1,2) = me%m_transformed(:,1,2) - erodedNP
+        me%m_transformed_eroded(:,1,2) = erodedNP
     end function
 
     function calculateBioturbationRateSoilLayer1(me) result(bioturbationRate)

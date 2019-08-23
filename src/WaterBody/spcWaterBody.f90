@@ -51,8 +51,10 @@ module spcWaterBody
         real(dp), allocatable :: m_np(:,:,:)                        !! NM mass mass [kg]
         real(dp) :: m_transformed                                   !! Transformed NM mass [kg]
         real(dp) :: C_transformed                                   !! Transformed NM concentration [kg/m3]
+        real(dp) :: C_transformed_final
         real(dp) :: m_dissolved                                     !! Dissolved NM mass [kg]
         real(dp) :: C_dissolved                                     !! Dissolved NM concentration [kg/m3]
+        real(dp) :: C_dissolved_final
         real(dp), allocatable :: C_ionic(:)                         !! Ionic metal concentration [kg/m3]
         real(dp), allocatable :: m_ionic(:)                         !! Ionic metal mass [kg/m3]
         real(dp), allocatable :: m_np_disp(:,:,:,:)                 !! Mass of nanomaterial on each displacement [kg]
@@ -158,15 +160,14 @@ module spcWaterBody
     end subroutine
 
     !> Update this `WaterBody` on given time step
-    function updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
+    function updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff) result(rslt)
         class(WaterBody) :: me                                  !! This `WaterBody` instance
         integer :: t                                            !! What time step are we on?
         real(dp), optional :: q_runoff                          !! Runoff from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this water body [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this water body [kg/timestep]
+        real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded transformed NP runoff to this water body [kg/timestep]
         type(Result) :: rslt                                    !! The `Result` object
-
-        ! Do stuff
     end function
 
     !> Allocate memory for arrays generic to any water body. Individual water bodies
@@ -193,8 +194,10 @@ module spcWaterBody
         me%C_np = 0
         me%m_np = 0
         me%C_transformed = 0
+        me%C_transformed_final = 0
         me%m_transformed = 0
         me%C_dissolved = 0
+        me%C_dissolved_final = 0
         me%m_dissolved = 0
         me%C_ionic = 0
         me%m_ionic = 0

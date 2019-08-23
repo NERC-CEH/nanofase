@@ -70,12 +70,13 @@ module classRiverReach
     end function
 
     !> Run the river reach simulation for this timestep
-    function updateRiverReach(me, t, q_runoff, j_spm_runoff, j_np_runoff) result(rslt)
+    function updateRiverReach(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff) result(rslt)
         class(RiverReach) :: me                                 !! This `RiverReach` instance
         integer :: t                                            !! The current timestep
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
+        real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded transformed NP runoff to this reach [kg/timestep]
         type(Result) :: rslt
         !--- Locals ---!
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
@@ -126,6 +127,8 @@ module classRiverReach
             if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep to m3/timestep] TODO what does HMF output?
             if (present(j_spm_runoff)) call me%set_j_spm_runoff(j_spm_runoff)
             if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
+            if (present(j_transformed_runoff)) call me%set_j_transformed_runoff(sum(j_transformed_runoff))
+            ! TODO transformed not an array at the moment
 
             ! TODO Inflows from transfers
 
@@ -136,14 +139,14 @@ module classRiverReach
             do i = 1, me%nDiffuseSources
                 call me%diffuseSources(i)%update(t)
                 call me%set_j_np_diffusesource(me%diffuseSources(i)%j_np_diffuseSource*me%bedArea, i)
-                call me%set_j_transformed_diffusesource(me%diffuseSources(i)%j_transformed_diffuseSource*me%bedArea, i)
+                call me%set_j_transformed_diffusesource(sum(me%diffuseSources(i)%j_transformed_diffuseSource) * me%bedArea, i)
                 call me%set_j_dissolved_diffusesource(me%diffuseSources(i)%j_dissolved_diffuseSource*me%bedArea, i)
             end do
             ! Point sources are kg/point
             do i = 1, me%nPointSources
                 call me%pointSources(i)%update(t)
                 call me%set_j_np_pointsource(me%pointSources(i)%j_np_pointSource, i)
-                call me%set_j_transformed_pointsource(me%pointSources(i)%j_transformed_pointSource, i)
+                call me%set_j_transformed_pointsource(sum(me%pointSources(i)%j_transformed_pointSource), i)
                 call me%set_j_dissolved_pointsource(me%pointSources(i)%j_dissolved_pointSource, i)
             end do
 
@@ -229,6 +232,8 @@ module classRiverReach
                 dj_dissolved_outflow = -min(me%m_dissolved, -dj_dissolved(1))
                 me%m_spm = max(me%m_spm + sum(dj_spm, dim=1), 0.0_dp)
                 me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
+                me%m_transformed = max(me%m_transformed + sum(dj_transformed), 0.0_dp)
+                me%m_dissolved = max(me%m_dissolved + sum(dj_dissolved), 0.0_dp)
 
                 ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
                 ! (inflows, runoff, sources) as they've already been correctly set before the disp loop

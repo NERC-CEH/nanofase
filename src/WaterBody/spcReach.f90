@@ -112,6 +112,7 @@ module spcReach
         procedure :: set_j_np_diffusesource
         procedure :: set_j_np_pointsource
         procedure :: set_j_transformed_outflow
+        procedure :: set_j_transformed_runoff
         procedure :: set_j_transformed_inflow
         procedure :: set_j_transformed_diffusesource
         procedure :: set_j_transformed_pointsource
@@ -757,6 +758,12 @@ module spcReach
         class(Reach) :: me
         real(dp) :: j_transformed_outflow
         me%j_transformed(1) = j_transformed_outflow
+    end subroutine
+
+    subroutine set_j_transformed_runoff(me, j_transformed_runoff)
+        class(Reach) :: me
+        real(dp) :: j_transformed_runoff
+        me%j_transformed(2+me%nInflows) = j_transformed_runoff
     end subroutine
 
     subroutine set_j_transformed_inflow(me, j_transformed_inflow, i)
