@@ -134,9 +134,12 @@ module classDatabase
         type(NcDimension)   :: p_dim
         integer             :: maxPointSources
         
+
+        print *, "before constants"
         ! Open the dataset and constants NML file
         me%nc = NcDataset(inputFile, 'r')
         call me%parseConstants(constantsFile)
+        print *, "after constants"
         
         ! Variable units: These will already have been converted to the correct
         ! units for use in the model by nanofase-data (the input data compilation
@@ -472,10 +475,15 @@ module classDatabase
             spm_size_classes, default_matrixembedded_distribution_to_spm
         namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density
 
+        print *, "start"
+
         ! Open and read the NML file
         open(11, file=constantsFile, status="old")
         read(11, nml=allocatable_array_sizes)
         rewind(11)
+
+        print *, "alloc read done"
+
         ! Allocate the appropriate
         allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
             nm_size_classes(n_nm_size_classes), &
@@ -483,6 +491,8 @@ module classDatabase
             spm_size_classes(n_spm_size_classes), &
             default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
             vertical_distribution(n_vertical_distribution))
+
+        print *, "mem allocated"
 
         read(11, nml=n_biota_grp, iostat=nmlIOStat)
         rewind(11)
@@ -497,6 +507,8 @@ module classDatabase
             rewind(11)
             me%hasBiota = .true.
         end if
+
+        print *, "nml stat checked, second mem alloc done"
         read(11, nml=earthworm_densities)
         rewind(11)
         read(11, nml=size_classes)
@@ -517,6 +529,8 @@ module classDatabase
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
+
+        print *, "soil done, earthworm next"
         ! Earthworm densities
         me%earthwormDensityArable = arable
         me%earthwormDensityConiferous = coniferous
@@ -526,7 +540,12 @@ module classDatabase
         me%earthwormDensityUrbanCapped = urban_capped
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
+
+        print *, "before vert dist"
         me%earthwormVerticalDistribution = vertical_distribution / 100.0
+
+        print *, "before biota"
+
         ! Biota
         if (me%hasBiota) then
             me%biotaName = name
@@ -546,6 +565,8 @@ module classDatabase
             me%biotaHarvestInMonth = harvest_in_month
         end if
 
+        print *, "before globals stuff"
+
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM
         C%nSizeClassesNP = me%nSizeClassesNM
@@ -553,12 +574,16 @@ module classDatabase
         C%d_np = me%nmSizeClasses
         C%d_spm = me%spmSizeClasses
 
+        print *, "globals dealloc done"
+
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
         C%nFracCompsSpm = size(C%rho_spm)
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))
+
+        print *, "globals realloc done"
         ! Set the upper and lower bounds of each size class, if treated as a distribution
         do n = 1, C%nSizeClassesSpm
             ! Set the upper and lower limit of the size class's distributions

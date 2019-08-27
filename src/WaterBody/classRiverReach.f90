@@ -117,6 +117,8 @@ module classRiverReach
         real(dp) :: dj_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_dissolved_outflow
 
+        print *, "start river reach update"
+
         ! Initialise flows to zero
         fractionSpmDeposited = 0
         j_spm_deposit = 0
@@ -127,6 +129,7 @@ module classRiverReach
         me%j_dissolved = 0
         me%j_ionic = 0
         
+        ! Check if this is a boundary reach for calibrating with
         if (.not. me%isBoundary) then
             ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
             ! getting their outflow on this timestep, rather than the last timestep
@@ -138,6 +141,8 @@ module classRiverReach
                 call me%set_j_transformed_inflow(-me%inflows(i)%item%j_transformed(1,:,:,:), i)
                 call me%set_j_dissolved_inflow(-me%inflows(i)%item%j_dissolved(1), i)
             end do
+
+            print *, "inflows set"
 
             ! Inflows from runoff
             if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep to m3/timestep] TODO what does HMF output?
@@ -166,6 +171,8 @@ module classRiverReach
                 call me%set_j_dissolved_pointsource(me%pointSources(i)%j_dissolved_pointSource, i)
             end do
 
+            print *, "diffuse and point sources set"
+
             ! Total inflows = inflow water bodies + runoff + transfers (+ sources for NM)
             me%Q_in_total = sum(me%Q(2:))
             j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
@@ -189,6 +196,8 @@ module classRiverReach
             call me%setResuspensionRate(me%Q_in_total)      ! Computes resuspension rate [s-1] over complete timestep
             call me%setSettlingRate()                       ! Computes settling rate [s-1] over complete timestep
 
+            print *, "settling rate set"
+
             ! If Q_in for this timestep is bigger than the reach volume, then we need to
             ! split into a number of displacements. If Q_in is zero, just have 1 displacement.
             if (isZero(me%Q_in_total) .or. isZero(me%volume)) then
@@ -202,6 +211,8 @@ module classRiverReach
             dj_np = me%j_np/nDisp                               ! NM flow array for each displacement
             dj_transformed = me%j_transformed/nDisp             ! Transformed flow array for each displacement
             dj_dissolved = me%j_dissolved/nDisp                 ! Dissolved flow array for each displacement
+
+            print *, "just before disp loop"
 
             do i = 1, nDisp
                 ! Water mass balance (outflow = all the inflows)
@@ -220,6 +231,8 @@ module classRiverReach
                     dj_transformed(1,:,:,:) = 0
                     dj_dissolved(1) = 0
                 end if
+
+                print *, "after outflow in disp loop"
                 
                 ! SPM deposition and resuspension. Use m_spm as previous m_spm + inflow - outflow, making sure to
                 ! not pick up on the previous displacement's deposition (index 4+me%nInflows)
@@ -241,6 +254,8 @@ module classRiverReach
                     dj_transformed(4+me%nInflows,:,:,2+j) = &
                         -min(me%m_transformed(:,:,2+j)*fractionSpmDeposited(j), me%m_transformed(:,:,2+j))
                 end do
+
+                print *, "after depo in disp loop"
                 
                 !-- MASS BALANCES --!
                 ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
@@ -252,6 +267,8 @@ module classRiverReach
                 me%m_np = max(me%m_np + sum(dj_np, dim=1), 0.0_dp)
                 me%m_transformed = max(me%m_transformed + sum(dj_transformed, dim=1), 0.0_dp)
                 me%m_dissolved = max(me%m_dissolved + sum(dj_dissolved), 0.0_dp)
+
+                print *, "after mass balances"
 
                 ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
                 ! (inflows, runoff, sources) as they've already been correctly set before the disp loop
@@ -279,6 +296,8 @@ module classRiverReach
                     if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
                 end if
 
+                print *, "after bed sediment in disp loop"
+
                 ! TODO Deposit and resuspend NM to/from bed sediment
             end do
 
@@ -292,6 +311,8 @@ module classRiverReach
                     me%C_spm(j) = me%m_spm(j) / me%volume
                 end if
             end do
+
+            print *, "after C_spm set"
             ! Same for m_np
             do k = 1, C%npDim(3)
                 do j = 1, C%npDim(2)
@@ -311,12 +332,14 @@ module classRiverReach
                     end do
                 end do
             end do
+            print *, "after C_np, C_transformed set"
             ! Dissolved
             if (isZero(me%m_dissolved) .or. isZero(me%volume)) then
                 me%m_dissolved = 0.0_dp
             else
                 me%C_dissolved = me%m_dissolved / me%volume
             end if
+            print *, "after C_dissolved set"
 
             ! Transform the NPs. TODO: Should this be done before or after settling/resuspension?
             ! TODO for the moment, ignoring heteroaggregation if no volume, need to figure out
@@ -340,6 +363,8 @@ module classRiverReach
                 me%m_transformed = me%reactor%m_transformed
             end if
 
+            print *, "after reactor"
+
             ! Set the final concentrations, checking that the river has a volume
             if (.not. isZero(me%volume)) then
                 me%C_spm = me%m_spm/me%volume
@@ -348,6 +373,8 @@ module classRiverReach
                 me%C_spm = 0.0_dp
                 me%C_np = 0.0_dp
             end if
+
+            print *, "final conc set"
 
         ! Else, if this is a boundary reach, just set the SPM concentration from data
         else

@@ -18,6 +18,7 @@
     n_spm_size_classes = 5
     n_stored_fraction = 2
     n_uptake_from_form = 2
+    n_vertical_distribution = 3
 /
 &biota
     compartment = 'soil', 'soil'
@@ -45,6 +46,7 @@
     urban_capped = 0
     urban_gardens = 150
     urban_parks = 250
+    vertical_distribution = 50, 35, 15
 /
 
 &n_biota_grp

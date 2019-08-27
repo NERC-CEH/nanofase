@@ -192,6 +192,8 @@ module classEnvironment1
         end do
         !!$omp end parallel do
 
+        print *, "after grid cells updated"
+
         ! Loop through the headwaters and route from these downstream. We don't need to do this separately
         ! for calibration runs, because each reach with a sample site has already been told its boundary
         ! conditions and thus will ignore inflows from upstream. Just bare in mind that only the calibration

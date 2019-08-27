@@ -73,10 +73,9 @@ program main
         write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
                     "reach_type,total_m_spm(kg),total_C_spm(g/l)"
     end if
-    write(2, '(A,A,A,A)', advance='no') "t,x,y,rr,total_m_np,total_C_np,m_transformed,C_transformed,", &
-        "m_dissolved,C_dissolved,total_np_dep,total_np_runoff,total_m_spm,total_C_spm,river_volume,reach_depth,river_flow,", &
-        "total_np_pointsource,C_np_biota,C_np_biota_noStoredFraction,reach_type,total_np_outflow,k_settle,k_resus"
-    write(2, '(A,A)') ""
+    write(2, *) "t,x,y,rr,m_np,C_np,m_transformed,C_transformed,", &
+        "m_dissolved,C_dissolved,m_np_dep,m_transformed_dep,m_spm,C_spm,reach_volume,reach_depth,reach_flow,", &
+        "reach_type,m_np_outflow,m_transformed_outflow,m_dissolved_outflow,k_settle,k_resus"
     write(3, *) "t,x,y,rr,m_spm,j_spm_runoff,j_spm_outflow,j_spm_deposit,reach_type"
     write(5, *) "t,x,y,total_m_np,total_C_np,total_C_transformed,total_C_dissolved,bulk_density,", &
         "m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l1_att,m_np_l2_att,m_np_l3_att,", &
@@ -86,8 +85,10 @@ program main
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
     call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
+    print *, "yes"
     r = env%create()                                                    ! Create the environment
     call DATA%close()                                                   ! We should be done with the data input now, so close the file
+    
 
     allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
         m_np_l1(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -100,6 +101,7 @@ program main
         C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
         npDep(C%npDim(1), C%npDim(2), C%npDim(3)) &
     )
+
 
     do t = 1, C%nTimeSteps
         m_np_free = 0
@@ -116,76 +118,37 @@ program main
 
                    ! RiverReachs
                     do rr = 1, env%colGridCells(x,y)%item%nReaches
-                        m_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_spm
-                        C_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_spm
-                        m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np
-                        C_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_np
-                        m_transformed = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_transformed)
-                        C_transformed = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_transformed)
-                        m_dissolved = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_dissolved
-                        C_dissolved = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_dissolved
-                        npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_deposit()
-                        if (C%includeBedSediment) then
-                            bedSedimentMass = .dp. env%colGridCells(x,y)%item%colRiverReaches(rr)%item%bedSediment%Mf_bed_all()
-                        else
-                            bedSedimentMass = 0    
-                        end if
-                        npRunoff = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_runoff())
-                        riverVolume = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%volume
-                        reachDepth = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%depth
-                        Q_out = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%Q(1)/C%timeStep     ! Converted from m3/timestep to m3/s
-                        np_out = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_outflow())
 
-                        ! What type of reach is this?
-                        select type (reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
-                            type is (RiverReach)
-                                reachType = 'riv'
-                            type is (EstuaryReach)
-                                reachType = 'est'
-                            class default
-                                reachType = 'non'
-                        end select
-
-                        npPointSource = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_pointsource())
-                        ! C_np_biota = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np
-                        ! C_np_biota_noStoredFraction &
-                        !     = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np_noStoredFraction
-                        C_np_biota = 0
-                        C_np_biota_noStoredFraction = 0
-                        ! Write to the data file
-                        write(2, *) &
-                            trim(str(t)), ",", &
-                            trim(str(x)), ",", &
-                            trim(str(y)), ",", &
-                            trim(str(rr)), ",", &
-                            trim(str(sum(m_np(:,:,:)))), ",", &
-                            trim(str(sum(C_np))), ",", &
-                            trim(str(m_transformed)), ",", &
-                            trim(str(C_transformed)), ",", &
-                            trim(str(m_dissolved)), ",", &
-                            trim(str(C_dissolved)), ",", &
-                            trim(str(sum(npDep))), ",", &
-                            trim(str(npRunoff)), ",", &
-                            trim(str(sum(m_spm))), ",", &
-                            trim(str(sum(C_spm))), ",", &
-                            trim(str(riverVolume)), ",", &
-                            trim(str(reachDepth)), ",", &
-                            trim(str(Q_out)), ",", &
-                            trim(str(npPointSource)), ",", &
-                            trim(str(C_np_biota)), ",", &
-                            trim(str(C_np_biota_noStoredFraction)), ",", &
-                            trim(reachType), ",", &
-                            trim(str(np_out)), ",", &
-                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%k_settle))), ",", &
-                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%k_resus)))
-                       
-                        write(3,*) t, ", ", x, ", ", y, ", ", rr, ", ", &
-                            trim(str(sum(m_spm))), ",", &
-                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_spm_runoff()))), ",", &
-                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_spm_outflow()))), ",", &
-                            trim(str(sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_spm_deposit()))), ",", &
-                            trim(reachType)
-
+                        associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
+                            ! Water output file
+                            write(2, *) t, ",", x, ",", y, ",", rr, ",", &
+                                trim(str(sum(reach%m_np))), ",", &
+                                trim(str(sum(reach%C_np))), ",", &
+                                trim(str(sum(reach%m_transformed))), ",", &
+                                trim(str(sum(reach%C_transformed))), ",", &
+                                trim(str(reach%m_dissolved)), ",", &
+                                trim(str(reach%C_dissolved)), ",", &
+                                trim(str(sum(reach%j_np_deposit()))), ",", &
+                                trim(str(sum(reach%j_transformed_deposit()))), ",", &
+                                trim(str(sum(reach%m_spm))), ",", &
+                                trim(str(sum(reach%C_spm))), ",", &
+                                trim(str(reach%volume)), ",", &
+                                trim(str(reach%depth)), ",", &
+                                trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                trim(reachType), ",", &
+                                trim(str(sum(reach%j_np_outflow()))), ",", &
+                                trim(str(sum(reach%j_transformed_outflow()))), ",", &
+                                trim(str(reach%j_dissolved_outflow())), ",", &
+                                trim(str(sum(reach%k_settle))), ",", &
+                                trim(str(sum(reach%k_resus)))
+                            ! SPM output file
+                            write(3,*) t, ",", x, ",", y, ",", rr, ",", &
+                                trim(str(sum(reach%m_spm))), ",", &
+                                trim(str(sum(reach%j_spm_runoff()))), ",", &
+                                trim(str(sum(reach%j_spm_outflow()))), ",", &
+                                trim(str(sum(reach%j_spm_deposit()))), ",", &
+                                trim(reachType)
+                        end associate
 
                         if (C%calibrationRun) then
                             if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%startSite) then
