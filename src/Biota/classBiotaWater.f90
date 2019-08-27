@@ -1,23 +1,23 @@
-module classBiotaSoil
+module classBiotaWater
     use spcBiota
     use ResultModule, only: Result
     use Globals
     use classDatabase
     use datetime_module
     implicit none
-    type, public, extends(Biota) :: BiotaSoil
+    type, public, extends(Biota) :: BiotaWater
         contains
-            procedure :: create => createBiotaSoil
-            procedure :: update => updateBiotaSoil
-            procedure :: parseInputData => parseInputDataBiotaSoil
+            procedure :: create => createBiotaWater
+            procedure :: update => updateBiotaWater
+            procedure :: parseInputData => parseInputDataBiotaWater
     end type
     contains
-        function createBiotaSoil(me, biotaIndex) result(rslt)
-            class(BiotaSoil)    :: me           !! This soil biota instance
+        function createBiotaWater(me, biotaIndex) result(rslt)
+            class(BiotaWater)    :: me           !! This Water biota instance
             integer             :: biotaIndex   !! Database index for this biota object TODO move to database
             type(Result)        :: rslt
             ! Set defaults and ref
-            me%ref = "BiotaSoil_" // trim(str(biotaIndex))
+            me%ref = "BiotaWater_" // trim(str(biotaIndex))
             me%biotaIndex = biotaIndex
             me%C_stored = 0.0_dp
             ! Get data from input file
@@ -26,8 +26,8 @@ module classBiotaSoil
             ! call LOGR%toFile(errors=.errors. rslt)
         end function
 
-        function updateBiotaSoil(me, t, C_env_np, C_env_transformed, C_env_dissolved) result(rslt)
-            class(BiotaSoil) :: me                 !! This BiotaSoil instance
+        function updateBiotaWater(me, t, C_env_np, C_env_transformed, C_env_dissolved) result(rslt)
+            class(BiotaWater) :: me                 !! This BiotaWater instance
             integer :: t                        !! The current time step
             real(dp) :: C_env_np(:,:,:)
             real(dp) :: C_env_transformed(:,:,:)
@@ -52,14 +52,14 @@ module classBiotaSoil
                     C_env_np_sum = sum(C_env_np(:,:,1))
                     C_env_transformed_sum = sum(C_env_transformed(:,:,1))
                 else if (trim(me%uptakeFromForm) == 'attached') then
-                    C_env_np_sum = sum(C_env_np(:,:,2))
-                    C_env_transformed_sum = sum(C_env_transformed(:,:,2))
+                    C_env_np_sum = sum(C_env_np(:,:,3:))
+                    C_env_transformed_sum = sum(C_env_transformed(:,:,3:))
                 else if (trim(me%uptakeFromForm) == 'free_and_attached' &
                     .or. trim(me%uptakeFromForm) == 'attached_and_free' &
                     .or. trim(me%uptakeFromForm) == 'free_attached' &
                     .or. trim(me%uptakeFromForm) == 'attached_free') then
-                    C_env_np_sum = sum(C_env_np(:,:,1:2))
-                    C_env_transformed_sum = sum(C_env_transformed(:,:,1:2))
+                    C_env_np_sum = sum(C_env_np(:,:,:))
+                    C_env_transformed_sum = sum(C_env_transformed(:,:,:))
                 else
                     call rslt%addError( &
                         ErrorInstance(message = "Sorry, I can't understand the form specified " // &
@@ -102,8 +102,8 @@ module classBiotaSoil
 
         end function
 
-        function parseInputDataBiotaSoil(me) result(rslt)
-            class(BiotaSoil) :: me
+        function parseInputDataBiotaWater(me) result(rslt)
+            class(BiotaWater) :: me
             type(Result) :: rslt
             ! Get rates from database. TODO deprecate in favour of using directly
             ! to save memory

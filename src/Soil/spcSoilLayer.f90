@@ -3,7 +3,7 @@ module spcSoilLayer
     use Globals                                                     ! Global definitions and constants
     use mo_netcdf                                                   ! NetCDF input/output
     use ResultModule, only: Result                                  ! Result object to pass errors
-    use spcBiota
+    use classBiotaSoil
     implicit none
 
     !> Abstract base class for `SoilLayer` object. Defines properties and
@@ -53,7 +53,9 @@ module spcSoilLayer
         real :: alpha_att                                           !! Attachment efficiency to soil matrix [-]
         real, allocatable :: k_att(:)                               !! Attachment rate to soil matrix [s-1]
         ! Biota
-        class(Biota), allocatable :: biota
+        integer :: nBiota = 0
+        integer, allocatable :: biotaIndices(:)
+        class(BiotaSoil), allocatable :: biota(:)
       contains
         procedure(createSoilLayer), deferred :: create              ! Create the SoilLayer object
         procedure(updateSoilLayer), deferred :: update              ! Update on every timestep (e.g., perform soil percolation)

@@ -272,7 +272,7 @@ module classSoilProfile1
         ! Convert the current date to Julian day number (https://en.wikipedia.org/wiki/Julian_day).
         ! date2num converts to number of days since 0001-01-01, and 1721423 is the Julian day
         ! number of 0001-01-01.
-        currentDate = C%startDate + timedelta(days=t)
+        currentDate = C%startDate + timedelta(days=t-1)
         julianDay = date2num(currentDate) + 1721423
         ! Then calculate the kinetic energy [J/m2/day]. Precip needs converting to [mm/day] from [m/timestep].
         E_k = (me%erosivity_a1 + me%erosivity_a2 * cos(julianDay * (2*C%pi/365) + me%erosivity_a3)) &
@@ -352,7 +352,8 @@ module classSoilProfile1
         class(SoilProfile1) :: me           ! This soil profile
         real :: clay, silt, sand            ! Percentage clay, silt and sand
         real :: d_grain                     ! The average grain size
-        d_grain = 1e-3*exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
+        d_grain = 1
+        ! d_grain = 1e-3 * exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
     end function
 
     !> Get the data from the input file and set object properties

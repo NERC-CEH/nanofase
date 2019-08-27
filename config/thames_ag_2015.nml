@@ -27,7 +27,7 @@ timestep = 86400
 n_timesteps = 365
 start_date = "2015-01-01"
 epsilon = 1e-50,
-error_output = .false.
+error_output = .true.
 log_file_path = "log/"
 /
 
@@ -41,7 +41,7 @@ nanomaterial_density = 10500
 soil_layer_depth = 0.05, 0.15, 0.2
 default_k_att = 3.65d-3
 include_bioturbation = .true.
-include_attachment = .false.
+include_attachment = .true.
 /
 
 &river

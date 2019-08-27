@@ -86,6 +86,7 @@ module spcReach
         procedure :: j_np_diffusesource
         procedure :: j_np_pointsource
         procedure :: j_transformed_outflow
+        procedure :: j_transformed_deposit
         procedure :: j_transformed_diffusesource
         procedure :: j_transformed_pointsource
         procedure :: j_dissolved_outflow
@@ -114,6 +115,7 @@ module spcReach
         procedure :: set_j_transformed_outflow
         procedure :: set_j_transformed_runoff
         procedure :: set_j_transformed_inflow
+        procedure :: set_j_transformed_deposit
         procedure :: set_j_transformed_diffusesource
         procedure :: set_j_transformed_pointsource
         procedure :: set_j_dissolved_outflow
@@ -164,8 +166,10 @@ module spcReach
             me%j_spm_final(me%nInflows + 4, C%nSizeClassesSpm), &
             me%j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%j_np_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%j_transformed(me%nInflows + me%nPointSources + me%nDiffuseSources + 4), &
-            me%j_transformed_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4), &
+            me%j_transformed(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
+                C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%j_transformed_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
+                C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%j_dissolved(me%nInflows + me%nPointSources + me%nDiffuseSources + 4), &
             me%j_dissolved_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4), &
             me%j_ionic(me%nInflows + 3, C%ionicDim), &
@@ -568,23 +572,30 @@ module spcReach
     !> Get the outflow from transformed flux array
     function j_transformed_outflow(me)
         class(Reach) :: me
-        real(dp) :: j_transformed_outflow
-        j_transformed_outflow = me%j_transformed(1)
+        real(dp) :: j_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_transformed_outflow = me%j_transformed(1,:,:,:)
+    end function
+
+    function j_transformed_deposit(me)
+        class(Reach) :: me
+        real(dp) :: j_transformed_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_transformed_deposit = me%j_transformed(4+me%nInflows,:,:,:)
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
     function j_transformed_diffusesource(me)
         class(Reach) :: me
-        real(dp) :: j_transformed_diffusesource
-        j_transformed_diffusesource = sum(me%j_transformed(5+me%nInflows:4+me%nInflows+me%nDiffuseSources))
+        real(dp) :: j_transformed_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
+        j_transformed_diffusesource = &
+            sum(me%j_transformed(5+me%nInflows:4+me%nInflows+me%nDiffuseSources,:,:,:), dim=1)
     end function
 
     !> Get the total point source fluxes from NM flux array
     function j_transformed_pointsource(me)
         class(Reach) :: me
-        real(dp) :: j_transformed_pointsource
+        real(dp) :: j_transformed_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
         j_transformed_pointsource &
-            = sum(me%j_transformed(5+me%nInflows+me%nDiffuseSources:4+me%nInflows+me%nDiffuseSources+me%nPointSources))
+            = sum(me%j_transformed(5+me%nInflows+me%nDiffuseSources:4+me%nInflows+me%nDiffuseSources+me%nPointSources,:,:,:), dim=1)
     end function
 
     !> Get the outflow from dissolved flux array
@@ -756,37 +767,43 @@ module spcReach
 
     subroutine set_j_transformed_outflow(me, j_transformed_outflow)
         class(Reach) :: me
-        real(dp) :: j_transformed_outflow
-        me%j_transformed(1) = j_transformed_outflow
+        real(dp) :: j_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        me%j_transformed(1,:,:,:) = j_transformed_outflow
     end subroutine
 
     subroutine set_j_transformed_runoff(me, j_transformed_runoff)
         class(Reach) :: me
-        real(dp) :: j_transformed_runoff
-        me%j_transformed(2+me%nInflows) = j_transformed_runoff
+        real(dp) :: j_transformed_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
+        me%j_transformed(2+me%nInflows,:,:,:) = j_transformed_runoff
     end subroutine
 
     subroutine set_j_transformed_inflow(me, j_transformed_inflow, i)
         class(Reach) :: me
-        real(dp) :: j_transformed_inflow
+        real(dp) :: j_transformed_inflow(C%npDim(1), C%npDim(2), C%npDim(3))
         integer :: i
-        me%j_transformed(1+i) = j_transformed_inflow
+        me%j_transformed(1+i,:,:,:) = j_transformed_inflow
+    end subroutine
+
+    subroutine set_j_transformed_deposit(me, j_transformed_deposit)
+        class(Reach) :: me
+        real(dp) :: j_transformed_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
+        me%j_transformed(4+me%nInflows,:,:,:) = j_transformed_deposit
     end subroutine
 
     !> Set the diffuse source flux of the SPM flux array
     subroutine set_j_transformed_diffusesource(me, j_transformed_diffusesource, i)
         class(Reach) :: me
-        real(dp) :: j_transformed_diffusesource
+        real(dp) :: j_transformed_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
         integer :: i
-        me%j_transformed(4+me%nInflows+i) = j_transformed_diffusesource
+        me%j_transformed(4+me%nInflows+i,:,:,:) = j_transformed_diffusesource
     end subroutine
 
     !> Set the point source flux of the SPM flux array
     subroutine set_j_transformed_pointsource(me, j_transformed_pointsource, i)
         class(Reach) :: me
-        real(dp) :: j_transformed_pointsource
+        real(dp) :: j_transformed_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
         integer :: i
-        me%j_transformed(4+me%nInflows+me%nDiffuseSources+i) = j_transformed_pointsource
+        me%j_transformed(4+me%nInflows+me%nDiffuseSources+i,:,:,:) = j_transformed_pointsource
     end subroutine
 
 !-- DISSOLVED --!

@@ -6,7 +6,7 @@ module classDataInterfacer
     use UtilModule
     use Globals
     use mo_netcdf
-    use classLogger, only: LOG
+    use classLogger, only: LOGR
     implicit none
     
     type, public :: DataInterfacer
@@ -89,7 +89,7 @@ module classDataInterfacer
         me%inputFilePath = inputFilePath                ! Store the file path to the input dataset
         me%inputDataset = NcDataset(me%inputFilePath, "r")   ! Open dataset as read-only
         me%grp = me%inputDataset                        ! Initialise the current group as the input dataset
-        call LOG%add("Initialising DataInterfacer: success")
+        call LOGR%add("Initialising DataInterfacer: success")
     end subroutine
 
     !> Close the NetCDF file

@@ -52,6 +52,7 @@ module classReactor1
             4, &                            ! Number of different forms
             C%nSizeClassesSpm + 2 &         ! Number of different states
         ))
+        allocate(me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
         ! Allocate ionic metal array. 1.ionic, 2. complexed, 3. adsorbed.
         allocate(me%m_dissolved(3))
         
@@ -66,10 +67,11 @@ module classReactor1
     end function
     
     !> Run the `Reactor`'s simulation for the current time step
-    function updateReactor1(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
+    function updateReactor1(me, t, m_np, m_transformed, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
         class(Reactor1) :: me           !! This `Reactor1` object
         integer :: t                    !! The current time step
         real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) !! Mass of NP for this timestep [kg]
+        real(dp) :: m_transformed(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) !! Mass of NP for this timestep [kg]
         real(dp) :: C_spm(C%nSizeClassesSpm)    !! The current mass concentration of SPM [kg/m3]
         real(dp) :: T_water             !! The current water temperature [C]
         real(dp) :: W_settle_np(C%nSizeClassesNP)   !! NP settling velocity [m/s]
@@ -148,25 +150,20 @@ module classReactor1
                     dm_hetero = 0.0_dp
                 end if
             end do
-        end do
+            
+            ! Transformed NM
+            dm_hetero = min(sum(me%k_hetero(n,:))*C%timeStep*me%m_transformed(n,1,1), me%m_transformed(n,1,1))
+            me%m_transformed(n,1,1) = me%m_transformed(n,1,1) - dm_hetero             ! Remove heteroaggregated mass from free NPs
+            do s = 1, C%nSizeClassesSpm
+                if (.not. isZero(me%k_hetero(n,s))) then
+                    dm_hetero = dm_hetero*(me%k_hetero(n,s)/sum(me%k_hetero(n,:)))  ! Fraction of heteroaggregated mass to add to this SPM size class
+                    me%m_transformed(n,1,s+2) = me%m_transformed(n,1,s+2) + dm_hetero
+                else
+                    dm_hetero = 0.0_dp
+                end if
+            end do
 
-        ! TODO: Use transformation matrix similar to below
-        !! Construct transformation matrix
-        !! TODO: Eventually this will be moved to update() function as it will
-        !! deal with other processes
-        !do n = 1, C%nSizeClassesNP
-        !    T(n,1,1) = 1 - sum(me%k_hetero(n,:))*C%timeStep                         ! Amount removed from free NPs
-        !    T(n,2,2) = 1                                                            ! Don't change bound concentration
-        !******************* The below line isn't working because it's overwriting free and bound,
-        !                   rather than looping over the SPM array elements.... +2 to s
-        !    do s = 1, C%nSizeClassesSpm
-        !        T(n,s,s) = 1 + me%k_hetero(n,s)*C%timeStep                           ! Amount to add to heteroaggregated NPs
-        !    end do
-        !    me%m_np(n,:,:) = matmul(me%m_np(n,:,:),T(n,:,:))
-        !end do
-        !
-        !print *, "m_np after trans: ", me%m_np(1,1,1)
-        !print *, " "
+        end do
     end function
     
     !> Parse the input data for this Reactor
