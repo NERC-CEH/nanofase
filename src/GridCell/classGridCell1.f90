@@ -100,15 +100,15 @@ module classGridCell1
         end if
 
         call r%addToTrace("Creating " // trim(me%ref))
-        call LOG%toFile(errors=.errors.r)
+        call LOGR%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear errors from the Result object so they're not reported twice
         if (.not. me%isEmpty) then
-            call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
-            call LOG%toFile("Creating " // trim(me%ref) // ": success")
+            call LOGR%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+            call LOGR%toFile("Creating " // trim(me%ref) // ": success")
         else
-            call LOG%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32mempty\x1B[0m")
-            call LOG%toFile("Creating " // trim(me%ref) // ": empty")
+            call LOGR%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32mempty\x1B[0m")
+            call LOGR%toFile("Creating " // trim(me%ref) // ": empty")
         end if
     end function
     
@@ -192,7 +192,7 @@ module classGridCell1
 
         ! Trigger any errors
         call r%addToTrace("Finalising creation of " // trim(me%ref))
-        call LOG%toFile(errors=.errors.r)
+        call LOGR%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear errors from the Result object so they're not reported twice
     end function
@@ -409,10 +409,10 @@ module classGridCell1
 
         ! Add this procedure to the error trace and trigger any errors that occurred
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
-        call LOG%toFile(errors = .errors. r)            ! Log any errors to the output file
+        call LOGR%toFile(errors = .errors. r)            ! Log any errors to the output file
         call ERROR_HANDLER%trigger(errors = .errors. r)
         call r%clear()                  ! Clear the errors so we're not reporting twice
-        call LOG%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
+        call LOGR%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
     end function
 
     !> Set the outflow from the temporary outflow variables that were setting by the

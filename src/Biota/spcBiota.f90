@@ -4,15 +4,22 @@ module spcBiota                                                     !! superclas
     type, abstract, public :: Biota                                 !! type declaration for class
                                                                     ! class properties
         character(len=256) :: ref                                   !! Reference for this instance
+        character(len=100) :: name                                  !! Name of this organism
+        integer     :: biotaIndex                                   !! Index of this biota index in database, TODO deprecate and deal with data better
         ! real(dp), allocatable :: m_np                               ! Mass of nanomaterial in biota [kg]          ! TODO is this needed?
-        real(dp) :: C_np                                            !! Concentration of nanomaterial in biota [kg/kg dw]
-        real(dp) :: C_np_noStoredFraction                           !! Concentration of nanomaterial in biota with no stored fraction, for comparison's sake [kg/kg dw]
-        real(dp) :: k_uptake(2)                                     !! Uptake constants, one per matrix uptaken from (e.g. soil/water, food) [/day]
-        reaL(dp) :: k_elim                                          !! Elimination rate constant [/day]
+        real(dp) :: C_active                                        !! Concentration of nanomaterial in biota [kg/kg dw]
+        real(dp) :: C_stored                                        !! Concentration of nanomaterial in biota stored fraction [kg/kg dw]
+        real(dp) :: k_uptake_np                               !! Uptake constant [/day]
+        real(dp) :: k_uptake_transformed                            !! Uptake constant [/day]
+        real(dp) :: k_uptake_dissolved                              !! Uptake constant [/day]
+        real(dp) :: k_elim_np                                 !! Elimination constant [/day]
+        real(dp) :: k_elim_transformed
+        real(dp) :: k_elim_dissolved
         real(dp) :: k_growth                                        !! Growth dilution rate [/day]
+        real(dp) :: k_death
         real(dp) :: storedFraction                                  !! Stored fraction of namoaterial [-]
-        integer :: eliminationPhaseStart                            !! When the elimination phase starts [days]
-        real(dp) :: C_np_init                                       !! Initial NM conc at start of model run [kg/kg dw]
+        character(len=17) :: uptakeFromForm                         !! What form (free, attached) to uptake from. Options: free, attached, free_and_attached
+        integer :: harvestInMonth                                   !! Month to harvest biota, i.e. set C_org to zero
 
       contains
         procedure, public :: create => createBiota                  ! constructor method
@@ -22,17 +29,20 @@ module spcBiota                                                     !! superclas
 
   contains
 
-    function createBiota(me) result(rslt)
+    function createBiota(me, biotaIndex) result(rslt)
         use ResultModule, only: Result
         class(Biota) :: me
+        integer     :: biotaIndex
         type(Result) :: rslt
     end function
 
-    function updateBiota(me, t, C_np_matrices) result(rslt)
+    function updateBiota(me, t, C_env_np, C_env_transformed, C_env_dissolved) result(rslt)
         use ResultModule, only: Result
         class(Biota) :: me
         integer :: t
-        real(dp) :: C_np_matrices(2)            !! Concentration of nanomaterial in all matrix (soil/water) and diet
+        real(dp) :: C_env_np(:,:,:)
+        real(dp) :: C_env_transformed(:,:,:)
+        real(dp) :: C_env_dissolved
         type(Result) :: rslt
     end function
 

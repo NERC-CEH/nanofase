@@ -4,7 +4,7 @@ module classDatabase
     use Globals
     use ResultModule, only: Result
     use ErrorInstanceModule, only: ErrorInstance
-    use classLogger, only: LOG
+    use classLogger, only: LOGR
     use UtilModule
     implicit none
 
@@ -33,6 +33,23 @@ module classDatabase
         integer :: earthwormDensityUrbanGardens     ! Earthworm density urban_gardens [individuals/m2]
         integer :: earthwormDensityUrbanParks       ! Earthworm density urban_parks [individuals/m2]
         real, allocatable :: earthwormVerticalDistribution(:)   ! Vertical distribution of earthworms
+        ! Biota
+        character(len=100), allocatable :: biotaName(:)
+        character(len=100), allocatable :: biotaCompartment(:)
+        real(dp), allocatable :: biotaInitial_C_org(:)
+        real(dp), allocatable :: biota_k_growth(:)
+        real(dp), allocatable :: biota_k_death(:)
+        real(dp), allocatable :: biota_k_uptake_np(:)
+        real(dp), allocatable :: biota_k_elim_np(:)
+        real(dp), allocatable :: biota_k_uptake_transformed(:)
+        real(dp), allocatable :: biota_k_elim_transformed(:)
+        real(dp), allocatable :: biota_k_uptake_dissolved(:)
+        real(dp), allocatable :: biota_k_elim_dissolved(:)
+        real, allocatable :: biotaStoredFraction(:)
+        character(len=17), allocatable :: biotaUptakeFromForm(:)
+        integer, allocatable :: biotaHarvestInMonth(:)
+        logical :: hasBiota = .false.
+        integer :: nBiota = 0
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
@@ -415,24 +432,40 @@ module classDatabase
 
         call rslt%addToTrace('Initialising database')
         call ERROR_HANDLER%trigger(errors=.errors.rslt)
-        call LOG%add("Initialising database: success")
+        call LOGR%add("Initialising database: success")
     end subroutine
 
     subroutine parseConstantsDatabase(me, constantsFile)
         class(Database)         :: me
         character(len=*)        :: constantsFile
+        integer                 :: nmlIOStat
         integer :: n
         integer :: n_default_nm_size_distribution, n_nm_size_classes, n_default_spm_size_distribution, &
-            n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, n_vertical_distribution
+            n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
+            n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
+            n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
+            n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month
         integer :: arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
-            default_matrixembedded_distribution_to_spm(:), vertical_distribution(:)
-        real, allocatable :: nm_size_classes(:), spm_size_classes(:)
+            default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
+        real, allocatable :: nm_size_classes(:), spm_size_classes(:), stored_fraction(:)
         real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density
         real(dp) :: hamaker_constant
+        real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
+            k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
+            k_elim_dissolved(:)
+        character(len=100), allocatable :: name(:), compartment(:)
+        character(len=17), allocatable :: uptake_from_form(:)
         namelist /allocatable_array_sizes/ n_default_nm_size_distribution, n_nm_size_classes, &
             n_default_spm_size_distribution, n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, &
-            n_vertical_distribution
+            n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
+            n_k_uptake_np, n_k_elim_np, n_k_uptake_transformed, n_k_elim_transformed, &
+            n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, &
+            n_uptake_from_form, n_harvest_in_month
+        namelist /n_biota_grp/ n_biota
+        namelist /biota/ initial_C_org, k_death, k_growth, k_elim_np, k_uptake_np, name, &
+            k_elim_transformed, k_uptake_transformed, stored_fraction, compartment, &
+            k_uptake_dissolved, k_elim_dissolved, uptake_from_form, harvest_in_month
         namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, &
             urban_parks, vertical_distribution
         namelist /size_classes/ default_nm_size_distribution, nm_size_classes, default_spm_size_distribution, &
@@ -442,17 +475,35 @@ module classDatabase
         ! Open and read the NML file
         open(11, file=constantsFile, status="old")
         read(11, nml=allocatable_array_sizes)
+        rewind(11)
         ! Allocate the appropriate
-        allocate(default_nm_size_distribution(n_default_nm_size_distribution))
-        allocate(nm_size_classes(n_nm_size_classes))
-        allocate(default_spm_size_distribution(n_default_spm_size_distribution))
-        allocate(spm_size_classes(n_spm_size_classes))
-        allocate(default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm))
-        allocate(vertical_distribution(n_vertical_distribution))
+        allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
+            nm_size_classes(n_nm_size_classes), &
+            default_spm_size_distribution(n_default_spm_size_distribution), &
+            spm_size_classes(n_spm_size_classes), &
+            default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
+            vertical_distribution(n_vertical_distribution))
+
+        read(11, nml=n_biota_grp, iostat=nmlIOStat)
+        rewind(11)
+        if (nmlIOStat .ge. 0) then
+            allocate(initial_C_org(n_biota), k_death(n_biota), k_elim_np(n_biota), &
+                k_uptake_np(n_biota), k_growth(n_biota), name(n_biota), &
+                stored_fraction(n_biota), k_uptake_transformed(n_biota), &
+                k_elim_transformed(n_biota), compartment(n_biota), &
+                k_uptake_dissolved(n_biota), k_elim_dissolved(n_biota), &
+                uptake_from_form(n_biota), harvest_in_month(n_biota))
+            read(11, nml=biota)
+            rewind(11)
+            me%hasBiota = .true.
+        end if
         read(11, nml=earthworm_densities)
+        rewind(11)
         read(11, nml=size_classes)
+        rewind(11)
         read(11, nml=soil)
         close(11)
+
         ! Save these to class variables
         me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
         me%defaultSpmSizeDistribution = default_spm_size_distribution / 100.0
@@ -476,6 +527,24 @@ module classDatabase
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
         me%earthwormVerticalDistribution = vertical_distribution / 100.0
+        ! Biota
+        if (me%hasBiota) then
+            me%biotaName = name
+            me%biotaInitial_C_org = initial_C_org
+            me%biota_k_growth = k_growth
+            me%biota_k_death = k_death
+            me%biota_k_uptake_np = k_uptake_np
+            me%biota_k_elim_np = k_elim_np
+            me%biota_k_uptake_transformed = k_uptake_transformed
+            me%biota_k_elim_transformed = k_elim_transformed
+            me%biota_k_uptake_dissolved = k_uptake_dissolved
+            me%biota_k_elim_dissolved = k_elim_dissolved
+            me%biotaStoredFraction = stored_fraction
+            me%nBiota = n_biota
+            me%biotaCompartment = compartment
+            me%biotaUptakeFromForm = uptake_from_form
+            me%biotaHarvestInMonth = harvest_in_month
+        end if
 
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM

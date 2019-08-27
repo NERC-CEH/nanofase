@@ -5,7 +5,7 @@ module classSoilLayer1
     use spcSoilLayer
     use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
-    use classBiota1
+    use classBiotaSoil
     implicit none
 
     !> `SoilLayer1` is responsible for routing percolated water through
@@ -38,6 +38,7 @@ module classSoilLayer1
         real(dp), intent(in) :: d_grain                 !! Average grain diameter [m]
         real(dp), intent(in) :: porosity                !! Porosity [-]
         real(dp), intent(in) :: earthwormDensity        !! Earthworm density [individuals/m2]
+        integer :: i                                    ! Iterator
         type(Result) :: r
             !! The `Result` object to return, with any errors from parsing input data.
 
@@ -92,8 +93,20 @@ module classSoilLayer1
         end if
 
         ! Allocate and create the Biota object
-        allocate(Biota1 :: me%biota)
-        call r%addErrors(.errors. me%biota%create())
+        ! TODO move all this to database
+        allocate(me%biotaIndices(0))
+        if (DATASET%hasBiota) then
+            do i = 1, DATASET%nBiota
+                if (trim(DATASET%biotaCompartment(i)) == 'soil') then
+                    me%nBiota = me%nBiota + 1
+                    me%biotaIndices = [me%biotaIndices, i]
+                end if
+            end do
+        end if
+        allocate(me%biota(me%nBiota))
+        do i = 1, me%nBiota
+            call r%addErrors(.errors. me%biota(i)%create(me%biotaIndices(i)))
+        end do
 
         ! Add this procedure to error traces
         call r%addToTrace("Creating " // trim(me%ref))
@@ -159,9 +172,9 @@ module classSoilLayer1
             do j = 1, C%npDim(2)
                 do i = 1, C%npDim(1)
                     if (isZero(me%m_np(i,j,k))) then
-                        me%C_np = 0.0_dp
+                        me%C_np(i,j,k) = 0.0_dp
                     else
-                        me%C_np = me%m_np / (me%depth * me%area * me%bulkDensity)
+                        me%C_np(i,j,k) = me%m_np(i,j,k) / (me%depth * me%area * me%bulkDensity)
                     end if
                 end do
             end do
@@ -177,8 +190,14 @@ module classSoilLayer1
         end if
 
         ! Update the biota
-        ! TODO which forms/states of NM should go to biota?
-        call r%addErrors(.errors. me%biota%update(t, [sum(me%m_np)/(me%depth*me%area), 0.0_dp]))
+        do i = 1, me%nBiota
+            call r%addErrors(.errors. me%biota(i)%update( &
+                t, &
+                me%C_np, &
+                me%C_transformed, &
+                me%C_dissolved &
+            ))
+        end do
 
         ! Add this procedure to the error trace
         call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))

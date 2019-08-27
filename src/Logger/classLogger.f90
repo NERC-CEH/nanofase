@@ -20,7 +20,7 @@ module classLogger
         procedure :: toConsole => toConsoleLogger
     end type
 
-    type(Logger) :: LOG         !> Globally-available LOG object
+    type(Logger) :: LOGR         !> Globally-available LOGR object
 
   contains
 

@@ -153,10 +153,10 @@ module classEnvironment1
         end if
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
-        call LOG%toFile(errors=.errors.r)
+        call LOGR%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors= .errors. r)          ! Trigger any errors present
         call r%clear()                                          ! Remove any errors so we don't trigger them twice
-        call LOG%toConsole('Creating the Environment: \x1B[32msuccess\x1B[0m')
+        call LOGR%toConsole('Creating the Environment: \x1B[32msuccess\x1B[0m')
     end function
 
     !> Destroy the `Environment` instance
@@ -181,7 +181,7 @@ module classEnvironment1
         type(ReachPointer), allocatable :: tmpJunctionReaches(:)
         type(ReachPointer), allocatable :: junctionReaches(:)
 
-        call LOG%add("Performing simulation for time step #" // trim(str(t)) // "...")
+        call LOGR%add("Performing simulation for time step #" // trim(str(t)) // "...")
 
         ! Update all grid cells first
         !!$omp parallel do private(y)

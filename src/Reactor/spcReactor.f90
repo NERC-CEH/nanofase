@@ -13,7 +13,7 @@ module spcReactor
             !! state (2nd dimension) and form (3rd dimension). States: free, bound to solid, heteroaggreated
             !! (per SPM size class). Forms: core, shell, coating, corona.
         real(dp), allocatable :: m_dissolved(:)
-        real(dp), allocatable :: m_transformed
+        real(dp), allocatable :: m_transformed(:,:,:)
             !! Array of ionic metal masses: Ionic, complexed, adsorbed.
         real(dp), allocatable :: C_np_free_particle(:)      !! Particle concentration of free NPs
         real(dp) :: T_water                     !! Temperature of the water [C]
@@ -55,13 +55,14 @@ module spcReactor
         end function
     
         !> Run the `Reactor`'s simulation for the current time step
-        function updateReactor(me, t, m_np, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
+        function updateReactor(me, t, m_np, m_transformed, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
             use Globals
             use ResultModule, only: Result
             import Reactor
             class(Reactor) :: me                        !! This `Reactor1` object
             integer :: t                                !! The current time step
-            real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)     !! Mass of NP for this timestep [kg]
+            real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)            !! Mass of NP for this timestep [kg]
+            real(dp) :: m_transformed(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)   !! Mass of transformed NM for this timestep [kg]
             real(dp) :: C_spm(C%nSizeClassesSpm)        !! The current mass concentration of SPM [kg/m3]
             real(dp) :: T_water                         !! The current water temperature [C]
             real(dp) :: W_settle_np(C%nSizeClassesNP)   !! NP settling velocity [m/s]

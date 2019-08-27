@@ -8,7 +8,7 @@ module spcWaterBody
     use classDatabase, only: DATASET
     use spcBedSediment
     use spcReactor
-    use classBiota1
+    use classBiotaWater
     implicit none
     
     !> `WaterBodyPointer` used for `WaterBody` inflows array, so the elements within can
@@ -49,9 +49,9 @@ module spcWaterBody
         real(dp), allocatable :: C_np(:,:,:)                        !! NM mass concentration [kg/m3]
         real(dp), allocatable :: C_np_final(:,:,:)                  !! NM mass concentration [kg/m3]
         real(dp), allocatable :: m_np(:,:,:)                        !! NM mass mass [kg]
-        real(dp) :: m_transformed                                   !! Transformed NM mass [kg]
-        real(dp) :: C_transformed                                   !! Transformed NM concentration [kg/m3]
-        real(dp) :: C_transformed_final
+        real(dp), allocatable :: m_transformed(:,:,:)               !! Transformed NM mass [kg]
+        real(dp), allocatable :: C_transformed(:,:,:)               !! Transformed NM concentration [kg/m3]
+        real(dp), allocatable :: C_transformed_final(:,:,:)
         real(dp) :: m_dissolved                                     !! Dissolved NM mass [kg]
         real(dp) :: C_dissolved                                     !! Dissolved NM concentration [kg/m3]
         real(dp) :: C_dissolved_final
@@ -77,8 +77,8 @@ module spcWaterBody
             !! Flow of NM, same conventions as Q [kg/timestep]. 2nd-4th dimensions are the NM size class,
             !! NM form and NM state, respectively.
         real(dp), allocatable :: j_np_final(:,:,:,:)                !! Final NM flux array - see Q_final [kg/timestep]
-        real(dp), allocatable :: j_transformed(:)                   !! Transformed NM flux array [kg/timestep]
-        real(dp), allocatable :: j_transformed_final(:)             !! Final transformed flux array [kg/timestep]
+        real(dp), allocatable :: j_transformed(:,:,:,:)             !! Transformed NM flux array [kg/timestep]
+        real(dp), allocatable :: j_transformed_final(:,:,:,:)       !! Final transformed flux array [kg/timestep]
         real(dp), allocatable :: j_dissolved(:)                     !! Dissolved species flux array [kg/timestep]
         real(dp), allocatable :: j_dissolved_final(:)               !! Final dissolved flux array [kg/timestep]
         real(dp), allocatable :: j_ionic(:,:)
@@ -90,7 +90,6 @@ module spcWaterBody
         real(dp), allocatable :: W_settle_np(:)                     !! NP settling velocity [m/s]
         ! Contained objects
         class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
-        class(Biota), allocatable :: biota                          !! Contained `Biota` object
         class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
         type(PointSource2), allocatable :: pointSources(:)          !! Contained `PointSource` objects
         logical :: hasPointSource = .false.                         !! Does this water body have any point sources?
@@ -100,6 +99,10 @@ module spcWaterBody
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
         logical :: isTidalLimit = .false.                           !! Is this water body at the tidal limit?
         logical :: isUpdated = .false.                              !! Has the waterbody been updated on this time step yet?
+        ! Biota
+        type(BiotaWater), allocatable :: biota(:)                  !! Contained `Biota` object
+        integer :: nBiota = 0
+        integer, allocatable :: biotaIndices(:)
 
       contains
         ! Create
@@ -185,7 +188,10 @@ module spcWaterBody
             me%k_resus(C%nSizeClassesSpm), &
             me%k_settle(C%nSizeClassesSpm), &
             me%W_settle_spm(C%nSizeClassesSpm), &
-            me%W_settle_np(C%nSizeClassesNP) &
+            me%W_settle_np(C%nSizeClassesNP), &
+            me%C_transformed(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%C_transformed_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) &
         )
         me%C_spm = 0
         me%C_spm_final = 0

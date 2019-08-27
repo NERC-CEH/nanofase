@@ -20,7 +20,7 @@ module classBiota1                                                      !! class
             ! Get data from input file
             call rslt%addErrors(.errors. me%parseInputData())
             call rslt%addToTrace('Creating Biota')                 ! Add this procedure to the trace
-            ! call LOG%toFile(errors=.errors. rslt)
+            ! call LOGR%toFile(errors=.errors. rslt)
         end function
 
         function updateBiota1(me, t, C_np_matrices) result(rslt)
