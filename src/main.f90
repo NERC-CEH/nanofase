@@ -7,14 +7,14 @@ program main
     use classEnvironment1
     use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
-    use classLogger, only: LOG, timestamp
+    use classLogger, only: LOGR, timestamp
     use datetime_module
     use omp_lib
     implicit none
 
     real :: start, finish, wallStart, wallFinish                    ! Simulation start and finish times
     type(Result) :: r                                               ! Result object
-    integer :: x, y, rr, t, i, s, j                                 ! Loop iterators
+    integer :: x, y, rr, t, i, s, j, b                              ! Loop iterators
     real(dp) :: m_spm(5)
     real(dp) :: C_spm(5)
     type(Environment1) :: env                                       ! Environment object
@@ -54,19 +54,20 @@ program main
     ! Set up global vars and constants, and initialise data interfacer.
     ! These vars are available globally
     call GLOBALS_INIT()                                                 ! Set up global vars and constants
-    call LOG%init( &
+    call LOGR%init( &
         logToFile=.true., &
         logToConsole=.true., &
         logFilePath=C%logFilePath &
     )
-    call LOG%toConsole("--------------------------------")
-    call LOG%toConsole(" Welcome to the NanoFASE model! ")
-    call LOG%toConsole("--------------------------------\n")
+    call LOGR%toConsole("--------------------------------")
+    call LOGR%toConsole(" Welcome to the NanoFASE model! ")
+    call LOGR%toConsole("--------------------------------\n")
 
     ! Open the output files to print to
     open(unit=2, file=trim(C%outputPath) // C%outputFile)
     open(unit=3, file=trim(C%outputPath) // 'output_spm.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
+    open(unit=8, file=trim(C%outputPath) // 'output_biota.csv')
     if (C%calibrationRun) then
         open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
         write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
@@ -81,6 +82,7 @@ program main
         "m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l1_att,m_np_l2_att,m_np_l3_att,", &
         "C_transformed_l1,C_transformed_l2,C_transformed_l3,C_dissolved_l1,C_dissolved_l2,C_dissolved_l3,", &
         "m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
+    write(8, *) "t,x,y,rr,b,name,compartment,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
     call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
@@ -103,7 +105,7 @@ program main
         m_np_free = 0
         m_np_hetero = 0
         r = env%update(t)
-        call LOG%toFile(errors=.errors.r)                               ! Output any errors to the log file
+        call LOGR%toFile(errors=.errors.r)                               ! Output any errors to the log file
         call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
 
         ! TODO: Do something with Result object
@@ -118,8 +120,8 @@ program main
                         C_spm = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_spm
                         m_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_np
                         C_np = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_np
-                        m_transformed = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_transformed
-                        C_transformed = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_transformed
+                        m_transformed = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_transformed)
+                        C_transformed = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_transformed)
                         m_dissolved = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%m_dissolved
                         C_dissolved = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%C_dissolved
                         npDep = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_deposit()
@@ -145,9 +147,11 @@ program main
                         end select
 
                         npPointSource = sum(env%colGridCells(x,y)%item%colRiverReaches(rr)%item%j_np_pointsource())
-                        C_np_biota = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np
-                        C_np_biota_noStoredFraction &
-                            = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np_noStoredFraction
+                        ! C_np_biota = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np
+                        ! C_np_biota_noStoredFraction &
+                        !     = env%colGridCells(x,y)%item%colRiverReaches(rr)%item%biota%C_np_noStoredFraction
+                        C_np_biota = 0
+                        C_np_biota_noStoredFraction = 0
                         ! Write to the data file
                         write(2, *) &
                             trim(str(t)), ",", &
@@ -233,9 +237,11 @@ program main
                     m_np_eroded = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np_eroded
                     m_np_buried = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_buried
                     m_np_in = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_in
-                    C_np_biota = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np
-                    C_np_biota_noStoredFraction &
-                        = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np_noStoredFraction
+                    ! C_np_biota = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np
+                    ! C_np_biota_noStoredFraction &
+                        ! = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np_noStoredFraction
+                    C_np_biota = 0
+                    C_np_biota_noStoredFraction = 0
                     total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3)
                     
                     total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
@@ -254,6 +260,18 @@ program main
                         C_dissolved_l3, ",", &
                         sum(m_np_eroded(:,1,2)), ", ", &
                         sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota, ", ", C_np_biota_noStoredFraction
+
+                    do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
+                        write(8, *) t, ", ", x, ", ", y, ", -, ", b, ", ", &
+                            trim(env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%name), ",", &
+                            'soil, ', &
+                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_active, ",", &
+                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_stored, ",", &
+                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%biota(b)%C_active, ",", &
+                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%biota(b)%C_stored, ",", &
+                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_active, ",", &
+                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_stored
+                    end do
 
                 end if
             end do

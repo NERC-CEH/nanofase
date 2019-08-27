@@ -116,16 +116,16 @@ module classPointSource
         end if
         
         ! Get fixed mass, otherwise set to 0 [kg]
-        call r%addErrors(.errors. DATA%get("fixed_mass", me%fixedMass, 0.0_dp))
-        call r%addErrors(.errors. DATA%get("fixed_mass_dissolved", me%fixedMassDissolved, 0.0_dp))
+        call r%addErrors(.errors. DATA%get("fixed_mass", me%fixedMass, 0.0_dp, warnIfDefaulting=.false.))
+        call r%addErrors(.errors. DATA%get("fixed_mass_dissolved", me%fixedMassDissolved, 0.0_dp, warnIfDefaulting=.false.))
         ! call r%addErrors(.errors. DATA%get("fixed_mass_transformed", me%fixedMassTransformed, 0.0_dp))
 
         ! If a fixed mass frequency has been specified, use it, otherwise default to daily
-        call r%addErrors(.errors. DATA%get("fixed_mass_frequency", me%fixedMassFrequency, 1))
+        call r%addErrors(.errors. DATA%get("fixed_mass_frequency", me%fixedMassFrequency, 1, warnIfDefaulting=.false.))
         ! me%fixedMassFrequency = 10 ! HACK!!!!
         ! If a time series of inputs has been specified
-        call r%addErrors(.errors. DATA%get("variable_mass", me%variableMass_timeSeries, 0.0_dp))
-        call r%addErrors(.errors. DATA%get("variable_mass_pristine", variableMassPristine, 0.0_dp))
+        call r%addErrors(.errors. DATA%get("variable_mass", me%variableMass_timeSeries, 0.0_dp, warnIfDefaulting=.false.))
+        call r%addErrors(.errors. DATA%get("variable_mass_pristine", variableMassPristine, 0.0_dp, warnIfDefaulting=.false.))
         me%variableMass_timeSeries(:,:,1,1) = me%variableMass_timeSeries(:,:,1,1) + variableMassPristine
         
         ! Add this procedure to the error trace
