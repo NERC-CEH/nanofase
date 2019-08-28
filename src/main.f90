@@ -67,21 +67,23 @@ program main
     open(unit=2, file=trim(C%outputPath) // C%outputFile)
     open(unit=3, file=trim(C%outputPath) // 'output_spm.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
-    open(unit=8, file=trim(C%outputPath) // 'output_biota.csv')
+    open(unit=8, file=trim(C%outputPath) // 'output_soil_biota.csv')
+    open(unit=9, file=trim(C%outputPath) // 'output_water_biota.csv')
     if (C%calibrationRun) then
         open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
         write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
                     "reach_type,total_m_spm(kg),total_C_spm(g/l)"
     end if
-    write(2, *) "t,x,y,rr,m_np,C_np,m_transformed,C_transformed,", &
+    write(2, *) "t,x,y,rr,reach_type,m_np,C_np,m_transformed,C_transformed,", &
         "m_dissolved,C_dissolved,m_np_dep,m_transformed_dep,m_spm,C_spm,reach_volume,reach_depth,reach_flow,", &
-        "reach_type,m_np_outflow,m_transformed_outflow,m_dissolved_outflow,k_settle,k_resus"
+        "m_np_outflow,m_transformed_outflow,m_dissolved_outflow,k_settle,k_resus"
     write(3, *) "t,x,y,rr,m_spm,j_spm_runoff,j_spm_outflow,j_spm_deposit,reach_type"
     write(5, *) "t,x,y,total_m_np,total_C_np,total_C_transformed,total_C_dissolved,bulk_density,", &
         "m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l1_att,m_np_l2_att,m_np_l3_att,", &
         "C_transformed_l1,C_transformed_l2,C_transformed_l3,C_dissolved_l1,C_dissolved_l2,C_dissolved_l3,", &
         "m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
-    write(8, *) "t,x,y,rr,b,name,compartment,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
+    write(8, *) "t,x,y,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
+    write(9, *) "t,x,y,rr,b,name,compartment,C_active,C_stored"
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
     call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
@@ -114,14 +116,20 @@ program main
         do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
             do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
                 if (.not. env%colGridCells(x,y)%item%isEmpty) then
-                    
 
                    ! RiverReachs
                     do rr = 1, env%colGridCells(x,y)%item%nReaches
 
                         associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
+                            ! What reach type is this?
+                            select type (reach)
+                                type is (RiverReach)
+                                    reachType = 'riv'
+                                type is (EstuaryReach)
+                                    reachType = 'est'
+                            end select
                             ! Water output file
-                            write(2, *) t, ",", x, ",", y, ",", rr, ",", &
+                            write(2, *) t, ",", x, ",", y, ",", rr, ",", reachType, ",", &
                                 trim(str(sum(reach%m_np))), ",", &
                                 trim(str(sum(reach%C_np))), ",", &
                                 trim(str(sum(reach%m_transformed))), ",", &
@@ -135,7 +143,6 @@ program main
                                 trim(str(reach%volume)), ",", &
                                 trim(str(reach%depth)), ",", &
                                 trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                trim(reachType), ",", &
                                 trim(str(sum(reach%j_np_outflow()))), ",", &
                                 trim(str(sum(reach%j_transformed_outflow()))), ",", &
                                 trim(str(reach%j_dissolved_outflow())), ",", &
@@ -148,29 +155,39 @@ program main
                                 trim(str(sum(reach%j_spm_outflow()))), ",", &
                                 trim(str(sum(reach%j_spm_deposit()))), ",", &
                                 trim(reachType)
-                        end associate
+                            ! Biota
+                            do b = 1, reach%nBiota
+                                write(9, *) t, ",", x, ",", y, ",", rr, ",", b, ",", &
+                                    trim(reach%biota(b)%name), ",", &
+                                    reachType, ",", &
+                                    reach%biota(b)%C_active, ",", &
+                                    reach%biota(b)%C_stored
+                            end do
 
-                        if (C%calibrationRun) then
-                            if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%startSite) then
-                                write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", rr, ",", &
-                                            trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
-                                            trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
-                            else if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef == C%endSite) then
-                                write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", rr, ",", &
-                                            trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
-                                            trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
-                            else
-                                do i = 1, size(C%otherSites)
-                                    if (env%colGridCells(x,y)%item%colRiverReaches(rr)%item%calibrationSiteRef &
-                                        == C%otherSites(i)) then
-                                        write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", rr, ",", &
-                                            trim(str(riverVolume)), ",", trim(str(Q_out)), ",", trim(str(reachDepth)), ",", &
-                                            trim(reachType), ",", trim(str(sum(m_spm))), ",", trim(str(sum(C_spm)))
-                                    end if
-                                end do
+                            if (C%calibrationRun) then
+                                if (reach%calibrationSiteRef == C%startSite) then
+                                    write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", rr, ",", &
+                                                trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                                trim(str(reach%depth)), ",", trim(reachType), ",", trim(str(sum(reach%m_spm))), &
+                                                ",", trim(str(sum(reach%C_spm)))
+                                else if (reach%calibrationSiteRef == C%endSite) then
+                                    write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", rr, ",", &
+                                                trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                                trim(str(reach%depth)), ",", trim(reachType), ",", trim(str(sum(reach%m_spm))), &
+                                                ",", trim(str(sum(reach%C_spm)))
+                                else
+                                    do i = 1, size(C%otherSites)
+                                        if (reach%calibrationSiteRef &
+                                            == C%otherSites(i)) then
+                                            write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", rr, ",", &
+                                                trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                                trim(str(reach%depth)), ",", trim(reachType), ",", trim(str(sum(reach%m_spm))), &
+                                                ",", trim(str(sum(reach%C_spm)))
+                                        end if
+                                    end do
+                                end if
                             end if
-                        end if
-
+                        end associate
                     end do
 
                     if (env%colGridCells(x,y)%item%colSoilProfiles(1)%item%bulkDensity < 0) then
@@ -225,9 +242,8 @@ program main
                         sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota, ", ", C_np_biota_noStoredFraction
 
                     do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
-                        write(8, *) t, ", ", x, ", ", y, ", -, ", b, ", ", &
+                        write(8, *) t, ",", x, ",", y, ",", b, ",", &
                             trim(env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%name), ",", &
-                            'soil, ', &
                             env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_active, ",", &
                             env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_stored, ",", &
                             env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%biota(b)%C_active, ",", &
@@ -235,7 +251,6 @@ program main
                             env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_active, ",", &
                             env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_stored
                     end do
-
                 end if
             end do
         end do

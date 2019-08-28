@@ -86,6 +86,7 @@ module classReactor1
         ! with inflows/outflows and just takes a mass on each timestep and transforms
         ! that mass
         me%m_np = m_np
+        me%m_transformed = m_transformed
         me%volume = volume                  ! Volume of the container
         me%T_water = T_water                ! Current water temperature
         me%W_settle_np = W_settle_np        ! Settling rates

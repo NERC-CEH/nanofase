@@ -191,9 +191,6 @@ module classEnvironment1
             end do
         end do
         !!$omp end parallel do
-
-        print *, "after grid cells updated"
-
         ! Loop through the headwaters and route from these downstream. We don't need to do this separately
         ! for calibration runs, because each reach with a sample site has already been told its boundary
         ! conditions and thus will ignore inflows from upstream. Just bare in mind that only the calibration
@@ -230,60 +227,6 @@ module classEnvironment1
                 end do
             end if
         end do
-        ! If this is a calibration run, we need to start at the specified sites in the config file and go
-        ! downstream.
-        
-            ! allocate(junctionReaches(0))
-            ! ! Loop over all of the sites, except the end site, and go downstream until we hit a
-            ! ! junction, then store these so we can loop through and go upstream to fill in the gaps later
-            ! do i = 1, size(C%otherSites) + 1
-            !     if (i == size(C%otherSites) + 1) then
-            !         reach%item => me%startSite%reach%item
-            !     else
-            !         reach%item => me%otherSites(i)%reach%item
-            !     end if
-            !     goDownstream = .true.
-            !     ! Loop through reaches and update until we hit a stream junction, checking if we've
-            !     ! hit the end site yet
-            !     do while (goDownstream)
-            !         call r%addErrors(.errors. me%updateReach(t, reach))
-            !         if (.not. associated(reach%item%outflow%item)) then
-            !             goDownstream = .false.          ! Can't go any further!
-            !             endSiteReached = .false.        ! We never reached the given end site
-            !             ! TODO print some kind of error about not reaching end site
-            !         ! If we've reached the end site, we don't need to do anything else
-            !         else if (trim(reach%item%ref) == trim(me%endSite%reach%item%ref)) then
-            !             goDownstream = .false.
-            !             endSiteReached = .true.
-            !         else
-            !             ! Point reach to the next downstream reach
-            !             reach%item => reach%item%outflow%item
-            !             ! Check all of the next reach's inflows have been updated,
-            !             ! otherwise the do loop will stop
-            !             do j = 1, reach%item%nInflows
-            !                 if (.not. reach%item%inflows(j)%item%isUpdated) then
-            !                     goDownstream = .false.
-            !                     endSiteReached = .false.
-            !                     allocate(tmpJunctionReaches, source=junctionReaches)
-            !                     deallocate(junctionReaches)
-            !                     allocate(junctionReaches(size(tmpJunctionReaches) + 1))
-            !                     junctionReaches(1:size(tmpJunctionReaches)) = tmpJunctionReaches
-            !                     junctionReaches(size(tmpJunctionReaches)+1)%item => reach%item
-            !                     deallocate(tmpJunctionReaches)
-            !                 end if
-            !             end do
-            !         end if
-            !     end do
-            ! end do
-            
-            ! do i = 1, size(junctionReaches)
-            !     print *, junctionReaches(i)%item%ref
-            !     do j = 1, junctionReaches(i)%item%nInflows
-            !         print *, "     ", junctionReaches(i)%item%inflows(j)%item%ref, junctionReaches(i)%item%inflows(j)%item%isUpdated
-            !     end do
-            ! end do
-            ! error stop
-
         ! Finalise the routing by setting outflows to temporary outflows that were stored
         ! to avoid routing using the wrong timestep's outflow as an inflow.
         do y = 1, DATASET%gridShape(2)

@@ -1,40 +1,39 @@
 &allocatable_array_sizes
-    n_compartment = 2
+    n_compartment = 3
     n_default_matrixembedded_distribution_to_spm = 5
     n_default_nm_size_distribution = 5
     n_default_spm_size_distribution = 5
-    n_harvest_in_month = 2
-    n_initial_c_org = 2
-    n_k_death = 2
-    n_k_elim_dissolved = 2
-    n_k_elim_np = 2
-    n_k_elim_transformed = 2
-    n_k_growth = 2
-    n_k_uptake_dissolved = 2
-    n_k_uptake_np = 2
-    n_k_uptake_transformed = 2
-    n_name = 2
+    n_harvest_in_month = 3
+    n_initial_c_org = 3
+    n_k_death = 3
+    n_k_elim_dissolved = 3
+    n_k_elim_np = 3
+    n_k_elim_transformed = 3
+    n_k_growth = 3
+    n_k_uptake_dissolved = 3
+    n_k_uptake_np = 3
+    n_k_uptake_transformed = 3
+    n_name = 3
     n_nm_size_classes = 5
     n_spm_size_classes = 5
-    n_stored_fraction = 2
-    n_uptake_from_form = 2
-    n_vertical_distribution = 3
+    n_stored_fraction = 3
+    n_uptake_from_form = 3
 /
 &biota
-    compartment = 'soil', 'soil'
-    harvest_in_month = 9, 0
-    initial_c_org = 0, 0
-    k_death = 1e-10, 0.00068
-    k_elim_dissolved = 4.974, 0.228
-    k_elim_np = 0.105, 0.062
-    k_elim_transformed = 2.722, 0.231
-    k_growth = 0.1, 1e-10
-    k_uptake_dissolved = 1.727, 0.1241
-    k_uptake_np = 0.148, 0.015
-    k_uptake_transformed = 0.612, 0.016
-    name = 'wheat', 'earthworm'
-    stored_fraction = 0, 0.1
-    uptake_from_form = 'free_and_attached', 'free_and_attached'
+    compartment = 'soil', 'soil', 'water'
+    harvest_in_month = 9, 0, 0
+    initial_c_org = 0, 0, 0
+    k_death = 1e-10, 0.00068, 0.2
+    k_elim_dissolved = 4.974, 0.228, 1.94
+    k_elim_np = 0.105, 0.062, 0
+    k_elim_transformed = 2.722, 0.231, 0.11
+    k_growth = 0.1, 1e-10, 0.25
+    k_uptake_dissolved = 1.727, 0.1241, 1.79
+    k_uptake_np = 0.148, 0.015, 0
+    k_uptake_transformed = 0.612, 0.016, 1.38
+    name = 'wheat', 'earthworm', 'chironomus'
+    stored_fraction = 0, 0.1, 0.08
+    uptake_from_form = 'free_and_attached', 'free_and_attached', 'free_and_attached'
 /
 
 &earthworm_densities
@@ -46,11 +45,10 @@
     urban_capped = 0
     urban_gardens = 150
     urban_parks = 250
-    vertical_distribution = 50, 35, 15
 /
 
 &n_biota_grp
-    n_biota = 2
+    n_biota = 3
 /
 
 &size_classes

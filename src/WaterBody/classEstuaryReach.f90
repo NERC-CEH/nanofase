@@ -59,8 +59,23 @@ module classEstuaryReach
         call rslt%addErrors([ &
             .errors. me%bedSediment%create(me%ncGroup), &
             .errors. me%reactor%create(me%x, me%y, me%alpha_hetero) &
-            ! .errors. me%biota%create() &
         ])
+
+        ! Allocate and create the correct number of biota objects for this reach
+        ! TODO move all this to database
+        allocate(me%biotaIndices(0))
+        if (DATASET%hasBiota) then
+            do i = 1, DATASET%nBiota
+                if (trim(DATASET%biotaCompartment(i)) == 'water') then
+                    me%nBiota = me%nBiota + 1
+                    me%biotaIndices = [me%biotaIndices, i]
+                end if
+            end do
+        end if
+        allocate(me%biota(me%nBiota))
+        do i = 1, me%nBiota
+            call rslt%addErrors(.errors. me%biota(i)%create(me%biotaIndices(i)))
+        end do
 
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOGR%toFile("Creating " // trim(me%ref) // ": success")
@@ -418,8 +433,16 @@ module classEstuaryReach
         end if
 
         ! Update the biota
-        ! TODO which forms/states of NM should go to biota?
-        ! call rslt%addErrors(.errors. me%biota%update(t, [sum(me%C_np), 0.0_dp]))
+        ! Update the biota
+        do i = 1, me%nBiota
+            call rslt%addErrors(.errors. me%biota(i)%update( &
+                t, &
+                me%C_np, &
+                me%C_transformed, &
+                me%C_dissolved &
+                ) &
+            )
+        end do
 
         ! Set the updated flag to true
         me%isUpdated = .true.
