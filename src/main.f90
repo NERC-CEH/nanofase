@@ -80,8 +80,8 @@ program main
     write(3, *) "t,x,y,rr,m_spm,j_spm_runoff,j_spm_outflow,j_spm_deposit,reach_type"
     write(5, *) "t,x,y,total_m_np,total_C_np,total_C_transformed,total_C_dissolved,bulk_density,", &
         "m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l1_att,m_np_l2_att,m_np_l3_att,", &
-        "C_transformed_l1,C_transformed_l2,C_transformed_l3,C_dissolved_l1,C_dissolved_l2,C_dissolved_l3,", &
-        "m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
+        "C_np_l1,C_np_l2,C_np_l3,C_transformed_l1,C_transformed_l2,C_transformed_l3,C_dissolved_l1, ", &
+        "C_dissolved_l2,C_dissolved_l3,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
     write(8, *) "t,x,y,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
     write(9, *) "t,x,y,rr,b,name,compartment,C_active,C_stored"
 
@@ -190,41 +190,31 @@ program main
                         end associate
                     end do
 
-                    if (env%colGridCells(x,y)%item%colSoilProfiles(1)%item%bulkDensity < 0) then
-                        bulkDensity = 1220
-                    else
-                        bulkDensity = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%bulkDensity
-                    end if
+                    associate (profile => env%colGridCells(x,y)%item%colSoilProfiles(1)%item)
+                        if (profile%bulkDensity < 0) then
+                            bulkDensity = 1220
+                        else
+                            bulkDensity = profile%bulkDensity
+                        end if
+                        m_np_l1 = profile%colSoilLayers(1)%item%m_np
+                        m_np_l2 = profile%colSoilLayers(2)%item%m_np
+                        m_np_l3 = profile%colSoilLayers(3)%item%m_np
+                        C_np_l1 = sum(m_np_l1) / (bulkDensity * profile%colSoilLayers(1)%item%volume)
+                        C_np_l2 = sum(m_np_l2) / (bulkDensity * profile%colSoilLayers(2)%item%volume)
+                        C_np_l3 = sum(m_np_l3) / (bulkDensity * profile%colSoilLayers(3)%item%volume)
+                        C_transformed_l1 = sum(profile%colSoilLayers(1)%item%m_transformed) / (bulkDensity * profile%colSoilLayers(1)%item%volume)
+                        C_transformed_l2 = sum(profile%colSoilLayers(2)%item%m_transformed) / (bulkDensity * profile%colSoilLayers(2)%item%volume)
+                        C_transformed_l3 = sum(profile%colSoilLayers(3)%item%m_transformed) / (bulkDensity * profile%colSoilLayers(3)%item%volume)
+                        C_dissolved_l1 = profile%colSoilLayers(1)%item%m_dissolved / profile%colSoilLayers(1)%item%volume
+                        C_dissolved_l2 = profile%colSoilLayers(2)%item%m_dissolved / profile%colSoilLayers(2)%item%volume
+                        C_dissolved_l3 = profile%colSoilLayers(3)%item%m_dissolved / profile%colSoilLayers(3)%item%volume
+                        m_np_eroded = profile%colSoilLayers(1)%item%m_np_eroded
+                        m_np_buried = profile%m_np_buried
+                        m_np_in = profile%m_np_in
+                        total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3)
+                        total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
+                    end associate
 
-                    volume = (bulkDensity * 0.4 * 5000 * 5000)
-        
-                    m_np_l1 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np
-                    m_np_l2 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%m_np
-                    m_np_l3 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%m_np
-                    ! m_np_l4 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(4)%item%m_np
-                    C_transformed_l1 = sum(env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_transformed) &
-                        / volume
-                    C_transformed_l2 = sum(env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%m_transformed) &
-                        / volume
-                    C_transformed_l3 = sum(env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%m_transformed) &
-                        / volume
-                    C_dissolved_l1 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_dissolved &
-                        / volume
-                    C_dissolved_l2 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%m_dissolved &
-                        / volume
-                    C_dissolved_l3 = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%m_dissolved &
-                        / volume
-                    m_np_eroded = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%m_np_eroded
-                    m_np_buried = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_buried
-                    m_np_in = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%m_np_in
-                    ! C_np_biota = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np
-                    ! C_np_biota_noStoredFraction &
-                        ! = env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota%C_np_noStoredFraction
-                    C_np_biota = 0
-                    C_np_biota_noStoredFraction = 0
-                    total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3)
-                    
-                    total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
                     write(5,*) t, ", ", x, ", ", y, ", ", &
                         total_m_np, ", ", total_C_np, ", ", &
                         C_transformed_l1 + C_transformed_l2 + C_transformed_l3, ",", &
@@ -232,6 +222,9 @@ program main
                         sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
                         sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
                         sum(m_np_l3(:,1,2)), ", ", &
+                        C_np_l1, ",", &
+                        C_np_l2, ",", &
+                        C_np_l3, ",", &
                         C_transformed_l1, ",", &
                         C_transformed_l2, ",", &
                         C_transformed_l3, ",", &
