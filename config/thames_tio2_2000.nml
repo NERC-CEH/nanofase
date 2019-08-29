@@ -24,7 +24,7 @@ output_path = "data/output/"
 
 &run
 timestep = 86400
-n_timesteps = 366
+n_timesteps = 365
 start_date = "2000-01-01"
 epsilon = 1e-50,
 error_output = .false.
@@ -51,8 +51,6 @@ default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .false.
-default_alpha_resus = 5e-4
-default_beta_resus = 5e-8
 /
 
 &sources

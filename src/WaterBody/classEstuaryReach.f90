@@ -406,6 +406,7 @@ module classEstuaryReach
                     t, &
                     me%m_np, &
                     me%m_transformed, &
+                    me%m_dissolved, &
                     me%C_spm, &
                     me%T_water, &
                     me%W_settle_np, &
@@ -417,6 +418,7 @@ module classEstuaryReach
             ! Get the resultant transformed mass from the Reactor
             me%m_np = me%reactor%m_np
             me%m_transformed = me%reactor%m_transformed
+            me%m_dissolved = me%reactor%m_dissolved
         end if
 
         ! Set the final concentrations, checking that the river has a volume
@@ -550,8 +552,8 @@ module classEstuaryReach
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
 
         ! HACK set alpha_resus and beta_resus always to the default value
-        me%alpha_resus = C%default_alpha_resus
-        me%beta_resus = C%default_beta_resus
+        me%alpha_resus = DATASET%waterResuspensionAlphaEstuary
+        me%beta_resus = DATASET%waterResuspensionBetaEstuary
 
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created

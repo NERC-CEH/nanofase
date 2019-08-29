@@ -33,3 +33,10 @@
     hamaker_constant = 6.9e-21
     particle_density = 2500.0
 /
+
+&water
+    resuspension_alpha = 0.0005
+    resuspension_alpha_estuary = 0.01
+    resuspension_beta = 5e-08
+    resuspension_beta_estuary = 0.001
+/

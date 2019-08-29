@@ -50,6 +50,14 @@ module classDatabase
         integer, allocatable :: biotaHarvestInMonth(:)
         logical :: hasBiota = .false.
         integer :: nBiota = 0
+        ! Water
+        real(dp) :: waterResuspensionAlpha          ! Resuspension parameter alpha
+        real(dp) :: waterResuspensionBeta           ! Resuspension parameter beta
+        real(dp) :: waterResuspensionAlphaEstuary   ! Resuspension parameter alpha for estuary
+        real(dp) :: waterResuspensionBetaEstuary    ! Resuspension parameter beta for estuary
+        real(dp) :: water_k_diss_pristine           ! Dissolution rate constant for pristine NM [/s]
+        real(dp) :: water_k_diss_transformed        ! Dissolution rate constant for transformed NM [/s]
+        real(dp) :: water_k_transform_pristine      ! Transformation rate constant for pristine NM [/s]
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
@@ -134,12 +142,9 @@ module classDatabase
         type(NcDimension)   :: p_dim
         integer             :: maxPointSources
         
-
-        print *, "before constants"
         ! Open the dataset and constants NML file
         me%nc = NcDataset(inputFile, 'r')
         call me%parseConstants(constantsFile)
-        print *, "after constants"
         
         ! Variable units: These will already have been converted to the correct
         ! units for use in the model by nanofase-data (the input data compilation
@@ -453,7 +458,9 @@ module classDatabase
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
         real, allocatable :: nm_size_classes(:), spm_size_classes(:), stored_fraction(:)
         real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density
-        real(dp) :: hamaker_constant
+        real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
+            resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
+            k_transform_pristine
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
             k_elim_dissolved(:)
@@ -474,15 +481,20 @@ module classDatabase
         namelist /size_classes/ default_nm_size_distribution, nm_size_classes, default_spm_size_distribution, &
             spm_size_classes, default_matrixembedded_distribution_to_spm
         namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density
+        namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
+            k_diss_pristine, k_diss_transformed, k_transform_pristine
 
-        print *, "start"
+        ! Defaults, if the variable doesn't exist in namelist
+        resuspension_alpha_estuary = 0.0_dp
+        resuspension_beta_estuary = 0.0_dp
+        k_diss_pristine = 0.0_dp
+        k_diss_transformed = 0.0_dp
+        k_transform_pristine = 0.0_dp
 
         ! Open and read the NML file
         open(11, file=constantsFile, status="old")
         read(11, nml=allocatable_array_sizes)
         rewind(11)
-
-        print *, "alloc read done"
 
         ! Allocate the appropriate
         allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
@@ -491,8 +503,6 @@ module classDatabase
             spm_size_classes(n_spm_size_classes), &
             default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
             vertical_distribution(n_vertical_distribution))
-
-        print *, "mem allocated"
 
         read(11, nml=n_biota_grp, iostat=nmlIOStat)
         rewind(11)
@@ -508,12 +518,13 @@ module classDatabase
             me%hasBiota = .true.
         end if
 
-        print *, "nml stat checked, second mem alloc done"
         read(11, nml=earthworm_densities)
         rewind(11)
         read(11, nml=size_classes)
         rewind(11)
         read(11, nml=soil)
+        rewind(11)
+        read(11, nml=water)
         close(11)
 
         ! Save these to class variables
@@ -529,8 +540,6 @@ module classDatabase
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
-
-        print *, "soil done, earthworm next"
         ! Earthworm densities
         me%earthwormDensityArable = arable
         me%earthwormDensityConiferous = coniferous
@@ -540,12 +549,7 @@ module classDatabase
         me%earthwormDensityUrbanCapped = urban_capped
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
-
-        print *, "before vert dist"
         me%earthwormVerticalDistribution = vertical_distribution / 100.0
-
-        print *, "before biota"
-
         ! Biota
         if (me%hasBiota) then
             me%biotaName = name
@@ -564,8 +568,23 @@ module classDatabase
             me%biotaUptakeFromForm = uptake_from_form
             me%biotaHarvestInMonth = harvest_in_month
         end if
-
-        print *, "before globals stuff"
+        ! Water
+        me%waterResuspensionAlpha = resuspension_alpha
+        me%waterResuspensionBeta = resuspension_beta
+        me%water_k_diss_pristine = k_diss_pristine
+        me%water_k_diss_transformed = k_diss_transformed
+        me%water_k_transform_pristine = k_transform_pristine
+        ! Check if estuary params have been provided, otherwise default to freshwater
+        if (resuspension_alpha_estuary /= 0.0_dp) then
+            me%waterResuspensionAlphaEstuary = resuspension_alpha_estuary
+        else
+            me%waterResuspensionAlphaEstuary = me%waterResuspensionAlpha
+        end if
+        if (resuspension_beta_estuary /= 0.0_dp) then
+            me%waterResuspensionBetaEstuary = resuspension_beta_estuary
+        else
+            me%waterResuspensionBetaEstuary = me%waterResuspensionBeta
+        end if
 
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM
@@ -574,16 +593,12 @@ module classDatabase
         C%d_np = me%nmSizeClasses
         C%d_spm = me%spmSizeClasses
 
-        print *, "globals dealloc done"
-
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
         C%nFracCompsSpm = size(C%rho_spm)
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))
-
-        print *, "globals realloc done"
         ! Set the upper and lower bounds of each size class, if treated as a distribution
         do n = 1, C%nSizeClassesSpm
             ! Set the upper and lower limit of the size class's distributions

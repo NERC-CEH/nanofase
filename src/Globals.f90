@@ -29,8 +29,6 @@ module Globals
         integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
         real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
         real(dp)            :: default_alpha_hetero_estuary     !! Default NP-SPM attachment efficiency [-]
-        real(dp)            :: default_alpha_resus              !! Resuspension calibration parameter
-        real(dp)            :: default_beta_resus               !! Resuspension calibration parameter
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
@@ -118,7 +116,7 @@ module Globals
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites
         integer, allocatable :: default_fractional_comp(:)
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_k_att, default_alpha_hetero_estuary, nanomaterial_density, default_alpha_resus, default_beta_resus
+            default_k_att, default_alpha_hetero_estuary, nanomaterial_density
         real, allocatable :: soil_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run
@@ -130,7 +128,7 @@ module Globals
         namelist /global/ default_fractional_comp, warm_up_period, nanomaterial_density
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_alpha_hetero_estuary, include_bed_sediment, default_alpha_resus, default_beta_resus
+            default_alpha_hetero_estuary, include_bed_sediment
         namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
@@ -186,8 +184,6 @@ module Globals
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
         C%default_alpha_hetero_estuary = default_alpha_hetero_estuary
-        C%default_alpha_resus = default_alpha_resus
-        C%default_beta_resus = default_beta_resus
         C%default_k_att = default_k_att
         C%warmUpPeriod = warm_up_period
         C%nanomaterialDensity = nanomaterial_density

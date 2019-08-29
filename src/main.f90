@@ -32,7 +32,7 @@ program main
     real(dp) :: C_transformed_l1, C_transformed_l2, C_transformed_l3
     real(dp) :: C_dissolved_l1, C_dissolved_l2, C_dissolved_l3
     real(dp), allocatable :: npDep(:,:,:)
-    real(dp) :: m_np_hetero(5, 5)
+    real(dp) :: m_np_hetero(1, 5)
     real(dp) :: m_np_free
     real(dp) :: bedSedimentMass
     real(dp) :: npRunoff

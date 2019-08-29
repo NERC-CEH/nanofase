@@ -3,6 +3,7 @@ module classReactor1
     use UtilModule
     use ResultModule
     use spcReactor
+    use classDatabase, only: DATASET
 
     implicit none
     
@@ -12,6 +13,8 @@ module classReactor1
         procedure :: update => updateReactor1
         ! Processes
         procedure :: heteroaggregation => heteroaggregationReactor1
+        procedure :: dissolution => dissolutionReactor1
+        procedure :: transformation => transformationReactor1
         procedure :: parseInputData => parseInputDataReactor1
         ! Calculations
         procedure :: calculateCollisionRate => calculateCollisionRateReactor1
@@ -36,6 +39,8 @@ module classReactor1
         me%rho_np = C%nanomaterialDensity
         me%volume = 0                   ! No river to begin with...
 
+        call r%addErrors(.errors. me%parseInputData())
+
         ! Allocate size class arrays to the correct size
         allocate(me%W_settle_np(C%nSizeClassesNP))
         allocate(me%W_settle_spm(C%nSizeClassesSpm))
@@ -53,9 +58,7 @@ module classReactor1
             C%nSizeClassesSpm + 2 &         ! Number of different states
         ))
         allocate(me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
-        ! Allocate ionic metal array. 1.ionic, 2. complexed, 3. adsorbed.
-        allocate(me%m_dissolved(3))
-        
+
         ! Set the mass of individual particles (used for converting between
         ! particle concentrations and masses)
         ! TODO: Maybe set NP individual masses in globals?? Actually, don't think it's needed...
@@ -67,11 +70,12 @@ module classReactor1
     end function
     
     !> Run the `Reactor`'s simulation for the current time step
-    function updateReactor1(me, t, m_np, m_transformed, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
+    function updateReactor1(me, t, m_np, m_transformed, m_dissolved, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
         class(Reactor1) :: me           !! This `Reactor1` object
         integer :: t                    !! The current time step
         real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) !! Mass of NP for this timestep [kg]
         real(dp) :: m_transformed(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) !! Mass of NP for this timestep [kg]
+        real(dp) :: m_dissolved
         real(dp) :: C_spm(C%nSizeClassesSpm)    !! The current mass concentration of SPM [kg/m3]
         real(dp) :: T_water             !! The current water temperature [C]
         real(dp) :: W_settle_np(C%nSizeClassesNP)   !! NP settling velocity [m/s]
@@ -87,6 +91,7 @@ module classReactor1
         ! that mass
         me%m_np = m_np
         me%m_transformed = m_transformed
+        me%m_dissolved = m_dissolved
         me%volume = volume                  ! Volume of the container
         me%T_water = T_water                ! Current water temperature
         me%W_settle_np = W_settle_np        ! Settling rates
@@ -106,6 +111,8 @@ module classReactor1
 
         ! Heteroaggregate NPs to SPM, which updates m_np accordingly
         call r%addErrors(.errors. me%heteroaggregation())
+        call r%addErrors(.errors. me%dissolution())
+        call r%addErrors(.errors. me%transformation())
         
         ! The mass will have now been adjusted according to transformation.
         ! Reactor doesn't deal with inflows/outflows, so this updated mass
@@ -166,12 +173,39 @@ module classReactor1
 
         end do
     end function
+
+    function dissolutionReactor1(me) result(rslt)
+        class(Reactor1) :: me
+        type(Result)    :: rslt
+        real(dp)        :: dm_diss(C%npDim(1), C%npDim(2), C%npDim(3))  ! Mass of NM dissolving on each time step [kg/timestep]
+        ! Dissolution of pristine NM
+        dm_diss = min(me%k_diss_pristine * C%timeStep * me%m_np, me%m_np)
+        me%m_np = me%m_np - dm_diss
+        me%m_dissolved = me%m_dissolved + sum(dm_diss)
+        ! Dissolution of transformed NM
+        dm_diss = min(me%k_diss_transformed * C%timeStep * me%m_transformed, me%m_transformed)
+        me%m_transformed = me%m_transformed - dm_diss
+        me%m_dissolved = me%m_dissolved + sum(dm_diss)
+    end function
+
+    function transformationReactor1(me) result(rslt)
+        class(Reactor1) :: me
+        type(Result)    :: rslt
+        real(dp)        :: dm_transform(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! Transformation (e.g. sulphidation) of pristine NM
+        dm_transform = min(me%k_transform_pristine * C%timeStep * me%m_np, me%m_np)
+        me%m_np = me%m_np - dm_transform
+        me%m_transformed = me%m_transformed + dm_transform        
+    end function
     
     !> Parse the input data for this Reactor
     function parseInputDataReactor1(me) result(r)
         class(Reactor1) :: me
         type(Result) :: r
         
+        me%k_diss_pristine = DATASET%water_k_diss_pristine
+        me%k_diss_transformed = DATASET%water_k_diss_transformed
+        me%k_transform_pristine = DATASET%water_k_transform_pristine
         ! TODO: Is there actually going to be input data,
         ! or is this going to be passed from RiverReach?
     end function

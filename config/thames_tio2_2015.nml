@@ -51,8 +51,6 @@ default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .false.
-default_alpha_resus = 5e-4
-default_beta_resus = 5e-8
 /
 
 &sources
