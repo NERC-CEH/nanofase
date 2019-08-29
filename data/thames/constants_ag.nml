@@ -23,7 +23,7 @@
     compartment = 'soil', 'soil', 'water'
     harvest_in_month = 9, 0, 0
     initial_c_org = 0, 0, 0
-    k_death = 1e-10, 0.00068, 0.2
+    k_death = 0, 0, 0
     k_elim_dissolved = 4.974, 0.228, 1.94
     k_elim_np = 0.105, 0.062, 0
     k_elim_transformed = 2.722, 0.231, 0.11
@@ -72,8 +72,8 @@
     resuspension_alpha_estuary = 0.01
     resuspension_beta = 5e-08
     resuspension_beta_estuary = 0.001
-    k_diss_pristine = 9.49e-6
-    k_diss_transformed = 5.32e-9
+    k_diss_pristine = 0
+    k_diss_transformed = 0
     k_transform_pristine = 0
     ! k_transform_pristine = 1.67e-4
 /

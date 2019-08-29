@@ -352,8 +352,7 @@ module classSoilProfile1
         class(SoilProfile1) :: me           ! This soil profile
         real :: clay, silt, sand            ! Percentage clay, silt and sand
         real :: d_grain                     ! The average grain size
-        d_grain = 1
-        ! d_grain = 1e-3 * exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
+        d_grain = 1e-3 * exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
     end function
 
     !> Get the data from the input file and set object properties

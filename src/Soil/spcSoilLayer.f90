@@ -19,6 +19,7 @@ module spcSoilLayer
         integer :: l                                                !! Layer index
         real(dp) :: depth                                           !! Layer depth [m]
         real(dp) :: area                                            !! Area of the containing SoilProfile [m2]
+        real(dp) :: volume                                          !! Volume of the soil layer [m3]
         type(NcGroup) :: ncGroup                                    !! NetCDF group for this object
         ! Soil properties
         real(dp) :: pH                                              !! Porewater pH

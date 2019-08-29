@@ -14,7 +14,7 @@ program main
 
     real :: start, finish, wallStart, wallFinish                    ! Simulation start and finish times
     type(Result) :: r                                               ! Result object
-    integer :: x, y, rr, t, i, s, j, b                              ! Loop iterators
+    integer :: x, y, rr, t, i, s, j, b, yr                          ! Loop iterators
     real(dp) :: m_spm(5)
     real(dp) :: C_spm(5)
     type(Environment1) :: env                                       ! Environment object
@@ -29,6 +29,7 @@ program main
     real(dp), allocatable :: C_np(:,:,:)
     real(dp) :: C_np_biota, C_np_biota_noStoredFraction
     real(dp) :: m_transformed, C_transformed, m_dissolved, C_dissolved
+    real(dp) :: C_np_l1, C_np_l2, C_np_l3
     real(dp) :: C_transformed_l1, C_transformed_l2, C_transformed_l3
     real(dp) :: C_dissolved_l1, C_dissolved_l2, C_dissolved_l3
     real(dp), allocatable :: npDep(:,:,:)
@@ -81,7 +82,7 @@ program main
     write(5, *) "t,x,y,total_m_np,total_C_np,total_C_transformed,total_C_dissolved,bulk_density,", &
         "m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l1_att,m_np_l2_att,m_np_l3_att,", &
         "C_np_l1,C_np_l2,C_np_l3,C_transformed_l1,C_transformed_l2,C_transformed_l3,C_dissolved_l1, ", &
-        "C_dissolved_l2,C_dissolved_l3,m_np_eroded,m_np_buried,m_np_in,C_np_biota,C_np_biota_noStoredFraction"
+        "C_dissolved_l2,C_dissolved_l3,m_np_eroded,m_np_buried,m_np_in"
     write(8, *) "t,x,y,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
     write(9, *) "t,x,y,rr,b,name,compartment,C_active,C_stored"
 
@@ -105,146 +106,151 @@ program main
     )
 
 
-    do t = 1, C%nTimeSteps
-        m_np_free = 0
-        m_np_hetero = 0
-        r = env%update(t)
-        call LOGR%toFile(errors=.errors.r)                               ! Output any errors to the log file
-        call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
+    do yr = 1, 50
+        do t = 1, C%nTimeSteps
+            m_np_free = 0
+            m_np_hetero = 0
+            r = env%update(t)
+            call LOGR%toFile(errors=.errors.r)                               ! Output any errors to the log file
+            call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
 
-        ! TODO: Do something with Result object
-        do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
-            do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
-                if (.not. env%colGridCells(x,y)%item%isEmpty) then
+            ! TODO: Do something with Result object
+            do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
+                do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
+                    if (.not. env%colGridCells(x,y)%item%isEmpty) then
 
-                   ! RiverReachs
-                    do rr = 1, env%colGridCells(x,y)%item%nReaches
+                       ! RiverReachs
+                        do rr = 1, env%colGridCells(x,y)%item%nReaches
 
-                        associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
-                            ! What reach type is this?
-                            select type (reach)
-                                type is (RiverReach)
-                                    reachType = 'riv'
-                                type is (EstuaryReach)
-                                    reachType = 'est'
-                            end select
-                            ! Water output file
-                            write(2, *) t, ",", x, ",", y, ",", rr, ",", reachType, ",", &
-                                trim(str(sum(reach%m_np))), ",", &
-                                trim(str(sum(reach%C_np))), ",", &
-                                trim(str(sum(reach%m_transformed))), ",", &
-                                trim(str(sum(reach%C_transformed))), ",", &
-                                trim(str(reach%m_dissolved)), ",", &
-                                trim(str(reach%C_dissolved)), ",", &
-                                trim(str(sum(reach%j_np_deposit()))), ",", &
-                                trim(str(sum(reach%j_transformed_deposit()))), ",", &
-                                trim(str(sum(reach%m_spm))), ",", &
-                                trim(str(sum(reach%C_spm))), ",", &
-                                trim(str(reach%volume)), ",", &
-                                trim(str(reach%depth)), ",", &
-                                trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                trim(str(sum(reach%j_np_outflow()))), ",", &
-                                trim(str(sum(reach%j_transformed_outflow()))), ",", &
-                                trim(str(reach%j_dissolved_outflow())), ",", &
-                                trim(str(sum(reach%k_settle))), ",", &
-                                trim(str(sum(reach%k_resus)))
-                            ! SPM output file
-                            write(3,*) t, ",", x, ",", y, ",", rr, ",", &
-                                trim(str(sum(reach%m_spm))), ",", &
-                                trim(str(sum(reach%j_spm_runoff()))), ",", &
-                                trim(str(sum(reach%j_spm_outflow()))), ",", &
-                                trim(str(sum(reach%j_spm_deposit()))), ",", &
-                                trim(reachType)
-                            ! Biota
-                            do b = 1, reach%nBiota
-                                write(9, *) t, ",", x, ",", y, ",", rr, ",", b, ",", &
-                                    trim(reach%biota(b)%name), ",", &
-                                    reachType, ",", &
-                                    reach%biota(b)%C_active, ",", &
-                                    reach%biota(b)%C_stored
-                            end do
+                            associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
+                                ! What reach type is this?
+                                select type (reach)
+                                    type is (RiverReach)
+                                        reachType = 'riv'
+                                    type is (EstuaryReach)
+                                        reachType = 'est'
+                                end select
+                                ! Water output file
+                                write(2, *) t + (yr-1)*365, ",", x, ",", y, ",", rr, ",", reachType, ",", &
+                                    trim(str(sum(reach%m_np))), ",", &
+                                    trim(str(sum(reach%C_np))), ",", &
+                                    trim(str(sum(reach%m_transformed))), ",", &
+                                    trim(str(sum(reach%C_transformed))), ",", &
+                                    trim(str(reach%m_dissolved)), ",", &
+                                    trim(str(reach%C_dissolved)), ",", &
+                                    trim(str(sum(reach%j_np_deposit()))), ",", &
+                                    trim(str(sum(reach%j_transformed_deposit()))), ",", &
+                                    trim(str(sum(reach%m_spm))), ",", &
+                                    trim(str(sum(reach%C_spm))), ",", &
+                                    trim(str(reach%volume)), ",", &
+                                    trim(str(reach%depth)), ",", &
+                                    trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                    trim(str(sum(reach%j_np_outflow()))), ",", &
+                                    trim(str(sum(reach%j_transformed_outflow()))), ",", &
+                                    trim(str(reach%j_dissolved_outflow())), ",", &
+                                    trim(str(sum(reach%k_settle))), ",", &
+                                    trim(str(sum(reach%k_resus)))
+                                ! SPM output file
+                                write(3,*) t + (yr-1)*365, ",", x, ",", y, ",", rr, ",", &
+                                    trim(str(sum(reach%m_spm))), ",", &
+                                    trim(str(sum(reach%j_spm_runoff()))), ",", &
+                                    trim(str(sum(reach%j_spm_outflow()))), ",", &
+                                    trim(str(sum(reach%j_spm_deposit()))), ",", &
+                                    trim(reachType)
+                                ! Biota
+                                do b = 1, reach%nBiota
+                                    write(9, *) t + (yr-1)*365, ",", x, ",", y, ",", rr, ",", b, ",", &
+                                        trim(reach%biota(b)%name), ",", &
+                                        reachType, ",", &
+                                        reach%biota(b)%C_active, ",", &
+                                        reach%biota(b)%C_stored
+                                end do
 
-                            if (C%calibrationRun) then
-                                if (reach%calibrationSiteRef == C%startSite) then
-                                    write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", rr, ",", &
-                                                trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                                trim(str(reach%depth)), ",", trim(reachType), ",", trim(str(sum(reach%m_spm))), &
-                                                ",", trim(str(sum(reach%C_spm)))
-                                else if (reach%calibrationSiteRef == C%endSite) then
-                                    write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", rr, ",", &
-                                                trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                                trim(str(reach%depth)), ",", trim(reachType), ",", trim(str(sum(reach%m_spm))), &
-                                                ",", trim(str(sum(reach%C_spm)))
-                                else
-                                    do i = 1, size(C%otherSites)
-                                        if (reach%calibrationSiteRef &
-                                            == C%otherSites(i)) then
-                                            write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", rr, ",", &
-                                                trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                                trim(str(reach%depth)), ",", trim(reachType), ",", trim(str(sum(reach%m_spm))), &
-                                                ",", trim(str(sum(reach%C_spm)))
-                                        end if
-                                    end do
+                                if (C%calibrationRun) then
+                                    if (reach%calibrationSiteRef == C%startSite) then
+                                        write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", rr, ",", &
+                                                    trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                                    trim(str(reach%depth)), ",", trim(reachType), ",", &
+                                                    trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
+                                    else if (reach%calibrationSiteRef == C%endSite) then
+                                        write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", rr, ",", &
+                                                    trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                                    trim(str(reach%depth)), ",", trim(reachType), ",", &
+                                                    trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
+                                    else
+                                        do i = 1, size(C%otherSites)
+                                            if (reach%calibrationSiteRef &
+                                                == C%otherSites(i)) then
+                                                write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", rr, ",", &
+                                                    trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                                    trim(str(reach%depth)), ",", trim(reachType), ",", &
+                                                    trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
+                                            end if
+                                        end do
+                                    end if
                                 end if
+                            end associate
+                        end do
+
+                        associate (profile => env%colGridCells(x,y)%item%colSoilProfiles(1)%item)
+                            if (profile%bulkDensity < 0) then
+                                bulkDensity = 1220
+                            else
+                                bulkDensity = profile%bulkDensity
                             end if
+                            m_np_l1 = profile%colSoilLayers(1)%item%m_np
+                            m_np_l2 = profile%colSoilLayers(2)%item%m_np
+                            m_np_l3 = profile%colSoilLayers(3)%item%m_np
+                            C_np_l1 = sum(m_np_l1) / (bulkDensity * profile%colSoilLayers(1)%item%volume)
+                            C_np_l2 = sum(m_np_l2) / (bulkDensity * profile%colSoilLayers(2)%item%volume)
+                            C_np_l3 = sum(m_np_l3) / (bulkDensity * profile%colSoilLayers(3)%item%volume)
+                            C_transformed_l1 = sum(profile%colSoilLayers(1)%item%m_transformed) &
+                                / (bulkDensity * profile%colSoilLayers(1)%item%volume)
+                            C_transformed_l2 = sum(profile%colSoilLayers(2)%item%m_transformed) &
+                                / (bulkDensity * profile%colSoilLayers(2)%item%volume)
+                            C_transformed_l3 = sum(profile%colSoilLayers(3)%item%m_transformed) &
+                                / (bulkDensity * profile%colSoilLayers(3)%item%volume)
+                            C_dissolved_l1 = profile%colSoilLayers(1)%item%m_dissolved / profile%colSoilLayers(1)%item%volume
+                            C_dissolved_l2 = profile%colSoilLayers(2)%item%m_dissolved / profile%colSoilLayers(2)%item%volume
+                            C_dissolved_l3 = profile%colSoilLayers(3)%item%m_dissolved / profile%colSoilLayers(3)%item%volume
+                            m_np_eroded = profile%colSoilLayers(1)%item%m_np_eroded
+                            m_np_buried = profile%m_np_buried
+                            m_np_in = profile%m_np_in
+                            total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3)
+                            total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
                         end associate
-                    end do
 
-                    associate (profile => env%colGridCells(x,y)%item%colSoilProfiles(1)%item)
-                        if (profile%bulkDensity < 0) then
-                            bulkDensity = 1220
-                        else
-                            bulkDensity = profile%bulkDensity
-                        end if
-                        m_np_l1 = profile%colSoilLayers(1)%item%m_np
-                        m_np_l2 = profile%colSoilLayers(2)%item%m_np
-                        m_np_l3 = profile%colSoilLayers(3)%item%m_np
-                        C_np_l1 = sum(m_np_l1) / (bulkDensity * profile%colSoilLayers(1)%item%volume)
-                        C_np_l2 = sum(m_np_l2) / (bulkDensity * profile%colSoilLayers(2)%item%volume)
-                        C_np_l3 = sum(m_np_l3) / (bulkDensity * profile%colSoilLayers(3)%item%volume)
-                        C_transformed_l1 = sum(profile%colSoilLayers(1)%item%m_transformed) / (bulkDensity * profile%colSoilLayers(1)%item%volume)
-                        C_transformed_l2 = sum(profile%colSoilLayers(2)%item%m_transformed) / (bulkDensity * profile%colSoilLayers(2)%item%volume)
-                        C_transformed_l3 = sum(profile%colSoilLayers(3)%item%m_transformed) / (bulkDensity * profile%colSoilLayers(3)%item%volume)
-                        C_dissolved_l1 = profile%colSoilLayers(1)%item%m_dissolved / profile%colSoilLayers(1)%item%volume
-                        C_dissolved_l2 = profile%colSoilLayers(2)%item%m_dissolved / profile%colSoilLayers(2)%item%volume
-                        C_dissolved_l3 = profile%colSoilLayers(3)%item%m_dissolved / profile%colSoilLayers(3)%item%volume
-                        m_np_eroded = profile%colSoilLayers(1)%item%m_np_eroded
-                        m_np_buried = profile%m_np_buried
-                        m_np_in = profile%m_np_in
-                        total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3)
-                        total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
-                    end associate
+                        write(5,*) t + (yr-1)*365, ", ", x, ", ", y, ", ", &
+                            total_m_np, ", ", total_C_np, ", ", &
+                            C_transformed_l1 + C_transformed_l2 + C_transformed_l3, ",", &
+                            C_dissolved_l1 + C_dissolved_l2 + C_dissolved_l3, ",", bulkDensity, ",", &
+                            sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
+                            sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
+                            sum(m_np_l3(:,1,2)), ", ", &
+                            C_np_l1, ",", &
+                            C_np_l2, ",", &
+                            C_np_l3, ",", &
+                            C_transformed_l1, ",", &
+                            C_transformed_l2, ",", &
+                            C_transformed_l3, ",", &
+                            C_dissolved_l1, ",", &
+                            C_dissolved_l2, ",", &
+                            C_dissolved_l3, ",", &
+                            sum(m_np_eroded(:,1,2)), ", ", &
+                            sum(m_np_buried), ", ", sum(m_np_in)
 
-                    write(5,*) t, ", ", x, ", ", y, ", ", &
-                        total_m_np, ", ", total_C_np, ", ", &
-                        C_transformed_l1 + C_transformed_l2 + C_transformed_l3, ",", &
-                        C_dissolved_l1 + C_dissolved_l2 + C_dissolved_l3, ",", bulkDensity, ",", &
-                        sum(m_np_l1(:,1,1)), ", ", sum(m_np_l2(:,1,1)), ", ", sum(m_np_l3(:,1,1)), ", ", &
-                        sum(m_np_l1(:,1,2)), ", ", sum(m_np_l2(:,1,2)), ", ", &
-                        sum(m_np_l3(:,1,2)), ", ", &
-                        C_np_l1, ",", &
-                        C_np_l2, ",", &
-                        C_np_l3, ",", &
-                        C_transformed_l1, ",", &
-                        C_transformed_l2, ",", &
-                        C_transformed_l3, ",", &
-                        C_dissolved_l1, ",", &
-                        C_dissolved_l2, ",", &
-                        C_dissolved_l3, ",", &
-                        sum(m_np_eroded(:,1,2)), ", ", &
-                        sum(m_np_buried), ", ", sum(m_np_in), ", ", C_np_biota, ", ", C_np_biota_noStoredFraction
-
-                    do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
-                        write(8, *) t, ",", x, ",", y, ",", b, ",", &
-                            trim(env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%name), ",", &
-                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_active, ",", &
-                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_stored, ",", &
-                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%biota(b)%C_active, ",", &
-                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%biota(b)%C_stored, ",", &
-                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_active, ",", &
-                            env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_stored
-                    end do
-                end if
+                        do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
+                            write(8, *) t + (yr-1)*365, ",", x, ",", y, ",", b, ",", &
+                                trim(env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%name), ",", &
+                                env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_active, ",", &
+                                env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%biota(b)%C_stored, ",", &
+                                env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%biota(b)%C_active, ",", &
+                                env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(2)%item%biota(b)%C_stored, ",", &
+                                env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_active, ",", &
+                                env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(3)%item%biota(b)%C_stored
+                        end do
+                    end if
+                end do
             end do
         end do
     end do
