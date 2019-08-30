@@ -39,12 +39,13 @@ module Globals
         real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
         integer             :: nSoilLayers                      !! Number of soil layers to modelled
         
-        ! Calibration
+        ! Calibration and batch run
         logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
         character(len=256)  :: siteData                         !! Where is the data about the sampling sites stored?
         character(len=6)    :: startSite                        !! Where does the calibration start from?
         character(len=6)    :: endSite                          !! Where does the calibration end?
         character(len=6), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
+        logical             :: isBatchRun = .false.             !! Are we batch running config files?
 
         ! General
         type(NcDataset)     :: dataset                          !! The NetCDF dataset
@@ -107,8 +108,8 @@ module Globals
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n                                        ! Iterator for size classes
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
-        character(len=256) :: configFilePath
-        integer :: configFilePathLength
+        character(len=256) :: configFilePath, batchRunFilePath
+        integer :: configFilePathLength, batchRunFilePathLength, nBatches
         ! Values from config file
         character(len=256) :: input_file, flat_input, constants_file, output_file, output_path, log_file_path, start_date, &
             startDateStr, site_data
@@ -135,6 +136,7 @@ module Globals
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
+        call get_command_argument(2, batchRunFilePath, batchRunFilePathLength)
         ! Open the config file and read the different config groups
         if (configFilePathLength > 0) then
             open(10, file=trim(configFilePath), status="old")
@@ -142,6 +144,13 @@ module Globals
         else
             open(10, file="config/config.nml", status="old")
             C%configFilePath = "config/config.nml"
+        end if
+
+        if (batchRunFilePathLength > 0) then
+            C%isBatchRun = .true.
+            open(12, file=trim(batchRunFilePath), status="old")
+            read(12, '(i2)') nBatches
+            print *, nBatches
         end if
 
         read(10, nml=allocatable_array_sizes)
