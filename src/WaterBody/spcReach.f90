@@ -58,6 +58,7 @@ module spcReach
         procedure :: allocateAndInitialise => allocateAndInitialiseReach
         procedure :: parseInflowsAndOutflow => parseInflowsAndOutflowReach
         procedure :: setReachLength => setReachLengthReach
+        procedure :: parseNewBatchData => parseNewBatchDataReach
         ! Simulators
         procedure :: setResuspensionRate => setResuspensionRateReach
         procedure :: setSettlingRate => setSettlingRateReach
@@ -188,6 +189,46 @@ module spcReach
         me%f_m = C%defaultMeanderingFactor
     end subroutine
 
+    subroutine parseNewBatchDataReach(me)
+        class(Reach) :: me
+        real(dp), allocatable :: tmp_j(:,:,:,:)
+        real(dp), allocatable :: tmp_j_dissolved(:)
+        ! NM
+        call move_alloc(me%j_np, tmp_j)
+        allocate(me%j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
+            C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%j_np = 0.0_dp
+        me%j_np(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:)         ! Only copy over stuff that isn't sources, as those will be changed anyway
+        ! Transformed
+        call move_alloc(me%j_transformed, tmp_j)
+        allocate(me%j_transformed(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
+            C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%j_transformed = 0.0_dp
+        me%j_transformed(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:) 
+        ! Dissolved
+        call move_alloc(me%j_dissolved, tmp_j_dissolved)
+        allocate(me%j_dissolved(me%nInflows + me%nPointSources + me%nDiffuseSources + 4))
+        me%j_dissolved = 0.0_dp
+        me%j_dissolved(:4+me%nInflows) = tmp_j_dissolved(:4+me%nInflows)
+        ! Final NM
+        call move_alloc(me%j_np_final, tmp_j)
+        allocate(me%j_np_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
+            C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%j_np_final = 0.0_dp
+        me%j_np_final(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:)
+        ! Final transformed
+        call move_alloc(me%j_transformed_final, tmp_j)
+        allocate(me%j_transformed_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
+            C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%j_transformed_final = 0.0_dp
+        me%j_transformed_final(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:) 
+        ! Final dissolved
+        call move_alloc(me%j_dissolved_final, tmp_j_dissolved)
+        allocate(me%j_dissolved_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4))
+        me%j_dissolved_final = 0.0_dp
+        me%j_dissolved_final(:4+me%nInflows) = tmp_j_dissolved(:4+me%nInflows)
+    end subroutine
+
     !> Set the settling rate
     subroutine setSettlingRateReach(me)
         class(Reach) :: me                      !! This `Reach` instance
@@ -208,7 +249,7 @@ module spcReach
             do i = 1, C%nSizeClassesNP
                 me%W_settle_np(i) = me%calculateSettlingVelocity( &
                     C%d_np(i), &
-                    4230.0_dp, &       ! HACK: rho_np, change this to account for different NP materials
+                    4230.0, &       ! HACK: rho_np, change this to account for different NP materials
                     me%T_water &
                 )
             end do
@@ -333,8 +374,8 @@ module spcReach
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
     function calculateSettlingVelocity(Me, d, rho_particle, T) result(W)
         class(Reach), intent(in) :: me                          !! The `Reach` instance
-        real(dp), intent(in) :: d                               !! Sediment particle diameter [m]
-        real(dp), intent(in) :: rho_particle                    !! Sediment particulate density [kg/m3]
+        real, intent(in) :: d                               !! Sediment particle diameter [m]
+        real, intent(in) :: rho_particle                    !! Sediment particulate density [kg/m3]
         real(dp), intent(in) :: T                               !! Temperature [C]
         real(dp) :: W                                           !! Calculated settling velocity [m/s]
         real(dp) :: dStar                                       ! Dimensionless particle diameter.

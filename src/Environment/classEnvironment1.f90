@@ -9,6 +9,8 @@ module classEnvironment1
     use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     use classSampleSite, only: SampleSite
+    use datetime_module
+    use mod_datetime
     implicit none
     private
     
@@ -22,7 +24,7 @@ module classEnvironment1
         procedure :: destroy => destroyEnvironment1
         procedure :: update => updateEnvironment1
         procedure :: updateReach => updateReachEnvironment1
-        procedure :: parseInputData => parseInputDataEnvironment1
+        procedure :: parseNewBatchData => parseNewBatchDataEnvironment1
         ! Getters
         procedure :: get_m_np => get_m_npEnvironment1
     end type
@@ -178,10 +180,12 @@ module classEnvironment1
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
         logical :: goDownstream                                 ! Have all the inflow reaches been updated yet?
         logical :: endSiteReached                               ! When doing the calibration loop, did we reach the end site?
+        type(datetime) :: currentDate
         type(ReachPointer), allocatable :: tmpJunctionReaches(:)
         type(ReachPointer), allocatable :: junctionReaches(:)
 
-        call LOGR%add("Performing simulation for time step #" // trim(str(t)) // "...")
+        currentDate = C%startDate + timedelta(t-1)
+        call LOGR%add("Performing simulation for " // trim(currentDate%strftime('%Y-%m-%d')) // "...")
 
         ! Update all grid cells first
         !!$omp parallel do private(y)
@@ -265,21 +269,17 @@ module classEnvironment1
             ) &
         )
     end function
-    
-    !> Obtain and parse input data for this `Environment` object
-    function parseInputDataEnvironment1(me) result(r)
-        class(Environment1) :: me                           !! This `Environment1` instance
-        type(NcVariable) :: var
-        real(dp) :: fillValue
-        type(Result) :: r                                   !! The `Result` object to return
-        ! Get the grid dimensions for the Environment
-        call r%addErrors(.errors. DATA%setGroup(['Environment']))
-        call r%addErrors([ &
-            .errors. DATA%get('grid_dimensions', me%gridDimensions), &
-            .errors. DATA%get('routed_reaches', me%routedReachIndices) &
-        ])
-        
-    end function
+
+    subroutine parseNewBatchDataEnvironment1(me)
+        class(Environment1) :: me
+        integer :: x, y
+        ! Loop through grid cells and parse their new batch data
+        do y = 1, DATASET%gridShape(2)
+            do x = 1, DATASET%gridShape(1)
+                call me%colGridCells(x,y)%item%parseNewBatchData()
+            end do
+        end do
+    end subroutine
     
     function get_m_npEnvironment1(me) result(m_np)
         class(Environment1) :: me

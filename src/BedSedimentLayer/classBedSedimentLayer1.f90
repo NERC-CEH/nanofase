@@ -80,7 +80,7 @@ module classBedSedimentLayer1
             Me%nSizeClasses = C%nSizeClassesSpm                      ! set number of size classes from global value
             Me%nfComp = C%nFracCompsSpm                              ! set number of fractional compositions from global value
             Me%name = trim(layerGroup%getName())                     ! This object's name = the netCDF group name (e.g., Layer_1)
-                    
+
             tr = trim(Me%name) // "%create"                          ! add name to trace string
             if (len_trim(Me%name) == 0) then
                 call r%addError(ErrorInstance( &
@@ -197,6 +197,7 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! add to Result
             end if
+
             if (r%hasCriticalError()) return                         ! exit if allocation has thrown an error
             do S = 1, Me%nSizeClasses
                 call r%addErrors(.errors. &
@@ -218,6 +219,7 @@ module classBedSedimentLayer1
                 end if
                 Me%C_f_l(S) = Me%colFineSediment(S)%V_f()            ! set the sediment capacities to the volumes
             end do
+
             if (.dp. Me%V_f_layer() > Me%C_total) then               ! CRITICAL ERROR HERE: if layer volume exceeds capacity
                 call r%addError(ErrorInstance( &
                                code = 1, &

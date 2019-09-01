@@ -25,7 +25,7 @@ module spcEnvironment
         procedure(destroyEnvironment), deferred :: destroy
         procedure(updateEnvironment), deferred :: update
         procedure(updateReachEnvironment), deferred :: updateReach
-        procedure(parseInputDataEnvironment), deferred :: parseInputData
+        procedure(parseNewBatchDataEnvironment), deferred :: parseNewBatchData
         ! Getters
         procedure(get_m_npEnvironment), deferred :: get_m_np
     end type
@@ -74,6 +74,11 @@ module spcEnvironment
             class(Environment) :: me
             type(Result) :: r
         end function
+
+        subroutine parseNewBatchDataEnvironment(me)
+            import Environment
+            class(Environment) :: me
+        end subroutine
         
         function get_m_npEnvironment(me) result(m_np)
             use Globals

@@ -50,6 +50,21 @@ module classDatabase
         integer, allocatable :: biotaHarvestInMonth(:)
         logical :: hasBiota = .false.
         integer :: nBiota = 0
+        ! Water
+        real(dp) :: waterResuspensionAlpha          ! Resuspension parameter alpha
+        real(dp) :: waterResuspensionBeta           ! Resuspension parameter beta
+        real(dp) :: waterResuspensionAlphaEstuary   ! Resuspension parameter alpha for estuary
+        real(dp) :: waterResuspensionBetaEstuary    ! Resuspension parameter beta for estuary
+        real(dp) :: water_k_diss_pristine           ! Dissolution rate constant for pristine NM [/s]
+        real(dp) :: water_k_diss_transformed        ! Dissolution rate constant for transformed NM [/s]
+        real(dp) :: water_k_transform_pristine      ! Transformation rate constant for pristine NM [/s]
+        ! Estuary
+        real :: estuaryTidalM2                      ! Estuary tidal harmonics parameter M2
+        real :: estuaryTidalS2                      ! Estuary tidal harmonics parameter S2
+        real :: estuaryMeanDepthExpA                ! Estuary mean depth exponential parameter A
+        real :: estuaryMeanDepthExpB                ! Estuary mean depth exponential parameter B
+        real :: estuaryWidthExpA                    ! Estuary width exponential parameter A
+        real :: estuaryWidthExpB                    ! Estuary width exponential parameter B
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
@@ -82,6 +97,9 @@ module classDatabase
         real, allocatable :: soilTextureCoarseFragContent(:,:)
         real, allocatable :: soilAttachmentEfficiency(:,:)
         real, allocatable :: soilAttachmentRate(:,:)
+        real(dp), allocatable :: soilUsleCFactor(:,:)
+        real(dp), allocatable :: soilUslePFactor(:,:)
+        real(dp), allocatable :: soilUsleLSFactor(:,:)
         ! Emissions - areal
         real(dp), allocatable :: emissionsArealSoilPristine(:,:)
         real(dp), allocatable :: emissionsArealSoilMatrixEmbedded(:,:)
@@ -111,6 +129,8 @@ module classDatabase
         real, allocatable :: landUse(:,:,:)
       contains
         procedure, public :: init => initDatabase
+        procedure, public :: update => updateDatabase
+        procedure, public :: readBatchVariables => readBatchVariablesDatabase
         procedure, private :: parseConstants => parseConstantsDatabase
         procedure, private :: mask => maskDatabase
         procedure, public :: inModelDomain => inModelDomainDatabase
@@ -134,12 +154,9 @@ module classDatabase
         type(NcDimension)   :: p_dim
         integer             :: maxPointSources
         
-
-        print *, "before constants"
         ! Open the dataset and constants NML file
         me%nc = NcDataset(inputFile, 'r')
         call me%parseConstants(constantsFile)
-        print *, "after constants"
         
         ! Variable units: These will already have been converted to the correct
         ! units for use in the model by nanofase-data (the input data compilation
@@ -184,6 +201,73 @@ module classDatabase
         allocate(me%gridMask(me%gridShape(1), me%gridShape(2)))
         me%gridMask = me%mask(me%nWaterbodies)
 
+        ! Read the variables that can be updated on each batch (i.e. not geographical)
+        call me%readBatchVariables()
+
+        ! Close the dataset
+        call me%nc%close()
+
+        call rslt%addToTrace('Initialising database')
+        call ERROR_HANDLER%trigger(errors=.errors.rslt)
+        call LOGR%add("Initialising database: success")
+    end subroutine
+
+    subroutine updateDatabase(me, batchConfigFile)
+        class(Database) :: me
+        character(len=*) :: batchConfigFile
+        character(len=256) :: input_file, flat_input, constants_file, start_date
+        integer :: n_timesteps, maxPointSources
+        type(NcVariable)    :: var
+        namelist /data/ input_file, flat_input, constants_file
+        namelist /run/ n_timesteps, start_date
+        ! For the new batch, open the config file and change a few things in Globals
+        open(13, file=batchConfigFile, status="old")
+        read(13, nml=data)
+        rewind(13)
+        read(13, nml=run)
+        close(13)
+        C%inputFile = input_file
+        C%flatInputFile = flat_input
+        C%constantsFile = constants_file
+        C%nTimeSteps = n_timesteps
+        C%startDate = f_strptime(start_date)
+        ! Open the new dataset
+        me%nc = NcDataset(C%flatInputFile, 'r')
+        ! Deallocate the previous batch's variables
+        deallocate(me%soilAttachmentRate)
+        deallocate(me%soilAttachmentEfficiency)
+        deallocate(me%emissionsArealSoilPristine)
+        deallocate(me%emissionsArealSoilMatrixEmbedded)
+        deallocate(me%emissionsArealSoilTransformed)
+        deallocate(me%emissionsArealSoilDissolved)
+        deallocate(me%emissionsArealWaterPristine)
+        deallocate(me%emissionsArealWaterMatrixEmbedded)
+        deallocate(me%emissionsArealWaterTransformed)
+        deallocate(me%emissionsArealWaterDissolved)
+        deallocate(me%emissionsAtmosphericDryDepoPristine)
+        deallocate(me%emissionsAtmosphericDryDepoMatrixEmbedded)
+        deallocate(me%emissionsAtmosphericDryDepoTransformed)
+        deallocate(me%emissionsAtmosphericDryDepoDissolved)
+        deallocate(me%emissionsAtmosphericWetDepoPristine)
+        deallocate(me%emissionsAtmosphericWetDepoMatrixEmbedded)
+        deallocate(me%emissionsAtmosphericWetDepoTransformed)
+        deallocate(me%emissionsAtmosphericWetDepoDissolved)
+        deallocate(me%emissionsPointWaterPristine)
+        deallocate(me%emissionsPointWaterMatrixEmbedded)
+        deallocate(me%emissionsPointWaterTransformed)
+        deallocate(me%emissionsPointWaterDissolved)
+        ! Read this batch's variables
+        call me%readBatchVariables()
+        ! Close the dataset
+        call me%nc%close()
+    end subroutine
+
+    subroutine readBatchVariablesDatabase(me)
+        class(Database) :: me
+        type(NcVariable) :: var
+        type(NcDimension) :: p_dim
+        integer :: maxPointSources
+
         ! SPATIOTEMPORAL VARIABLES
         ! Runoff        [m/timestep]
         var = me%nc%getVariable('runoff')
@@ -197,6 +281,7 @@ module classDatabase
             var = me%nc%getVariable('evap')
             call var%getData(me%evap)
         else
+            if (allocated(me%evap)) deallocate(me%evap)
             allocate(me%evap(me%gridShape(1), me%gridShape(2), C%nTimesteps)) ! HACK
             me%evap = 0.0
         end if
@@ -223,6 +308,12 @@ module classDatabase
         call var%getData(me%soilTextureSiltContent)
         var = me%nc%getVariable('soil_texture_coarse_frag_content')
         call var%getData(me%soilTextureCoarseFragContent)
+        var = me%nc%getVariable('soil_usle_c_factor')
+        call var%getData(me%soilUsleCFactor)
+        var = me%nc%getVariable('soil_usle_ls_factor')
+        call var%getData(me%soilUsleLSFactor)
+        var = me%nc%getVariable('soil_usle_p_factor')
+        call var%getData(me%soilUslePFactor)
         ! Soil attachment efficienecy/rate
         ! Try and get attachment rate. This is used preferentially by soil profile
         if (me%nc%hasVariable('soil_attachment_rate')) then
@@ -429,13 +520,6 @@ module classDatabase
         ! Land use                                  [-]
         var = me%nc%getVariable('land_use')
         call var%getData(me%landUse)
-
-        ! Close the dataset
-        call me%nc%close()
-
-        call rslt%addToTrace('Initialising database')
-        call ERROR_HANDLER%trigger(errors=.errors.rslt)
-        call LOGR%add("Initialising database: success")
     end subroutine
 
     subroutine parseConstantsDatabase(me, constantsFile)
@@ -447,13 +531,18 @@ module classDatabase
             n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
             n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
             n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
-            n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month
+            n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
+            n_spm_particle_densities
         integer :: arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
-        real, allocatable :: nm_size_classes(:), spm_size_classes(:), stored_fraction(:)
-        real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density
-        real(dp) :: hamaker_constant
+        real, allocatable :: nm_size_classes(:), spm_size_classes(:), stored_fraction(:), spm_particle_densities(:)
+        real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density, &
+            estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
+            estuary_width_expB, estuary_tidal_M2
+        real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
+            resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
+            k_transform_pristine
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
             k_elim_dissolved(:)
@@ -464,7 +553,7 @@ module classDatabase
             n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
             n_k_uptake_np, n_k_elim_np, n_k_uptake_transformed, n_k_elim_transformed, &
             n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, &
-            n_uptake_from_form, n_harvest_in_month
+            n_uptake_from_form, n_harvest_in_month, n_spm_particle_densities
         namelist /n_biota_grp/ n_biota
         namelist /biota/ initial_C_org, k_death, k_growth, k_elim_np, k_uptake_np, name, &
             k_elim_transformed, k_uptake_transformed, stored_fraction, compartment, &
@@ -472,17 +561,22 @@ module classDatabase
         namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, &
             urban_parks, vertical_distribution
         namelist /size_classes/ default_nm_size_distribution, nm_size_classes, default_spm_size_distribution, &
-            spm_size_classes, default_matrixembedded_distribution_to_spm
+            spm_size_classes, default_matrixembedded_distribution_to_spm, spm_particle_densities
         namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density
-
-        print *, "start"
+        namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
+            k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, &
+            estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb
+        ! Defaults, if the variable doesn't exist in namelist
+        resuspension_alpha_estuary = 0.0_dp
+        resuspension_beta_estuary = 0.0_dp
+        k_diss_pristine = 0.0_dp
+        k_diss_transformed = 0.0_dp
+        k_transform_pristine = 0.0_dp
 
         ! Open and read the NML file
         open(11, file=constantsFile, status="old")
         read(11, nml=allocatable_array_sizes)
         rewind(11)
-
-        print *, "alloc read done"
 
         ! Allocate the appropriate
         allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
@@ -490,9 +584,8 @@ module classDatabase
             default_spm_size_distribution(n_default_spm_size_distribution), &
             spm_size_classes(n_spm_size_classes), &
             default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
-            vertical_distribution(n_vertical_distribution))
-
-        print *, "mem allocated"
+            vertical_distribution(n_vertical_distribution), &
+            spm_particle_densities(n_spm_particle_densities))
 
         read(11, nml=n_biota_grp, iostat=nmlIOStat)
         rewind(11)
@@ -508,12 +601,13 @@ module classDatabase
             me%hasBiota = .true.
         end if
 
-        print *, "nml stat checked, second mem alloc done"
         read(11, nml=earthworm_densities)
         rewind(11)
         read(11, nml=size_classes)
         rewind(11)
         read(11, nml=soil)
+        rewind(11)
+        read(11, nml=water)
         close(11)
 
         ! Save these to class variables
@@ -529,8 +623,6 @@ module classDatabase
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
-
-        print *, "soil done, earthworm next"
         ! Earthworm densities
         me%earthwormDensityArable = arable
         me%earthwormDensityConiferous = coniferous
@@ -540,12 +632,7 @@ module classDatabase
         me%earthwormDensityUrbanCapped = urban_capped
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
-
-        print *, "before vert dist"
         me%earthwormVerticalDistribution = vertical_distribution / 100.0
-
-        print *, "before biota"
-
         ! Biota
         if (me%hasBiota) then
             me%biotaName = name
@@ -564,26 +651,50 @@ module classDatabase
             me%biotaUptakeFromForm = uptake_from_form
             me%biotaHarvestInMonth = harvest_in_month
         end if
-
-        print *, "before globals stuff"
+        ! Water
+        me%waterResuspensionAlpha = resuspension_alpha
+        me%waterResuspensionBeta = resuspension_beta
+        me%water_k_diss_pristine = k_diss_pristine
+        me%water_k_diss_transformed = k_diss_transformed
+        me%water_k_transform_pristine = k_transform_pristine
+        ! Check if estuary params have been provided, otherwise default to freshwater
+        if (resuspension_alpha_estuary /= 0.0_dp) then
+            me%waterResuspensionAlphaEstuary = resuspension_alpha_estuary
+        else
+            me%waterResuspensionAlphaEstuary = me%waterResuspensionAlpha
+        end if
+        if (resuspension_beta_estuary /= 0.0_dp) then
+            me%waterResuspensionBetaEstuary = resuspension_beta_estuary
+        else
+            me%waterResuspensionBetaEstuary = me%waterResuspensionBeta
+        end if
+        ! estuary
+        me%estuaryTidalM2 = estuary_tidal_M2
+        me%estuaryTidalS2 = estuary_tidal_S2
+        me%estuaryMeanDepthExpA = estuary_mean_depth_expA
+        me%estuaryMeanDepthExpB = estuary_mean_depth_expB
+        me%estuaryWidthExpA = estuary_width_expA
+        me%estuaryWidthExpB = estuary_width_expB
 
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM
         C%nSizeClassesNP = me%nSizeClassesNM
-        deallocate(C%d_np, C%d_spm, C%d_spm_low, C%d_spm_upp)
-        C%d_np = me%nmSizeClasses
-        C%d_spm = me%spmSizeClasses
 
-        print *, "globals dealloc done"
+        print *, me%nmSizeClasses, me%spmSizeClasses, spm_particle_densities
 
+        ! deallocate(C%d_np, C%d_spm, C%d_spm_low, C%d_spm_upp)
+        allocate(C%d_np, source=me%nmSizeClasses)
+        allocate(C%d_spm, source=me%spmSizeClasses)
+        allocate(C%d_pd, source=spm_particle_densities)
+        allocate(C%rho_spm, source=spm_particle_densities)
+
+        print *, C%d_np, C%d_spm, C%d_pd, C%rho_spm
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
         C%nFracCompsSpm = size(C%rho_spm)
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))
-
-        print *, "globals realloc done"
         ! Set the upper and lower bounds of each size class, if treated as a distribution
         do n = 1, C%nSizeClassesSpm
             ! Set the upper and lower limit of the size class's distributions
@@ -625,7 +736,9 @@ module classDatabase
         class(Database) :: me
         integer         :: maxPointSources
         integer :: i, j, k, n
-        allocate(me%nPointSources(me%gridShape(1), me%gridShape(2)))
+        if (.not. allocated(me%nPointSources)) then
+            allocate(me%nPointSources(me%gridShape(1), me%gridShape(2)))
+        end if
         do j = 1, me%gridShape(2)
             do i = 1, me%gridShape(1)
                 n = 0

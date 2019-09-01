@@ -83,9 +83,11 @@ module spcGridCell
         procedure(createGridCell), deferred :: create
         procedure(finaliseCreateGridCell), deferred :: finaliseCreate
         procedure(destroyGridCell), deferred :: destroy
+        procedure(snapPointSourcesToReachGridCell), deferred :: snapPointSourcesToReach
         ! Simulation
         procedure(updateGridCell), deferred :: update
         procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate
+        procedure(parseNewBatchDataGridCell), deferred :: parseNewBatchData
         ! Getters
         procedure(get_Q_outGridCell), deferred :: get_Q_out
         procedure(get_j_spm_outGridCell), deferred :: get_j_spm_out
@@ -139,6 +141,16 @@ module spcGridCell
         subroutine finaliseUpdateGridCell(me)
             import GridCell
             class(GridCell) :: me                                      !! The `GridCell` instance
+        end subroutine
+
+        subroutine snapPointSourcesToReachGridCell(me)
+            import GridCell
+            class(GridCell) :: me
+        end subroutine
+
+        subroutine parseNewBatchDataGridCell(me)
+            import GridCell
+            class(GridCell) :: me
         end subroutine
 
         function get_Q_outGridCell(me, b) result(Q_out)

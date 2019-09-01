@@ -29,8 +29,6 @@ module Globals
         integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
         real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
         real(dp)            :: default_alpha_hetero_estuary     !! Default NP-SPM attachment efficiency [-]
-        real(dp)            :: default_alpha_resus              !! Resuspension calibration parameter
-        real(dp)            :: default_beta_resus               !! Resuspension calibration parameter
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
@@ -39,16 +37,20 @@ module Globals
         real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
         integer             :: nSoilLayers                      !! Number of soil layers to modelled
         
-        ! Calibration and batch run
+        ! Calibration
         logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
         character(len=256)  :: siteData                         !! Where is the data about the sampling sites stored?
         character(len=6)    :: startSite                        !! Where does the calibration start from?
         character(len=6)    :: endSite                          !! Where does the calibration end?
         character(len=6), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
+
+        ! Batched run
+        integer             :: nBatches = 0                     !! Numbers of batches to run
         logical             :: isBatchRun = .false.             !! Are we batch running config files?
+        character(len=256), allocatable :: batchConfigFiles(:)  !! Paths to config files for batches
 
         ! General
-        type(NcDataset)     :: dataset                          !! The NetCDF dataset
+        type(NcDataset) :: dataset                          !! The NetCDF dataset
 
         ! Physical constants
         real(dp) :: g = 9.80665_dp          !! Gravitational acceleration [m/s^2]
@@ -62,13 +64,13 @@ module Globals
         real(dp) :: defaultWaterTemperature !! Default water temperature [C]
 
         ! Size class distributions
-        real(dp), allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
-        real(dp), allocatable :: d_spm_low(:)       !! Lower bound when treating each size class as distribution [m]
-        real(dp), allocatable :: d_spm_upp(:)       !! Upper bound when treating each size class as distribution [m]
-        real(dp), allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
+        real, allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
+        real, allocatable :: d_spm_low(:)       !! Lower bound when treating each size class as distribution [m]
+        real, allocatable :: d_spm_upp(:)       !! Upper bound when treating each size class as distribution [m]
+        real, allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
         ! TODO: Get rid of d_pd (probably references to it in BedSediment). Analogous to rho_spm.
-        real(dp), allocatable :: d_pd(:)            !! Sediment particle densities [kg m-3]
-        real(dp), allocatable :: rho_spm(:)         !! Sediment particle densities [kg m-3]
+        real, allocatable :: d_pd(:)            !! Sediment particle densities [kg m-3]
+        real, allocatable :: rho_spm(:)         !! Sediment particle densities [kg m-3]
         integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
         integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
         integer :: nFracCompsSpm                    !! Number of sediment fractional compositions
@@ -79,15 +81,15 @@ module Globals
         integer :: ionicDim                         !! Default dimensions for ionic metal
 
         ! Estuarine and tidal data
-        real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2 [-]
-        real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2 [-]
-        real(dp) :: tidalDatum                      !! Datum that tidal harmonics are calculated relative to [m]
-        ! real :: estuaryChartedDepthExpA             !! Exponential coef A for charted depth
-        ! real :: estuaryChartedDepthExpB             !! Exponential coef B for charted depth
-        real :: estuaryMeanDepthExpA                !! Exponential coef A for mean depth
-        real :: estuaryMeanDepthExpB                !! Exponential coef B for mean depth
-        real :: estuaryWidthExpA                    !! Exponential coef A for estuary width
-        real :: estuaryWidthExpB                    !! Exponential coef B for estuary width
+        ! real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2 [-]
+        ! real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2 [-]
+        ! real(dp) :: tidalDatum                      !! Datum that tidal harmonics are calculated relative to [m]
+        ! ! real :: estuaryChartedDepthExpA             !! Exponential coef A for charted depth
+        ! ! real :: estuaryChartedDepthExpB             !! Exponential coef B for charted depth
+        ! real :: estuaryMeanDepthExpA                !! Exponential coef A for mean depth
+        ! real :: estuaryMeanDepthExpB                !! Exponential coef B for mean depth
+        ! real :: estuaryWidthExpA                    !! Exponential coef A for estuary width
+        ! real :: estuaryWidthExpB                    !! Exponential coef B for estuary width
 
       contains
         procedure :: rho_w      ! Density of water
@@ -106,10 +108,10 @@ module Globals
         real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
         real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
         real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
-        integer :: n                                        ! Iterator for size classes
+        integer :: n, i                                     ! Iterators
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
         character(len=256) :: configFilePath, batchRunFilePath
-        integer :: configFilePathLength, batchRunFilePathLength, nBatches
+        integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
         character(len=256) :: input_file, flat_input, constants_file, output_file, output_path, log_file_path, start_date, &
             startDateStr, site_data
@@ -119,7 +121,7 @@ module Globals
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites
         integer, allocatable :: default_fractional_comp(:)
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_k_att, default_alpha_hetero_estuary, nanomaterial_density, default_alpha_resus, default_beta_resus
+            default_k_att, default_alpha_hetero_estuary, nanomaterial_density
         real, allocatable :: soil_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run
@@ -131,7 +133,7 @@ module Globals
         namelist /global/ default_fractional_comp, warm_up_period, nanomaterial_density
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_alpha_hetero_estuary, include_bed_sediment, default_alpha_resus, default_beta_resus
+            default_alpha_hetero_estuary, include_bed_sediment
         namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
@@ -149,8 +151,12 @@ module Globals
         if (batchRunFilePathLength > 0) then
             C%isBatchRun = .true.
             open(12, file=trim(batchRunFilePath), status="old")
-            read(12, '(i2)') nBatches
-            print *, nBatches
+            read(12, '(i2)') C%nBatches
+            allocate(C%batchConfigFiles(C%nBatches))
+            do i = 1, C%nBatches
+                read(12, '(A)') C%batchConfigFiles(i)
+            end do
+            close(12)
         end if
 
         read(10, nml=allocatable_array_sizes)
@@ -195,8 +201,6 @@ module Globals
         C%defaultWaterTemperature = default_water_temperature
         C%default_alpha_hetero = default_alpha_hetero
         C%default_alpha_hetero_estuary = default_alpha_hetero_estuary
-        C%default_alpha_resus = default_alpha_resus
-        C%default_beta_resus = default_beta_resus
         C%default_k_att = default_k_att
         C%warmUpPeriod = warm_up_period
         C%nanomaterialDensity = nanomaterial_density
@@ -246,72 +250,72 @@ module Globals
         call ERROR_HANDLER%init(errors=errors, on=error_output)
 
         ! Get the sediment and nanoparticle size classes from data file
-        C%dataset = NcDataset(C%inputFile, "r")             ! Open dataset as read-only
-        grp = C%dataset%getGroup("global")                  ! Get the global variables group
-        var = grp%getVariable("spm_size_classes")           ! Get the sediment size classes variable
-        call var%getData(spmSizeClasses)                    ! Get the variable's data
-        allocate(C%d_spm, source=spmSizeClasses)            ! Allocate to class variable
-        var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
-        call var%getData(npSizeClasses)                     ! Get the variable's data
-        allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
-        var = grp%getVariable("spm_particle_densities")     ! Get the sediment particle density variable
-        call var%getData(spmFracComps)                      ! Get the variable's data
-        allocate(C%d_pd, source=spmFracComps)               ! Allocate to class variable
-        allocate(C%rho_spm, source=spmFracComps)
-        ! TODO: Check the distribution adds up to 100%
-        var = grp%getVariable("tidal_M2")                   ! Tidal harmonic coefficient M2
-        call var%getData(C%tidalM2)
-        var = grp%getVariable("tidal_S2")                   ! Tidal harmonic coefficient S2
-        call var%getData(C%tidalS2)
-        ! The following exponential components are used to calculate depth/width and function of distance to mouth,
-        ! using an expontential equation of the form A*exp(-Bt)
-        ! TODO check this, but I don't think we need charted depth - everything can be calculated as fn of mean depth (see spreadsheet)
-        ! var = grp%getVariable("estuary_charted_depth_expA") ! Charted depth exponential A coef
-        ! call var%getData(C%estuaryChartedDepthExpA)
-        ! var = grp%getVariable("estuary_charted_depth_expB") ! Charted depth exponential A coef
-        ! call var%getData(C%estuaryChartedDepthExpB)
-        var = grp%getVariable("estuary_mean_depth_expA")    ! Mean depth exponential A coef
-        call var%getData(C%estuaryMeanDepthExpA)
-        var = grp%getVariable("estuary_mean_depth_expB")    ! Mean depth exponential A coef
-        call var%getData(C%estuaryMeanDepthExpB)
-        var = grp%getVariable("estuary_width_expA")          ! Width exponential A coef
-        call var%getData(C%estuaryWidthExpA)
-        var = grp%getVariable("estuary_width_expB")         ! Width exponential A coef
-        call var%getData(C%estuaryWidthExpB)
+        ! C%dataset = NcDataset(C%inputFile, "r")             ! Open dataset as read-only
+        ! grp = C%dataset%getGroup("global")                  ! Get the global variables group
+        ! var = grp%getVariable("spm_size_classes")           ! Get the sediment size classes variable
+        ! call var%getData(spmSizeClasses)                    ! Get the variable's data
+        ! allocate(C%d_spm, source=spmSizeClasses)            ! Allocate to class variable
+        ! var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
+        ! call var%getData(npSizeClasses)                     ! Get the variable's data
+        ! allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
+        ! var = grp%getVariable("spm_particle_densities")     ! Get the sediment particle density variable
+        ! call var%getData(spmFracComps)                      ! Get the variable's data
+        ! allocate(C%d_pd, source=spmFracComps)               ! Allocate to class variable
+        ! allocate(C%rho_spm, source=spmFracComps)
+        ! ! TODO: Check the distribution adds up to 100%
+        ! var = grp%getVariable("tidal_M2")                   ! Tidal harmonic coefficient M2
+        ! call var%getData(C%tidalM2)
+        ! var = grp%getVariable("tidal_S2")                   ! Tidal harmonic coefficient S2
+        ! call var%getData(C%tidalS2)
+        ! ! The following exponential components are used to calculate depth/width and function of distance to mouth,
+        ! ! using an expontential equation of the form A*exp(-Bt)
+        ! ! TODO check this, but I don't think we need charted depth - everything can be calculated as fn of mean depth (see spreadsheet)
+        ! ! var = grp%getVariable("estuary_charted_depth_expA") ! Charted depth exponential A coef
+        ! ! call var%getData(C%estuaryChartedDepthExpA)
+        ! ! var = grp%getVariable("estuary_charted_depth_expB") ! Charted depth exponential A coef
+        ! ! call var%getData(C%estuaryChartedDepthExpB)
+        ! var = grp%getVariable("estuary_mean_depth_expA")    ! Mean depth exponential A coef
+        ! call var%getData(C%estuaryMeanDepthExpA)
+        ! var = grp%getVariable("estuary_mean_depth_expB")    ! Mean depth exponential A coef
+        ! call var%getData(C%estuaryMeanDepthExpB)
+        ! var = grp%getVariable("estuary_width_expA")          ! Width exponential A coef
+        ! call var%getData(C%estuaryWidthExpA)
+        ! var = grp%getVariable("estuary_width_expB")         ! Width exponential A coef
+        ! call var%getData(C%estuaryWidthExpB)
 
-        call C%dataset%close()                              ! Close the dataset
+        ! call C%dataset%close()                              ! Close the dataset
         ! TODO: Get default water temperature "T_water"
 
         ! Set the number of size classes
-        C%nSizeClassesSpm = size(C%d_spm)
-        C%nSizeClassesNP = size(C%d_np)
-        C%nFracCompsSpm = size(C%rho_spm)
-        allocate(C%d_spm_low(C%nSizeClassesSpm))
-        allocate(C%d_spm_upp(C%nSizeClassesSpm))
-        ! Set the upper and lower bounds of each size class, if treated as a distribution
-        do n = 1, C%nSizeClassesSpm
-            ! Set the upper and lower limit of the size class's distributions
-            if (n == C%nSizeClassesSpm) then
-                C%d_spm_upp(n) = 1                                              ! failsafe overall upper size limit
-            else
-                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
-            end if                
-        end do
-        do n = 1, C%nSizeClassesSpm
-            if (n == 1) then
-                C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
-            else
-                C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
-            end if
-        end do        
+        ! C%nSizeClassesSpm = size(C%d_spm)
+        ! C%nSizeClassesNP = size(C%d_np)
+        ! C%nFracCompsSpm = size(C%rho_spm)
+        ! allocate(C%d_spm_low(C%nSizeClassesSpm))
+        ! allocate(C%d_spm_upp(C%nSizeClassesSpm))
+        ! ! Set the upper and lower bounds of each size class, if treated as a distribution
+        ! do n = 1, C%nSizeClassesSpm
+        !     ! Set the upper and lower limit of the size class's distributions
+        !     if (n == C%nSizeClassesSpm) then
+        !         C%d_spm_upp(n) = 1                                              ! failsafe overall upper size limit
+        !     else
+        !         C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
+        !     end if                
+        ! end do
+        ! do n = 1, C%nSizeClassesSpm
+        !     if (n == 1) then
+        !         C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
+        !     else
+        !         C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
+        !     end if
+        ! end do        
 
         ! Array to store default NM and ionic array dimensions. NM:
         !   1: NP size class
         !   2: form (core, shell, coating, corona)
         !   3: state (free, bound, heteroaggregated)
         ! Ionic: Form (free ion, solution, adsorbed)
-        C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
-        C%ionicDim = 3
+        ! C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
+        ! C%ionicDim = 3
         
     end subroutine
 

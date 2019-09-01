@@ -6,7 +6,6 @@
     n_spm_size_classes = 5
     n_vertical_distribution = 3
 /
-
 &earthworm_densities
     arable = 30
     coniferous = 150
@@ -19,12 +18,11 @@
     vertical_distribution = 50, 35, 15
 /
 
-
 &size_classes
     default_matrixembedded_distribution_to_spm = 20, 20, 20, 20, 20
     default_nm_size_distribution = 100
     default_spm_size_distribution = 50, 30, 10, 7, 3
-    nm_size_classes = 1.5e-8
+    nm_size_classes = 1.5e-08
     spm_size_classes = 1e-06, 3e-06, 1e-05, 3e-05, 0.0001
 /
 
@@ -34,4 +32,11 @@
     default_porosity = 0.456
     hamaker_constant = 6.9e-21
     particle_density = 2500.0
+/
+
+&water
+    resuspension_alpha = 0.0005
+    resuspension_alpha_estuary = 0.01
+    resuspension_beta = 5e-08
+    resuspension_beta_estuary = 0.001
 /

@@ -22,6 +22,7 @@ module classGridCell2
         ! procedure, private :: setBranchRouting
         ! procedure, private :: setRiverReachLengths
         procedure, private :: createReaches
+        procedure :: snapPointSourcesToReach => snapPointSourcesToReachGridCell2
         ! Simulators
         procedure :: update => updateGridCell2
         procedure :: finaliseUpdate => finaliseUpdateGridCell2
@@ -29,6 +30,7 @@ module classGridCell2
         procedure :: transfers => transfersGridCell2
         ! Data handlers
         procedure :: parseInputData => parseInputDataGridCell2
+        procedure :: parseNewBatchData => parseNewBatchDataGridCell2
         ! Getters
         procedure :: get_Q_out => get_Q_outGridCell2
         procedure :: get_j_spm_out => get_j_spm_outGridCell2
@@ -115,12 +117,38 @@ module classGridCell2
     function finaliseCreateGridCell2(me) result(rslt)
         class(GridCell2) :: me              !! This `GridCell2` instance
         type(Result) :: rslt                !! The `Result` object to return
+        integer :: i
+        ! Snap point sources to the closest reach
+        call me%snapPointSourcesToReach()
+        ! Run each waterbody's finalise creation method, which at the moment
+        ! just allocates variables (which need to be done after point sources
+        ! were set up)
+        do i = 1, me%nReaches
+            call me%colRiverReaches(i)%item%finaliseCreate()
+        end do
+        ! Trigger any errors
+        call rslt%addToTrace("Finalising creation of " // trim(me%ref))
+        call LOGR%toFile(errors = .errors. rslt)
+        call ERROR_HANDLER%trigger(errors = .errors. rslt)
+        call rslt%clear()           ! Clear errors from the Result object so they're not reported twice
+    end function
+
+    subroutine snapPointSourcesToReachGridCell2(me)
+        class(GridCell2) :: me
         integer :: i, j
         real, allocatable :: lineParams(:,:)
         real, allocatable :: distanceToReach(:)
         real :: x0, y0
         real :: fracIndicies(2)
         integer :: reachIndexToSnapTo
+
+        ! Make sure there are no point sources already allocated
+        do i = 1, me%nReaches
+            if (allocated(me%colRiverReaches(i)%item%pointSources)) then
+                deallocate(me%colRiverReaches(i)%item%pointSources)
+            end if
+            allocate(me%colRiverReaches(i)%item%pointSources(0))
+        end do
 
         ! If there's just one reach, just snap all point sources to that
         if (me%nReaches == 1) then
@@ -156,20 +184,7 @@ module classGridCell2
                 call me%colRiverReaches(reachIndexToSnapTo)%item%addPointSource(j)
             end do
         end if
-
-        ! Run each waterbody's finalise creation method, which at the moment
-        ! just allocates variables (which need to be done after point sources
-        ! were set up)
-        do i = 1, me%nReaches
-            call me%colRiverReaches(i)%item%finaliseCreate()
-        end do
-
-        ! Trigger any errors
-        call rslt%addToTrace("Finalising creation of " // trim(me%ref))
-        call LOGR%toFile(errors = .errors. rslt)
-        call ERROR_HANDLER%trigger(errors = .errors. rslt)
-        call rslt%clear()           ! Clear errors from the Result object so they're not reported twice
-    end function
+    end subroutine
 
     function createReaches(me) result(rslt)
         class(GridCell2), target :: me          !! This `GridCell2` instance
@@ -323,6 +338,7 @@ module classGridCell2
         real(dp)                :: cropArea             ! Temporary var to store crop area in
         integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
 
+
         ! Allocate arrays to store flows in
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
         allocate(me%q_evap_timeSeries(C%nTimeSteps))
@@ -335,7 +351,7 @@ module classGridCell2
         me%area = me%dx * me%dy
         
         ! Set the data interfacer's group to the group for this GridCell
-        call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
+        ! call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
 
         ! Get the number of waterbodies
         me%nReaches = DATASET%nWaterbodies(me%x, me%y)
@@ -349,59 +365,105 @@ module classGridCell2
         end if
 
         ! Get hydrology, topography and water data
-        call r%addErrors([ &
-            ! .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
-            ! .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
-            ! .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
-            ! .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
-            .errors. DATA%get('slope', me%slope), &
-            .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
-            .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.false.) &
-        ])
+        ! call r%addErrors([ &
+        !     ! .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
+        !     ! .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
+        !     ! .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
+        !     ! .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
+        !     .errors. DATA%get('slope', me%slope), &
+        !     .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
+        !     .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.false.) &
+        ! ])
+        ! TODO get the following from data
+        me%slope = 0.0005
+        me%n_river = 0.035_dp
+        me%T_water_timeSeries = 10.0_dp
         ! FLAT DATA
         me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
         me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
         me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
+
+        ! TODO demands data (see commented out bit below)
         
         ! Try and set the group to the demands group. It will produce an error if group
         ! doesn't exist - use this to set me%hasDemands to .false.
-        rslt = DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands'])
-        if (.not. rslt%hasError()) then
-            me%hasDemands = .true.
-            ! Now get the data from the group. These should all default to zero.
-            ! TODO What should the default surface water to total water ratio be?
-            call r%addErrors([ &
-                .errors. DATA%get('total_population', me%totalPopulation, 0.0_dp), &
-                .errors. DATA%get('urban_population', me%urbanPopulation, 0.0_dp), &
-                .errors. DATA%get('cattle_population', me%cattlePopulation, 0.0_dp), &
-                .errors. DATA%get('sheep_goat_population', me%sheepGoatPopulation, 0.0_dp), &
-                .errors. DATA%get('urban_demand', me%urbanDemandPerCapita, 0.0_dp), &
-                .errors. DATA%get('rural_demand', me%ruralDemandPerCapita, 0.0_dp), &
-                .errors. DATA%get('industrial_demand', me%industrialDemand, 0.0_dp), &
-                .errors. DATA%get('sw_to_tw_ratio', me%surfaceWaterToTotalWaterRatio, 0.42_dp, warnIfDefaulting=.true.), &
-                .errors. DATA%get('has_large_city', hasLargeCityInt, 0) &
-            ])
-            me%hasLargeCity = lgcl(hasLargeCityInt)     ! Convert int to bool
+        ! rslt = DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands'])
+        ! if (.not. rslt%hasError()) then
+        !     me%hasDemands = .true.
+        !     ! Now get the data from the group. These should all default to zero.
+        !     ! TODO What should the default surface water to total water ratio be?
+        !     call r%addErrors([ &
+        !         .errors. DATA%get('total_population', me%totalPopulation, 0.0_dp), &
+        !         .errors. DATA%get('urban_population', me%urbanPopulation, 0.0_dp), &
+        !         .errors. DATA%get('cattle_population', me%cattlePopulation, 0.0_dp), &
+        !         .errors. DATA%get('sheep_goat_population', me%sheepGoatPopulation, 0.0_dp), &
+        !         .errors. DATA%get('urban_demand', me%urbanDemandPerCapita, 0.0_dp), &
+        !         .errors. DATA%get('rural_demand', me%ruralDemandPerCapita, 0.0_dp), &
+        !         .errors. DATA%get('industrial_demand', me%industrialDemand, 0.0_dp), &
+        !         .errors. DATA%get('sw_to_tw_ratio', me%surfaceWaterToTotalWaterRatio, 0.42_dp, warnIfDefaulting=.true.), &
+        !         .errors. DATA%get('has_large_city', hasLargeCityInt, 0) &
+        !     ])
+        !     me%hasLargeCity = lgcl(hasLargeCityInt)     ! Convert int to bool
             
-            ! Check if there are any crops to get. These will be retrieved iteratively
-            ! (i.e. crop_1, crop_2, crop_3). Then get the data for those crops and create
-            ! array of Crop objects in me%crops
-            i = 1
-            do while (DATA%grp%hasGroup("crop_" // trim(str(i))))
-                allocate(me%crops(i))
-                call r%addErrors(.errors. &
-                    DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
-                call r%addErrors([ &
-                    .errors. DATA%get('crop_area', cropArea), &
-                    .errors. DATA%get('crop_type', cropType), &
-                    .errors. DATA%get('planting_month', cropPlantingMonth) &
-                ])
-                me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
-                i = i+1
-            end do
-        end if  
+        !     ! Check if there are any crops to get. These will be retrieved iteratively
+        !     ! (i.e. crop_1, crop_2, crop_3). Then get the data for those crops and create
+        !     ! array of Crop objects in me%crops
+        !     i = 1
+        !     do while (DATA%grp%hasGroup("crop_" // trim(str(i))))
+        !         allocate(me%crops(i))
+        !         call r%addErrors(.errors. &
+        !             DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
+        !         call r%addErrors([ &
+        !             .errors. DATA%get('crop_area', cropArea), &
+        !             .errors. DATA%get('crop_type', cropType), &
+        !             .errors. DATA%get('planting_month', cropPlantingMonth) &
+        !         ])
+        !         me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
+        !         i = i+1
+        !     end do
+        ! end if  
 
     end function
+
+    subroutine parseNewBatchDataGridCell2(me)
+        class(GridCell2) :: me          !! This grid cell instance
+        integer :: i                    ! Iterators
+
+        if (.not. me%isEmpty) then
+            ! Allocate arrays to store flows in
+            deallocate(me%q_runoff_timeSeries, &
+                me%q_evap_timeSeries, &
+                me%q_precip_timeSeries, &
+                me%T_water_timeSeries)
+            allocate(me%q_runoff_timeSeries(C%nTimeSteps))
+            allocate(me%q_evap_timeSeries(C%nTimeSteps))
+            allocate(me%q_precip_timeSeries(C%nTimeSteps))
+            allocate(me%T_water_timeSeries(C%nTimeSteps))
+
+            me%slope = 0.0005
+            me%n_river = 0.035_dp
+            me%T_water_timeSeries = 10.0_dp
+            me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
+            me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
+            me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
+
+            ! Parse this batches soil data
+            call me%colSoilProfiles(1)%item%parseNewBatchData()
+
+            ! Number of point sources per grid cell might have changed, so we
+            ! need to re-snap them to the closest reach
+            call me%snapPointSourcesToReach()
+            ! Now loop through reaches and alter size of j matrices to account
+            ! for potentially different number of point sources
+            do i = 1, me%nReaches
+                call me%colRiverReaches(i)%item%parseNewBatchData()
+            end do
+
+            ! Reaches and sources don't need updating as they either
+            ! get their data from grid cell, or directly from DATASET,
+            ! which has already been updated.
+        end if
+    end subroutine
 
 !---------------!
 !--- GETTERS ---!
@@ -506,7 +568,7 @@ module classGridCell2
             x0 = me%x + 0.5
             y0 = me%y + 0.5
         end if
-
+        ! TODO calculate domainOutflow here as opposed to getting from data
         if (.not. me%colRiverReaches(i)%item%isDomainOutflow) then
             x_out = me%colRiverReaches(i)%item%outflow%item%x
             y_out = me%colRiverReaches(i)%item%outflow%item%y

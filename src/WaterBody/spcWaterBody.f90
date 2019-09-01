@@ -115,6 +115,7 @@ module spcWaterBody
         ! Data handlers
         procedure :: allocateAndInitialise => allocateAndInitialiseWaterBody
         procedure :: parseInputData => parseInputDataWaterBody
+        procedure :: parseNewBatchData => parseNewBatchDataWaterBody
         ! Getters
         procedure :: j_np_runoff => j_np_runoffWaterBody
         procedure :: j_np_transfer => j_np_transferWaterBody
@@ -229,9 +230,11 @@ module spcWaterBody
     function parseInputDataWaterBody(me) result(rslt)
         class(WaterBody) :: me
         type(Result) :: rslt
-
-        ! Do stuff
     end function
+
+    subroutine parseNewBatchDataWaterBody(me)
+        class(WaterBody) :: me
+    end subroutine
 
     !> Set the final flow arrays for this water body. These final arrays are used by other linked
     !! water bodies such that the avoid using the wrong timestep's values, in particular as inflows.

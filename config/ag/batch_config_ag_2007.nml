@@ -1,0 +1,10 @@
+&data
+input_file = "data/thames/data.nc"
+flat_input = "data/thames/flat_ag_2007.nc"
+constants_file = "data/thames/constants_ag.nml"
+/
+
+&run
+n_timesteps = 365
+start_date = "2007-01-01"
+/

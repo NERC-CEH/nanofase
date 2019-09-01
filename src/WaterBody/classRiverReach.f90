@@ -99,7 +99,7 @@ module classRiverReach
         real(dp) :: j_transformed_in_total                      ! Total inflow of transformed NM [kg/timestep]
         real(dp) :: j_dissolved_in_total                        ! Total inflow of dissolved species [kg/timestep]
         real(dp) :: fractionSpmDeposited(C%nSizeClassesSpm)     ! Fraction of SPM deposited on each time step [-]
-        integer :: i, j, k                                      ! Iterators
+        integer :: i, j, k, l, m                                ! Iterators
         integer :: nDisp                                        ! Number of displacements to split this time step into
         real(dp) :: dt                                          ! Length of each displacement [s]
         real(dp) :: dQ(size(me%Q))                              ! Water flow array (Q) for each displacement
@@ -241,6 +241,18 @@ module classRiverReach
                     dj_transformed(4+me%nInflows,:,:,2+j) = &
                         -min(me%m_transformed(:,:,2+j)*fractionSpmDeposited(j), me%m_transformed(:,:,2+j))
                 end do
+                ! TODO check this out, I was getting FPEs because dj_np(3,...) was 1e-300, so this is a hacked fix:
+                do l = 1, C%npDim(3)
+                    do j = 1, C%npDim(2)
+                        do k = 1, C%npDim(1)
+                            do m = 1, size(dj_np, 1)
+                                if (isZero(dj_np(m,k,j,l))) then
+                                    dj_np(m,k,j,l) = 0.0_dp
+                                end if
+                            end do
+                        end do
+                    end do
+                end do
 
                 !-- MASS BALANCES --!
                 ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
@@ -328,6 +340,7 @@ module classRiverReach
                         t, &
                         me%m_np, &
                         me%m_transformed, &
+                        me%m_dissolved, &
                         me%C_spm, &
                         me%T_water, &
                         me%W_settle_np, &
@@ -339,6 +352,7 @@ module classRiverReach
                 ! Get the resultant transformed mass from the Reactor
                 me%m_np = me%reactor%m_np
                 me%m_transformed = me%reactor%m_transformed
+                me%m_dissolved = me%reactor%m_dissolved
             end if
 
             ! Set the final concentrations, checking that the river has a volume
@@ -379,7 +393,6 @@ module classRiverReach
         end if
 
         ! Update the biota
-        ! TODO which forms/states of NM should go to biota?
         do i = 1, me%nBiota
             call rslt%addErrors(.errors. me%biota(i)%update( &
                 t, &
@@ -416,8 +429,6 @@ module classRiverReach
     function parseInputDataRiverReach(me) result(rslt)
         class(RiverReach) :: me
         type(Result) :: rslt
-        integer :: i                                ! Loop iterator
-        integer, allocatable :: inflowArray(:,:)    ! Temporary array for storing inflows from data file in
 
         ! Set the data interfacer's group to the group for this reach
         call rslt%addErrors(.errors. DATA%setGroup([character(len=100) :: &
@@ -431,23 +442,25 @@ module classRiverReach
         ! length. Note that errors might be thrown from GridCell if the reaches lengths within the GridCell are
         ! not physically possible within the reach (e.g., too short).
         call rslt%addErrors([ &
-            .errors. DATA%get('length', me%length, 0.0_dp), &   ! Length is calculated by GridCell if it defaults here
-                ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
-                ! not physicaly possible within the reach (e.g. too short)       
-            .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
-            .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
-            ! .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
-            ! .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
-            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero), &
-                ! alpha_hetero defaults to that specified in config.nml
-            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
-            .errors. DATA%get('stream_order', me%streamOrder) &
+        !     .errors. DATA%get('length', me%length, 0.0_dp), &   ! Length is calculated by GridCell if it defaults here
+        !         ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
+        !         ! not physicaly possible within the reach (e.g. too short)       
+        !     .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
+        !     .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
+        !     ! .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
+        !     ! .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
+        !     .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero), &
+        !         ! alpha_hetero defaults to that specified in config.nml
+            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
+        !     .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
-        
+        me%f_m = C%defaultMeanderingFactor
+        me%alpha_hetero = C%default_alpha_hetero
+        me%slope = 0.0005
         ! HACK set alpha_resus and beta_resus always to the default value
-        me%alpha_resus = C%default_alpha_resus
-        me%beta_resus = C%default_beta_resus
+        me%alpha_resus = DATASET%waterResuspensionAlpha
+        me%beta_resus = DATASET%waterResuspensionBeta
         
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created

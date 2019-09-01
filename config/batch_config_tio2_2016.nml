@@ -1,0 +1,10 @@
+&data
+input_file = "data/thames/data.nc"
+flat_input = "data/thames/flat_tio2_2016.nc"
+constants_file = "data/thames/constants_tio2.nml"
+/
+
+&run
+n_timesteps = 366
+start_date = "2016-01-01"
+/

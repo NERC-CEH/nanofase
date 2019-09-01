@@ -12,9 +12,8 @@ module spcReactor
             !! Matrix of NP masses, each element representing a different NP size class (1st dimension),
             !! state (2nd dimension) and form (3rd dimension). States: free, bound to solid, heteroaggreated
             !! (per SPM size class). Forms: core, shell, coating, corona.
-        real(dp), allocatable :: m_dissolved(:)
         real(dp), allocatable :: m_transformed(:,:,:)
-            !! Array of ionic metal masses: Ionic, complexed, adsorbed.
+        real(dp) :: m_dissolved
         real(dp), allocatable :: C_np_free_particle(:)      !! Particle concentration of free NPs
         real(dp) :: T_water                     !! Temperature of the water [C]
         real(dp), allocatable :: W_settle_np(:) !! NP settling velocity [m/s]
@@ -24,6 +23,9 @@ module spcReactor
         real(dp), allocatable :: k_hetero(:,:)
             !! Heteroaggregation rate constant [s-1]. 1st dimension: NP size class.
             !! 2nd dimesion: SPM size class
+        real(dp) :: k_diss_pristine
+        real(dp) :: k_diss_transformed
+        real(dp) :: k_transform_pristine
         real(dp) :: rho_np ! HACK: This needs to be set based on density of the specific NP in question
         real(dp), allocatable :: individualNPMass(:)    !! Mass of individual nanoparticles
         real(dp), allocatable :: C_spm_particle(:)      !! Particle concentration of SPM [m-3]
@@ -34,6 +36,8 @@ module spcReactor
         procedure(updateReactor), deferred :: update
         ! Processes
         procedure(heteroaggregationReactor), deferred :: heteroaggregation
+        procedure(dissolutionReactor), deferred :: dissolution
+        procedure(transformationReactor), deferred :: transformation
         procedure(parseInputDataReactor), deferred :: parseInputData
         ! Calculators
         procedure(calculateCollisionRateReactor), deferred :: calculateCollisionRate
@@ -55,7 +59,17 @@ module spcReactor
         end function
     
         !> Run the `Reactor`'s simulation for the current time step
-        function updateReactor(me, t, m_np, m_transformed, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
+        function updateReactor(me, &
+                               t, &
+                               m_np, &
+                               m_transformed, &
+                               m_dissolved, &
+                               C_spm, &
+                               T_water, &
+                               W_settle_np, &
+                               W_settle_spm, &
+                               G, &
+                               volume) result(r)
             use Globals
             use ResultModule, only: Result
             import Reactor
@@ -63,6 +77,7 @@ module spcReactor
             integer :: t                                !! The current time step
             real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)            !! Mass of NP for this timestep [kg]
             real(dp) :: m_transformed(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)   !! Mass of transformed NM for this timestep [kg]
+            real(dp) :: m_dissolved
             real(dp) :: C_spm(C%nSizeClassesSpm)        !! The current mass concentration of SPM [kg/m3]
             real(dp) :: T_water                         !! The current water temperature [C]
             real(dp) :: W_settle_np(C%nSizeClassesNP)   !! NP settling velocity [m/s]
@@ -85,6 +100,20 @@ module spcReactor
             import Reactor
             class(Reactor) :: me
             type(Result) :: r
+        end function
+
+        function dissolutionReactor(me) result(rslt)
+            use ResultModule, only: Result
+            import Reactor
+            class(Reactor)  :: me
+            type(Result)    :: rslt
+        end function
+
+        function transformationReactor(me) result(rslt)
+            use ResultModule, only: Result
+            import Reactor
+            class(Reactor)  :: me
+            type(Result)    :: rslt
         end function
         
         !> Parse the input data for this Reactor object
@@ -114,8 +143,8 @@ module spcReactor
             import Reactor
             class(Reactor) :: me
             real(dp) :: C_mass
-            real(dp) :: rho_particle
-            real(dp) :: d
+            real :: rho_particle
+            real :: d
             real(dp) :: C_particle
         end function
     

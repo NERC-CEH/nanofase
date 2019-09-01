@@ -15,15 +15,17 @@
     n_k_uptake_transformed = 3
     n_name = 3
     n_nm_size_classes = 5
+    n_spm_particle_densities = 4
     n_spm_size_classes = 5
     n_stored_fraction = 3
     n_uptake_from_form = 3
+    n_vertical_distribution = 3
 /
 &biota
     compartment = 'soil', 'soil', 'water'
     harvest_in_month = 9, 0, 0
     initial_c_org = 0, 0, 0
-    k_death = 1e-10, 0.00068, 0.2
+    k_death = 0, 0, 0
     k_elim_dissolved = 4.974, 0.228, 1.94
     k_elim_np = 0.105, 0.062, 0
     k_elim_transformed = 2.722, 0.231, 0.11
@@ -33,7 +35,7 @@
     k_uptake_transformed = 0.612, 0.016, 1.38
     name = 'wheat', 'earthworm', 'chironomus'
     stored_fraction = 0, 0.1, 0.08
-    uptake_from_form = 'free_and_attached', 'free_and_attached', 'free_and_attached'
+    uptake_from_form = 'free_and_attached', 'free_and_attached', 'free'
 /
 
 &earthworm_densities
@@ -45,6 +47,7 @@
     urban_capped = 0
     urban_gardens = 150
     urban_parks = 250
+    vertical_distribution = 50, 35, 15
 /
 
 &n_biota_grp
@@ -56,6 +59,7 @@
     default_nm_size_distribution = 50, 30, 10, 7, 3
     default_spm_size_distribution = 50, 30, 10, 7, 3
     nm_size_classes = 1e-08, 3e-08, 1e-07, 3e-07, 1e-06
+    spm_particle_densities = 1500, 2600, 2600, 2600
     spm_size_classes = 1e-06, 3e-06, 1e-05, 3e-05, 0.0001
 /
 
@@ -65,4 +69,20 @@
     default_porosity = 0.456
     hamaker_constant = 2.02e-20
     particle_density = 2500.0
+/
+
+&water
+    estuary_mean_depth_expa = 19.4
+    estuary_mean_depth_expb = 1.46e-05
+    estuary_tidal_m2 = 2.25
+    estuary_tidal_s2 = 0.62
+    estuary_width_expa = 12548
+    estuary_width_expb = 5.25e-05
+    k_diss_pristine = 0
+    k_diss_transformed = 0
+    k_transform_pristine = 0
+    resuspension_alpha = 0.0005
+    resuspension_alpha_estuary = 0.01
+    resuspension_beta = 5e-08
+    resuspension_beta_estuary = 0.001
 /

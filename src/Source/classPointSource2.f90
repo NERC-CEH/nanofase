@@ -57,7 +57,7 @@ module classPointSource2
             ! There are only point sources to water (for the moment)
             if (trim(me%compartment) == 'water') then
                 ! Pristine
-                if (.not. DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) == nf90_fill_double) then
+                    if (.not. DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) == nf90_fill_double) then
                     me%j_np_pointSource(:,1,1) = DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) &
                         * DATASET%defaultNMSizeDistribution
                 end if

@@ -96,6 +96,7 @@ module spcSoilProfile
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
         procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
+        procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
     end type
 
     !> Container type for `class(SoilProfile)` such that a polymorphic
@@ -207,5 +208,10 @@ module spcSoilProfile
             class(SoilProfile) :: me                            !! This `SoilProfile` instance
             type(Result) :: r                                   !! `Result` object to return
         end function
+
+        subroutine parseNewBatchDataSoilProfile(me)
+            import SoilProfile
+            class(SoilProfile) :: me
+        end subroutine
     end interface
 end module

@@ -20,6 +20,7 @@ module classSoilLayer1
         procedure :: calculateAttachmentRate => calculateAttachmentRateSoilLayer1
         procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer1
         procedure :: parseInputData => parseInputDataSoilLayer1
+        procedure :: parseNewBatchData => parseNewBatchDataSoilLayer1
     end type
 
   contains
@@ -50,6 +51,7 @@ module classSoilLayer1
         me%ref = ref("SoilLayer", x, y, p, l)
         me%area = area
         me%depth = C%soilLayerDepth(l)
+        me%volume = me%area * me%depth
         me%bulkDensity = bulkDensity
         me%d_grain = d_grain
         me%porosity = porosity
@@ -280,14 +282,14 @@ module classSoilLayer1
             eta_0, lambda_filter, D_i, eta_Brownian
 
         gamma = (1 - me%porosity) ** 0.333
-        kBT = C%k_B*C%defaultWaterTemperature
+        kBT = C%k_B * (C%defaultWaterTemperature + 273.15)
         N_VDW = DATASET%soilHamakerConstant / kBT                                       ! Van der Waals number
         A_s = 2 * (1 - gamma**5) / (2 - 3 * gamma + 3 * gamma**5 - 2 * gamma**6)        ! Porosity dependent param
         ! Loop through NM size classes for the parameters that are dependent on NM size
         do i = 1, DATASET%nSizeClassesNM
             r_i = DATASET%nmSizeClasses(i) * 0.5                                        ! NM radius
             D_i = kBT / (6 * C%pi * C%mu_w(C%defaultWaterTemperature) * r_i)            ! Diffusivity of NM particle
-            N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                         ! Peclet number
+            N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                      ! Peclet number
             N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(C%defaultWaterTemperature)) * C%g &
                 / (9 * C%mu_w(C%defaultWaterTemperature) * DATASET%soilDarcyVelocity)   ! Gravity number
             N_R = r_i / (me%d_grain * 0.5)                                              ! Aspect ratio number
@@ -309,5 +311,11 @@ module classSoilLayer1
         me%k_att(:) = DATASET%soilAttachmentRate(me%x, me%y)
         me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
     end function
+
+    subroutine parseNewBatchDataSoilLayer1(me)
+        class(SoilLayer1) :: me
+        me%k_att(:) = DATASET%soilAttachmentRate(me%x, me%y)
+        me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
+    end subroutine
 
 end module

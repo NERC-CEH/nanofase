@@ -406,6 +406,7 @@ module classEstuaryReach
                     t, &
                     me%m_np, &
                     me%m_transformed, &
+                    me%m_dissolved, &
                     me%C_spm, &
                     me%T_water, &
                     me%W_settle_np, &
@@ -417,6 +418,7 @@ module classEstuaryReach
             ! Get the resultant transformed mass from the Reactor
             me%m_np = me%reactor%m_np
             me%m_transformed = me%reactor%m_transformed
+            me%m_dissolved = me%reactor%m_dissolved
         end if
 
         ! Set the final concentrations, checking that the river has a volume
@@ -459,11 +461,11 @@ module classEstuaryReach
 
         ! Width, as exponential function of distance from mouth, unless specified in data
         if (isZero(me%width)) then
-            me%width = C%estuaryWidthExpA * exp(-C%estuaryWidthExpB * me%distanceToMouth)
+            me%width = DATASET%estuaryWidthExpA * exp(-DATASET%estuaryWidthExpB * me%distanceToMouth)
         end if
         
         ! Mean depth as exponential function of distance from mouth
-        me%meanDepth = C%estuaryMeanDepthExpA * exp(-C%estuaryMeanDepthExpB * me%distanceToMouth)
+        me%meanDepth = DATASET%estuaryMeanDepthExpA * exp(-DATASET%estuaryMeanDepthExpB * me%distanceToMouth)
         ! Calculate actual depth based on these and number of hours through model run
         me%depth = me%calculateDepth(tHours)
         me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
@@ -533,32 +535,31 @@ module classEstuaryReach
         ! length. Note that errors might be thrown from GridCell if the reaches lengths within the GridCell are
         ! not physically possible within the reach (e.g., too short).
         call rslt%addErrors([ &
-            .errors. DATA%get('length', me%length, 0.0_dp), &   ! Length is calculated by GridCell if it defaults here
-                ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
-                ! not physicaly possible within the reach (e.g. too short)       
-            .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
-            .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &              ! Meandering factor
-            ! .errors. DATA%get('alpha_res', me%alpha_resus, C%default_alpha_resus), &    ! Resuspension alpha parameter
-            ! .errors. DATA%get('beta_res', me%beta_resus, C%default_beta_resus), &       ! Resuspension beta parameter
-            .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero_estuary), &
-                ! alpha_hetero defaults to that specified in config.nml
+        !     ! .errors. DATA%get('length', me%length, 0.0_dp), &   ! Length is calculated by GridCell if it defaults here
+        !         ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
+        !         ! not physicaly possible within the reach (e.g. too short)       
+        !     .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
+        !     .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &              ! Meandering factor
+        !     ! .errors. DATA%get('alpha_res', me%alpha_resus, C%default_alpha_resus), &    ! Resuspension alpha parameter
+        !     ! .errors. DATA%get('beta_res', me%beta_resus, C%default_beta_resus), &       ! Resuspension beta parameter
+        !     .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero_estuary), &
+        !         ! alpha_hetero defaults to that specified in config.nml
             .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
-            .errors. DATA%get('width', me%width, 0.0_dp), &
-            .errors. DATA%get('distance_to_mouth', me%distanceToMouth), &
-            .errors. DATA%get('stream_order', me%streamOrder) &
+        !     .errors. DATA%get('width', me%width, 0.0_dp), &
+            .errors. DATA%get('distance_to_mouth', me%distanceToMouth) &
+        !     .errors. DATA%get('stream_order', me%streamOrder) &
         ])
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
-
-        ! HACK set alpha_resus and beta_resus always to the default value
-        me%alpha_resus = C%default_alpha_resus
-        me%beta_resus = C%default_beta_resus
-
+        me%slope = 0.0005
+        me%f_m = C%defaultMeanderingFactor
+        me%alpha_hetero = C%default_alpha_hetero_estuary
+        me%alpha_resus = DATASET%waterResuspensionAlphaEstuary
+        me%beta_resus = DATASET%waterResuspensionBetaEstuary
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created
         call rslt%addErrors( &
             .errors. me%parseInflowsAndOutflow() &
         )
-
          ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
         call rslt%addErrors( &
             .errors. me%setReachLength() &
@@ -578,8 +579,9 @@ module classEstuaryReach
         integer, intent(in) :: tHours             !! The current timestep (in hours)
         real(dp) :: depth
 
-        depth = C%tidalS2 * cos(2.0_dp*C%pi*tHours/12.0_dp) + C%tidalM2 * cos(2.0_dp*C%pi*tHours/12.42_dp) &
-            + (0.75_dp) * ((me%distanceToMouth * C%tidalM2 ** 2)/(me%meanDepth * 22356.0_dp * sqrt(9.81_dp * me%meanDepth))) &
+        depth = DATASET%estuaryTidalS2 * cos(2.0_dp*C%pi*tHours/12.0_dp) + DATASET%estuaryTidalM2 &
+            * cos(2.0_dp*C%pi*tHours/12.42_dp) + (0.75_dp) * ((me%distanceToMouth * DATASET%estuaryTidalM2 ** 2) &
+            / (me%meanDepth * 22356.0_dp * sqrt(9.81_dp * me%meanDepth))) &
             * cos(2*C%pi*tHours/6.21_dp) + me%meanDepth
         ! If the depth is negative (which it really shouldn't be...), set it to zero
         if (depth < 0) depth = 0.0_dp

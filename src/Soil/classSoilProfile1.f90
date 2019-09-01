@@ -26,6 +26,7 @@ module classSoilProfile1
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
         procedure :: calculateAverageGrainSize => calculateAverageGrainSizeSoilProfile1 ! Calculate the average grain diameter from soil texture
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
+        procedure :: parseNewBatchData => parseNewBatchDataSoilProfile1
     end type
 
   contains
@@ -352,8 +353,7 @@ module classSoilProfile1
         class(SoilProfile1) :: me           ! This soil profile
         real :: clay, silt, sand            ! Percentage clay, silt and sand
         real :: d_grain                     ! The average grain size
-        d_grain = 1
-        ! d_grain = 1e-3 * exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
+        d_grain = 1e-3 * exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
     end function
 
     !> Get the data from the input file and set object properties
@@ -364,17 +364,8 @@ module classSoilProfile1
         type(Result)            :: r                        !! `Result` object to return
         integer                 :: i                        ! Iterator
         integer                 :: landUse                  ! Index of max land use fraction in this profile
-        real(dp), allocatable   :: usle_C_min(:)            ! Minimum cover factor for USLE
-        real(dp), allocatable   :: usle_C_av(:)             ! Average cover factor for USLE
-        integer                 :: usle_rock                ! % rock in top of soil profile, to calculate usle_CFRG param
-        real(dp), allocatable   :: usle_rsd(:)              ! Residue on soil surface [kg/ha]
         type(NcVariable)        :: var
 
-        ! Allocate the data which are time series. These must be allocatable (as opposed to
-        ! being declared that length) to work with the mo_netcdf getData() procedure.
-        allocate(usle_C_min(C%nTimeSteps))
-        allocate(usle_C_av(C%nTimeSteps))
-        allocate(usle_rsd(C%nTimeSteps))
         ! Set the data interfacer's group to this SoilProfile
         call r%addErrors(.errors. DATA%setGroup([character(len=100) :: &
             'Environment', &
@@ -407,6 +398,21 @@ module classSoilProfile1
         ! Calculate the average grain diameter from soil texture
         me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
         me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
+
+        ! USLE params
+        me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
+        ! TODO make usle_C not temporal
+        if ((me%usle_C(1) == nf90_fill_double) .or. (me%usle_C(1) < 0) .or. (me%usle_C(1) > 100)) then
+            me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
+        end if
+        me%usle_P = DATASET%soilUslePFactor(me%x, me%y)
+        if (me%usle_P == nf90_fill_double) then
+            me%usle_P = 1.0                 ! If there's no data, assume no support practice
+        end if
+        me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y)
+        if (me%usle_LS == nf90_fill_double) then
+            me%usle_LS = 0.3                 ! Pick an average value if there's no data
+        end if
 
         ! Get earthworm density from land use. Select the maximum land use fraction and use all
         ! of profile is that.
@@ -459,198 +465,269 @@ module classSoilProfile1
         !       from land cropped under specified conditions to the corresponding loss
         !       from clean-tilled, continuous flow. Should be time-dependent (as crop
         !       cover changes). [-]
-        if (DATA%grp%hasVariable('usle_C')) then              ! First, check if time series of C-factors is available
-            var = DATA%grp%getVariable('usle_C')
-            call var%getData(me%usle_C)
-        else                                                    ! Else, we can estimate C
-            if (DATA%grp%hasVariable('usle_C_min')) then      ! Use minimum C to estimate C
-                var = DATA%grp%getVariable('usle_C_min')
-                call var%getData(usle_C_min)
-            else if (DATA%grp%hasVariable('usle_C_av')) then  ! Average annual C can be used to estimate minimum C
-                var = DATA%grp%getVariable('usle_C_av')
-                call var%getData(usle_C_av)
-                usle_C_min = 1.463*log(usle_C_av) + 0.1034
-            else                                                ! If neither exist, default C_min to 1 (fallow soil)
-                ! call r%addError(ErrorInstance( &
-                !     code = 201, &
-                !     message = "Values for usle_C_min or usle_C_av not found in input file. " // &
-                !                 "usle_C_min defaulting to 1 (fallow soil).", &
-                !     isCritical = .false. &
-                ! ))
-                usle_C_min = 1
-            end if
-            if (DATA%grp%hasVariable('usle_rsd')) then        ! Residue on surface also needed to esimate C [kg/ha]
-                var = DATA%grp%getVariable('usle_rsd')
-                call var%getData(usle_rsd)
-            else                                                ! Default to zero (no residue = no crops)
-                ! call r%addError(ErrorInstance( &
-                !     code = 201, &
-                !     message = "Value for usle_rsd not found in input file. " // &
-                !                 "Defaulting to 0 (no crops).", &
-                !     isCritical = .false. &
-                ! ))
-                usle_rsd = 0
-            end if 
-            ! Defaults to 0.8, based on C_min = 1 and rsd = 0.
-            me%usle_C = exp((log(0.8) - log(usle_C_min))*exp(-0.00115*usle_rsd) + log(usle_C_min))
-        end if
+        ! if (DATA%grp%hasVariable('usle_C')) then              ! First, check if time series of C-factors is available
+        !     var = DATA%grp%getVariable('usle_C')
+        !     call var%getData(me%usle_C)
+        ! else                                                    ! Else, we can estimate C
+        !     if (DATA%grp%hasVariable('usle_C_min')) then      ! Use minimum C to estimate C
+        !         var = DATA%grp%getVariable('usle_C_min')
+        !         call var%getData(usle_C_min)
+        !     else if (DATA%grp%hasVariable('usle_C_av')) then  ! Average annual C can be used to estimate minimum C
+        !         var = DATA%grp%getVariable('usle_C_av')
+        !         call var%getData(usle_C_av)
+        !         usle_C_min = 1.463*log(usle_C_av) + 0.1034
+        !     else                                                ! If neither exist, default C_min to 1 (fallow soil)
+        !         ! call r%addError(ErrorInstance( &
+        !         !     code = 201, &
+        !         !     message = "Values for usle_C_min or usle_C_av not found in input file. " // &
+        !         !                 "usle_C_min defaulting to 1 (fallow soil).", &
+        !         !     isCritical = .false. &
+        !         ! ))
+        !         usle_C_min = 1
+        !     end if
+        !     if (DATA%grp%hasVariable('usle_rsd')) then        ! Residue on surface also needed to esimate C [kg/ha]
+        !         var = DATA%grp%getVariable('usle_rsd')
+        !         call var%getData(usle_rsd)
+        !     else                                                ! Default to zero (no residue = no crops)
+        !         ! call r%addError(ErrorInstance( &
+        !         !     code = 201, &
+        !         !     message = "Value for usle_rsd not found in input file. " // &
+        !         !                 "Defaulting to 0 (no crops).", &
+        !         !     isCritical = .false. &
+        !         ! ))
+        !         usle_rsd = 0
+        !     end if 
+        !     ! Defaults to 0.8, based on C_min = 1 and rsd = 0.
+        !     me%usle_C = exp((log(0.8) - log(usle_C_min))*exp(-0.00115*usle_rsd) + log(usle_C_min))
+        ! end if
         ! K     Soil erodibility factor, which depends on soil structure and is treated as
         !       time-independent. [t ha h ha-1 MJ-1 mm-1]
-        if (DATA%grp%hasVariable('usle_K')) then
-            var = DATA%grp%getVariable('usle_K')
-            call var%getData(me%usle_K)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for usle_K not found in input file." &
-            ))
-        end if
+        ! if (DATA%grp%hasVariable('usle_K')) then
+        !     var = DATA%grp%getVariable('usle_K')
+        !     call var%getData(me%usle_K)
+        ! else
+        !     call r%addError(ErrorInstance( &
+        !         code = 201, &
+        !         message = "Value for usle_K not found in input file." &
+        !     ))
+        ! end if
         ! P     Support practice factor, the ratio of soil loss with a specific support
         !       practice to the corresponding loss with up-and-down slope culture. Support
         !       practices: Contour tillage, strip-cropping, terrace systems. [-]
-        if (DATA%grp%hasVariable('usle_P')) then
-            var = DATA%grp%getVariable('usle_P')
-            call var%getData(me%usle_P)
-        else
+        ! if (DATA%grp%hasVariable('usle_P')) then
+        !     var = DATA%grp%getVariable('usle_P')
+        !     call var%getData(me%usle_P)
+        ! else
             ! call r%addError(ErrorInstance( &
             !     code = 201, &
             !     message = "Value for usle_P not found in input file. " // &
             !                 "Defaulting to 1 (no support practice).", &
             !     isCritical = .false. &
             ! ))
-            me%usle_P = 1
-        end if
+            ! me%usle_P = 1
+        ! end if
         ! LS    Topographic factor, a function of the terrain's topography. [-]
-        if (DATA%grp%hasVariable('usle_LS')) then
-            var = DATA%grp%getVariable('usle_LS')
-            call var%getData(me%usle_LS)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for usle_LS not found in input file." &
-            ))
-        end if
+        ! if (DATA%grp%hasVariable('usle_LS')) then
+        !     var = DATA%grp%getVariable('usle_LS')
+        !     call var%getData(me%usle_LS)
+        ! else
+        !     call r%addError(ErrorInstance( &
+        !         code = 201, &
+        !         message = "Value for usle_LS not found in input file." &
+        !     ))
+        ! end if
         ! CFRG  Coase fragment factor, CFRG = exp(0.035 * % rock in first soil layer). [-]
-        if (DATA%grp%hasVariable('usle_rock')) then
-            var = DATA%grp%getVariable('usle_rock')           ! % rock in top of soil profile [-]
-            call var%getData(usle_rock)
-            me%usle_CFRG = exp(-0.052*usle_rock)                ! Coarse fragment factor [-]
-        else
-            ! call r%addError(ErrorInstance( &
-            !     code = 201, &
-            !     message = "Value for usle_rock not found in input file. " // &
-            !                 "Defaulting to 0 (no rock in top soil layer).", &
-            !     isCritical = .false. &
-            ! ))
-            me%usle_CFRG = 1                                    ! Default to 1 (rock_usle = 0)
-        end if
+        ! if (DATA%grp%hasVariable('usle_rock')) then
+        !     var = DATA%grp%getVariable('usle_rock')           ! % rock in top of soil profile [-]
+        !     call var%getData(usle_rock)
+        !     me%usle_CFRG = exp(-0.052*usle_rock)                ! Coarse fragment factor [-]
+        ! else
+        !     ! call r%addError(ErrorInstance( &
+        !     !     code = 201, &
+        !     !     message = "Value for usle_rock not found in input file. " // &
+        !     !                 "Defaulting to 0 (no rock in top soil layer).", &
+        !     !     isCritical = .false. &
+        !     ! ))
+        !     me%usle_CFRG = 1                                    ! Default to 1 (rock_usle = 0)
+        ! end if
         ! Params affecting q_peak
         ! alpha_half        Fraction of daily rainfall happening in maximum half hour. [-]
-        if (DATA%grp%hasVariable('usle_alpha_half')) then
-            var = DATA%grp%getVariable('usle_alpha_half')
-            call var%getData(me%usle_alpha_half)
-        else
-            ! call r%addError(ErrorInstance( &
-            !     code = 201, &
-            !     message = "Value for usle_alpha_half not found in input file. " // &
-            !                 "Defaulting to 0.33.", &
-            !     isCritical = .false. &
-            ! ))
-            me%usle_alpha_half = 0.33                           ! Defaults to 0.33
-        end if
+        ! if (DATA%grp%hasVariable('usle_alpha_half')) then
+        !     var = DATA%grp%getVariable('usle_alpha_half')
+        !     call var%getData(me%usle_alpha_half)
+        ! else
+        !     ! call r%addError(ErrorInstance( &
+        !     !     code = 201, &
+        !     !     message = "Value for usle_alpha_half not found in input file. " // &
+        !     !                 "Defaulting to 0.33.", &
+        !     !     isCritical = .false. &
+        !     ! ))
+        !     me%usle_alpha_half = 0.33                           ! Defaults to 0.33
+        ! end if
         ! Area of the HRU [ha]
-        if (DATA%grp%hasVariable('usle_area_hru')) then
-            var = DATA%grp%getVariable('usle_area_hru')
-            call var%getData(me%usle_area_hru)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for usle_area_hru not found in input file." &
-            ))
-        end if
-        ! Subbassin area [km2]
-        if (DATA%grp%hasVariable('usle_area_sb')) then
-            var = DATA%grp%getVariable('usle_area_sb')
-            call var%getData(me%usle_area_sb)
-        else if (DATA%grp%hasVariable('usle_area_hru')) then  ! Default to area_hru, if that is present
-            ! call r%addError(ErrorInstance( &
-            !     code = 201, &
-            !     message = "Value for usle_area_sb not found in input file. " // &
-            !                 "Defaulting to usle_area_hru (" // trim(str(me%usle_area_hru)) // " ha).", &
-            !     isCritical = .false. &
-            ! ))
-            me%usle_area_sb = me%usle_area_hru*0.01             ! Convert from ha to km2
-        else                                                    ! Otherwise, throw a critical error
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for usle_area_sb not found in input file. " &
-            ))
-        end if
-        ! Subbasin slope length [m]
-        if (DATA%grp%hasVariable('usle_L_sb')) then
-            var = DATA%grp%getVariable('usle_L_sb')
-            call var%getData(me%usle_L_sb)
-        else
-            ! call r%addError(ErrorInstance( &
-            !     code = 201, &
-            !     message = "Value for usle_L_sb not found in input file. " // &
-            !                 "Defaulting to 50 m.", &
-            !     isCritical = .false. &
-            ! ))
-            me%usle_L_sb = 50
-        end if
-        ! Manning's coefficient for the subbasin. [-]
-        if (DATA%grp%hasVariable('usle_n_sb')) then
-            var = DATA%grp%getVariable('usle_n_sb')
-            call var%getData(me%usle_n_sb)
-        else                                                    ! Default to 0.01 (fallow, no residue)
-            ! call r%addError(ErrorInstance( &
-            !     code = 201, &
-            !     message = "Value for usle_n_sb not found in input file. " // &
-            !                 "Defaulting to 0.01 (fallow, no residue).", &
-            !     isCritical = .false. &
-            ! ))
-            me%usle_n_sb = 0.01
-        end if
-        ! Slope of the subbasin [m/m]. Defaults to GridCell slope.
-        if (DATA%grp%hasVariable('usle_slp_sb')) then
-            var = DATA%grp%getVariable('usle_slp_sb')
-            call var%getData(me%usle_slp_sb)
-        else                                                    ! Default to GridCell slope, if present
-            ! call r%addError(ErrorInstance( &
-            !     code = 201, &
-            !     message = "Value for usle_slp_sb not found in input file. " // &
-            !                 "Defaulting to GridCell slope (" // trim(str(me%slope)) // ").", &
-            !     isCritical = .false. &
-            ! ))
-            me%usle_slp_sb = me%slope
-        end if
-        !> Slope of the channel [m/m]. Defaults to GridCell slope.
-        if (DATA%grp%hasVariable('usle_slp_ch')) then
-            var = DATA%grp%getVariable('usle_slp_ch')
-            call var%getData(me%usle_slp_ch)
-        else                                                ! Default to GridCell slope, if present
-            ! call r%addError(ErrorInstance( &
-            !     code = 201, &
-            !     message = "Value for usle_slp_ch not found in input file. " // &
-            !                 "Defaulting to GridCell slope (" // trim(str(me%slope)) // ").", &
-            !     isCritical = .false. &
-            ! ))
-            me%usle_slp_ch = me%slope
-        end if
-        !> Hillslope length of the channel [km]
-        if (DATA%grp%hasVariable('usle_L_ch')) then
-            var = DATA%grp%getVariable('usle_L_ch')
-            call var%getData(me%usle_L_ch)
-        else
-            call r%addError(ErrorInstance( &
-                code = 201, &
-                message = "Value for usle_L_ch not found in input file. " &
-            ))
-        end if
+        ! if (DATA%grp%hasVariable('usle_area_hru')) then
+        !     var = DATA%grp%getVariable('usle_area_hru')
+        !     call var%getData(me%usle_area_hru)
+        ! else
+        !     call r%addError(ErrorInstance( &
+        !         code = 201, &
+        !         message = "Value for usle_area_hru not found in input file." &
+        !     ))
+        ! end if
+        ! ! Subbassin area [km2]
+        ! if (DATA%grp%hasVariable('usle_area_sb')) then
+        !     var = DATA%grp%getVariable('usle_area_sb')
+        !     call var%getData(me%usle_area_sb)
+        ! else if (DATA%grp%hasVariable('usle_area_hru')) then  ! Default to area_hru, if that is present
+        !     ! call r%addError(ErrorInstance( &
+        !     !     code = 201, &
+        !     !     message = "Value for usle_area_sb not found in input file. " // &
+        !     !                 "Defaulting to usle_area_hru (" // trim(str(me%usle_area_hru)) // " ha).", &
+        !     !     isCritical = .false. &
+        !     ! ))
+        !     me%usle_area_sb = me%usle_area_hru*0.01             ! Convert from ha to km2
+        ! else                                                    ! Otherwise, throw a critical error
+        !     call r%addError(ErrorInstance( &
+        !         code = 201, &
+        !         message = "Value for usle_area_sb not found in input file. " &
+        !     ))
+        ! end if
+        ! ! Subbasin slope length [m]
+        ! if (DATA%grp%hasVariable('usle_L_sb')) then
+        !     var = DATA%grp%getVariable('usle_L_sb')
+        !     call var%getData(me%usle_L_sb)
+        ! else
+        !     ! call r%addError(ErrorInstance( &
+        !     !     code = 201, &
+        !     !     message = "Value for usle_L_sb not found in input file. " // &
+        !     !                 "Defaulting to 50 m.", &
+        !     !     isCritical = .false. &
+        !     ! ))
+        !     me%usle_L_sb = 50
+        ! end if
+        ! ! Manning's coefficient for the subbasin. [-]
+        ! if (DATA%grp%hasVariable('usle_n_sb')) then
+        !     var = DATA%grp%getVariable('usle_n_sb')
+        !     call var%getData(me%usle_n_sb)
+        ! else                                                    ! Default to 0.01 (fallow, no residue)
+        !     ! call r%addError(ErrorInstance( &
+        !     !     code = 201, &
+        !     !     message = "Value for usle_n_sb not found in input file. " // &
+        !     !                 "Defaulting to 0.01 (fallow, no residue).", &
+        !     !     isCritical = .false. &
+        !     ! ))
+        !     me%usle_n_sb = 0.01
+        ! end if
+        ! ! Slope of the subbasin [m/m]. Defaults to GridCell slope.
+        ! if (DATA%grp%hasVariable('usle_slp_sb')) then
+        !     var = DATA%grp%getVariable('usle_slp_sb')
+        !     call var%getData(me%usle_slp_sb)
+        ! else                                                    ! Default to GridCell slope, if present
+        !     ! call r%addError(ErrorInstance( &
+        !     !     code = 201, &
+        !     !     message = "Value for usle_slp_sb not found in input file. " // &
+        !     !                 "Defaulting to GridCell slope (" // trim(str(me%slope)) // ").", &
+        !     !     isCritical = .false. &
+        !     ! ))
+        !     me%usle_slp_sb = me%slope
+        ! end if
+        ! !> Slope of the channel [m/m]. Defaults to GridCell slope.
+        ! if (DATA%grp%hasVariable('usle_slp_ch')) then
+        !     var = DATA%grp%getVariable('usle_slp_ch')
+        !     call var%getData(me%usle_slp_ch)
+        ! else                                                ! Default to GridCell slope, if present
+        !     ! call r%addError(ErrorInstance( &
+        !     !     code = 201, &
+        !     !     message = "Value for usle_slp_ch not found in input file. " // &
+        !     !                 "Defaulting to GridCell slope (" // trim(str(me%slope)) // ").", &
+        !     !     isCritical = .false. &
+        !     ! ))
+        !     me%usle_slp_ch = me%slope
+        ! end if
+        ! !> Hillslope length of the channel [km]
+        ! if (DATA%grp%hasVariable('usle_L_ch')) then
+        !     var = DATA%grp%getVariable('usle_L_ch')
+        !     call var%getData(me%usle_L_ch)
+        ! else
+        !     call r%addError(ErrorInstance( &
+        !         code = 201, &
+        !         message = "Value for usle_L_ch not found in input file. " &
+        !     ))
+        ! end if
         
         ! Add this procedure to the trace
         call r%addToTrace('Parsing input data')
 
     end function
+
+    subroutine parseNewBatchDataSoilProfile1(me)
+        class(SoilProfile1) :: me
+        integer :: landUse
+
+        me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
+        me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
+        me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
+        me%K_s = DATASET%soilHydraulicConductivity(me%x, me%y)
+        ! Soil hydraulic properties contain no data where in urban areas. For the moment,
+        ! until land cover properly incorporated into model, we'll use this as a proxy
+        ! for urban areas (which therefore contain no soil profile). In the future, we should
+        ! account for this properly by splitting grid cells into different soil profiles.
+        if (me%WC_sat == nf90_fill_real) me%WC_sat = 0.8
+        if (me%WC_FC == nf90_fill_real) me%WC_FC = 0.5
+        if (me%K_s == nf90_fill_real) me%K_s = 1e-6
+        if (me%bulkDensity == nf90_fill_real) me%bulkDensity = 1220
+
+        me%clayContent = DATASET%soilTextureClayContent(me%x, me%y)
+        me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
+        me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
+        me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
+        if (me%coarseFragContent == nf90_fill_real) then
+            me%coarseFragContent = 0.0
+        end if
+        ! Calculate the average grain diameter from soil texture
+        me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+        me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
+
+        ! USLE params
+        me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
+        ! TODO make usle_C not temporal
+        if ((me%usle_C(1) == nf90_fill_double) .or. (me%usle_C(1) < 0) .or. (me%usle_C(1) > 100)) then
+            me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
+        end if
+        me%usle_P = DATASET%soilUslePFactor(me%x, me%y)
+        if (me%usle_P == nf90_fill_double) then
+            me%usle_P = 1.0                 ! If there's no data, assume no support practice
+        end if
+        me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y)
+        if (me%usle_LS == nf90_fill_double) then
+            me%usle_LS = 0.3                 ! Pick an average value if there's no data
+        end if
+
+        ! Get earthworm density from land use. Select the maximum land use fraction and use all
+        ! of profile is that.
+        landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
+        ! TODO get these values more intelligently
+        select case (landUse)
+            case (1)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
+            case (2)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanParks
+            case (3)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+            case (4)
+                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+            case (5)
+                me%earthwormDensity = DATASET%earthwormDensityArable
+            case (6)
+                me%earthwormDensity = DATASET%earthwormDensityGrassland
+            case (7)
+                me%earthwormDensity = DATASET%earthwormDensityDeciduous
+            case (8)
+                me%earthwormDensity = DATASET%earthwormDensityConiferous
+            case (9)
+                me%earthwormDensity = DATASET%earthwormDensityHeathland
+            case default
+                me%earthwormDensity = 0.0_dp
+        end select
+    end subroutine
 end module
