@@ -1,6 +1,6 @@
 &data
 input_file = "data/thames/data.nc"
-flat_input = "data/thames/flat_ag_2015.nc"
+flat_input = "data/thames/flat_ag_2015_interp.nc"
 constants_file = "data/thames/constants_ag.nml"
 /
 
