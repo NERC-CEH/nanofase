@@ -76,7 +76,6 @@ module classBedSedimentLayer1
             ! 2.    Specify M_f(:) only. Space not occupied by fine sediment is
             !       occupied by water.
             ! -------------------------------------------------------------------------------
-                    
             Me%nSizeClasses = C%nSizeClassesSpm                      ! set number of size classes from global value
             Me%nfComp = C%nFracCompsSpm                              ! set number of fractional compositions from global value
             Me%name = trim(layerGroup%getName())                     ! This object's name = the netCDF group name (e.g., Layer_1)
@@ -327,6 +326,7 @@ module classBedSedimentLayer1
                                )                                     ! add to Result
             end if
         end function
+
         !> **Function purpose**                                     <br>
         !!  Add fine sediment of a specified size fraction, and associated water,
         !!  to a bed sediment layer

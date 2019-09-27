@@ -20,6 +20,7 @@ module classBedSediment1
         procedure, public :: repmass => ReportBedMassToConsole1      ! report mass of fine sediment in each layer to console [kg/m2]
         procedure, public :: initmatrix => initialiseMatrix1         ! initialise mass transfer coefficient matrix
         procedure, public :: getmatrix => getMTCMatrix1              ! derives mass transfer coefficient matrix for sediment
+        procedure, public :: transferNM => transferNMBedSediment1    ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
     end type
     contains
     !> **Function purpose**                                         <br>
@@ -37,6 +38,10 @@ module classBedSediment1
     !! containing the mass transfers coefficients for deposition, 
     !! resuspension, layers and burial
     !! objects
+    !! TODO: SH 27/09/19 this seems to modify the absolute mass transfer matrix to
+    !! get the mass transfer coefficient matrix, which makes me a bit nervous. Need to
+    !! check delta_sed is being properly re-set to absolute masses on each timestep, or
+    !! jsut get this to create new matrix
     function getMTCMatrix1(Me, djdep, djres) result(r)
         class(BedSediment1) :: Me                                    !! Self-reference
         real(dp) :: djdep(:)                                         !! deposition fluxes by size class [kg/m2]
@@ -46,17 +51,20 @@ module classBedSediment1
         integer :: L                                                 ! LOCAL loop counter
         integer :: LL                                                ! LOCAL loop counter
         integer :: S                                                 ! LOCAL loop counter
+
+        print *, "djres", sum(djres)
+        print *, "ml", Me%colBedSedimentLayers(4)%item%colFineSediment(4)%M_f_backup()
         
         !djdep(1) = 0.0001_dp
         !djdep(2) = 0.0001_dp
         !djdep(3) = 0.0001_dp
         !djdep(4) = 0.0001_dp
         !djdep(5) = 0.0001_dp
-        djres(1) = 0.0_dp
-        djres(2) = 0.0_dp
-        djres(3) = 0.0_dp
-        djres(4) = 0.0_dp
-        djres(5) = 0.0_dp
+        ! djres(1) = 0.0_dp
+        ! djres(2) = 0.0_dp
+        ! djres(3) = 0.0_dp
+        ! djres(4) = 0.0_dp
+        ! djres(5) = 0.0_dp
         do S = 1, Me%nSizeClasses
             do L = 3, Me%nLayers + 3 
                 if (.not. isZero(djdep(S)) .and. .not. isZero(Me%delta_sed(L, 1, S))) then
@@ -119,6 +127,7 @@ module classBedSediment1
         ! ----------------------------------------------------------------------------------
         ! no notes
         ! ----------------------------------------------------------------------------------
+
         Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
         Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
@@ -126,6 +135,12 @@ module classBedSediment1
         tr = trim(Me%name) // "%createBedSediment1"                  ! procedure name as trace
         var = Me%ncGroup%getVariable("n_layers")                     ! Get the number of BedSedimentLayers
         call var%getData(Me%nLayers)                                 ! retrieve into nLayers variable
+
+        ! Initialise NM mass pools matrix
+        print *, me%nLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)
+        allocate(me%M_np(me%nLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%M_np = 0.0_dp
+
         ! call r%addErrors(.errors. Me%setLayers(Me%nLayers))          ! set number of layers and allocate layer collection
         if (Me%nLayers <= 0) then                                    ! invalid number of layers
             call r%addError(ErrorInstance(code = 1, &
@@ -254,6 +269,65 @@ module classBedSediment1
             call r%addError(er)                                      ! add to Result
         end if
     end function
+
+    function transferNMBedSediment1(me, j_np_dep) result(rslt)
+        class(BedSediment1) :: me       !! This BedSediment1 instance
+        real(dp) :: j_np_dep(:,:,:)     !! Mass of NM deposited to bed sediment on this time step [kg]
+        real(dp) :: tmp_j_np(C%npDim(1),C%npDim(2),C%npDim(3))
+        type(Result) :: rslt            !! Result object
+        integer :: i, j, k              ! Iterator
+        ! Assumes me%delta_sed has already been set
+        ! Add new deposited NM to matrix, reset resus and buried to zero
+        me%M_np(1,:,:,:) = j_np_dep
+        me%M_np(2,:,:,:) = 0.0_dp
+        me%M_np(me%nLayers+3,:,:,:) = 0.0_dp
+
+        ! Set small values in delta_sed (likely to cause numerical issues) to zero
+        do k = 1, size(me%delta_sed, dim=3)
+            do j = 1, size(me%delta_sed, dim=2)
+                do i = 1, size(me%delta_sed, dim=1)
+                    if (isZero(me%delta_sed(i,j,k))) then
+                        me%delta_sed(i,j,k) = 0.0_dp
+                    end if
+                end do
+            end do
+        end do
+
+        print *, "M_np matrix"
+        print *, sum(sum(sum(me%M_np, dim=4), dim=3), dim=2)
+        print *, ""
+        print *, "delta_sed matrix, sc=4"
+        print *, ""
+        print *, me%delta_sed(:,:,4)
+        print *, ""
+
+        ! Perform the transfer calculation
+        do k = 1, C%nSizeClassesSpm
+            do j = 1, C%npDim(2)
+                do i = 1, C%npDim(1)
+                    me%M_np(:,i,j,k+2) = matmul(me%delta_sed(:,:,k), me%M_np(:,i,j,k+2))
+                end do
+            end do
+        end do
+
+        ! Reset delta_sed. It seems delta_sed is used interchangeably as absolute masses
+        ! and mass coefficients, so resetting is playing it safe to avoid numerical errors
+        ! in case not all elements are reset on each timestep. TODO need to figure this
+        ! out properly
+        me%delta_sed = 0.0_dp
+
+        ! tmp_j_np = 0.0_dp
+        ! ! Apportion deposited NM to the correct layers, based on delta_sed matrix
+        ! do i = 1, me%nLayers
+        !     do j = 1, C%nSizeClassesSpm
+        !         ! Calculate the fraction going to this layer
+        !         tmp_j_np(:,:,j+2) = me%delta_sed(i+2,1,j) * j_np_dep(:,:,j+2)
+        !     end do
+        !     me%colLayers(i)%item%addNM(tmp_j_np)
+        !     print *, "j_np for this layer", i, tmp_j_np
+        ! end do
+    end function
+
     !> **Function purpose**                                         <br>
     !! Resuspend specified masses of fine sediment in each size class, and their
     !! associated water
@@ -288,11 +362,11 @@ module classBedSediment1
         ! do the references to Me%nSizeClasses and Me%nLayers preclude making this a pure function?
         ! -----------------------------------------------------------------------------------------
         
-        FS_resusp(1) = 0.0_dp
-        FS_resusp(2) = 0.0_dp
-        FS_resusp(3) = 0.0_dp
-        FS_resusp(4) = 0.0_dp
-        FS_resusp(5) = 0.0_dp
+        ! FS_resusp(1) = 0.0_dp
+        ! FS_resusp(2) = 0.0_dp
+        ! FS_resusp(3) = 0.0_dp
+        ! FS_resusp(4) = 0.0_dp
+        ! FS_resusp(5) = 0.0_dp
         
         tr = trim(Me%name) // "%resuspendSediment1"                  ! error trace for this procedure
         if (size(FS_resusp) /= Me%nSizeClasses) then                 ! check for correct number of size classes

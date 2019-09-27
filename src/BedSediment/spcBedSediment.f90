@@ -19,15 +19,14 @@ module spcBedSediment
     !! only objects of its subclasses
     type, abstract, public :: BedSediment
         character(len=256) :: name                                   !! Name for this object, of the form *BedSediment_x_y_s_r*
-                                                                     ! define variables for 'has a' objects: BedSedimentLayer
-        class(BedSedimentLayerElement), allocatable ::  &
-        colBedSedimentLayers(:)                                      !! Collection of `BedSedimentLayer` objects
-                                                                     ! properties
+        class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:) !! Collection of `BedSedimentLayer` objects
         integer :: nSizeClasses                                      !! Number of fine sediment size classes
         integer :: nLayers                                           !! Number of layers (`BedSedimentLayer` objects)
         real(dp), allocatable :: delta_sed(:,:,:)                    !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
         integer :: nfComp                                            !! number of fractional composition terms for sediment
         type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`
+        ! Nanomaterials
+        real(dp), allocatable :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried
     contains
                                                                      ! deferred methods: must be defined in all subclasses
         procedure(createBedSediment), public, deferred :: &
@@ -44,6 +43,7 @@ module spcBedSediment
             initMatrix                                               ! initialise mass transfer coefficient matrix
         procedure(FinaliseMTCMatrix), public, deferred :: &
             getMatrix                                                ! finalise mass transfer coefficient matrix
+        procedure(transferNMBedSediment), public, deferred :: transferNM        ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
                                                                      ! non-deferred methods: defined here. Can be overwritten in subclasses
         procedure, public :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
         procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
@@ -105,6 +105,17 @@ module spcBedSediment
             class(BedSediment) :: Me                                !! Self-reference
             type(Result) :: r                                       !! Returned `Result` object
         end function
+
+        function transferNMBedSediment(me, j_np_dep) result(rslt)
+            use ResultModule, only: Result
+            use Globals, only: dp
+            import BedSediment
+            class(BedSediment) :: me
+            real(dp) :: j_np_dep(:,:,:)
+            type(Result) :: rslt
+        end function
+
+
         !> **Function purpose**                                     <br>
         !! Deposit specified masses of fine sediment in each size class, and their
         !! associated water. Function buries sediment and shifts remaining sediment down

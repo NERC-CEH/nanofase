@@ -45,7 +45,7 @@ module Globals
         character(len=6), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
 
         ! Batched run
-        integer             :: nBatches = 0                     !! Numbers of batches to run
+        integer             :: nBatches = 1                     !! Numbers of batches to run
         logical             :: isBatchRun = .false.             !! Are we batch running config files?
         character(len=256), allocatable :: batchConfigFiles(:)  !! Paths to config files for batches
 

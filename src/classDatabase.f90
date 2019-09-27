@@ -680,15 +680,12 @@ module classDatabase
         C%nSizeClassesSpm = me%nSizeClassesSPM
         C%nSizeClassesNP = me%nSizeClassesNM
 
-        print *, me%nmSizeClasses, me%spmSizeClasses, spm_particle_densities
-
         ! deallocate(C%d_np, C%d_spm, C%d_spm_low, C%d_spm_upp)
         allocate(C%d_np, source=me%nmSizeClasses)
         allocate(C%d_spm, source=me%spmSizeClasses)
         allocate(C%d_pd, source=spm_particle_densities)
         allocate(C%rho_spm, source=spm_particle_densities)
 
-        print *, C%d_np, C%d_spm, C%d_pd, C%rho_spm
         ! Set the number of size classes
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
