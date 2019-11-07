@@ -71,6 +71,7 @@ program main
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     open(unit=8, file=trim(C%outputPath) // 'output_soil_biota.csv')
     open(unit=9, file=trim(C%outputPath) // 'output_water_biota.csv')
+    open(unit=10, file=trim(C%outputPath) // 'output_sediment.csv')
     if (C%calibrationRun) then
         open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
         write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
@@ -86,6 +87,7 @@ program main
         "C_dissolved_l2,C_dissolved_l3,m_np_eroded,m_np_buried,m_np_in"
     write(8, *) "t,x,y,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
     write(9, *) "t,x,y,rr,b,name,compartment,C_active,C_stored"
+    write(10, *) "t,x,y,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),m_np_buried(kg)"
 
     allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             m_np_l1(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -98,8 +100,6 @@ program main
             C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             npDep(C%npDim(1), C%npDim(2), C%npDim(3)) &
     )
-
-    ! call GLOBALS_READ_NEW_BATCH(trim(C%batchConfigFiles(k)))
 
     call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
     call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
@@ -202,6 +202,18 @@ program main
                                             end do
                                         end if
                                     end if
+
+                                    ! Sediment
+                                    total_m_np = sum(reach%bedSediment%M_np(3:reach%bedSediment%nLayers+3,:,:,:))
+                                    if (.not. isZero(total_m_np)) then
+                                        total_C_np = total_m_np / (reach%bedArea * 0.04)            ! HACK change to actual volume
+                                    else
+                                        total_C_np = 0.0_dp
+                                    end if
+                                    write(10, *) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", reachType, ",", &
+                                        trim(str(total_m_np)), ",", &   ! Sum across layers
+                                        total_C_np, ",", &              ! TODO concentration by volume too
+                                        trim(str(sum(reach%bedSediment%M_np(reach%bedSediment%nLayers+3,:,:,:))))
                                 end associate
                             end do
 

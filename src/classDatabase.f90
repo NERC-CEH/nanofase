@@ -749,6 +749,7 @@ module classDatabase
         end do
     end subroutine
 
+    !> Check whether a set of coordinates (x,y) is in the model domain
     function inModelDomainDatabase(me, x, y) result(inModelDomain)
         class(Database), intent(in) :: me
         integer, intent(in) :: x, y
@@ -770,6 +771,7 @@ module classDatabase
         end if
     end function
 
+    !> Convert easting and northing coordinates to cell indicies
     function coordsToCellIndexDatabase(me, easts, norths) result(indicies)
         class(Database) :: me
         real :: easts
@@ -781,6 +783,8 @@ module classDatabase
         indicies = [x, y]
     end function
 
+    !> Convert easting and northing coordinates to fractional cell indicies,
+    !! i.e. as a fraction of the position of the coords within the cell
     function coordsToFractionalCellIndexDatabase(me, easts, norths) result(fracIndicies)
         class(Database) :: me
         real :: easts

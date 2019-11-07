@@ -52,8 +52,8 @@ module classBedSediment1
         integer :: LL                                                ! LOCAL loop counter
         integer :: S                                                 ! LOCAL loop counter
 
-        print *, "djres", sum(djres)
-        print *, "ml", Me%colBedSedimentLayers(4)%item%colFineSediment(4)%M_f_backup()
+        ! print *, "djres", sum(djres)
+        ! print *, "ml", Me%colBedSedimentLayers(4)%item%colFineSediment(4)%M_f_backup()
         
         !djdep(1) = 0.0001_dp
         !djdep(2) = 0.0001_dp
@@ -137,7 +137,6 @@ module classBedSediment1
         call var%getData(Me%nLayers)                                 ! retrieve into nLayers variable
 
         ! Initialise NM mass pools matrix
-        print *, me%nLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)
         allocate(me%M_np(me%nLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)))
         me%M_np = 0.0_dp
 
@@ -278,9 +277,9 @@ module classBedSediment1
         integer :: i, j, k              ! Iterator
         ! Assumes me%delta_sed has already been set
         ! Add new deposited NM to matrix, reset resus and buried to zero
-        me%M_np(1,:,:,:) = j_np_dep
-        me%M_np(2,:,:,:) = 0.0_dp
-        me%M_np(me%nLayers+3,:,:,:) = 0.0_dp
+        me%M_np(1,:,:,:) = j_np_dep             ! Deposited     
+        me%M_np(2,:,:,:) = 0.0_dp               ! Resuspended
+        me%M_np(me%nLayers+3,:,:,:) = 0.0_dp    ! Buried
 
         ! Set small values in delta_sed (likely to cause numerical issues) to zero
         do k = 1, size(me%delta_sed, dim=3)
@@ -293,15 +292,7 @@ module classBedSediment1
             end do
         end do
 
-        print *, "M_np matrix"
-        print *, sum(sum(sum(me%M_np, dim=4), dim=3), dim=2)
-        print *, ""
-        print *, "delta_sed matrix, sc=4"
-        print *, ""
-        print *, me%delta_sed(:,:,4)
-        print *, ""
-
-        ! Perform the transfer calculation
+        ! Perform the transfer calculation to move NM between the layers
         do k = 1, C%nSizeClassesSpm
             do j = 1, C%npDim(2)
                 do i = 1, C%npDim(1)
@@ -369,18 +360,21 @@ module classBedSediment1
         ! FS_resusp(5) = 0.0_dp
         
         tr = trim(Me%name) // "%resuspendSediment1"                  ! error trace for this procedure
-        if (size(FS_resusp) /= Me%nSizeClasses) then                 ! check for correct number of size classes
-            call r%addError(ErrorInstance( &
-                            code = 1, &
-                            message = "Number of resuspended &
-                                      sediment classes does not &
-                                      match number of size classes &
-                                      in sediment", &
-                            trace = [tr] &
-                                         ) &
-                           )                                         ! create error instance if number of size classes is incorrect
-            return
-        end if                                                       ! exit if a critical error has been thrown
+
+        ! Cutting down on error checking to speed up. November 2019 code profiling revealed 73% from
+        ! Result%addErrors and that was predominantly in BS.
+        ! if (size(FS_resusp) /= Me%nSizeClasses) then                 ! check for correct number of size classes
+        !     call r%addError(ErrorInstance( &
+        !                     code = 1, &
+        !                     message = "Number of resuspended &
+        !                               sediment classes does not &
+        !                               match number of size classes &
+        !                               in sediment", &
+        !                     trace = [tr] &
+        !                                  ) &
+        !                    )                                         ! create error instance if number of size classes is incorrect
+        !     return
+        ! end if                                                       ! exit if a critical error has been thrown
         allocate(F, stat = allst)                                    ! set up FineSediment1 variable F
         if (allst /= 0) then
             call r%AddError(ErrorInstance(code = 1, &
@@ -396,13 +390,13 @@ module classBedSediment1
             return                                                   ! exit if a critical error has been thrown in creating F
         end if
         allocate(G, stat = allst)                                    ! set up FineSediment1 variable G
-        if (allst /= 0) then
-            call r%addError(ErrorInstance(code = 1, &
-                               message = "Allocation error", &
-                               trace = [Me%name // &
-                                        "%resuspendSediment1%G"] &
-                            ))                                       ! if error thrown on allocation, add to Result object
-        end if
+        ! if (allst /= 0) then
+        !     call r%addError(ErrorInstance(code = 1, &
+        !                        message = "Allocation error", &
+        !                        trace = [Me%name // &
+        !                                 "%resuspendSediment1%G"] &
+        !                     ))                                       ! if error thrown on allocation, add to Result object
+        ! end if
         call r%addErrors(.errors. G%create("FineSediment", &
                                            Me%nfComp))               ! create G
         if (r%hasCriticalError()) then
@@ -410,23 +404,23 @@ module classBedSediment1
             return                                                   ! exit if a critical error has been thrown in creating G
         end if
         allocate(FS(Me%nSizeClasses, Me%nLayers), stat = allst)      ! set up FineSediment1 array FS
-        if (allst /= 0) then
-            call r%addError(ErrorInstance(code = 1, &
-                               message = "Allocation error", &
-                               trace = [Me%name // &
-                                        "%resuspendSediment1%FS"] &
-                              ))                                     ! if error thrown on allocation, add to Result object
-        end if
+        ! if (allst /= 0) then
+        !     call r%addError(ErrorInstance(code = 1, &
+        !                        message = "Allocation error", &
+        !                        trace = [Me%name // &
+        !                                 "%resuspendSediment1%FS"] &
+        !                       ))                                     ! if error thrown on allocation, add to Result object
+        ! end if
         allocate(delta_l_r(Me%nLayers, Me%nSizeClasses), &
             stat = allst)                                            ! allocate delta_d-l
-        if (allst /= 0) then
-            call r%addError( ErrorInstance(code = 1, &
-                               message = "Allocation error", &
-                               trace = [Me%name] // &
-                                        "%depositSediment1%T" &
-                                          ) &
-                           )                                         ! create error instance for allocation error, and add to Result
-        end if
+        ! if (allst /= 0) then
+        !     call r%addError( ErrorInstance(code = 1, &
+        !                        message = "Allocation error", &
+        !                        trace = [Me%name] // &
+        !                                 "%depositSediment1%T" &
+        !                                   ) &
+        !                    )                                         ! create error instance for allocation error, and add to Result
+        ! end if
         if (r%hasCriticalError()) return                             ! exit if a critical error has been thrown during allocation
         call r%addErrors(.errors. Me%initmatrix())                   ! initialise the overall matrix of mass transfer coefficients
         if (r%hasCriticalError()) return                             ! exit if a critical error has been thrown

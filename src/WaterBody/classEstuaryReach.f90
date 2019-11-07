@@ -551,6 +551,7 @@ module classEstuaryReach
         ])
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         me%slope = 0.0005
+        me%width = 0.0_dp
         me%f_m = C%defaultMeanderingFactor
         me%alpha_hetero = C%default_alpha_hetero_estuary
         me%alpha_resus = DATASET%waterResuspensionAlphaEstuary

@@ -262,7 +262,7 @@ module classRiverReach
                 else
                     dj_spm_resus_perArea = dj_spm_resus / me%bedArea
                     dj_spm_deposit_perArea = dj_spm_deposit / me%bedArea
-                    tmp_dj_spm_resus_perArea = dj_spm_deposit_perArea
+                    tmp_dj_spm_resus_perArea = dj_spm_resus_perArea
                 end if
                 ! If we're including bed sediment, then deposit and resuspend to/from
                 if (C%includeBedSediment) then
