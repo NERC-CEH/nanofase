@@ -94,7 +94,7 @@ module classBedSediment1
                             end if
                         else
                             Me%delta_sed(L, LL, S) = &
-                                Me%delta_sed(L, LL, S) / ml          ! l -> l wherel/=l (interlayer transfers)
+                                Me%delta_sed(L, LL, S) / ml          ! l -> l where l/=l (interlayer transfers), also l -> b
                         end if
                     else
                         Me%delta_sed(L, LL, S) = 0                   ! failsafe if no sediment initially in layer 
@@ -271,13 +271,13 @@ module classBedSediment1
 
     function transferNMBedSediment1(me, j_np_dep) result(rslt)
         class(BedSediment1) :: me       !! This BedSediment1 instance
-        real(dp) :: j_np_dep(:,:,:)     !! Mass of NM deposited to bed sediment on this time step [kg]
-        real(dp) :: tmp_j_np(C%npDim(1),C%npDim(2),C%npDim(3))
+        real(dp) :: j_np_dep(:,:,:)     !! Mass of NM deposited to bed sediment on this time step [kg/2]
+        real(dp) :: tmp_j_np(C%npDim(1),C%npDim(2),C%npDim(3)) ! [kg/m2]
         type(Result) :: rslt            !! Result object
         integer :: i, j, k              ! Iterator
         ! Assumes me%delta_sed has already been set
         ! Add new deposited NM to matrix, reset resus and buried to zero
-        me%M_np(1,:,:,:) = j_np_dep             ! Deposited     
+        me%M_np(1,:,:,:) = j_np_dep             ! Deposited
         me%M_np(2,:,:,:) = 0.0_dp               ! Resuspended
         me%M_np(me%nLayers+3,:,:,:) = 0.0_dp    ! Buried
 
@@ -425,26 +425,13 @@ module classBedSediment1
         call r%addErrors(.errors. Me%initmatrix())                   ! initialise the overall matrix of mass transfer coefficients
         if (r%hasCriticalError()) return                             ! exit if a critical error has been thrown
 
+        delta_l_r = 0.0_dp                                    ! initialise the delta_l_r values
         do S = 1, Me%nSizeClasses
-            do L = 1, Me%nLayers
-                delta_l_r(L, S) = 0.0_dp                             ! initialise the delta_l_r values
-                associate(O => Me%colBedSedimentLayers(L)%item)      ! association for brevity
-                    call O%colFineSediment(S)%backup_M_f             ! back up all the fine sediment masses, an essential part of the mass trasfer matrix computation
-                end associate
+            do L = 1, Me%nLayers                          
+                ! back up all the fine sediment masses, an essential part of the mass trasfer matrix computation
+                call Me%colBedSedimentLayers(L)%item%colFineSediment(S)%backup_M_f
             end do
-        end do
-        
-        !do S = 1, Me%nSizeClasses
-        !    do L = 1, Me%nLayers
-        !        delta_l_r(L, S) = 0.0_dp                             ! initialise the delta_l_r values
-        !        associate(O => Me%colBedSedimentLayers(L)%item)      ! association for brevity
-        !                    print '(20f15.10)', &
-        !                        O%colFineSediment(S)%M_f_backup()
-        !        end associate
-        !    end do
-        !end do
-        !print *, ""
-
+        end do        
                                                                      ! main loop
                                                                      ! for each size class (1 to S), remove the required amount of fine sediment
                                                                      ! from the bed, by looping through each layer from top to bottom
@@ -473,6 +460,9 @@ module classBedSediment1
                     end if
                 end associate
                 FS_resusp(S) = FS_resusp(S) - delta_l_r(L, S)          ! modify the amount of sediment in the size class still to be resuspended
+                if (isZero(FS_resusp(s), 1.0e-10_dp)) then                      ! Just to be on the safe side
+                    FS_resusp(S) = 0.0_dp
+                end if
                 call r%addErrors([ .errors. &
                     FS(S, L)%create("FS_" // trim(str(L)) // &
                                     "_" // trim(str(S)), &
@@ -678,12 +668,9 @@ module classBedSediment1
                 then                                                 ! check whether the depositing sediment in each size class exceeds the total
                     associate(O => Me%colBedSedimentLayers)          ! association for brevity
                         do L = 1, Me%nLayers                         ! capacity for that size fraction in the bed. If so, then remove all fine sediment, water and
-                            delta_l_b(L, S) = &
-                                O(L)%item%colFineSediment(S)%M_f()   ! delta l -> b
-                            delta_l_l(L, L, S) = -1 * &
-                                O(L)%item%colFineSediment(S)%M_f()   ! delta l -> l
-                            call &
-                            O(L)%item%colFineSediment(S)%ClearAll()  ! fractional compositions from all layers for this size class
+                            delta_l_b(L, S) = O(L)%item%colFineSediment(S)%M_f()        ! delta l -> b
+                            delta_l_l(L, L, S) = -O(L)%item%colFineSediment(S)%M_f()    ! delta l -> l
+                            call O(L)%item%colFineSediment(S)%ClearAll()  ! fractional compositions from all layers for this size class
                         end do
                         delta_d_b(S) = dep_excess * &
                             FS_dep(S)%rho_part()                     ! delta for deposition to burial
@@ -824,9 +811,6 @@ module classBedSediment1
                 end if
             end if
         end do
-    
-        ! print *, "Sediment after burial"
-        ! call Me%repMass
 
         do S = 1, Me%nSizeClasses                                    ! now add in the depositing sediment, work by size class
             do L = Me%nLayers, 1, -1                                 ! start with the bottom layer and work upwards
@@ -874,6 +858,7 @@ module classBedSediment1
             end do
         end do
     end function
+
     !> **Function purpose**
     !! initialise the matrix of mass transfer coefficients for sediment deposition and resuspension
     !!                                                          
@@ -899,13 +884,7 @@ module classBedSediment1
                            )                                         ! create a critical error if there is an array size issue
             return
         end if
-        do S = 1, Me%nSizeClasses
-            do L = 1, Me%nLayers + 3
-                do LL = 1, Me%nLayers + 3
-                    Me%delta_sed(L, LL, S) = 0.0_dp                  ! initially set all values to a default of zero
-                end do
-            end do
-        end do
+        me%delta_sed = 0.0_dp                                       ! Initialise to zero
     end function
     !> **Function purpose**                                   
     !! 1. Report the mass of fine sediment in each layer to the console

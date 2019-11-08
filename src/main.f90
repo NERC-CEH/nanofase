@@ -30,7 +30,7 @@ program main
     real(dp), allocatable :: C_np(:,:,:)
     real(dp) :: C_np_biota, C_np_biota_noStoredFraction
     real(dp) :: m_transformed, C_transformed, m_dissolved, C_dissolved
-    real(dp) :: C_np_l1, C_np_l2, C_np_l3
+    real(dp) :: C_np_l1, C_np_l2, C_np_l3, C_np_l4
     real(dp) :: C_transformed_l1, C_transformed_l2, C_transformed_l3
     real(dp) :: C_dissolved_l1, C_dissolved_l2, C_dissolved_l3
     real(dp), allocatable :: npDep(:,:,:)
@@ -87,7 +87,8 @@ program main
         "C_dissolved_l2,C_dissolved_l3,m_np_eroded,m_np_buried,m_np_in"
     write(8, *) "t,x,y,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
     write(9, *) "t,x,y,rr,b,name,compartment,C_active,C_stored"
-    write(10, *) "t,x,y,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),m_np_buried(kg)"
+    write(10, *) "t,x,y,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),C_np_l1(kg/m3),C_np_l2(kg/m3),", &
+        "C_np_l3(kg/m3),C_np_l4(kg/m3),m_np_buried(kg)"
 
     allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             m_np_l1(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -205,14 +206,42 @@ program main
 
                                     ! Sediment
                                     total_m_np = sum(reach%bedSediment%M_np(3:reach%bedSediment%nLayers+3,:,:,:))
+                                    m_np_l1 = reach%bedSediment%M_np(3,:,:,:)
+                                    if (isZero(sum(m_np_l1))) then
+                                        C_np_l1 = 0.0_dp
+                                    else
+                                        C_np_l1 = sum(m_np_l1) / 0.01
+                                    end if
+                                    m_np_l2 = reach%bedSediment%M_np(4,:,:,:)
+                                    if (isZero(sum(m_np_l2))) then
+                                        C_np_l2 = 0.0_dp
+                                    else
+                                        C_np_l2 = sum(m_np_l2) / 0.01
+                                    end if
+                                    m_np_l3 = reach%bedSediment%M_np(5,:,:,:)
+                                    if (isZero(sum(m_np_l3))) then
+                                        C_np_l3 = 0.0_dp
+                                    else
+                                        C_np_l3 = sum(m_np_l3) / 0.01
+                                    end if
+                                    m_np_l4 = reach%bedSediment%M_np(6,:,:,:)
+                                    if (isZero(sum(m_np_l4))) then
+                                        C_np_l4 = 0.0_dp
+                                    else
+                                        C_np_l4 = sum(m_np_l4) / 0.01
+                                    end if
                                     if (.not. isZero(total_m_np)) then
-                                        total_C_np = total_m_np / (reach%bedArea * 0.04)            ! HACK change to actual volume
+                                        total_C_np = total_m_np / 0.04
                                     else
                                         total_C_np = 0.0_dp
                                     end if
                                     write(10, *) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", reachType, ",", &
                                         trim(str(total_m_np)), ",", &   ! Sum across layers
-                                        total_C_np, ",", &              ! TODO concentration by volume too
+                                        trim(str(total_C_np)), ",", &              ! TODO concentration by dw mass too
+                                        trim(str(C_np_l1)), ",", &
+                                        trim(str(C_np_l2)), ",", &
+                                        trim(str(C_np_l3)), ",", &
+                                        trim(str(C_np_l4)), ",", &
                                         trim(str(sum(reach%bedSediment%M_np(reach%bedSediment%nLayers+3,:,:,:))))
                                 end associate
                             end do

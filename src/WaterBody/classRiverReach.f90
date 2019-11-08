@@ -114,6 +114,7 @@ module classRiverReach
         real(dp) :: dj_spm_resus_perArea(C%nSizeClassesSpm)     ! Mass of each sediment size class resuspended on each displacement, per unit area [kg/m2/disp]
         real(dp) :: tmp_dj_spm_resus_perArea(C%nSizeClassesSpm) ! Temp dj_spm_resus_perArea, to get around bed sediment procedures modifying input params - TODO sort this out
         real(dp) :: dj_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: dj_np_deposit_perArea(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
         real(dp) :: dj_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_dissolved_outflow
@@ -259,28 +260,49 @@ module classRiverReach
                 if (isZero(me%bedArea)) then
                     dj_spm_resus_perArea = 0.0_dp
                     dj_spm_deposit_perArea = 0.0_dp
+                    tmp_dj_spm_resus_perArea = 0.0_dp
+                    dj_np_deposit_perArea = 0.0_dp
                 else
                     dj_spm_resus_perArea = dj_spm_resus / me%bedArea
                     dj_spm_deposit_perArea = dj_spm_deposit / me%bedArea
                     tmp_dj_spm_resus_perArea = dj_spm_resus_perArea
+                    dj_np_deposit_perArea = -dj_np(4+me%nInflows,:,:,:) / me%bedArea
                 end if
                 ! If we're including bed sediment, then deposit and resuspend to/from
                 if (C%includeBedSediment) then
                     call rslt%addErrors(.errors. &
                         me%bedSediment%resuspend(tmp_dj_spm_resus_perArea))    ! remove resuspended SPM from BedSediment
-                        ! WARNING: bedSediment%resuspend modifies dj_spm_resus_perArea. HACK to get around this:
-                        tmp_dj_spm_resus_perArea = dj_spm_resus_perArea
+                        ! bedSediment%resuspend modifies dj_spm_resus_perArea to be the amount of sediment passed in
+                        ! that isn't resuspended, so the amount actually resuspended is input - output:
+                        dj_spm_resus_perArea = dj_spm_resus_perArea - tmp_dj_spm_resus_perArea
+                        ! Update the deposition element of SPM array based on this
+                        dj_spm(4+me%nInflows,:) = dj_spm_resus_perArea * me%bedArea - dj_spm_deposit
                     if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
 
                     call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
                     if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
                 end if
 
-                call rslt%addErrors(.errors. me%bedSediment%getmatrix(dj_spm_deposit_perArea, tmp_dj_spm_resus_perArea))    ! Fills bedSediment%delta_sed mass transfer matrix
+                ! print *, "\n DELTA SED not coef"
+                ! call print_matrix(me%bedSediment%delta_sed)
+                ! print *, "\n"
+
+                call rslt%addErrors(.errors. me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea))    ! Fills bedSediment%delta_sed mass transfer matrix
+
+                ! print *, "l4 loss", sum(me%bedSediment%delta_sed(6, 6, :))
+                ! print *, "l4 to b", sum(me%bedSediment%delta_sed(7, 6, :))
+                ! print *, "sum d->l", sum(me%bedSediment%delta_sed(3:6, 1, 1))
+                ! print *, "sum l->r", sum(me%bedSediment%delta_sed(2, 3:6, 1))
+                ! print *, "sum l->l, l->b", sum(me%bedSediment%delta_sed(3:7, 3:6, 1))
+
+                ! print *, "\n DELTA SED"
+                ! call print_matrix(me%bedSediment%delta_sed)
+                ! print *, "\n"
+
                 ! ^ Must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
-                call rslt%addErrors(.errors. me%bedSediment%transferNM(-dj_np(4+me%nInflows,:,:,:)))
+                call rslt%addErrors(.errors. me%bedSediment%transferNM(dj_np_deposit_perArea))
                 ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices
-                dj_np(4+me%nInflows,:,:,:) = dj_np(4+me%nInflows,:,:,:) + me%bedSediment%M_np(2,:,:,:)
+                dj_np(4+me%nInflows,:,:,:) = dj_np(4+me%nInflows,:,:,:) + me%bedSediment%M_np(2,:,:,:) * me%bedArea
                 
                 !-- MASS BALANCES --!
                 ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
