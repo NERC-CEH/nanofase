@@ -423,14 +423,14 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                              ! add trace to all errors
                 return                                               ! and exit
             end if
-            A_f_SC = .real. r0D                                      ! static local copy of fine sediment capacity
+            A_f_SC = .dp. r0D                                      ! static local copy of fine sediment capacity
             r0D = Me%A_w(S)
             call r%addErrors(.errors. r0D)
             if (r%hasCriticalError()) then                         ! if call throws a critical error
                 call r%addToTrace(tr)                              ! add trace to all errors
                 return                                               ! and exit
             end if
-            A_w_SC = .real. r0D                                      ! static local copy of water capacity
+            A_w_SC = .dp. r0D                                      ! static local copy of water capacity
             associate(O => Me%colFineSediment(S))
                 M_f_SC = O%M_f()                                     ! fine sediment mass in layer
                 V_f_SC = O%V_f()                                     ! fine sediment volume in layer
@@ -576,7 +576,7 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                                ! add trace to all errors
                 return                                               ! and exit
             end if
-            A_f_SC = .real. r0D                                      ! static local copy of fine sediment capacity
+            A_f_SC = .dp. r0D                                      ! static local copy of fine sediment capacity
             r0D = Me%A_w(S)                                          ! get the available water capacity for the size class
                                                                      ! return in Result0D object
             call r%addErrors(.errors. r0D)                           ! get any errors thrown in the call
@@ -584,7 +584,7 @@ module classBedSedimentLayer1
                 call r%addToTrace(tr)                                ! add trace to all errors
                 return                                               ! and exit
             end if
-            A_w_SC = .real. r0D                                      ! static local copy of water capacity
+            A_w_SC = .dp. r0D                                      ! static local copy of water capacity
             associate(O => Me%colFineSediment(S))                    ! association for brevity
                 !
                 !call O%repstat("Depositing sediment into:")
@@ -592,10 +592,18 @@ module classBedSedimentLayer1
                 M_f_SC = O%M_f()                                     ! fine sediment mass in layer
                 V_f_SC = O%V_f()                                     ! fine sediment volume in layer
                 V_w_SC = O%V_w()                                     ! water volume in layer
+                ! print *, ""
+                ! PRINT *, "add_V_f, volume to add", add_V_f
+                ! print *, "A_f_CS, available capacity", A_f_SC
+                ! print *, ""
                 if (add_V_f > A_f_SC) then                           ! added volume exceeds the available capacity; cannot all be added
                     V_f_SC = Me%C_f_l(S)                             ! set fine sediment volume to capacity
                     V_f_added = A_f_SC                               ! volume added
                     add_V_f = add_V_f - A_f_SC                       ! volume that could be added
+                    ! print *, "Added volume exceeds available capacity, SC", S
+                    ! print *, "FS volume", V_f_SC
+                    ! print *, "volume that couldn't be added ", add_V_f
+                    ! print *, "volume added", V_f_added
                 else                                                 ! added volume does not exceed the fine sediment capacity; can all be added
                     V_f_SC = V_f_SC + add_V_f                        ! addition of fine sediment volume
                     V_f_added = add_V_f                              ! volume added

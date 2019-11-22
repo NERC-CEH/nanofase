@@ -47,6 +47,7 @@ program main
     integer :: nDisp
     real(dp) :: total_m_np
     real(dp) :: total_C_np
+    real(dp) :: total_C_np_byMass
     real(dp) :: bulkDensity
     real(dp) :: volume
 
@@ -87,8 +88,9 @@ program main
         "C_dissolved_l2,C_dissolved_l3,m_np_eroded,m_np_buried,m_np_in"
     write(8, *) "t,x,y,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
     write(9, *) "t,x,y,rr,b,name,compartment,C_active,C_stored"
-    write(10, *) "t,x,y,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),C_np_l1(kg/m3),C_np_l2(kg/m3),", &
-        "C_np_l3(kg/m3),C_np_l4(kg/m3),m_np_buried(kg)"
+    write(10, *) "t,x,y,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg dw),C_np_l1(kg/m3),", &
+        "C_np_l2(kg/m3),C_np_l3(kg/m3),C_np_l4(kg/m3),C_np_l1(kg/kg dw),C_np_l2(kg/kg dw),C_np_l3(kg/kg dw),", &
+        "C_np_l4(kg/kg dw),m_np_buried(kg)"
 
     allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             m_np_l1(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -107,6 +109,7 @@ program main
 
     r = env%create()                                                    ! Create the environment
     call DATA%close()                                                   ! We should be done with the data input now, so close the file
+
 
 
     do k = 1, C%nBatches
@@ -235,13 +238,21 @@ program main
                                     else
                                         total_C_np = 0.0_dp
                                     end if
+
+                                    total_C_np_byMass = sum(sum(sum(sum(reach%bedSediment%C_np_byMass, dim=4), dim=3), dim=2)) &
+                                        / reach%bedSediment%nLayers
                                     write(10, *) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", reachType, ",", &
                                         trim(str(total_m_np)), ",", &   ! Sum across layers
                                         trim(str(total_C_np)), ",", &              ! TODO concentration by dw mass too
+                                        trim(str(total_C_np_byMass)), ",", &
                                         trim(str(C_np_l1)), ",", &
                                         trim(str(C_np_l2)), ",", &
                                         trim(str(C_np_l3)), ",", &
                                         trim(str(C_np_l4)), ",", &
+                                        trim(str(sum(reach%bedSediment%C_np_byMass(1,:,:,:)))), ",", &
+                                        trim(str(sum(reach%bedSediment%C_np_byMass(2,:,:,:)))), ",", &
+                                        trim(str(sum(reach%bedSediment%C_np_byMass(3,:,:,:)))), ",", &
+                                        trim(str(sum(reach%bedSediment%C_np_byMass(4,:,:,:)))), ",", &
                                         trim(str(sum(reach%bedSediment%M_np(reach%bedSediment%nLayers+3,:,:,:))))
                                 end associate
                             end do

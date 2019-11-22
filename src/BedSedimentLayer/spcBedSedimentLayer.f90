@@ -211,7 +211,7 @@ module spcBedSedimentLayer
             real(dp) :: A_f                                          !  LOCAL internal storage
             A_f = Me%C_f_l(s) - Me%colFineSediment(s)%V_f()          ! compute capacity
             r = Result(data = A_f)                                   ! add to Result
-            if (A_f < 0) then                                        ! CRITICAL ERROR if A_f < 0
+            if (A_f < 0.0_dp) then                                        ! CRITICAL ERROR if A_f < 0
                 call r%addError(ErrorInstance(code = 103, &
                             message = "Fine sediment unoccupied " // &
                                       "capacity less than zero", &

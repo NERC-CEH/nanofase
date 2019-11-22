@@ -3,6 +3,7 @@
     n_default_nm_size_distribution = 1
     n_default_spm_size_distribution = 5
     n_nm_size_classes = 1
+    n_spm_particle_densities = 4
     n_spm_size_classes = 5
     n_vertical_distribution = 3
 /
@@ -23,6 +24,7 @@
     default_nm_size_distribution = 100
     default_spm_size_distribution = 50, 30, 10, 7, 3
     nm_size_classes = 1.5e-08
+    spm_particle_densities = 1500, 2600, 2600, 2600
     spm_size_classes = 1e-06, 3e-06, 1e-05, 3e-05, 0.0001
 /
 

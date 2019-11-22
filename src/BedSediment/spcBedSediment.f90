@@ -26,7 +26,8 @@ module spcBedSediment
         integer :: nfComp                                            !! number of fractional composition terms for sediment
         type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`
         ! Nanomaterials
-        real(dp), allocatable :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried
+        real(dp), allocatable :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
+        real(dp), allocatable :: C_np_byMass(:,:,:,:)               !! Concentration of nanomaterial [kg/kg dw]
     contains
                                                                      ! deferred methods: must be defined in all subclasses
         procedure(createBedSediment), public, deferred :: &

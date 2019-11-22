@@ -41,7 +41,7 @@ module classBedSediment1
     !! TODO: SH 27/09/19 this seems to modify the absolute mass transfer matrix to
     !! get the mass transfer coefficient matrix, which makes me a bit nervous. Need to
     !! check delta_sed is being properly re-set to absolute masses on each timestep, or
-    !! jsut get this to create new matrix
+    !! just get this to create new matrix
     function getMTCMatrix1(Me, djdep, djres) result(r)
         class(BedSediment1) :: Me                                    !! Self-reference
         real(dp) :: djdep(:)                                         !! deposition fluxes by size class [kg/m2]
@@ -65,6 +65,15 @@ module classBedSediment1
         ! djres(3) = 0.0_dp
         ! djres(4) = 0.0_dp
         ! djres(5) = 0.0_dp
+
+        ! print *, ""
+        ! print *, ""
+        ! call print_matrix(me%delta_sed)
+        ! print *, "djdep from delta_sed, sc2", me%delta_sed(3,1,2)
+        ! print *, "dep", djdep
+        ! print *, "res", djres
+
+
         do S = 1, Me%nSizeClasses
             do L = 3, Me%nLayers + 3 
                 if (.not. isZero(djdep(S)) .and. .not. isZero(Me%delta_sed(L, 1, S))) then
@@ -76,8 +85,10 @@ module classBedSediment1
             end do
             do LL = 3, Me%nLayers + 2
                 if (.not. isZero(djres(S)) .and. .not. isZero(Me%delta_sed(2, LL, S))) then
+                    ml = Me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
                     Me%delta_sed(2, LL, S) = &
-                        Me%delta_sed(2, LL, S) / djres(S)            ! l -> r
+                        ! Me%delta_sed(2, LL, S) / djres(S)            ! l -> r
+                        Me%delta_sed(2, LL, S) / ml                     ! l -> r
                 else
                     Me%delta_sed(2, LL, S) = 0                       ! failsafe if no resuspension
                 end if
@@ -85,19 +96,22 @@ module classBedSediment1
             do L = 3, Me%nLayers + 3
                 do LL = 3, Me%nLayers + 2
                     ml = Me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
+                    ! print *, "per layer, S, from, to", S, LL - 2, L - 2, ml
                     if (.not. isZero(ml)) then
                         if (L == LL) then
                             if (.not. isZero(Me%delta_sed(L, LL, S))) then 
 
                                 Me%delta_sed(L, LL, S) = &
                                 (ml + Me%delta_sed(L, LL, S)) / ml   ! l -> l where l=l ('same-layer' transfers) and there is a mass transfer out of the layer
+                            else
+                                Me%delta_sed(L, LL, S) = 1.0_dp         ! If no transfer, must be 1 TODO check this
                             end if
                         else
                             Me%delta_sed(L, LL, S) = &
                                 Me%delta_sed(L, LL, S) / ml          ! l -> l where l/=l (interlayer transfers), also l -> b
                         end if
                     else
-                        Me%delta_sed(L, LL, S) = 0                   ! failsafe if no sediment initially in layer 
+                        Me%delta_sed(L, LL, S) = 0.0_dp              ! failsafe if no sediment initially in layer 
                     end if
                 end do
             end do
@@ -138,7 +152,9 @@ module classBedSediment1
 
         ! Initialise NM mass pools matrix
         allocate(me%M_np(me%nLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%C_np_byMass(me%nLayers, C%npDim(1), C%npDim(2), C%npDim(3)))
         me%M_np = 0.0_dp
+        me%C_np_byMass = 0.0_dp
 
         ! call r%addErrors(.errors. Me%setLayers(Me%nLayers))          ! set number of layers and allocate layer collection
         if (Me%nLayers <= 0) then                                    ! invalid number of layers
@@ -271,52 +287,72 @@ module classBedSediment1
 
     function transferNMBedSediment1(me, j_np_dep) result(rslt)
         class(BedSediment1) :: me       !! This BedSediment1 instance
-        real(dp) :: j_np_dep(:,:,:)     !! Mass of NM deposited to bed sediment on this time step [kg/2]
+        real(dp) :: j_np_dep(:,:,:)     !! Mass of NM deposited to bed sediment on this time step [kg/m2]
         real(dp) :: tmp_j_np(C%npDim(1),C%npDim(2),C%npDim(3)) ! [kg/m2]
         type(Result) :: rslt            !! Result object
-        integer :: i, j, k              ! Iterator
+        integer :: i, j, k, l           ! Iterator
+        real(dp) :: old_M_np(7, C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: M_np_mass_balance(C%npDim(1), C%npDim(2), C%npDim(3))
         ! Assumes me%delta_sed has already been set
         ! Add new deposited NM to matrix, reset resus and buried to zero
-        me%M_np(1,:,:,:) = j_np_dep             ! Deposited
-        me%M_np(2,:,:,:) = 0.0_dp               ! Resuspended
-        me%M_np(me%nLayers+3,:,:,:) = 0.0_dp    ! Buried
+        me%M_np(1,:,:,:) = j_np_dep             ! Deposited     [kg/m2]
+        me%M_np(2,:,:,:) = 0.0_dp               ! Resuspended   [kg/m2]
+        me%M_np(me%nLayers+3,:,:,:) = 0.0_dp    ! Buried        [kg/m2]
 
-        ! Set small values in delta_sed (likely to cause numerical issues) to zero
+        ! Set small values in delta_sed (likely to cause numerical issues) to zero, and
+        ! values near unity to unity.
         do k = 1, size(me%delta_sed, dim=3)
             do j = 1, size(me%delta_sed, dim=2)
                 do i = 1, size(me%delta_sed, dim=1)
-                    if (isZero(me%delta_sed(i,j,k))) then
+                    if (isZero(me%delta_sed(i,j,k), 1.0d-16)) then
                         me%delta_sed(i,j,k) = 0.0_dp
+                    else if (isZero(1 - me%delta_sed(i,j,k), 1.0d-16)) then
+                        me%delta_sed(i,j,k) = 1.0_dp
                     end if
                 end do
             end do
         end do
+
+        old_M_np = me%M_np          ! Store old M_np for checking
 
         ! Perform the transfer calculation to move NM between the layers
         do k = 1, C%nSizeClassesSpm
             do j = 1, C%npDim(2)
                 do i = 1, C%npDim(1)
                     me%M_np(:,i,j,k+2) = matmul(me%delta_sed(:,:,k), me%M_np(:,i,j,k+2))
+                    do l = 1, me%nLayers
+                        if (.not. isZero(me%M_np(l+2,i,j,k+2))) then
+                            ! Calculate conc by dividing mass in each layer [kg/m2] by mass of fine sediment in that layer [kg/m2]
+                            me%C_np_byMass(l,i,j,k+2) = me%M_np(l+2,i,j,k+2) &
+                                / me%colBedSedimentLayers(l)%item%colFineSediment(k)%M_f()
+                        else
+                            me%C_np_byMass(l,i,j,k+2) = 0.0_dp
+                        end if
+                    end do
                 end do
             end do
         end do
+
+        ! Mass balance check
+        M_np_mass_balance = sum(me%M_np(3:6,:,:,:), dim=1) - &
+            sum(old_M_np(3:6,:,:,:), dim=1) - old_M_np(1,:,:,:) + me%M_np(2,:,:,:) + me%M_np(7,:,:,:)
+        if (.not. isZero(M_np_mass_balance)) then
+            print *, "Woah!"
+            call print_matrix(me%delta_sed)
+            print *, "old mass in sediment", sum(old_M_np(3:6,1,1,3:7), dim=1)
+            print *, "new mass in sediment", sum(me%M_np(3:6,1,1,3:7), dim=1)
+            print *, "mass dep", old_M_np(1,1,1,3:7)
+            print *, "mass res", me%M_np(2,1,1,3:7)
+            print *, "mass buried", me%M_np(7,1,1,3:7)
+            print *, M_np_mass_balance(1,1,3:7)
+            error stop
+        end if
 
         ! Reset delta_sed. It seems delta_sed is used interchangeably as absolute masses
         ! and mass coefficients, so resetting is playing it safe to avoid numerical errors
         ! in case not all elements are reset on each timestep. TODO need to figure this
         ! out properly
         me%delta_sed = 0.0_dp
-
-        ! tmp_j_np = 0.0_dp
-        ! ! Apportion deposited NM to the correct layers, based on delta_sed matrix
-        ! do i = 1, me%nLayers
-        !     do j = 1, C%nSizeClassesSpm
-        !         ! Calculate the fraction going to this layer
-        !         tmp_j_np(:,:,j+2) = me%delta_sed(i+2,1,j) * j_np_dep(:,:,j+2)
-        !     end do
-        !     me%colLayers(i)%item%addNM(tmp_j_np)
-        !     print *, "j_np for this layer", i, tmp_j_np
-        ! end do
     end function
 
     !> **Function purpose**                                         <br>
@@ -697,6 +733,7 @@ module classBedSediment1
                 V_f_burial = FS_dep(S)%V_f() - A_f_sed               ! difference between volume of depositing sediment and available capacity
                                                                      ! if > 0, then sediment needs to be buried to create capacity for deposition
                 if (V_f_burial > 0.0_dp) then                        ! do we need to bury sediment to create available capacity for deposition?
+                    print *, "bury!", S
                     call r%addErrors(.errors. &
                         T%set(Vf_in = V_f_burial, &
                               Vw_in = 0.0_dp, &
@@ -733,6 +770,7 @@ module classBedSediment1
                                           ) &
                                                 )
                             end if
+                            print *, "T%M_f() after water burial", T%V_f()
                         end associate
                         L = L - 1                                    ! decrement the layer count
                     end do                                           ! and loop
@@ -796,6 +834,7 @@ module classBedSediment1
                                         delta_l_l(A, A, S) = &
                                             delta_l_l(A, A, S) - &
                                             U%M_f()                  ! delta for retention of sediment in Layer A
+                                        print *, "l->l", A, L, S, delta_l_l(A, L, S)
                                         call r%addErrors(.errors. &
                                             O%addSediment(S, U))     ! add the sediment in U to the "receiving" layer L
                                     if (r%hasCriticalError()) then   ! if AddSediment throws a critical error
@@ -813,11 +852,16 @@ module classBedSediment1
         end do
 
         do S = 1, Me%nSizeClasses                                    ! now add in the depositing sediment, work by size class
+            print *, "SC", s
+            ! do L = 1, Me%nLayers                                     ! start with the bottom layer and work upwards
             do L = Me%nLayers, 1, -1                                 ! start with the bottom layer and work upwards
                 if (FS_dep(S)%M_f() > 0.0_dp) then
                     associate(O => Me%colBedSedimentLayers(L)%item)  ! size class S in Layer L
-                        if (.dp. O%A_f(S) > 0 .or. &
-                            .dp. O%A_w(S) > 0) then                  ! if there is available capacity in this layer, add deposition here
+                    print *, "l, A_f and A_w", L, .dp. O%A_f(S), .dp. O%A_w(s)
+                    print *, "FS_dep", FS_dep(S)%V_f()
+                    print *, "FS_dep - avail", FS_dep(S)%V_f() - .dp. O%A_f(S)
+                        if (.dp. O%A_f(S) > 0.0_dp .or. &
+                            .dp. O%A_w(S) > 0.0_dp) then             ! if there is available capacity in this layer, add deposition here
                             V_w_b = FS_dep(S)%V_f() / &
                                 .dp. O%volSLR(S)                     ! the volume of water needed to maintain SLR in the "receiving" layer,
                             call r%addErrors(.errors. &
@@ -825,6 +869,14 @@ module classBedSediment1
                             M_f_la = FS_dep(S)%M_f()                 ! store the amount of sediment still to be deposited, for computation of deltas
                             call r%addErrors(.errors. &
                                 O%addSediment(S, FS_dep(S)))         ! add the fine sediment in deposition. FS_dep(S) returns volumes that could not be added
+                            
+                            print *, ""
+                            print *, ""
+                            print *, "still to be dep, l, S,", L, S, FS_dep(S)%M_f()
+                            print *, ""
+                            print *, ""
+
+
                             if (r%hasCriticalError()) then           ! if addSediment throws a critical error
                                 call r%addToTrace(tr)                ! add trace to all errors
                                 return                               ! and exit

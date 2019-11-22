@@ -23,6 +23,7 @@ module UtilModule
     interface isZero
         module procedure isZeroReal
         module procedure isZeroDp
+        module procedure isZeroDp3D
     end interface
     
     interface isLessThanZero
@@ -47,7 +48,7 @@ module UtilModule
             do p = 1, s
                 do n = 1, r
                     mm = m(n, 1:c, p)
-                    print '(20f15.10)', mm
+                    print '(25f20.15)', mm
                 end do
                 print *, ""
             end do
@@ -186,7 +187,7 @@ module UtilModule
             real(dp), intent(in)            :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
-            logical :: isZeroDp
+            logical                         :: isZeroDp     !! The logical to return
             isZeroDp = .false.
             if (.not. present(epsilon)) then
                 e = C%epsilon
@@ -194,6 +195,30 @@ module UtilModule
                 e = epsilon
             end if
             if (abs(value) < e) isZeroDp = .true.
+        end function
+
+        function isZeroDp3D(value, epsilon)
+            real(dp), intent(in)            :: value(:,:,:)     !! Value to check
+            real(dp), intent(in), optional  :: epsilon          !! Proximity to zero permitted
+            real(dp)                        :: e                !! Internal epsilon
+            integer                         :: i, j, k          !! Iterators
+            logical                         :: isZeroDp3D       !! The logical to return
+            isZeroDp3D = .true.
+            if (.not. present(epsilon)) then
+                e = C%epsilon
+            else
+                e = epsilon
+            end if
+            outer: do k = 1, size(value, dim=3)
+                do j = 1, size(value, dim=2)
+                    do i = 1, size(value, dim=1)
+                        if (abs(value(i,j,k)) > e) then
+                            isZeroDp3D = .false.
+                            exit outer
+                        end if
+                    end do
+                end do
+            end do outer
         end function
         
         function isLessThanZeroReal(value, epsilon)

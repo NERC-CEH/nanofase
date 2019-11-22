@@ -690,6 +690,7 @@ module classDatabase
         C%nSizeClassesSpm = size(C%d_spm)
         C%nSizeClassesNP = size(C%d_np)
         C%nFracCompsSpm = size(C%rho_spm)
+
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))
         ! Set the upper and lower bounds of each size class, if treated as a distribution
