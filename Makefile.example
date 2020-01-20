@@ -1,6 +1,6 @@
 FC = gfortran
 FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -fopenmp
-DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow
+DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow -pg
 EXEC_FILE = main
 EXEC_PATH = ./bin/
 NETCDF = `nf-config --fflags --flibs`
@@ -30,7 +30,8 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/DataInterfacer/classDataInterfacer.o \
 	src/classDatabase.o \
 	src/Biota/spcBiota.o \
-	src/Biota/classBiota1.o \
+	src/Biota/classBiotaSoil.o \
+	src/Biota/classBiotaWater.o \
 	src/Reactor/spcReactor.o \
 	src/Reactor/classReactor1.o \
 	src/BedSedimentLayer/classFineSediment1.o \
@@ -39,7 +40,7 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/BedSediment/spcBedSediment.o \
 	src/BedSediment/classBedSediment1.o \
 	src/Source/classDiffuseSource2.o \
-	src/Source/classPointSource.o \
+	src/Source/classPointSource2.o \
 	src/WaterBody/spcWaterBody.o \
 	src/WaterBody/spcReach.o \
 	src/classRiverReach.o \
@@ -89,6 +90,8 @@ test:
 	$(foreach obj,$(OBJECTS),$(call make-test,$(obj)))
 run:
 	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
+profile:
+	gprof $(EXEC_PATH)$(EXEC_FILE) gmon.out
 debug:
 	gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 clean:

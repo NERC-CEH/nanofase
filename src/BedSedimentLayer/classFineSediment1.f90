@@ -149,8 +149,6 @@ module classFineSediment1
             ! -------------------------------------------------------------------------------
             tr = Me%name // &
                 "%destroyFineSediment1"                              ! trace message
-            !if (allocated(Me%f_comp)) print *, "f_comp is allocated ", size(Me%f_comp)
-            !if (allocated(Me%pd_comp)) print *, "pd_comp is allocated ", size (Me%pd_comp)
             deallocate(Me%pd_comp, stat = allst)                     ! deallocate pd_comp
             if (allst /= 0) then
                 er = ErrorInstance(1, &

@@ -336,17 +336,17 @@ module classBedSediment1
         ! Mass balance check
         M_np_mass_balance = sum(me%M_np(3:6,:,:,:), dim=1) - &
             sum(old_M_np(3:6,:,:,:), dim=1) - old_M_np(1,:,:,:) + me%M_np(2,:,:,:) + me%M_np(7,:,:,:)
-        if (.not. isZero(M_np_mass_balance)) then
-            print *, "Woah!"
-            call print_matrix(me%delta_sed)
-            print *, "old mass in sediment", sum(old_M_np(3:6,1,1,3:7), dim=1)
-            print *, "new mass in sediment", sum(me%M_np(3:6,1,1,3:7), dim=1)
-            print *, "mass dep", old_M_np(1,1,1,3:7)
-            print *, "mass res", me%M_np(2,1,1,3:7)
-            print *, "mass buried", me%M_np(7,1,1,3:7)
-            print *, M_np_mass_balance(1,1,3:7)
-            error stop
-        end if
+        ! if (.not. isZero(M_np_mass_balance)) then
+        !     print *, "Woah!"
+        !     call print_matrix(me%delta_sed)
+        !     print *, "old mass in sediment", sum(old_M_np(3:6,1,1,3:7), dim=1)
+        !     print *, "new mass in sediment", sum(me%M_np(3:6,1,1,3:7), dim=1)
+        !     print *, "mass dep", old_M_np(1,1,1,3:7)
+        !     print *, "mass res", me%M_np(2,1,1,3:7)
+        !     print *, "mass buried", me%M_np(7,1,1,3:7)
+        !     print *, M_np_mass_balance(1,1,3:7)
+        !     error stop
+        ! end if
 
         ! Reset delta_sed. It seems delta_sed is used interchangeably as absolute masses
         ! and mass coefficients, so resetting is playing it safe to avoid numerical errors
@@ -733,7 +733,7 @@ module classBedSediment1
                 V_f_burial = FS_dep(S)%V_f() - A_f_sed               ! difference between volume of depositing sediment and available capacity
                                                                      ! if > 0, then sediment needs to be buried to create capacity for deposition
                 if (V_f_burial > 0.0_dp) then                        ! do we need to bury sediment to create available capacity for deposition?
-                    print *, "bury!", S
+                    ! print *, "bury!", S
                     call r%addErrors(.errors. &
                         T%set(Vf_in = V_f_burial, &
                               Vw_in = 0.0_dp, &
@@ -770,7 +770,7 @@ module classBedSediment1
                                           ) &
                                                 )
                             end if
-                            print *, "T%M_f() after water burial", T%V_f()
+                            ! print *, "T%M_f() after water burial", T%V_f()
                         end associate
                         L = L - 1                                    ! decrement the layer count
                     end do                                           ! and loop
@@ -834,7 +834,7 @@ module classBedSediment1
                                         delta_l_l(A, A, S) = &
                                             delta_l_l(A, A, S) - &
                                             U%M_f()                  ! delta for retention of sediment in Layer A
-                                        print *, "l->l", A, L, S, delta_l_l(A, L, S)
+                                        ! print *, "l->l", A, L, S, delta_l_l(A, L, S)
                                         call r%addErrors(.errors. &
                                             O%addSediment(S, U))     ! add the sediment in U to the "receiving" layer L
                                     if (r%hasCriticalError()) then   ! if AddSediment throws a critical error
@@ -852,14 +852,13 @@ module classBedSediment1
         end do
 
         do S = 1, Me%nSizeClasses                                    ! now add in the depositing sediment, work by size class
-            print *, "SC", s
+            ! print *, "SC", s
             ! do L = 1, Me%nLayers                                     ! start with the bottom layer and work upwards
             do L = Me%nLayers, 1, -1                                 ! start with the bottom layer and work upwards
                 if (FS_dep(S)%M_f() > 0.0_dp) then
                     associate(O => Me%colBedSedimentLayers(L)%item)  ! size class S in Layer L
-                    print *, "l, A_f and A_w", L, .dp. O%A_f(S), .dp. O%A_w(s)
-                    print *, "FS_dep", FS_dep(S)%V_f()
-                    print *, "FS_dep - avail", FS_dep(S)%V_f() - .dp. O%A_f(S)
+                    ! print *, "l, A_f and A_w", L, .dp. O%A_f(S), .dp. O%A_w(s)
+                    ! print *, "FS_dep", FS_dep(S)%V_f()
                         if (.dp. O%A_f(S) > 0.0_dp .or. &
                             .dp. O%A_w(S) > 0.0_dp) then             ! if there is available capacity in this layer, add deposition here
                             V_w_b = FS_dep(S)%V_f() / &
@@ -870,11 +869,11 @@ module classBedSediment1
                             call r%addErrors(.errors. &
                                 O%addSediment(S, FS_dep(S)))         ! add the fine sediment in deposition. FS_dep(S) returns volumes that could not be added
                             
-                            print *, ""
-                            print *, ""
-                            print *, "still to be dep, l, S,", L, S, FS_dep(S)%M_f()
-                            print *, ""
-                            print *, ""
+                            ! print *, ""
+                            ! print *, ""
+                            ! print *, "still to be dep, l, S,", L, S, FS_dep(S)%M_f()
+                            ! print *, ""
+                            ! print *, ""
 
 
                             if (r%hasCriticalError()) then           ! if addSediment throws a critical error
@@ -951,13 +950,13 @@ module classBedSediment1
         class(BedSediment1) :: Me                                    !! The `BedSediment` instance
         integer :: n                                                 !! LOCAL loop counter 
         type(result0D) :: r                                          !! LOCAL result object to hold return from Mf_bed_all derived property
-        print *, trim(Me%name)                                       !! the name of this layer
+        ! print *, trim(Me%name)                                       !! the name of this layer
         do n=1, Me%nLayers
-            print *, "Layer ", n
+            ! print *, "Layer ", n
             call Me%colBedSedimentLayers(n)%item%repMass()           !! print out mass of FS in each layer, by size class [kg/m2]
         end do
         r = Me%Mf_bed_all()
-        print *, "Total: ", .real. r                                 ! print out mass of FS in bed [kg/m2]
+        ! print *, "Total: ", .real. r                                 ! print out mass of FS in bed [kg/m2]
     end subroutine
 
     !> Calculate resuspension from bed sediment using

@@ -1,0 +1,6 @@
+data/
+bin/
+doc/
+log/
+*.mod
+*.o
