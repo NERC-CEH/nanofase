@@ -1,5 +1,6 @@
 FC = gfortran
-FCFLAGS = -O1 -fcheck=all -fbackslash -Wall -Wno-unused-dummy-argument -fopenmp
+WARNINGS = -Wall
+FCFLAGS = -O1 -fcheck=all -fbackslash -fopenmp ${WARNINGS}
 DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow -pg
 EXEC_FILE = main
 EXEC_PATH = ./bin/
