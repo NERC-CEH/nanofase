@@ -1,15 +1,22 @@
-FC = gfortran
-WARNINGS = -Wall
-FCFLAGS = -O1 -fcheck=all -fbackslash -fopenmp ${WARNINGS}
-DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow -pg
-EXEC_FILE = main
-EXEC_PATH = ./bin/
-NETCDF = `nf-config --fflags --flibs`
-CONFIG_PATH = ./config/
-CONFIG_FILE = thames.nml
-GIT_HASH = `git rev-parse HEAD`
-COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'`
-GIT_BRANCH = `git rev-parse --abbrev-ref HEAD`
+# Example Makefile for NanoFASE model. Usage:
+# 	`make`			Compile the Fortran source code to an executable
+# 	`make run` 		Run this executable
+# 	`make profile`	Run with the profile gprof
+# 	`make debug`	Run in debug mode with gdb. Make sure -g flag is present in DEBUGFLAGS
+#	`make clean`	Clean compilation files
+
+FC = gfortran 															# What compiler to use? gfortran recommended
+WARNINGS = -Wall 														# Compiler warnings
+FCFLAGS = -O1 -fcheck=all -fbackslash -fopenmp ${WARNINGS} 				# Compiler flags. Caution using -O0 due to this issue: https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran
+DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow -pg 			# Debug flags
+EXEC_FILE = main 														# Name of the executable file to create
+EXEC_PATH = ./bin/ 														# Path to the executable file
+NETCDF = `nf-config --fflags --flibs` 									# NetCDF config
+CONFIG_PATH = ./config/ 												# When using `make run`, this gives the path to the config file
+CONFIG_FILE = thames.nml 												# When using `make run`, this gives the name of the config file
+GIT_HASH = `git rev-parse HEAD` 										# The following variables generate a unique compilation metadata file
+COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'` 						# to be placed in EXEC_PATH, which includes the current Git commit,
+GIT_BRANCH = `git rev-parse --abbrev-ref HEAD` 							# branch and compilation time
 COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_BRANCH)
 
 OBJ = vendor/feh/src/ErrorInstance.o \
@@ -76,19 +83,11 @@ VPATH = vendor/feh/src \
 	src/GridCell \
 	src/Environment
 
-# 	-O0 flag would be preferable but a GFortran bug causes character
-# 	length mismatch in array constructor errors with allocatable
-# 	character variables, even when they're the correct length. See
-# 	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=70231 and
-# 	https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran.
-# 	Solution is to use -O1 or higher.
 $(EXEC_FILE): $(OBJECTS)
 	$(FC) $(FCFLAGS) $(DEBUGFLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
 	echo $(COMP_META) > $(EXEC_PATH)comp_meta
 %.o: %.f90
 	$(FC) -c $(FCFLAGS) $(DEBUGFLAGS) $< $(NETCDF)
-test:
-	$(foreach obj,$(OBJECTS),$(call make-test,$(obj)))
 run:
 	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 profile:
