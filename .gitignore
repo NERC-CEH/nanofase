@@ -10,6 +10,7 @@ doc/dist/
 doc/graph/
 doxygen/
 bin/
+build/
 obj/
 log/
 cache/
