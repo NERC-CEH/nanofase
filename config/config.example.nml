@@ -1,0 +1,64 @@
+! One of the quirks of Fortran namelist files is that you can't saved implicitly sized
+! arrays to variables in Fortran code without knowing their length. The way around this
+! is to specify the array lengths as separate variables in a group read in before the
+! arrays themselves. This is that group.
+&allocatable_array_sizes
+default_fractional_comp_size = 4
+default_np_forms = 4
+default_np_extra_states = 2
+n_soil_layers = 3                                       ! Number of soil layers in each soil profile
+n_other_sites = 1                                       ! Number of "other" sampling sites - see [doc/calibration.md](../doc/calibration.md)
+/
+
+! Run the model in calibration mode? Documentation here: [doc/calibration.md](../doc/calibration.md)
+&calibrate
+calibration_run = .false.                               ! Run in calibration mode or not?
+site_data = ""                                          ! Path to CSV of sampling sites
+start_site = ""                                         ! Code of start site (most upstream) in sampling sites CSV
+end_site = ""                                           ! Code of end site (most downstream) in sampling sites CSV
+other_sites = ""                                        ! Which other sites should be used from sampling sites CSV? Array of length &allocatable_array_sizes > n_other_sites
+/
+
+! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
+&data
+input_file = "/path/to/deprecated_data.nc"              ! Old NetCDF data file. Deprecated, but still required for the moment
+flat_input = "/path/to/data.nc"                         ! Path to NetCDF input data, which includes most of the spatial and temporally data for the model
+constants_file = "/path/to/constants.nml"               ! Path to constants namelist file, which includes most of the non-spatiotemporal data
+output_file = "output.csv"                              ! Name of the CSV file to save model output data
+output_path = "data/output/"                            ! Path to store the output data
+/
+
+&run
+timestep = 86400                                        ! Length of each time step, in seconds
+n_timesteps = 365                                       ! Number of time steps
+start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
+epsilon = 1e-50,                                        ! Precision for numerical simulations
+error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
+log_file_path = "log/"                                  ! Where to place model logs
+/
+
+&global
+default_fractional_comp = 30, 30, 30, 10
+warm_up_period = 0
+nanomaterial_density = 4320
+/
+
+&soil
+soil_layer_depth = 0.05, 0.15, 0.2                      ! Depth of each soil layer. Array of length &allocatable_array_sizes > n_soil_layers
+default_k_att = 3.65d-3
+include_bioturbation = .true.                           ! Should bioturbation be modelled?
+include_attachment = .true.                             ! Should attachment be modelled?
+/
+
+&river
+max_river_reaches = 100
+default_meandering_factor = 1.0
+default_water_temperature = 10
+default_alpha_hetero = 0.01
+default_alpha_hetero_estuary = 0.01
+include_bed_sediment = .true.                           ! Should bed sediment be modelled?
+/
+
+&sources
+include_point_sources = .true.                          ! Should point sources be included?
+/

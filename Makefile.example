@@ -1,7 +1,7 @@
 # Example Makefile for NanoFASE model. Usage:
 # 	`make`			Compile the Fortran source code to an executable
 # 	`make run` 		Run this executable
-# 	`make profile`	Run with the profile gprof
+# 	`make profile`	Run with the profiler gprof
 # 	`make debug`	Run in debug mode with gdb. Make sure -g flag is present in DEBUGFLAGS
 #	`make clean`	Clean compilation files
 
@@ -19,7 +19,7 @@ COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'` 						# to be placed in EXEC_P
 GIT_BRANCH = `git rev-parse --abbrev-ref HEAD` 							# branch and compilation time
 COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_BRANCH)
 
-OBJ = vendor/feh/src/ErrorInstance.o \
+OBJ = vendor/feh/src/ErrorInstance.o \									# Modules listed in compilation order
 	vendor/feh/src/Result.o \
 	vendor/feh/src/ErrorHandler.o \
 	vendor/feh/src/ErrorCriteria.o \
@@ -67,7 +67,7 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 
 OBJECTS = $(notdir $(OBJ))
 
-VPATH = vendor/feh/src \
+VPATH = vendor/feh/src \												# Paths to search for .f90 source files
 	vendor/mo_netcdf/src \
 	vendor/datetime-fortran/src/lib \
 	src \

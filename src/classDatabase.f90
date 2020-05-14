@@ -1,3 +1,7 @@
+!> The classDatabase module contains the Database type, which is responsible for
+!! data input to the model, as well as a variable (DATASET) of type(Database), which
+!! can be imported into other modules, thus making the data parsed by the Database type
+!! accessible throughout the model.
 module classDatabase
     use mo_netcdf
     use netcdf
@@ -8,30 +12,36 @@ module classDatabase
     use UtilModule
     implicit none
 
+    !> The Database type is responsible for data input to the model. It parses data
+    !! from the NetCDF and constant namelist files.
     type, public :: Database
-        type(NcDataset)     :: nc
+        type(NcDataset)     :: nc                               ! The NetCDF dataset
         ! Constants
-        real, allocatable :: defaultNMSizeDistribution(:)   ! Default distribution to split NM across size classes
-        real, allocatable :: defaultSpmSizeDistribution(:)  ! Default distribution to split SPM across size classes
-        real, allocatable :: nmSizeClasses(:)   ! Diameter of each NM size class [m]
-        real, allocatable :: spmSizeClasses(:)  ! Diameter of each SPM size class [m]
+        real, allocatable :: defaultNMSizeDistribution(:)       ! Default distribution to split NM across size classes
+        real, allocatable :: defaultSpmSizeDistribution(:)      ! Default distribution to split SPM across size classes
+        real, allocatable :: nmSizeClasses(:)                   ! Diameter of each NM size class [m]
+        real, allocatable :: spmSizeClasses(:)                  ! Diameter of each SPM size class [m]
         real, allocatable :: defaultMatrixEmbeddedDistributionToSpm(:)  ! Default distribution to proportion matrix-embedded releases to SPM size classes
-        integer :: nSizeClassesSpm              ! Number of SPM size classes
-        integer :: nSizeClassesNM               ! Number of NM size classes
-        real(dp) :: soilDarcyVelocity           ! Darcy velocity in soil [m/s]
-        real(dp) :: soilDefault_alpha_att       ! Default attachment efficiency [-]
-        real(dp) :: soilDefaultPorosity         ! Default porosity [-]  ! TODO deprecate this in favour of spatially resolved porosity
-        real(dp) :: soilHamakerConstant         ! Hamaker constant for soil [J]
-        real(dp) :: soilParticleDensity         ! Particle density of soil [kg m-3]
-        real :: soilDefaultAttachmentEfficiency ! Attachment efficiency to soil matrix [-]
-        integer :: earthwormDensityArable           ! Earthworm density arable [individuals/m2]
-        integer :: earthwormDensityConiferous       ! Earthworm density coniferous [individuals/m2]
-        integer :: earthwormDensityDeciduous        ! Earthworm density deciduous [individuals/m2]
-        integer :: earthwormDensityGrassland        ! Earthworm density grassland [individuals/m2]
-        integer :: earthwormDensityHeathland        ! Earthworm density heathland [individuals/m2]
-        integer :: earthwormDensityUrbanCapped      ! Earthworm density urban_capped [individuals/m2]
-        integer :: earthwormDensityUrbanGardens     ! Earthworm density urban_gardens [individuals/m2]
-        integer :: earthwormDensityUrbanParks       ! Earthworm density urban_parks [individuals/m2]
+        integer :: nSizeClassesSpm                              ! Number of SPM size classes
+        integer :: nSizeClassesNM                               ! Number of NM size classes
+        real(dp) :: soilDarcyVelocity                           ! Darcy velocity in soil [m/s]
+        real(dp) :: soilDefault_alpha_att                       ! Default attachment efficiency [-]
+        real(dp) :: soilDefaultPorosity                         ! Default porosity [-]  ! TODO deprecate this in favour of spatially resolved porosity
+        real(dp) :: soilHamakerConstant                         ! Hamaker constant for soil [J]
+        real(dp) :: soilParticleDensity                         ! Particle density of soil [kg m-3]
+        real(dp) :: soilErosivity_a1                            ! Erosivity a1 parameter [-]
+        real(dp) :: soilErosivity_a2                            ! Erosivity a2 parameter [-]
+        real(dp) :: soilErosivity_a3                            ! Erosivity a3 parameter [-]
+        real(dp) :: soilErosivity_b                             ! Erosivity b parameter [-]
+        real :: soilDefaultAttachmentEfficiency                 ! Attachment efficiency to soil matrix [-]
+        integer :: earthwormDensityArable                       ! Earthworm density arable [individuals/m2]
+        integer :: earthwormDensityConiferous                   ! Earthworm density coniferous [individuals/m2]
+        integer :: earthwormDensityDeciduous                    ! Earthworm density deciduous [individuals/m2]
+        integer :: earthwormDensityGrassland                    ! Earthworm density grassland [individuals/m2]
+        integer :: earthwormDensityHeathland                    ! Earthworm density heathland [individuals/m2]
+        integer :: earthwormDensityUrbanCapped                  ! Earthworm density urban_capped [individuals/m2]
+        integer :: earthwormDensityUrbanGardens                 ! Earthworm density urban_gardens [individuals/m2]
+        integer :: earthwormDensityUrbanParks                   ! Earthworm density urban_parks [individuals/m2]
         real, allocatable :: earthwormVerticalDistribution(:)   ! Vertical distribution of earthworms
         ! Biota
         character(len=100), allocatable :: biotaName(:)
@@ -65,17 +75,19 @@ module classDatabase
         real :: estuaryMeanDepthExpB                ! Estuary mean depth exponential parameter B
         real :: estuaryWidthExpA                    ! Estuary width exponential parameter A
         real :: estuaryWidthExpB                    ! Estuary width exponential parameter B
+        real :: estuaryMeanderingFactor             ! Estuary meandering factor, used to calculate distance to mouth [-]
+        real :: estuaryMouthCoords(2)               ! Coordinates of the estuary mouth, used to calculate distance to mouth
         ! Grid and coordinate variables
-        integer, allocatable :: gridShape(:)    ! Number of grid cells along each grid axis [-]
-        real, allocatable :: gridRes(:)         ! Resolution of grid cells [m]
-        real, allocatable :: gridBounds(:)      ! Bounding box of grid, indexed as left, bottom, right, top [m]
-        logical, allocatable :: gridMask(:,:)   ! Logical mask for extent of grid [-]
-        real, allocatable :: x(:)               ! Centre of cell [m]
-        real, allocatable :: x_l(:)             ! Left side of cell [m]
-        real, allocatable :: y(:)               ! Centre of cell [m]
-        real, allocatable :: y_u(:)             ! Upper side of cell [m]
-        integer, allocatable :: t(:)            ! Seconds since start date [s]
-        integer :: nTimesteps                   ! Number of timesteps for the model run [-]
+        integer, allocatable :: gridShape(:)        ! Number of grid cells along each grid axis [-]
+        real, allocatable :: gridRes(:)             ! Resolution of grid cells [m]
+        real, allocatable :: gridBounds(:)          ! Bounding box of grid, indexed as left, bottom, right, top [m]
+        logical, allocatable :: gridMask(:,:)       ! Logical mask for extent of grid [-]
+        real, allocatable :: x(:)                   ! Centre of cell [m]
+        real, allocatable :: x_l(:)                 ! Left side of cell [m]
+        real, allocatable :: y(:)                   ! Centre of cell [m]
+        real, allocatable :: y_u(:)                 ! Upper side of cell [m]
+        integer, allocatable :: t(:)                ! Seconds since start date [s]
+        integer :: nTimesteps                       ! Number of timesteps for the model run [-]
         ! Routing variables
         integer, allocatable :: outflow(:,:,:)
         integer, allocatable :: inflows(:,:,:,:)
@@ -534,15 +546,16 @@ module classDatabase
             n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
             n_spm_particle_densities
         integer :: arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
+        real :: estuary_mouth_coords(2)
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
         real, allocatable :: nm_size_classes(:), spm_size_classes(:), stored_fraction(:), spm_particle_densities(:)
         real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
-            estuary_width_expB, estuary_tidal_M2
+            estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor
         real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
             resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
-            k_transform_pristine
+            k_transform_pristine, erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
             k_elim_dissolved(:)
@@ -562,16 +575,18 @@ module classDatabase
             urban_parks, vertical_distribution
         namelist /size_classes/ default_nm_size_distribution, nm_size_classes, default_spm_size_distribution, &
             spm_size_classes, default_matrixembedded_distribution_to_spm, spm_particle_densities
-        namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density
+        namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density, &
+            erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b
         namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, &
-            estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb
+            estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor
         ! Defaults, if the variable doesn't exist in namelist
         resuspension_alpha_estuary = 0.0_dp
         resuspension_beta_estuary = 0.0_dp
         k_diss_pristine = 0.0_dp
         k_diss_transformed = 0.0_dp
         k_transform_pristine = 0.0_dp
+        estuary_meandering_factor = 1.0
 
         ! Open and read the NML file
         open(11, file=constantsFile, status="old")
@@ -623,6 +638,10 @@ module classDatabase
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
+        me%soilErosivity_a1 = erosivity_a1
+        me%soilErosivity_a2 = erosivity_a2
+        me%soilErosivity_a3 = erosivity_a3
+        me%soilErosivity_b = erosivity_b
         ! Earthworm densities
         me%earthwormDensityArable = arable
         me%earthwormDensityConiferous = coniferous
@@ -668,13 +687,15 @@ module classDatabase
         else
             me%waterResuspensionBetaEstuary = me%waterResuspensionBeta
         end if
-        ! estuary
+        ! Estuary
         me%estuaryTidalM2 = estuary_tidal_M2
         me%estuaryTidalS2 = estuary_tidal_S2
         me%estuaryMeanDepthExpA = estuary_mean_depth_expA
         me%estuaryMeanDepthExpB = estuary_mean_depth_expB
         me%estuaryWidthExpA = estuary_width_expA
         me%estuaryWidthExpB = estuary_width_expB
+        me%estuaryMeanderingFactor = estuary_meandering_factor
+        me%estuaryMouthCoords = estuary_mouth_coords
 
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM

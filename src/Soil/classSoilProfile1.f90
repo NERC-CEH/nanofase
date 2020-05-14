@@ -453,12 +453,17 @@ module classSoilProfile1
 
         ! -- RAINFALL EROSIVITY --------------------------------------------------------!
         ! The defaults are those for central England
-        call r%addErrors([ &
-            .errors. DATA%get('erosivity_a1', me%erosivity_a1, 6.608_dp), &
-            .errors. DATA%get('erosivity_a2', me%erosivity_a2, 0.5_dp), &
-            .errors. DATA%get('erosivity_a3', me%erosivity_a3, 2.7_dp), &
-            .errors. DATA%get('erosivity_b', me%erosivity_b, 1.204_dp) &
-        ])
+        ! call r%addErrors([ &
+        !     .errors. DATA%get('erosivity_a1', me%erosivity_a1, 6.608_dp), &
+        !     .errors. DATA%get('erosivity_a2', me%erosivity_a2, 0.5_dp), &
+        !     .errors. DATA%get('erosivity_a3', me%erosivity_a3, 2.7_dp), &
+        !     .errors. DATA%get('erosivity_b', me%erosivity_b, 1.204_dp) &
+        ! ])
+        ! TODO we don't need to store these at the individual profile level so just use DATASET%soil... in this module
+        me%erosivity_a1 = DATASET%soilErosivity_a1
+        me%erosivity_a2 = DATASET%soilErosivity_a2
+        me%erosivity_a3 = DATASET%soilErosivity_a3
+        me%erosivity_b = DATASET%soilErosivity_b
 
         ! -- SOIL EROSION DATA ---------------------------------------------------------!
         ! C     Cover and land management factor, defined as the ratio of soil loss

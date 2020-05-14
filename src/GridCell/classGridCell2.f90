@@ -19,8 +19,6 @@ module classGridCell2
         procedure :: create => createGridCell2
         procedure :: finaliseCreate => finaliseCreateGridCell2
         procedure :: destroy => destroyGridCell2
-        ! procedure, private :: setBranchRouting
-        ! procedure, private :: setRiverReachLengths
         procedure, private :: createReaches
         procedure :: snapPointSourcesToReach => snapPointSourcesToReachGridCell2
         ! Simulators
@@ -551,6 +549,9 @@ module classGridCell2
         end do
     end function
 
+    !> Get the a, b and c parameters of the straight line ax + bx + c = 0,
+    !! for the reach with index i in this GridCell. From these line parameters,
+    !! the distance to a point (source) can be calculated.
     function reachLineParamsFromInflowsOutflowGridCell2(me, i) result(lineParams)
         class(GridCell2)    :: me
         integer             :: i        !! The reach to calculate line equation for
@@ -573,8 +574,8 @@ module classGridCell2
             x_out = me%colRiverReaches(i)%item%outflow%item%x
             y_out = me%colRiverReaches(i)%item%outflow%item%y
         else
-            x_out = me%colRiverReaches(i)%item%domainOutflow(1)
-            y_out = me%colRiverReaches(i)%item%domainOutflow(2)
+            x_out = DATASET%outflow(1, me%x, me%y)
+            y_out = DATASET%outflow(2, me%x, me%y)
         end if
         x1 = (x_out + 0.5) + 0.5 * (me%x - x_out)
         y1 = (y_out + 0.5) + 0.5 * (me%y - y_out)

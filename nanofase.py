@@ -10,11 +10,6 @@ options = {
         "run-description": "Removing log files from log/",
         "cmd": "rm -f log/*"
     },
-    "clean-cache": {
-        "description": "Clear cache files from cache/",
-        "run-description": "Clearing cache files from cache/",
-        "cmd": "rm -f cache/*"
-    },
     "clean-comp": {
         "description": "Remove compilation files",
         "run-description": "Removing compilation files",
@@ -23,7 +18,7 @@ options = {
     "clean": {
         "description": "Remove log, cache and compilation files",
         "run-description": "Removing log, cache and compilation files",
-        "cmd": "rm -f log/* && rm -f cache/* && make clean"
+        "cmd": "rm -f log/* && make clean"
     },
     "compile": {
         "description": "Compile the model using the makefile",
@@ -35,25 +30,10 @@ options = {
         "run-description": "Running the model (without compiling)",
         "cmd": "make run"
     },
-    "run-thames": {
-        "description": "Run the model (without compiling) using Thames config (config/thames.nml)",
-        "run-description": "Running the model (without compiling) using Thames config (config/thames.nml)",
-        "cmd": "make run CONFIG_FILE=thames.nml"
-    },
-    "run-gwava": {
-        "description": "Run the model (without compiling) using GWAVA config (config/gwava.nml)",
-        "run-description": "Running the model (without compiling) using GWAVA config (config/gwava.nml)",
-        "cmd": "make run CONFIG_FILE=gwava.nml"
-    },
     "compile-run": {
         "description": "Compile the model using the makefile and then run",
         "run-description": "Compiling the model using the makefile and then running",
         "cmd": "make && make run"
-    },
-    "compile-run-thames": {
-        "description": "Compile the model using the makefile and then run using Thames config (config/thames.nml)",
-        "run-description": "Compiling the model using the makefile and then running using Thames config (config/thames.nml)",
-        "cmd": "make && make run CONFIG_FILE=thames.nml"
     },
     "view-log": {
         "description": "View the latest log file",

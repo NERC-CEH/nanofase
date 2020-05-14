@@ -28,6 +28,7 @@ module classEstuaryReach
         ! Calculators
         procedure :: calculateDepth => calculateDepth
         procedure :: calculateVelocity => calculateVelocity
+        procedure :: calculateDistanceToMouth => calculateDistanceToMouth
         procedure :: changeInVolume => changeInVolume
     end type
 
@@ -461,6 +462,7 @@ module classEstuaryReach
 
         ! Width, as exponential function of distance from mouth, unless specified in data
         if (isZero(me%width)) then
+            print *, DATASET%estuaryWidthExpA, DATASET%estuaryWidthExpB, me%distanceToMouth
             me%width = DATASET%estuaryWidthExpA * exp(-DATASET%estuaryWidthExpB * me%distanceToMouth)
         end if
         
@@ -544,11 +546,19 @@ module classEstuaryReach
         !     ! .errors. DATA%get('beta_res', me%beta_resus, C%default_beta_resus), &       ! Resuspension beta parameter
         !     .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero_estuary), &
         !         ! alpha_hetero defaults to that specified in config.nml
-            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
+            ! .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.), &
         !     .errors. DATA%get('width', me%width, 0.0_dp), &
             .errors. DATA%get('distance_to_mouth', me%distanceToMouth) &
         !     .errors. DATA%get('stream_order', me%streamOrder) &
         ])
+        print *, DATASET%x(me%x), DATASET%y(me%y)
+        me%distanceToMouth = me%calculateDistanceToMouth( &
+            DATASET%x(me%x), &
+            DATASET%y(me%y), &
+            DATASET%estuaryMeanderingFactor, &
+            DATASET%estuaryMouthCoords(1), &
+            DATASET%estuaryMouthCoords(2) &
+        )
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         me%slope = 0.0005
         me%width = 0.0_dp
@@ -567,6 +577,19 @@ module classEstuaryReach
         )
 
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
+    end function
+
+    !> Estimate the distance of the point (x,y) to the estuary mouth assuming the straight
+    !! line distance mutiplied by a meandering factor.
+    function calculateDistanceToMouth(me, x, y, f, x_mouth, y_mouth) result(distanceToMouth)
+        class(EstuaryReach) :: me               !! This EstuaryReach instance
+        real                :: x                !! x coordinate of cell to calculate distance to mouth of
+        real                :: y                !! y coordinate of cell to calculate distance to mouth of
+        real                :: f                !! Meandering factor
+        real                :: x_mouth          !! x coordinate of estuary mouth
+        real                :: y_mouth          !! y coordinate of estuary mouth
+        real                :: distanceToMouth  !! The calculated distance to the estuary mouth
+        distanceToMouth = f * sqrt((x_mouth - x)**2 + (y_mouth - y)**2)
     end function
 
     !> Calculate water depth from tidal harmonics.

@@ -1,0 +1,1 @@
+/usr/bin/g++-9  -g  -rdynamic CMakeFiles/nanofase.dir/main.cpp.o  -o nanofase 

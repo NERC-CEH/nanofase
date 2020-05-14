@@ -6,7 +6,6 @@ module classEnvironment1
     use spcEnvironment
     use ResultModule
     use classGridCell2
-    use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     use classSampleSite, only: SampleSite
     use datetime_module

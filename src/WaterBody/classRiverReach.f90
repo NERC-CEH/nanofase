@@ -5,8 +5,8 @@ module classRiverReach
     use ResultModule
     use classBedSediment1
     use classLogger, only: LOGR
-    use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
+    use classDataInterfacer, only: DATA
     use classReactor1
     use classBiotaWater
     implicit none
@@ -474,7 +474,7 @@ module classRiverReach
         ! Get the length of the reach, if present. Otherwise, set to 0 and GridCell will deal with calculating
         ! length. Note that errors might be thrown from GridCell if the reaches lengths within the GridCell are
         ! not physically possible within the reach (e.g., too short).
-        call rslt%addErrors([ &
+        ! call rslt%addErrors([ &
         !     .errors. DATA%get('length', me%length, 0.0_dp), &   ! Length is calculated by GridCell if it defaults here
         !         ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
         !         ! not physicaly possible within the reach (e.g. too short)       
@@ -484,9 +484,9 @@ module classRiverReach
         !     ! .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
         !     .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero), &
         !         ! alpha_hetero defaults to that specified in config.nml
-            .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
+            ! .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
         !     .errors. DATA%get('stream_order', me%streamOrder) &
-        ])
+        ! ])
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         me%f_m = C%defaultMeanderingFactor
         me%alpha_hetero = C%default_alpha_hetero

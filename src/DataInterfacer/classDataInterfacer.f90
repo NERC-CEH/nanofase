@@ -1,4 +1,4 @@
-    !> Module for interacting with the input data.
+!> Module for interacting with the input data.
 !! TODO: Re-write to not rely on mo_netcdf to speed things up
 module classDataInterfacer
     use ResultModule

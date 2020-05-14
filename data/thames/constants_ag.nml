@@ -69,11 +69,17 @@
     default_porosity = 0.456
     hamaker_constant = 2.02e-20
     particle_density = 2500.0
+    erosivity_a1 = 6.608
+    erosivity_a2 = 0.5
+    erosivity_a3 = 2.7
+    erosivity_b = 1.204 
 /
 
 &water
     estuary_mean_depth_expa = 19.4
     estuary_mean_depth_expb = 1.46e-05
+    estuary_meandering_factor = 1.17
+    estuary_mouth_coords = 601071, 182173 
     estuary_tidal_m2 = 2.25
     estuary_tidal_s2 = 0.62
     estuary_width_expa = 12548
