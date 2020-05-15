@@ -87,11 +87,13 @@ module spcBedSediment
         !! **Function outputs/outcomes:** <br>
         !! Initialised `BedSediment` object, including all layers and included `FineSediment`
         !! objects
-        function createBedSediment(Me, riverReachGroup) result(r)
+        function createBedSediment(Me, x, y, w) result(r)
             use ResultModule, only: Result
             import BedSediment, NcGroup
             class(BedSediment) :: Me                                !! Self-reference
-            type(NcGroup), intent(in) :: riverReachGroup            !! NetCDF group reference to the `RiverReach` containing this object
+            integer :: x                                            !! x index of the containing water body
+            integer :: y                                            !! y index of the containing water body
+            integer :: w                                            !! w index of the containing water body
             type(Result) :: r                                       !! Returned `Result` object
         end function
         !> **Function purpose** <br>
@@ -262,7 +264,7 @@ contains
         end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Af_sediment = 0
-        do L = 1, Me%nLayers                                         ! loop through each layer
+        do L = 1, C%nSedimentLayers                                         ! loop through each layer
             Af_sediment = Af_sediment + &
                 .dp. Me%colBedSedimentLayers(L)%item%A_f(S)          ! sum capacities for all layers
         end do
@@ -307,7 +309,7 @@ contains
         end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Cf_sediment = 0
-        do L = 1, Me%nLayers                                         ! loop through each layer
+        do L = 1, C%nSedimentLayers                                         ! loop through each layer
             Cf_sediment = Cf_sediment + &
                 .dp. Me%colBedSedimentLayers(L)%item%C_f(S)          ! sum capacities for all layers
         end do
@@ -352,7 +354,7 @@ contains
         end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Aw_sediment = 0
-        do L = 1, Me%nLayers                                         ! loop through each layer
+        do L = 1, C%nSedimentLayers                                         ! loop through each layer
             Aw_sediment = Aw_sediment + &
                 .dp. Me%colBedSedimentLayers(L)%item%A_w(S)          ! sum capacities for all layers
         end do
@@ -397,7 +399,7 @@ contains
         end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Cw_sediment = 0
-        do L = 1, Me%nLayers                                         ! loop through each layer
+        do L = 1, C%nSedimentLayers                                         ! loop through each layer
             Cw_sediment = Cw_sediment + &
                 .dp. Me%colBedSedimentLayers(L)%item%C_w(S)          ! sum capacities for all layers
         end do
@@ -441,7 +443,7 @@ contains
         end if
         if (r%hasCriticalError()) return                             ! exit if error thrown
         Mf  = 0
-        do L = 1, Me%nLayers                                         ! loop through each layer
+        do L = 1, C%nSedimentLayers                                         ! loop through each layer
             Mf = Mf + &
                 Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
                                                                      ! sum masses for all layers. Not very elegant
@@ -462,7 +464,7 @@ contains
         character(len=14) :: tr                                      ! LOCAL error trace
         tr = trim(Me%name // "Get_Mf_bed_size")
         Mf = 0
-        do L = 1, Me%nLayers                                         ! loop through each layer
+        do L = 1, C%nSedimentLayers                                         ! loop through each layer
             r_l = Me%colBedSedimentLayers(L)%item%M_f_layer()        ! get Result object for Layer L
             call r%addErrors(.errors. r_l)                           ! pull errors out of Result object
             if (r%hasCriticalError()) return                         ! exit if error thrown
@@ -473,18 +475,18 @@ contains
 
     function get_Mf_bed_by_layer(me) result(Mf)
         class(BedSediment), intent(in) :: me
-        real(dp) :: Mf(me%nLayers)
+        real(dp) :: Mf(C%nSedimentLayers)
         integer :: i
-        do i = 1, me%nLayers
+        do i = 1, C%nSedimentLayers
             Mf(i) = .dp. me%colBedSedimentLayers(i)%item%M_f_layer()
         end do
     end function
 
     function get_V_w_by_layer(me) result(V_w)
         class(BedSediment), intent(in) :: me
-        real(dp) :: V_w(me%nLayers)
+        real(dp) :: V_w(C%nSedimentLayers)
         integer :: i
-        do i = 1, me%nLayers
+        do i = 1, C%nSedimentLayers
             V_w(i) = .dp. me%colBedSedimentLayers(i)%item%V_w_layer()
         end do
     end function
@@ -503,7 +505,7 @@ contains
         tr = trim(Me%name // "Get_Mf_bed_by_size")
         do S = 1, Me%nSizeClasses                                    ! for each size class
             Mf = 0                                                   ! initialise sumnation of mass
-            do L = 1, Me%nLayers                                     ! loop through each layer
+            do L = 1, C%nSedimentLayers                                     ! loop through each layer
             Mf = Mf + &
                 Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
                                                                      ! sum masses across all layers. Not very elegant

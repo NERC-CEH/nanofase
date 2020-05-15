@@ -6,7 +6,7 @@ module classRiverReach
     use classBedSediment1
     use classLogger, only: LOGR
     use classDatabase, only: DATASET
-    use classDataInterfacer, only: DATA
+    ! use classDataInterfacer, only: DATA
     use classReactor1
     use classBiotaWater
     implicit none
@@ -69,7 +69,7 @@ module classRiverReach
         end do
 
         call rslt%addErrors([ &
-            .errors. me%bedSediment%create(me%ncGroup), &
+            .errors. me%bedSediment%create(me%x, me%y, me%w), &
             .errors. me%reactor%create(me%x, me%y, me%alpha_hetero) &
         ])
 
@@ -464,12 +464,12 @@ module classRiverReach
         type(Result) :: rslt
 
         ! Set the data interfacer's group to the group for this reach
-        call rslt%addErrors(.errors. DATA%setGroup([character(len=100) :: &
-            'Environment', &
-            ref('GridCell', me%x, me%y), &
-            me%ref &
-        ]))
-        me%ncGroup = DATA%grp
+        ! call rslt%addErrors(.errors. DATA%setGroup([character(len=100) :: &
+        !     'Environment', &
+        !     ref('GridCell', me%x, me%y), &
+        !     me%ref &
+        ! ]))
+        ! me%ncGroup = DATA%grp
 
         ! Get the length of the reach, if present. Otherwise, set to 0 and GridCell will deal with calculating
         ! length. Note that errors might be thrown from GridCell if the reaches lengths within the GridCell are

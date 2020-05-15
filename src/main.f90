@@ -5,7 +5,7 @@ program main
     use classRiverReach
     use classEstuaryReach
     use classEnvironment1
-    use classDataInterfacer, only: DATA
+    ! use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     use classLogger, only: LOGR, timestamp
     use datetime_module
@@ -104,11 +104,11 @@ program main
             npDep(C%npDim(1), C%npDim(2), C%npDim(3)) &
     )
 
-    call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
+    ! call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
     call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
 
     r = env%create()                                                    ! Create the environment
-    call DATA%close()                                                   ! We should be done with the data input now, so close the file
+    ! call DATA%close()                                                   ! We should be done with the data input now, so close the file
 
 
 
@@ -208,7 +208,7 @@ program main
                                     end if
 
                                     ! Sediment
-                                    total_m_np = sum(reach%bedSediment%M_np(3:reach%bedSediment%nLayers+3,:,:,:))
+                                    total_m_np = sum(reach%bedSediment%M_np(3:C%nSedimentLayers+3,:,:,:))
                                     m_np_l1 = reach%bedSediment%M_np(3,:,:,:)
                                     if (isZero(sum(m_np_l1))) then
                                         C_np_l1 = 0.0_dp
@@ -240,7 +240,7 @@ program main
                                     end if
 
                                     total_C_np_byMass = sum(sum(sum(sum(reach%bedSediment%C_np_byMass, dim=4), dim=3), dim=2)) &
-                                        / reach%bedSediment%nLayers
+                                        / C%nSedimentLayers
                                     write(10, *) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", reachType, ",", &
                                         trim(str(total_m_np)), ",", &   ! Sum across layers
                                         trim(str(total_C_np)), ",", &              ! TODO concentration by dw mass too
@@ -253,7 +253,7 @@ program main
                                         trim(str(sum(reach%bedSediment%C_np_byMass(2,:,:,:)))), ",", &
                                         trim(str(sum(reach%bedSediment%C_np_byMass(3,:,:,:)))), ",", &
                                         trim(str(sum(reach%bedSediment%C_np_byMass(4,:,:,:)))), ",", &
-                                        trim(str(sum(reach%bedSediment%M_np(reach%bedSediment%nLayers+3,:,:,:))))
+                                        trim(str(sum(reach%bedSediment%M_np(C%nSedimentLayers+3,:,:,:))))
                                 end associate
                             end do
 

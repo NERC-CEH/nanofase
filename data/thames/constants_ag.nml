@@ -20,6 +20,10 @@
     n_stored_fraction = 3
     n_uptake_from_form = 3
     n_vertical_distribution = 3
+    n_capacity = 4
+    n_initial_mass = 5
+    n_porosity = 4
+    n_fractional_compositions = 4
 /
 &biota
     compartment = 'soil', 'soil', 'water'
@@ -91,4 +95,11 @@
     resuspension_alpha_estuary = 0.01
     resuspension_beta = 5e-08
     resuspension_beta_estuary = 0.001
+/
+
+&sediment
+    capacity = 0.01, 0.01, 0.01, 0.01
+    initial_mass = 0.2, 0.2, 0.2, 0.2, 0.2
+    porosity = 0.8, 0.6, 0.4, 0.2
+    fractional_composition = 0.3, 0.3, 0.3, 0.1
 /

@@ -6,6 +6,10 @@
     n_spm_particle_densities = 4
     n_spm_size_classes = 5
     n_vertical_distribution = 3
+    n_capacity = 4
+    n_initial_mass = 5
+    n_porosity = 4
+    n_fractional_compositions = 4
 /
 &earthworm_densities
     arable = 30
@@ -56,4 +60,11 @@
     resuspension_alpha_estuary = 0.01
     resuspension_beta = 5e-08
     resuspension_beta_estuary = 0.001
+/
+
+&sediment
+    capacity = 0.01, 0.01, 0.01, 0.01
+    initial_mass = 0.2, 0.2, 0.2, 0.2, 0.2
+    porosity = 0.8, 0.6, 0.4, 0.2
+    fractional_compositions = 0.3, 0.3, 0.3, 0.1
 /

@@ -1,55 +1,56 @@
 !> Module container for `BedSedimentLayer` abstract superclass
 module spcBedSedimentLayer
     use Globals
-    use ResultModule, only: Result, Result0D                         ! error handling classes, required for
-    use ErrorInstanceModule                                          ! generation of trace error messages
-    use classFineSediment1                                           ! USEs all subclasses of FineSediment
-    implicit none                                                    ! force declaration of all variables
+    use ResultModule, only: Result, Result0D                        ! error handling classes, required for
+    use ErrorInstanceModule                                         ! generation of trace error messages
+    use classFineSediment1                                          ! USEs all subclasses of FineSediment
+    implicit none                                                   ! force declaration of all variables
 
     !> Abstract superclass definition for `BedSedimentLayer`
     !! defines the properties and methods shared by all `BedSedimentLayer` objects
     !! objects of this class cannot be instantiated, only objects of its subclasses
     type, abstract, public :: BedSedimentLayer
-        character(len=256) :: name                                   !! A name for the object
-        real(dp), allocatable :: C_f_l(:)                            !! Capacity for fine sediment [m3 m-2]
-        real(dp), allocatable :: C_w_l(:)                            !! Capacity for water [m3 m-2]
-        type(FineSediment1), allocatable :: colFineSediment(:)       !! Collection of `FineSediment` objects
-        real(dp) :: C_total                                          !! Total capacity [m3 m-2]
-        real(dp) :: V_c                                              !! Coarse material volume [m3 m-2]
-        real(dp), allocatable :: pd_comp(:)                          !! Particle densities of sediment components [kg m-3]
-        integer :: nSizeClasses                                      !! Number of sediment size classes
-        integer :: nfComp                                            !! Number of fractional composition terms for sediment
+        character(len=256) :: name                                  !! A name for the object
+        integer :: l                                                !! Index of this layer. 1-based, so 1 is the top-most layer.
+        real(dp), allocatable :: C_f_l(:)                           !! Capacity for fine sediment [m3 m-2]
+        real(dp), allocatable :: C_w_l(:)                           !! Capacity for water [m3 m-2]
+        type(FineSediment1), allocatable :: colFineSediment(:)      !! Collection of `FineSediment` objects
+        real(dp) :: C_total                                         !! Total capacity [m3 m-2]
+        real(dp) :: V_c                                             !! Coarse material volume [m3 m-2]
+        real(dp), allocatable :: pd_comp(:)                         !! Particle densities of sediment components [kg m-3]
+        integer :: nSizeClasses                                     !! Number of sediment size classes
+        integer :: nfComp                                           !! Number of fractional composition terms for sediment
     contains
-                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
-        procedure, public :: A_f => GetAf                            ! available capacity for a fine sediment size fraction
-        procedure, public :: A_w => GetAw                            ! available capacity for water associated with a fine sediment size fraction
-        procedure, public :: C_f => GetCf                            ! return total capacity for a fine sediment size fraction
-        procedure, public :: C_w => GetCw                            ! return total capacity for water associated with a fine sediment size fraction
-        procedure, public :: volSLR => GetvolSLR                     ! return volumetric solid:liquid ratio for this layer; applies to all size classes
-        procedure, public :: C_f_layer => GetCflayer                 ! return total fine sediment capacity in the layer
-        procedure, public :: M_f_layer => GetMflayer                 ! return total fine sediment mass in the layer
-        procedure, public :: V_f_layer => GetVflayer                 ! return total fine sediment volume in the layer
-        procedure, public :: V_w_layer => GetVwlayer                 ! return total water volume in the layer
-        procedure, public :: C_w_layer => GetCwlayer                 ! return total water capacity in the layer
-        procedure, public :: V_m_layer => GetVmlayer                 ! return total fine sediment and water volume in the layer
-        procedure, public :: V_layer => GetVlayer                    ! return sum of fine sediment, water and coarse material volumes in the layer
-        ! procedure, public :: clearAll => clearAllBedSedimentLayer    ! clear all sediment and water in the layer
-                                                                     ! deferred methods: must be defined in all subclasses
+                                                                    ! non-deferred methods: defined here. Can be overwritten in subclasses
+        procedure, public :: A_f => GetAf                           ! available capacity for a fine sediment size fraction
+        procedure, public :: A_w => GetAw                           ! available capacity for water associated with a fine sediment size fraction
+        procedure, public :: C_f => GetCf                           ! return total capacity for a fine sediment size fraction
+        procedure, public :: C_w => GetCw                           ! return total capacity for water associated with a fine sediment size fraction
+        procedure, public :: volSLR => GetvolSLR                    ! return volumetric solid:liquid ratio for this layer; applies to all size classes
+        procedure, public :: C_f_layer => GetCflayer                ! return total fine sediment capacity in the layer
+        procedure, public :: M_f_layer => GetMflayer                ! return total fine sediment mass in the layer
+        procedure, public :: V_f_layer => GetVflayer                ! return total fine sediment volume in the layer
+        procedure, public :: V_w_layer => GetVwlayer                ! return total water volume in the layer
+        procedure, public :: C_w_layer => GetCwlayer                ! return total water capacity in the layer
+        procedure, public :: V_m_layer => GetVmlayer                ! return total fine sediment and water volume in the layer
+        procedure, public :: V_layer => GetVlayer                   ! return sum of fine sediment, water and coarse material volumes in the layer
+        ! procedure, public :: clearAll => clearAllBedSedimentLayer   ! clear all sediment and water in the layer
+                                                                    ! deferred methods: must be defined in all subclasses
         procedure(createBedSedimentLayer), public, deferred :: &
-        create                                                       ! constructor method
+        create                                                      ! constructor method
         procedure(destroyBedSedimentLayer), public, deferred :: &
-        destroy                                                      ! finaliser method
+        destroy                                                     ! finaliser method
         procedure(AddSedimentToLayer), public, deferred :: &
-        AddSediment                                                  ! add fine sediment to the layer, outputting via intent(inout)
+        AddSediment                                                 ! add fine sediment to the layer, outputting via intent(inout)
         procedure(AddSedimentToLayer2), public, deferred :: &
-        AddSediment_alt                                              ! add fine sediment to the layer, outputting to Result object
+        AddSediment_alt                                             ! add fine sediment to the layer, outputting to Result object
         procedure(RemoveSedimentFromLayer), public, deferred :: &
-        RemoveSediment                                               ! remove fine sediment from layer, outputting via intent(inout)
+        RemoveSediment                                              ! remove fine sediment from layer, outputting via intent(inout)
         procedure(RemoveSedimentFromLayer2), public, deferred :: &
-        RemoveSediment_alt                                           ! remove fine sediment from layer, outputting to Result object
-        procedure(clearAllFromLayer), public, deferred :: clearAll   ! set all fine sediment masses, all water volume and all fractional compositions to zero
+        RemoveSediment_alt                                          ! remove fine sediment from layer, outputting to Result object
+        procedure(clearAllFromLayer), public, deferred :: clearAll  ! set all fine sediment masses, all water volume and all fractional compositions to zero
         procedure(ReportMassesToConsole), public, deferred :: &
-            repmass                                                  ! report all fine sediment masses to the console
+            repmass                                                 ! report all fine sediment masses to the console
     end type
     abstract interface
         !> **Function purpose**                                     <br>
@@ -69,13 +70,13 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! No specific outputs: results are initialisation of variables and objects
-        function createBedSedimentLayer(Me, Parent, layerGroup) result(r)
+        function createBedSedimentLayer(Me, Parent, l) result(r)
             use ResultModule, only: Result
             import BedSedimentLayer, NcGroup
-            class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
-            character(len=*) :: Parent                               !! Name of parent object
-            type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
-            type(Result) :: r                                        !! The `Result` object.
+            class(BedSedimentLayer) :: Me                           !! The `BedSedimentLayer` instance
+            character(len=*) :: Parent                              !! Name of parent object
+            integer :: l                                            !! Index for this bed sediment layer
+            type(Result) :: r                                       !! The `Result` object.
         end function
         !> **Function purpose**                                     <br>
         !! Deallocate all allocated variables in this object.

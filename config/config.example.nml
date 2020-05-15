@@ -21,7 +21,6 @@ other_sites = ""                                        ! Which other sites shou
 
 ! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
 &data
-input_file = "/path/to/deprecated_data.nc"              ! Old NetCDF data file. Deprecated, but still required for the moment
 flat_input = "/path/to/data.nc"                         ! Path to NetCDF input data, which includes most of the spatial and temporally data for the model
 constants_file = "/path/to/constants.nml"               ! Path to constants namelist file, which includes most of the non-spatiotemporal data
 output_file = "output.csv"                              ! Name of the CSV file to save model output data
@@ -57,6 +56,10 @@ default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .true.                           ! Should bed sediment be modelled?
+/
+
+&sediment
+n_layers = 4                                            ! How many bed sediment layers to model
 /
 
 &sources

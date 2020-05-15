@@ -77,6 +77,11 @@ module classDatabase
         real :: estuaryWidthExpB                    ! Estuary width exponential parameter B
         real :: estuaryMeanderingFactor             ! Estuary meandering factor, used to calculate distance to mouth [-]
         real :: estuaryMouthCoords(2)               ! Coordinates of the estuary mouth, used to calculate distance to mouth
+        ! Sediment
+        real, allocatable :: sedimentCapacity(:)    ! Capacity of the bed sediment layers [m3/m2]
+        real, allocatable :: sedimentPorosity(:)    ! Porosity of the bed sediment layers [-]
+        real, allocatable :: sedimentInitialMass(:) ! Initial mass of each sediment size class [kg/m2]
+        real, allocatable :: sedimentFractionalCompositions(:) ! Distribution of sediment amongst fractional compositions [-]
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)        ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)             ! Resolution of grid cells [m]
@@ -544,12 +549,13 @@ module classDatabase
             n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
             n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
             n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
-            n_spm_particle_densities
+            n_spm_particle_densities, n_porosity, n_initial_mass, n_capacity, n_fractional_compositions
         integer :: arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
         real :: estuary_mouth_coords(2)
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
-        real, allocatable :: nm_size_classes(:), spm_size_classes(:), stored_fraction(:), spm_particle_densities(:)
+        real, allocatable :: nm_size_classes(:), spm_size_classes(:), stored_fraction(:), spm_particle_densities(:), &
+            porosity(:), initial_mass(:), capacity(:), fractional_compositions(:)
         real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
             estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor
@@ -566,7 +572,8 @@ module classDatabase
             n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
             n_k_uptake_np, n_k_elim_np, n_k_uptake_transformed, n_k_elim_transformed, &
             n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, &
-            n_uptake_from_form, n_harvest_in_month, n_spm_particle_densities
+            n_uptake_from_form, n_harvest_in_month, n_spm_particle_densities, n_capacity, n_porosity, &
+            n_initial_mass, n_fractional_compositions
         namelist /n_biota_grp/ n_biota
         namelist /biota/ initial_C_org, k_death, k_growth, k_elim_np, k_uptake_np, name, &
             k_elim_transformed, k_uptake_transformed, stored_fraction, compartment, &
@@ -578,8 +585,29 @@ module classDatabase
         namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density, &
             erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b
         namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
-            k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, &
+            k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor
+        namelist /sediment/ porosity, initial_mass, capacity, fractional_compositions
+
+        ! Open and read the NML file
+        open(11, file=constantsFile, status="old")
+        read(11, nml=allocatable_array_sizes)
+        rewind(11)
+
+        ! Allocate the appropriate variable dimensions
+        allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
+            nm_size_classes(n_nm_size_classes), &
+            default_spm_size_distribution(n_default_spm_size_distribution), &
+            spm_size_classes(n_spm_size_classes), &
+            default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
+            vertical_distribution(n_vertical_distribution), &
+            spm_particle_densities(n_spm_particle_densities), &
+            porosity(n_porosity), &
+            initial_mass(n_initial_mass), &
+            capacity(n_capacity), &
+            fractional_compositions(n_fractional_compositions) &
+        )
+
         ! Defaults, if the variable doesn't exist in namelist
         resuspension_alpha_estuary = 0.0_dp
         resuspension_beta_estuary = 0.0_dp
@@ -587,20 +615,7 @@ module classDatabase
         k_diss_transformed = 0.0_dp
         k_transform_pristine = 0.0_dp
         estuary_meandering_factor = 1.0
-
-        ! Open and read the NML file
-        open(11, file=constantsFile, status="old")
-        read(11, nml=allocatable_array_sizes)
-        rewind(11)
-
-        ! Allocate the appropriate
-        allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
-            nm_size_classes(n_nm_size_classes), &
-            default_spm_size_distribution(n_default_spm_size_distribution), &
-            spm_size_classes(n_spm_size_classes), &
-            default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
-            vertical_distribution(n_vertical_distribution), &
-            spm_particle_densities(n_spm_particle_densities))
+        porosity = 0.0
 
         read(11, nml=n_biota_grp, iostat=nmlIOStat)
         rewind(11)
@@ -623,6 +638,8 @@ module classDatabase
         read(11, nml=soil)
         rewind(11)
         read(11, nml=water)
+        rewind(11)
+        read(11, nml=sediment)
         close(11)
 
         ! Save these to class variables
@@ -696,6 +713,11 @@ module classDatabase
         me%estuaryWidthExpB = estuary_width_expB
         me%estuaryMeanderingFactor = estuary_meandering_factor
         me%estuaryMouthCoords = estuary_mouth_coords
+        ! Sediment
+        me%sedimentCapacity = capacity
+        me%sedimentInitialMass = initial_mass
+        me%sedimentPorosity = porosity
+        me%sedimentFractionalCompositions = fractional_compositions
 
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM
@@ -819,3 +841,8 @@ module classDatabase
     end function
 
 end module
+
+
+! AUDITING TO DO:
+!   array size checks, particularly variables for size classes of NM and SPM
+!   sedimentPorosity: 0 <= x <= 1

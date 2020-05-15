@@ -348,9 +348,6 @@ module classGridCell2
         me%dy = DATASET%gridRes(2)
         me%area = me%dx * me%dy
         
-        ! Set the data interfacer's group to the group for this GridCell
-        ! call r%addErrors(.errors. DATA%setGroup([character(len=100)::'Environment', me%ref]))
-
         ! Get the number of waterbodies
         me%nReaches = DATASET%nWaterbodies(me%x, me%y)
         allocate(me%colRiverReaches(me%nReaches))
@@ -362,21 +359,11 @@ module classGridCell2
             me%reachTypes = 'riv'
         end if
 
-        ! Get hydrology, topography and water data
-        ! call r%addErrors([ &
-        !     ! .errors. DATA%get('runoff', me%q_runoff_timeSeries, 0.0_dp), &
-        !     ! .errors. DATA%get('quickflow', me%q_quickflow_timeSeries, 0.0_dp), &
-        !     ! .errors. DATA%get('precip', me%q_precip_timeSeries, 0.0_dp), &          ! [m/s]
-        !     ! .errors. DATA%get('evap', me%q_evap_timeSeries, 0.0_dp), &
-        !     .errors. DATA%get('slope', me%slope), &
-        !     .errors. DATA%get('n_river', me%n_river, 0.035_dp), &
-        !     .errors. DATA%get('T_water', me%T_water_timeSeries, C%defaultWaterTemperature, warnIfDefaulting=.false.) &
-        ! ])
         ! TODO get the following from data
         me%slope = 0.0005
         me%n_river = 0.035_dp
         me%T_water_timeSeries = 10.0_dp
-        ! FLAT DATA
+        
         me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
         me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
         me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)

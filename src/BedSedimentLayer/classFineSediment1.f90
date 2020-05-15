@@ -7,7 +7,7 @@ module classFineSediment1
     implicit none                                                    ! force declaration of all variables
     !> Definition of `FineSediment1` class. Nonpolymorphic.
     type, public :: FineSediment1
-        character(len=256) :: name = "Undefined BedSediment"         !! A name for the object
+        character(len=256) :: name = "Undefined FineSediment"        !! A name for the object
         real(dp), private :: M_f_l                                   !! LOCAL fine sediment mass [kg m-2]
         real(dp), private :: M_f_l_backup                            !! LOCAL backup copy of fine sediment mass [kg m-2]
         real(dp), private :: V_w_l                                   !! LOCAL volume of water associated with fine sediment [m3 m-2]
@@ -392,7 +392,7 @@ module classFineSediment1
             do F = 1, Me%NFComp
                 t_fcomp = t_fcomp + Me%f_comp(F)                     ! summing fractional compositions
             end do
-            if (t_fcomp < (1.0_dp-1.0d-10) .or. t_fcomp > (1.0_dp+1.0d-10)) then
+            if (t_fcomp < (1.0_dp-1.0d-5) .or. t_fcomp > (1.0_dp+1.0d-5)) then
                 er = ErrorInstance( &
                     code = 106, &
                     message = "Fractional composition does &

@@ -4,6 +4,7 @@ module classBedSedimentLayer1
     use Globals
     use UtilModule
     use ResultModule, only: Result, Result0D
+    use classDatabase, only: DATASET
     use classFineSediment1
     use ErrorInstanceModule
     implicit none                                                    ! force declaration of all variables
@@ -45,16 +46,17 @@ module classBedSedimentLayer1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! No specific outputs: results are initialisation of variables and objects
-        function createBedSedimentLayer1(Me, Parent, layerGroup) result(r)
+        function createBedSedimentLayer1(Me, Parent, l) result(r)
             class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
             character(len=*) :: Parent                               !! Name of parent object
-            type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
+            ! type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
+            integer :: l                                             !! Index of this layer 
             type(Result) :: r                                        !! The `Result` object.
-            type(NcGroup) :: grp                                     ! LOCAL NetCDF group referring to the fractional compositions
+            ! type(NcGroup) :: grp                                     ! LOCAL NetCDF group referring to the fractional compositions
             real(dp) :: Porosity                                     ! LOCAL layer porosity
             real(dp), allocatable :: M_f(:)                          ! LOCAL set of fine sediment masses, index = size class
             real(dp), allocatable :: f_comp(:,:)                     ! LOCAL set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
-            real(dp), allocatable :: f_comp_sc(:)                    ! LOCAL fractional compositions for one size class, needed to retrieve data from NetCDF file
+            ! real(dp), allocatable :: f_comp_sc(:)                    ! LOCAL fractional compositions for one size class, needed to retrieve data from NetCDF file
             type(NcVariable) :: var                                  ! LOCAL NetCDF variable
             type(ErrorInstance) :: er                                ! LOCAL ErrorCriteria object for error handling.
             type(Result) :: tmpResult                                ! LOCAL Temporary Result object
@@ -76,9 +78,12 @@ module classBedSedimentLayer1
             ! 2.    Specify M_f(:) only. Space not occupied by fine sediment is
             !       occupied by water.
             ! -------------------------------------------------------------------------------
+            ! TODO remove local versions of me%nSizeClasses and nfComp to free up memory
             Me%nSizeClasses = C%nSizeClassesSpm                      ! set number of size classes from global value
             Me%nfComp = C%nFracCompsSpm                              ! set number of fractional compositions from global value
-            Me%name = trim(layerGroup%getName())                     ! This object's name = the netCDF group name (e.g., Layer_1)
+            ! Me%name = trim(layerGroup%getName())                     ! This object's name = the netCDF group name (e.g., Layer_1)
+            me%l = l                                        ! Index for this layer
+            me%name = ref('Layer', me%l)                    ! Name for this layer
 
             tr = trim(Me%name) // "%create"                          ! add name to trace string
             if (len_trim(Me%name) == 0) then
@@ -91,8 +96,10 @@ module classBedSedimentLayer1
                                )                                     ! error if name is not provided
                 return                                               ! critical error, so exit here
             end if
-            var = layerGroup%getVariable("capacity")                 ! Get the layer capacity [m3 m-2]
-            call var%getData(Me%C_total)                             ! retrieve into C_total variable
+            ! var = layerGroup%getVariable("capacity")                 ! Get the layer capacity [m3 m-2]
+            ! call var%getData(Me%C_total)                             ! retrieve into C_total variable
+            ! Get the layer capacity [m3/m2] from data for this layer
+            me%C_total = DATASET%sedimentCapacity(me%l)
             if (Me%C_total == 0) then                                ! CRITICAL ERROR HERE: C_total == 0
                 call r%addError(ErrorInstance( &
                             code = 1, &
@@ -101,8 +108,9 @@ module classBedSedimentLayer1
                                             ) &
                                )
             end if
-            var = layerGroup%getVariable("initial_mass")             ! Get the sediment initial masses
-            call var%getData(M_f)                                    ! Put initial masses into local variable
+            ! var = layerGroup%getVariable("initial_mass")             ! Get the sediment initial masses
+            ! call var%getData(M_f)                                    ! Put initial masses into local variable
+            M_f = DATASET%sedimentInitialMass                       ! Get the initial sediment mass from the dataset
             if (size(M_f) /= Me%nSizeClasses) then                   ! array of fine sediment masses must have correct size
                 call r%AddError(ErrorInstance( &
                             code = 1, &
@@ -112,42 +120,54 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! create error instance
             end if
-            if (layerGroup%hasVariable("porosity")) then             ! has a porosity value been supplied?
-                var = layerGroup%getVariable("porosity")             ! Get the porosity
-                call var%getData(Porosity)                           ! Put porosity into local variable
-                if (Porosity <= 0 .or. Porosity >= 1) then
-                    call r%AddError(ErrorInstance( &
-                            code = 1, &
-                            message = "Porosity is out of range", &
-                            trace = [tr] &
-                                         ) &
-                           )                                         ! create error instance
-                end if
-                if (r%hasCriticalError()) return                     ! exit if a critical error has occurred
-            end if                                                   ! sediment:water ratio
-            allocate(f_comp(Me%nSizeClasses, Me%nfComp))             ! allocate space for fractional compositions
-            grp = layerGroup%getGroup("fractional_compositions")     ! get fractional composition group
+            
+            ! Code for old NetCDF data had a check whether there was a porosity variable.
+            ! Now we'll presume that there is a porosity variable. Auditing will be moved to classDatabase.
+            Porosity = DATASET%sedimentPorosity(me%l) 
+            ! if (layerGroup%hasVariable("porosity")) then             ! has a porosity value been supplied?
+            !     var = layerGroup%getVariable("porosity")             ! Get the porosity
+            !     call var%getData(Porosity)                           ! Put porosity into local variable
+            !     if (Porosity <= 0 .or. Porosity >= 1) then
+            !         call r%AddError(ErrorInstance( &
+            !                 code = 1, &
+            !                 message = "Porosity is out of range", &
+            !                 trace = [tr] &
+            !                              ) &
+            !                )                                         ! create error instance
+            !     end if
+            !     if (r%hasCriticalError()) return                     ! exit if a critical error has occurred
+            ! end if                                                   ! sediment:water ratio
+            ! grp = layerGroup%getGroup("fractional_compositions")     ! get fractional composition group
                                                                      ! SH: The fractional comps could be stored as 2D arrays in the NetCDF/JSON file
                                                                      ! to simplify this a bit
-            allocate(f_comp_sc(Me%nfComp), stat = allst, &
-                                           errmsg = allms)           ! allocate the temporary array of fractional composition (note on this below)
-             if (allst /= 0) then
-                 call r%addError(ErrorInstance( &
-                                       code = 1, &
-                                    message = allms, &
-                                      trace = [tr] &
-                                              ) &
-                                )                                    ! add to Result
-            end if
-            ! TODO (DONE REQUIRES CHECKING) line above requires proper error checking
-            do S = 1, Me%nSizeClasses                                ! loop through size classes
-                var = grp%getVariable(trim(ref("f", "s", S)))        ! get the fractional composition data for each size class, variable name f_s_1, f_s_2 etc.
-                                                                     ! NetCDF doesn't like array slices in getData(), so we have to store them in
-                                                                     ! another allocatable variable, f_comp_sc, before retrieving them
-                f_comp_sc = f_comp(S,:)
-                call var%getData(f_comp_sc)                          ! put the data into the relevant size class of f_comp(:,:)
-                f_comp(S,:) = f_comp_sc
+            ! allocate(f_comp_sc(Me%nfComp), stat = allst, &
+                                        !    errmsg = allms)           ! allocate the temporary array of fractional composition (note on this below)
+            
+            ! Get the fractional composition distribution from data
+            allocate(f_comp(Me%nSizeClasses, Me%nfComp))             ! allocate space for fractional compositions
+            do s = 1, me%nSizeClasses
+                f_comp(s,:) = DATASET%sedimentFractionalCompositions
             end do
+
+           
+            ! if (allst /= 0) then
+            !      call r%addError(ErrorInstance( &
+            !                            code = 1, &
+            !                         message = allms, &
+            !                           trace = [tr] &
+            !                                   ) &
+            !                     )                                    ! add to Result
+            ! end if
+            ! TODO (DONE REQUIRES CHECKING) line above requires proper error checking
+            ! do S = 1, Me%nSizeClasses                                ! loop through size classes
+            !     var = grp%getVariable(trim(ref("f", "s", S)))        ! get the fractional composition data for each size class, variable name f_s_1, f_s_2 etc.
+            !                                                          ! NetCDF doesn't like array slices in getData(), so we have to store them in
+            !                                                          ! another allocatable variable, f_comp_sc, before retrieving them
+            !     f_comp_sc = f_comp(S,:)
+            !     call var%getData(f_comp_sc)                          ! put the data into the relevant size class of f_comp(:,:)
+            !     f_comp(S,:) = f_comp_sc
+            ! end do
+
             tr = trim(Me%name) // &
                 "%createBedSedimentLayer1%colFineSediment"           ! trace message
             allocate(Me%colFineSediment(Me%nSizeClasses), &
@@ -225,21 +245,25 @@ module classBedSedimentLayer1
                                message = "Fine sediment volume &
                                           exceeds capacity" &
                                              ) &
-                               )                                     ! add ErrorInstance
-                return                                               ! critical error, so exit
+                               )                                    ! add ErrorInstance
+                return                                              ! critical error, so exit
             end if
-            if (r%hasCriticalError()) then                           ! if a critical error has been thrown
-                call r%addToTrace(tr)                                ! add trace to Result
-                return                                               ! exit, as a critical error has occurred
+            if (r%hasCriticalError()) then                          ! if a critical error has been thrown
+                call r%addToTrace(tr)                               ! add trace to Result
+                return                                              ! exit, as a critical error has occurred
             end if
-            ! TODO: Need to implement hasVariable check above (when we get Porosity from data file)
-            if (layerGroup%hasVariable("porosity")) then             ! has a porosity value been supplied?
-                fwr = Porosity / (1 - Porosity)                      ! yes, use porosity to compute factor for sediment:water ratio
-            else                                                     !
+            
+            ! Database will set porosity to 0 if it isn't in input data, so perform that check here
+            if (.not. isZero(Porosity)) then                          ! has a porosity value been supplied?
+                fwr = Porosity / (1 - Porosity)                     ! yes, use porosity to compute factor for sediment:water ratio
+            else   
+                ! TODO I don't think this defaulting is being done correctly, outputs value > 1.
+                ! Not an issue for the moment because porosity always supplied, but worth checking back.
                 fwr = (Me%C_total - .dp. Me%C_f_layer()) / &
-                    .dp. Me%C_f_layer()                              ! no, so use C_total and C_f_layer to compute factor for
-            end if                                                   ! sediment:water ratio
-            do S = 1, Me%nSizeClasses                                ! compute V_w for each size fraction using the sediment:water ratio
+                    .dp. Me%C_f_layer()                             ! no, so use C_total and C_f_layer to compute factor for
+            end if                                                  ! sediment:water ratio
+
+            do S = 1, Me%nSizeClasses                               ! compute V_w for each size fraction using the sediment:water ratio
                 call r%addErrors(.errors. &
                     Me%colFineSediment(S)%set(Vw_in = &
                         Me%colFineSediment(S)%V_f() * fwr))         ! is used to compute the volume of associated water

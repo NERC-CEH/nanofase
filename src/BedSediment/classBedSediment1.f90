@@ -75,7 +75,7 @@ module classBedSediment1
 
 
         do S = 1, Me%nSizeClasses
-            do L = 3, Me%nLayers + 3 
+            do L = 3, C%nSedimentLayers + 3 
                 if (.not. isZero(djdep(S)) .and. .not. isZero(Me%delta_sed(L, 1, S))) then
                     Me%delta_sed(L, 1, S) = &
                         Me%delta_sed(L, 1, S) / djdep(S)             ! d -> l and d-> b
@@ -83,7 +83,7 @@ module classBedSediment1
                     Me%delta_sed(L, 1, S) = 0                        ! failsafe if no deposition
                 end if 
             end do
-            do LL = 3, Me%nLayers + 2
+            do LL = 3, C%nSedimentLayers + 2
                 if (.not. isZero(djres(S)) .and. .not. isZero(Me%delta_sed(2, LL, S))) then
                     ml = Me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
                     Me%delta_sed(2, LL, S) = &
@@ -93,8 +93,8 @@ module classBedSediment1
                     Me%delta_sed(2, LL, S) = 0                       ! failsafe if no resuspension
                 end if
             end do
-            do L = 3, Me%nLayers + 3
-                do LL = 3, Me%nLayers + 2
+            do L = 3, C%nSedimentLayers + 3
+                do LL = 3, C%nSedimentLayers + 2
                     ml = Me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
                     ! print *, "per layer, S, from, to", S, LL - 2, L - 2, ml
                     if (.not. isZero(ml)) then
@@ -123,12 +123,15 @@ module classBedSediment1
     !! **Function outputs/outcomes**                                <br>
     !! Initialised `BedSediment` object, including all layers and included `FineSediment`
     !! objects
-    function createBedSediment1(Me, riverReachGroup) result(r)
+    function createBedSediment1(Me, x, y, w) result(r)
         class(BedSediment1) :: Me                                    !! Self-reference
-        type(NcGroup), intent(in) :: riverReachGroup                 !! NetCDF group reference to the `RiverReach` containing this object
+        integer :: x                                                !! x index of the containing water body
+        integer :: y                                                !! y index of the containing water body
+        integer :: w                                                !! w index of the containing water body
+        ! type(NcGroup), intent(in) :: riverReachGroup                 !! NetCDF group reference to the `RiverReach` containing this object
         type(Result) :: r                                            !! Returned `Result` object
-        type(NcGroup) :: grp                                         ! LOCAL NetCDF group reference
-        integer, allocatable :: bslType(:)                           ! LOCAL the type identification number of the BedSedimentLayer(s)
+        ! type(NcGroup) :: grp                                         ! LOCAL NetCDF group reference
+        ! integer, allocatable :: bslType(:)                           ! LOCAL the type identification number of the BedSedimentLayer(s)
         type(BedSedimentLayer1), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
         integer :: L                                                 ! LOCAL loop counter
         integer :: allst                                             ! LOCAL array allocation status
@@ -142,22 +145,24 @@ module classBedSediment1
         ! no notes
         ! ----------------------------------------------------------------------------------
 
-        Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
-        Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
+        ! Me%name = trim(riverReachGroup%getName()) // "_BedSediment"  ! object name: RiverReach_x_y_s_r_BedSediment
+        me%name = trim(ref('BedSediment', x, y, w))
+        ! Me%ncGroup = riverReachGroup%getGroup("BedSediment")         ! get the BedSediment group name
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
         Me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
         tr = trim(Me%name) // "%createBedSediment1"                  ! procedure name as trace
-        var = Me%ncGroup%getVariable("n_layers")                     ! Get the number of BedSedimentLayers
-        call var%getData(Me%nLayers)                                 ! retrieve into nLayers variable
+        ! n_layers now got from config (C%nSedimentLayers), not data:
+        ! var = Me%ncGroup%getVariable("n_layers")                     ! Get the number of BedSedimentLayers
+        ! call var%getData(Me%nLayers)                                 ! retrieve into nLayers variable
 
         ! Initialise NM mass pools matrix
-        allocate(me%M_np(me%nLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)))
-        allocate(me%C_np_byMass(me%nLayers, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%M_np(C%nSedimentLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%C_np_byMass(C%nSedimentLayers, C%npDim(1), C%npDim(2), C%npDim(3)))
         me%M_np = 0.0_dp
         me%C_np_byMass = 0.0_dp
 
         ! call r%addErrors(.errors. Me%setLayers(Me%nLayers))          ! set number of layers and allocate layer collection
-        if (Me%nLayers <= 0) then                                    ! invalid number of layers
+        if (C%nSedimentLayers <= 0) then                                    ! invalid number of layers
             call r%addError(ErrorInstance(code = 1, &
                                message = "Invalid number of &
                                           BedSedimentLayers", &
@@ -166,7 +171,7 @@ module classBedSediment1
                            )                                         ! add to Result
             return                                                   ! critical error, so return
         end if
-        allocate(Me%colBedSedimentLayers(Me%nLayers), stat = allst)  ! create BedSedimentLayer collection
+        allocate(Me%colBedSedimentLayers(C%nSedimentLayers), stat = allst)  ! create BedSedimentLayer collection
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
                                           message = ms, &
@@ -175,7 +180,7 @@ module classBedSediment1
                            )                                         ! add to Result
             return                                                   ! critical error, so return
         end if
-        allocate(bslType(Me%nLayers), stat = allst)                  ! create bslType collection
+        ! allocate(bslType(C%nSedimentLayers), stat = allst)                  ! create bslType collection
         if (allst /= 0) then
             call r%addError(ErrorInstance(code = 1, &
                                           message = ms, &
@@ -184,8 +189,8 @@ module classBedSediment1
                            )                                         ! add to Result
             return                                                   ! critical error, so return
         end if
-        allocate(Me%delta_sed(Me%nLayers + 3, &
-                              Me%nLayers + 3, &
+        allocate(Me%delta_sed(C%nSedimentLayers + 3, &
+                              C%nSedimentLayers + 3, &
                               Me%nSizeClasses), &
             stat = allst)                                            ! allocate space for sediment mass transfer matrix
         Me%delta_sed = 0.0_dp                                        ! initialise to zero
@@ -197,40 +202,27 @@ module classBedSediment1
                            )                                         ! add to Result
             return                                                   ! critical error, so return
         end if
-        var = Me%ncGroup%getVariable("layer_type")                   ! Get the BedSedimentLayer type number
-        call var%getData(bslType)                                    ! retrieve into bslType variable
-        do L = 1, Me%nLayers                                         ! loop through each layer
+        ! var = Me%ncGroup%getVariable("layer_type")                   ! Get the BedSedimentLayer type number
+        ! call var%getData(bslType)                                    ! retrieve into bslType variable
+        do L = 1, C%nSedimentLayers                                         ! loop through each layer
             allocate(bsl1)                                           ! allocate the temporary local BedSedimentLayer variable
-            select case (bslType(L))                                 ! loop through possible BedSedimentLayer types
-                case(1)                                              ! type number 1
-                    grp = Me%ncGroup%getGroup(trim(ref("Layer", L))) ! Get the layer group
-                    call r%addErrors(.errors. &
-                        bsl1%create(Me%name, grp))                   ! initialise the layer object
-                    allocate(Me%colBedSedimentLayers(L)%item, &
-                        source=bsl1, stat = allst)                   ! allocate empty object of this type
-                    deallocate(bsl1)                                 ! deallocate local variable ready for the next iteration of the loop
-                    if (allst /= 0) then
-                        call r%addError(ErrorInstance( &
-                                           code = 1, &
-                                        message = ms, &
-                                          trace = [tr]))             ! add to Result
-                        return                                       ! critical error, so return
-                    end if
-                    if (r%hasCriticalError()) then                   ! if a critical error has been thrown
-                        call r%addToTrace(tr)                        ! add trace to Result
-                        return                                       ! exit, as a critical error has occurred
-                    end if
-                case default                                         ! invalid BedSedimentLayer type specified
-                    call r%addError(ErrorInstance(code = 1, &
-                                message = "Invalid &
-                                           BedSedimentLayer &
-                                           object type &
-                                           specified" &
-                                                 ) &
-                                   )                                 ! add ErrorInstance
-                    call r%addToTrace(tr)                            ! add trace to Result
-                    return                                           ! critical error, so exit
-            end select
+            ! grp = Me%ncGroup%getGroup(trim(ref("Layer", L))) ! Get the layer group
+            call r%addErrors(.errors. &
+                bsl1%create(Me%name, L))                   ! initialise the layer object
+            allocate(Me%colBedSedimentLayers(L)%item, &
+                source=bsl1, stat = allst)                   ! allocate empty object of this type
+            deallocate(bsl1)                                 ! deallocate local variable ready for the next iteration of the loop
+            if (allst /= 0) then
+                call r%addError(ErrorInstance( &
+                                   code = 1, &
+                                message = ms, &
+                                  trace = [tr]))             ! add to Result
+                return                                       ! critical error, so return
+            end if
+            if (r%hasCriticalError()) then                   ! if a critical error has been thrown
+                call r%addToTrace(tr)                        ! add trace to Result
+                return                                       ! exit, as a critical error has occurred
+            end if
             if (r%hasCriticalError()) then                           ! if a critical error has been thrown
                 call r%addToTrace(tr)                                ! add trace to Result
                 return                                               ! exit, as a critical error has occurred
@@ -269,7 +261,7 @@ module classBedSediment1
         !
         ! no notes
         ! ----------------------------------------------------------------------------------
-        do L = 1, Me%nLayers
+        do L = 1, C%nSedimentLayers
             call r%addErrors(.errors. &
                 Me%colBedSedimentLayers(L)%item%destroy())           ! destroy enclosed BedSedimentLayers
         end do
@@ -297,7 +289,7 @@ module classBedSediment1
         ! Add new deposited NM to matrix, reset resus and buried to zero
         me%M_np(1,:,:,:) = j_np_dep             ! Deposited     [kg/m2]
         me%M_np(2,:,:,:) = 0.0_dp               ! Resuspended   [kg/m2]
-        me%M_np(me%nLayers+3,:,:,:) = 0.0_dp    ! Buried        [kg/m2]
+        me%M_np(C%nSedimentLayers+3,:,:,:) = 0.0_dp    ! Buried        [kg/m2]
 
         ! Set small values in delta_sed (likely to cause numerical issues) to zero, and
         ! values near unity to unity.
@@ -320,7 +312,7 @@ module classBedSediment1
             do j = 1, C%npDim(2)
                 do i = 1, C%npDim(1)
                     me%M_np(:,i,j,k+2) = matmul(me%delta_sed(:,:,k), me%M_np(:,i,j,k+2))
-                    do l = 1, me%nLayers
+                    do l = 1, C%nSedimentLayers
                         if (.not. isZero(me%M_np(l+2,i,j,k+2))) then
                             ! Calculate conc by dividing mass in each layer [kg/m2] by mass of fine sediment in that layer [kg/m2]
                             me%C_np_byMass(l,i,j,k+2) = me%M_np(l+2,i,j,k+2) &
@@ -386,7 +378,7 @@ module classBedSediment1
         !
         ! Notes
         ! -----------------------------------------------------------------------------------------
-        ! do the references to Me%nSizeClasses and Me%nLayers preclude making this a pure function?
+        ! do the references to Me%nSizeClasses and C%nSedimentLayers preclude making this a pure function?
         ! -----------------------------------------------------------------------------------------
         
         ! FS_resusp(1) = 0.0_dp
@@ -439,7 +431,7 @@ module classBedSediment1
             call r%addToTrace(tr)
             return                                                   ! exit if a critical error has been thrown in creating G
         end if
-        allocate(FS(Me%nSizeClasses, Me%nLayers), stat = allst)      ! set up FineSediment1 array FS
+        allocate(FS(Me%nSizeClasses, C%nSedimentLayers), stat = allst)      ! set up FineSediment1 array FS
         ! if (allst /= 0) then
         !     call r%addError(ErrorInstance(code = 1, &
         !                        message = "Allocation error", &
@@ -447,7 +439,7 @@ module classBedSediment1
         !                                 "%resuspendSediment1%FS"] &
         !                       ))                                     ! if error thrown on allocation, add to Result object
         ! end if
-        allocate(delta_l_r(Me%nLayers, Me%nSizeClasses), &
+        allocate(delta_l_r(C%nSedimentLayers, Me%nSizeClasses), &
             stat = allst)                                            ! allocate delta_d-l
         ! if (allst /= 0) then
         !     call r%addError( ErrorInstance(code = 1, &
@@ -463,7 +455,7 @@ module classBedSediment1
 
         delta_l_r = 0.0_dp                                    ! initialise the delta_l_r values
         do S = 1, Me%nSizeClasses
-            do L = 1, Me%nLayers                          
+            do L = 1, C%nSedimentLayers                          
                 ! back up all the fine sediment masses, an essential part of the mass trasfer matrix computation
                 call Me%colBedSedimentLayers(L)%item%colFineSediment(S)%backup_M_f
             end do
@@ -478,7 +470,7 @@ module classBedSediment1
                 return                                               ! exit if a critical error has been thrown
             end if
             L = 1                                                    ! start with top layer
-            do while (FS_resusp(S) > 0.000001 .and. L <= Me%nLayers) ! loop through layers until all sediment resuspended or all layers considered
+            do while (FS_resusp(S) > 0.000001 .and. L <= C%nSedimentLayers) ! loop through layers until all sediment resuspended or all layers considered
                 associate(O => Me%colBedSedimentLayers(L)%item)      ! association for brevity
                     call r%addErrors(.errors. &
                         F%set(f_comp_in = &
@@ -527,7 +519,7 @@ module classBedSediment1
         end do                                                       ! and loop to the next size class
         call r%setData(FS)                                           ! copy output to Result
         do S = 1, Me%nSizeClasses                                    ! incorporate delta_l_r into the mass transfer coefficients matrix delta_sed
-            do L = 1, Me%nLayers                            
+            do L = 1, C%nSedimentLayers                            
                 Me%delta_sed(2, L + 2, S) = &
                     Me%delta_sed(2, L + 2, S) + delta_l_r(L, S)      ! element (L, S) of delta_l_r is added to element (2, L+2, S) of delta_sed
                 Me%delta_sed(L + 2, L + 2, S) = &
@@ -637,7 +629,7 @@ module classBedSediment1
                                           ) &
                            )                                         ! create error instance for allocation error, and add to Result
         end if
-        allocate(delta_d_l(Me%nLayers, Me%nSizeClasses), &
+        allocate(delta_d_l(C%nSedimentLayers, Me%nSizeClasses), &
             stat = allst)                                            ! allocate delta_d-l
         if (allst /= 0) then
             call r%addError( ErrorInstance(code = 1, &
@@ -656,7 +648,7 @@ module classBedSediment1
                                           ) &
                            )                                         ! create error instance for allocation error, and add to Result
         end if
-        allocate(delta_l_b(Me%nLayers, Me%nSizeClasses), &
+        allocate(delta_l_b(C%nSedimentLayers, Me%nSizeClasses), &
             stat = allst)                                            ! allocate delta_l-b
         if (allst /= 0) then
             call r%addError( ErrorInstance(code = 1, &
@@ -666,7 +658,7 @@ module classBedSediment1
                                           ) &
                            )                                         ! create error instance for allocation error, and add to Result
         end if
-        allocate(delta_l_l(Me%nLayers, Me%nLayers, Me%nSizeClasses), &
+        allocate(delta_l_l(C%nSedimentLayers, C%nSedimentLayers, Me%nSizeClasses), &
             stat = allst)                                            ! allocate delta_l-l
         if (allst /= 0) then
             call r%addError( ErrorInstance(code = 1, &
@@ -686,10 +678,10 @@ module classBedSediment1
         end do
         do S = 1, Me%nSizeClasses                                    ! initialise all delta values
             delta_d_b(S) = 0.0_dp                                    ! interlayer and same layer transfers to zero  
-            do L = 1, Me%nLayers                                     ! deposition and burial to zero
+            do L = 1, C%nSedimentLayers                                     ! deposition and burial to zero
                 delta_d_l(L, S) = 0.0_dp                             ! interlayer and same layer transfers to zero  
                 delta_l_b(L, S) = 0.0_dp                             
-                do LL = 1, Me%nLayers
+                do LL = 1, C%nSedimentLayers
                     delta_l_l(L, LL, S) = 0.0_dp
                 end do
             end do
@@ -703,7 +695,7 @@ module classBedSediment1
             if (dep_excess > 0) &
                 then                                                 ! check whether the depositing sediment in each size class exceeds the total
                     associate(O => Me%colBedSedimentLayers)          ! association for brevity
-                        do L = 1, Me%nLayers                         ! capacity for that size fraction in the bed. If so, then remove all fine sediment, water and
+                        do L = 1, C%nSedimentLayers                         ! capacity for that size fraction in the bed. If so, then remove all fine sediment, water and
                             delta_l_b(L, S) = O(L)%item%colFineSediment(S)%M_f()        ! delta l -> b
                             delta_l_l(L, L, S) = -O(L)%item%colFineSediment(S)%M_f()    ! delta l -> l
                             call O(L)%item%colFineSediment(S)%ClearAll()  ! fractional compositions from all layers for this size class
@@ -745,7 +737,7 @@ module classBedSediment1
                                                                      ! from the top, compute for each layer the volume of fine sediment that must be
                                                                      ! removed to allow space for deposition, and the volume of water associated with the
                                                                      ! fine sediment
-                    L = Me%nLayers                                   ! loop through layers, upwards from the bottom
+                    L = C%nSedimentLayers                                   ! loop through layers, upwards from the bottom
                     do while (T%V_f() > 0)                           ! use fine sediment volume in T as a counter. Through this loop, T holds the count of the  
                                                                      ! requirement for sediment burial that has not yet been accounted for by higher layers
                         associate (O => &
@@ -784,7 +776,7 @@ module classBedSediment1
                     if (r%hasCriticalError()) return                 ! return if critical error thrown
                                                                      ! now we remove and bury material from the base of the sediment upwards, 
                                                                      ! to create sufficient space to accommodate deposited material
-                    L = Me%nLayers                                   ! start with the bottom layer
+                    L = C%nSedimentLayers                                   ! start with the bottom layer
                     do while (L > 0 .and. T%V_f() + T%V_w() > 0)     ! loop through each layer, while there is still material to bury
                         if (T%V_f() > 0) Then
                             associate(O => &
@@ -806,7 +798,7 @@ module classBedSediment1
                         L = L - 1                                    ! move up to next layer
                     end do                                           ! finished burial. temporary object T can be reused
                                                                      ! now we shift sediment downwards from upper layers to fill the hole created by burial
-                    do L = Me%nLayers, 2, -1                         ! downward shift of fine sediment. Loop through the layers, starting at the bottom
+                    do L = C%nSedimentLayers, 2, -1                         ! downward shift of fine sediment. Loop through the layers, starting at the bottom
                                                                      ! and working upwards
                         assoc1 : associate &
                             (O => Me%colBedSedimentLayers(L)%item)   ! association to "receiving" layer L
@@ -854,7 +846,7 @@ module classBedSediment1
         do S = 1, Me%nSizeClasses                                    ! now add in the depositing sediment, work by size class
             ! print *, "SC", s
             ! do L = 1, Me%nLayers                                     ! start with the bottom layer and work upwards
-            do L = Me%nLayers, 1, -1                                 ! start with the bottom layer and work upwards
+            do L = C%nSedimentLayers, 1, -1                                 ! start with the bottom layer and work upwards
                 if (FS_dep(S)%M_f() > 0.0_dp) then
                     associate(O => Me%colBedSedimentLayers(L)%item)  ! size class S in Layer L
                     ! print *, "l, A_f and A_w", L, .dp. O%A_f(S), .dp. O%A_w(s)
@@ -890,15 +882,15 @@ module classBedSediment1
         end do
         r = Result(data = V_w_tot)                                   ! return Result object, with volume of water required from water column
         do S = 1, Me%nSizeClasses                                    ! incorporate delta_d_b, delta_d_l, delta_l_b, delta_l_l into the mass transfer coefficients matrix delta_sed 
-            Me%delta_sed(Me%nLayers + 3, 1, S) = &
-                Me%delta_sed(Me%nLayers + 3, 1, S) + delta_d_b(S)    ! element (S) of delta_d_b is added to element (Layers+3, 1, S) of Me%delta_sed
-            do L = 1, Me%nLayers
+            Me%delta_sed(C%nSedimentLayers + 3, 1, S) = &
+                Me%delta_sed(C%nSedimentLayers + 3, 1, S) + delta_d_b(S)    ! element (S) of delta_d_b is added to element (Layers+3, 1, S) of Me%delta_sed
+            do L = 1, C%nSedimentLayers
                 Me%delta_sed(L + 2, 1, S) = &
                     Me%delta_sed(L + 2, 1, S) + delta_d_l(L, S)      ! element (L, S) of delta_d_l is added to element (L+2, 1, S) of Me%delta_sed
-                Me%delta_sed(Me%nLayers + 3, L + 2, S) = &
-                    Me%delta_sed(Me%nLayers + 3, L + 2, S) + &
+                Me%delta_sed(C%nSedimentLayers + 3, L + 2, S) = &
+                    Me%delta_sed(C%nSedimentLayers + 3, L + 2, S) + &
                     delta_l_b(L, S)                                  ! element (L, S) of delta_l_b is added to element (Layers+3, L+2, S) of Me%delta_sed
-                do LL = 1, Me%nLayers
+                do LL = 1, C%nSedimentLayers
                     if (isZero(Me%delta_sed(L + 2, LL + 2, S))) then
                         Me%delta_sed(L + 2, LL + 2, S) = 0.0_dp
                     end if
@@ -926,8 +918,8 @@ module classBedSediment1
         integer :: LL                                                ! LOCAL second loop counter for sediment layers
         integer :: S                                                 ! LOCAL loop counter for size classes
         tr = trim(Me%name) // "%initialiseMatrix1"                   ! object and procedure binding name as trace
-        if (size(Me%delta_sed, 1) /= Me%nLayers + 3 .or. &
-            size(Me%delta_sed, 2) /= Me%nLayers + 3.or. &
+        if (size(Me%delta_sed, 1) /= C%nSedimentLayers + 3 .or. &
+            size(Me%delta_sed, 2) /= C%nSedimentLayers + 3.or. &
             size(Me%delta_sed, 3) /= Me%nSizeClasses) then
             call r%addError(ErrorInstance(1, &
                      tr // "Array size error", .true., [tr] &
@@ -951,7 +943,7 @@ module classBedSediment1
         integer :: n                                                 !! LOCAL loop counter 
         type(result0D) :: r                                          !! LOCAL result object to hold return from Mf_bed_all derived property
         ! print *, trim(Me%name)                                       !! the name of this layer
-        do n=1, Me%nLayers
+        do n=1, C%nSedimentLayers
             ! print *, "Layer ", n
             call Me%colBedSedimentLayers(n)%item%repMass()           !! print out mass of FS in each layer, by size class [kg/m2]
         end do

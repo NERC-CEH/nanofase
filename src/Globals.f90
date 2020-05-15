@@ -12,7 +12,7 @@ module Globals
 
     type, public :: GlobalsType
         ! Config
-        character(len=256)  :: inputFile
+        ! character(len=256)  :: inputFile
         character(len=256)  :: flatInputFile
         character(len=256)  :: constantsFile
         character(len=256)  :: outputFile
@@ -35,7 +35,8 @@ module Globals
         logical             :: includeAttachment                !! Should attachment to soil be included?
         integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
         real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
-        integer             :: nSoilLayers                      !! Number of soil layers to modelled
+        integer             :: nSoilLayers                      !! Number of soil layers to be modelled
+        integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
         
         ! Calibration
         logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
@@ -113,12 +114,12 @@ module Globals
         character(len=256) :: configFilePath, batchRunFilePath
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, flat_input, constants_file, output_file, output_path, log_file_path, start_date, &
+        character(len=256) :: flat_input, constants_file, output_file, output_path, log_file_path, start_date, &
             startDateStr, site_data
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
         integer :: default_fractional_comp_size, default_np_forms, default_np_extra_states, warm_up_period
-        integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites
+        integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_layers
         integer, allocatable :: default_fractional_comp(:)
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_k_att, default_alpha_hetero_estuary, nanomaterial_density
@@ -128,12 +129,13 @@ module Globals
         namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
         namelist /allocatable_array_sizes/ default_fractional_comp_size, default_np_forms, default_np_extra_states, &
                                             n_soil_layers, n_other_sites
-        namelist /data/ input_file, flat_input, constants_file, output_file, output_path
+        namelist /data/ flat_input, constants_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_fractional_comp, warm_up_period, nanomaterial_density
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_alpha_hetero_estuary, include_bed_sediment
+        namelist /sediment/ n_layers
         namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
@@ -172,11 +174,12 @@ module Globals
         read(10, nml=global)
         read(10, nml=soil)
         read(10, nml=river)
+        read(10, nml=sediment)
         read(10, nml=sources)
         close(10)
         
         ! Store this data in the Globals variable
-        C%inputFile = input_file
+        ! C%inputFile = input_file
         C%flatInputFile = flat_input
         C%constantsFile = constants_file
         C%outputFile = output_file
@@ -188,6 +191,7 @@ module Globals
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
         C%nSoilLayers = n_soil_layers
+        C%nSedimentLayers = n_layers
         ! Calibration
         C%calibrationRun = calibration_run
         C%siteData = site_data

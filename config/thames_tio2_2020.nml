@@ -15,7 +15,6 @@ other_sites = ""
 /
 
 &data
-input_file = "data/thames/data.nc"
 flat_input = "data/thames/flat_tio2_2020.nc"
 constants_file = "data/thames/constants_tio2.nml"
 output_file = "output.csv"
@@ -51,6 +50,10 @@ default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
 include_bed_sediment = .true.
+/
+
+&sediment
+n_layers = 4                                            ! How many bed sediment layers to model
 /
 
 &sources

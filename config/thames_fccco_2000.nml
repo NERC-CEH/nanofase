@@ -15,7 +15,6 @@ other_sites = ""
 /
 
 &data
-input_file = "data/thames/data.nc"
 flat_input = "data/thames/flat_fccco_2000.nc"
 constants_file = "data/thames/constants_fccco.nml"
 output_file = "output.csv"
