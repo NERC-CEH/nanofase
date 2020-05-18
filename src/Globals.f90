@@ -13,7 +13,7 @@ module Globals
     type, public :: GlobalsType
         ! Config
         ! character(len=256)  :: inputFile
-        character(len=256)  :: flatInputFile
+        character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
         character(len=256)  :: outputFile
         character(len=256)  :: outputPath
@@ -103,7 +103,7 @@ module Globals
         character(len=256) :: configFilePath, batchRunFilePath
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
-        character(len=256) :: flat_input, constants_file, output_file, output_path, log_file_path, start_date, &
+        character(len=256) :: input_file, constants_file, output_file, output_path, log_file_path, start_date, &
             startDateStr, site_data
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
@@ -118,7 +118,7 @@ module Globals
         namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
         namelist /allocatable_array_sizes/ default_fractional_comp_size, default_np_forms, default_np_extra_states, &
                                             n_soil_layers, n_other_sites
-        namelist /data/ flat_input, constants_file, output_file, output_path
+        namelist /data/ input_file, constants_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
         namelist /global/ default_fractional_comp, warm_up_period, nanomaterial_density
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, default_k_att
@@ -168,8 +168,7 @@ module Globals
         close(10)
         
         ! Store this data in the Globals variable
-        ! C%inputFile = input_file
-        C%flatInputFile = flat_input
+        C%inputFile = input_file
         C%constantsFile = constants_file
         C%outputFile = output_file
         C%outputPath = output_path

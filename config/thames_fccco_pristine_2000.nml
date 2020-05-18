@@ -15,7 +15,7 @@ other_sites = ""
 /
 
 &data
-flat_input = "data/thames/flat_fccco_pristine_2000.nc"
+input_file = "data/thames/flat_fccco_pristine_2000.nc"
 constants_file = "data/thames/constants_fccco.nml"
 output_file = "output.csv"
 output_path = "data/output/"

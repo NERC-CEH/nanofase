@@ -15,7 +15,7 @@ other_sites = ""
 /
 
 &data
-flat_input = "data/thames/flat_tio2_2015.nc"
+input_file = "data/thames/flat_tio2_2015.nc"
 constants_file = "data/thames/constants_tio2.nml"
 output_file = "output.csv"
 output_path = "data/output/"
@@ -49,7 +49,7 @@ default_meandering_factor = 1.0
 default_water_temperature = 10
 default_alpha_hetero = 0.01
 default_alpha_hetero_estuary = 0.01
-include_bed_sediment = .true.
+include_bed_sediment = .false.
 /
 
 &sediment

@@ -232,10 +232,10 @@ module classDatabase
     subroutine updateDatabase(me, batchConfigFile)
         class(Database) :: me
         character(len=*) :: batchConfigFile
-        character(len=256) :: input_file, flat_input, constants_file, start_date
+        character(len=256) :: input_file, constants_file, start_date
         integer :: n_timesteps, maxPointSources
         type(NcVariable)    :: var
-        namelist /data/ input_file, flat_input, constants_file
+        namelist /data/ input_file, constants_file
         namelist /run/ n_timesteps, start_date
         ! For the new batch, open the config file and change a few things in Globals
         open(13, file=batchConfigFile, status="old")
@@ -243,13 +243,12 @@ module classDatabase
         rewind(13)
         read(13, nml=run)
         close(13)
-        ! C%inputFile = input_file
-        C%flatInputFile = flat_input
+        C%inputFile = input_file
         C%constantsFile = constants_file
         C%nTimeSteps = n_timesteps
         C%startDate = f_strptime(start_date)
         ! Open the new dataset
-        me%nc = NcDataset(C%flatInputFile, 'r')
+        me%nc = NcDataset(C%inputFile, 'r')
         ! Deallocate the previous batch's variables
         deallocate(me%soilAttachmentRate)
         deallocate(me%soilAttachmentEfficiency)

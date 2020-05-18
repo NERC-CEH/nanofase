@@ -104,13 +104,8 @@ program main
             npDep(C%npDim(1), C%npDim(2), C%npDim(3)) &
     )
 
-    ! call DATA%init(C%inputFile)                                         ! Initialise the data interfacer TODO to be deprecated
-    call DATASET%init(C%flatInputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
-
+    call DATASET%init(C%inputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
     r = env%create()                                                    ! Create the environment
-    ! call DATA%close()                                                   ! We should be done with the data input now, so close the file
-
-
 
     do k = 1, C%nBatches
         ! If we're not on the first batch, we need to update the data for this batch
