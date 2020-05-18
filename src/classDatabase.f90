@@ -243,7 +243,7 @@ module classDatabase
         rewind(13)
         read(13, nml=run)
         close(13)
-        C%inputFile = input_file
+        ! C%inputFile = input_file
         C%flatInputFile = flat_input
         C%constantsFile = constants_file
         C%nTimeSteps = n_timesteps

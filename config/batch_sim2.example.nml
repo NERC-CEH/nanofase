@@ -1,0 +1,9 @@
+&data
+input_file = "/path/to/simulation2/input/data.nc"
+constants_file = "/path/to/simulation2/constants/data.nml"
+/
+
+&run
+n_timesteps = 365
+start_date = "2001-01-01"
+/

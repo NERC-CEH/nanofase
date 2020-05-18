@@ -30,7 +30,7 @@ If you're on Windows and not using Cygwin or MinGW, it's likely you will have to
 
 ## Running
 
-The model requires a config file to run. An example is placed at `config/config.example.nml`. The example is commented and should be relatively self-explanatory. Copy this to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Edit the `CONFIG_PATH` and `CONFIG_FILE` variables in your Makefile to point to your config file. The model can then be run:
+The model requires a config file to run. An example is placed at [config/config.example.nml](./config/config.example.nml). The example is commented and should be relatively self-explanatory. Copy this to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Edit the `CONFIG_PATH` and `CONFIG_FILE` variables in your Makefile to point to your config file. The model can then be run:
 
 ```shell
 $ make run
@@ -51,3 +51,7 @@ $ ./bin/main /path/to/config/file.nml
 ### Input data
 
 The config file is responsible for telling the model where the input data are (via the `&data` group). To compile your own input data for the NanoFASE model, it is highly recommended that you use the [NanoFASE data module](https://github.com/NERC-CEH/nanofase-data). This module is responsible for (amongst other things) compiling multiple spatial and/or temporal input files into the main NetCDF input file required by the model.
+
+### Batch runs
+
+The model allow for multiple simulations to be chained together. See the [batch docs](./doc/batch.md) for more details.

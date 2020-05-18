@@ -81,17 +81,6 @@ module Globals
         integer :: npDim(3)                         !! Default dimensions for arrays of NM
         integer :: ionicDim                         !! Default dimensions for ionic metal
 
-        ! Estuarine and tidal data
-        ! real(dp) :: tidalM2                         !! Tidal harmonic coefficient M2 [-]
-        ! real(dp) :: tidalS2                         !! Tidal harmonic coefficient S2 [-]
-        ! real(dp) :: tidalDatum                      !! Datum that tidal harmonics are calculated relative to [m]
-        ! ! real :: estuaryChartedDepthExpA             !! Exponential coef A for charted depth
-        ! ! real :: estuaryChartedDepthExpB             !! Exponential coef B for charted depth
-        ! real :: estuaryMeanDepthExpA                !! Exponential coef A for mean depth
-        ! real :: estuaryMeanDepthExpB                !! Exponential coef B for mean depth
-        ! real :: estuaryWidthExpA                    !! Exponential coef A for estuary width
-        ! real :: estuaryWidthExpB                    !! Exponential coef B for estuary width
-
       contains
         procedure :: rho_w      ! Density of water
         procedure :: nu_w       ! Kinematic viscosity of water

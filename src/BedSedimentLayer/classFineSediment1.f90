@@ -113,7 +113,7 @@ module classFineSediment1
                 call r%addError(er)                                  ! add to Result
                 return                                               ! critical error, so exit
             end if
-            Me%pd_comp = C%d_pd                                      ! particle densities of compositional fractions from Global
+            Me%pd_comp = C%rho_spm                                   ! particle densities of compositional fractions from Global
             allocate(Me%f_comp(Me%nfComp), &
                 stat = allst, &
                 errmsg = allms)                                      ! allocate space for compositional fractions
