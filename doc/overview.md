@@ -1,6 +1,6 @@
 # Model overview
 
-*Below description somewhat out of date. Await update in ~Aug 2019.*
+*Below description very out of date. Await update in June 2020.*
 
 This is a high-level overview of how the NanoFASE model operates.
 
