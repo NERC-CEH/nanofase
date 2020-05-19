@@ -31,7 +31,7 @@ input_nc_file: ./data/data.nc
 output_nc_file: ./data/data_edited.nc
 emissions_areal_soil_pristine:
   type: raster
-  path: .data/new_emissions_areal_pristine_soil.tif
+  path: ./data/new_emissions_areal_pristine_soil.tif
   units: kg/m**2/year
 ```
 

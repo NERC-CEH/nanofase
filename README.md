@@ -52,17 +52,17 @@ $ ./bin/main /path/to/config/file.nml
 
 The config file is responsible for telling the model where the input data are (via the `&data` group). To compile your own input data for the NanoFASE model, it is highly recommended that you use the [NanoFASE data module](https://github.com/NERC-CEH/nanofase-data). This module is responsible for (amongst other things) compiling multiple spatial and/or temporal input files into the main NetCDF input file required by the model. It is included as a submodule to this repo: [vendor/nanofase-data](./vendor/nanofase-data).
 
-### Example workflows
-
-A few example workflows are provided in the [example workflows](./doc/example_workflows.md) doc.
-
 ### Batch runs
 
 The model allow for multiple simulations to be chained together. See the [batch docs](./doc/batch.md) for more details.
 
-### NanoFASE CLI tool
+## Example workflows
 
-The [nanofase.py](./nanofase.py) file is a very simple command line tool for compiling/editing data and compiling/running the model. It is simply a Python wrapper for these operations. It's requirements are the same as the respective operations, e.g. [these Python packages](vendor/nanofase-data/environment.yaml) for data compilation/editing.
+A few example workflows are provided in the [example workflows](./doc/example-workflows.md) doc.
+
+## NanoFASE CLI tool
+
+The [nanofase.py](./nanofase.py) file is a very simple command line tool for compiling/editing data and compiling/running the model. It is simply a Python wrapper for these operations. It's requirements are the same as the respective operations, e.g. [these Python packages](https://github.com/NERC-CEH/nanofase-data/blob/develop/environment.yaml) for data compilation/editing.
 
 Compiling data:
 
