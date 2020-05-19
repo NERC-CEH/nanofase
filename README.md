@@ -9,7 +9,7 @@ Project links:
 
 ## Compiling
 
-The model code is regularly compiled using the latest version of gfortran (9.2.1 at the time of writing), and periodically using ifort 18. We recommend using gfortran to avoid complications. An example makefile ([Makefile.example](./Makefile.example)) is provided. If you already have NetCDF installed, then compiling the model is as simple as making the `bin` directory to place your exectuble in, then running `make`:
+The model code is regularly compiled using the latest version of gfortran (9.2.1 at the time of writing), and periodically using ifort 18. We recommend using gfortran to avoid complications (`sudo apt-get install gcc gfortran`). An example makefile ([Makefile.example](./Makefile.example)) is provided. If you already have NetCDF installed, then compiling the model is as simple as making the `bin` directory to place your exectuble in, then running `make`:
 
 ```shell
 $ cp Makefile.example Makefile
@@ -50,8 +50,40 @@ $ ./bin/main /path/to/config/file.nml
 
 ### Input data
 
-The config file is responsible for telling the model where the input data are (via the `&data` group). To compile your own input data for the NanoFASE model, it is highly recommended that you use the [NanoFASE data module](https://github.com/NERC-CEH/nanofase-data). This module is responsible for (amongst other things) compiling multiple spatial and/or temporal input files into the main NetCDF input file required by the model.
+The config file is responsible for telling the model where the input data are (via the `&data` group). To compile your own input data for the NanoFASE model, it is highly recommended that you use the [NanoFASE data module](https://github.com/NERC-CEH/nanofase-data). This module is responsible for (amongst other things) compiling multiple spatial and/or temporal input files into the main NetCDF input file required by the model. It is included as a submodule to this repo: [vendor/nanofase-data](./vendor/nanofase-data).
+
+### Example workflows
+
+A few example workflows are provided in the [example workflows](./doc/example_workflows.md) doc.
 
 ### Batch runs
 
 The model allow for multiple simulations to be chained together. See the [batch docs](./doc/batch.md) for more details.
+
+### NanoFASE CLI tool
+
+The [nanofase.py](./nanofase.py) file is a very simple command line tool for compiling/editing data and compiling/running the model. It is simply a Python wrapper for these operations. It's requirements are the same as the respective operations, e.g. [these Python packages](vendor/nanofase-data/environment.yaml) for data compilation/editing.
+
+Compiling data:
+
+```shell
+$ ./nanofase.py compile-data /path/to/data/compilation/config.yaml
+```
+
+Editing data:
+
+```shell
+$ ./nanofase.py edit-data /path/to/data/editing/config.yaml
+```
+
+Compiling the model:
+
+```shell
+$ ./nanofase.py compile-model
+```
+
+Running the model
+
+```shell
+$ ./nanofase.py run-model /path/to/config.yaml
+```

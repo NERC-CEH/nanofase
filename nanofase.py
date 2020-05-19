@@ -1,72 +1,60 @@
 #!/usr/bin/env python
-"""Simple command line interface for performing frequent tasks
-related to the NanoFASE model."""
+"""A simple CLI tool for the NanoFASE model. Acts as a Python wrapper around data and
+model compilation and running. Run `./nanofase.py -h` for usage."""
 import sys
+sys.path.append('vendor/nanofase-data')
 import os
+import argparse
+from compiler import Compiler
 
-options = {
-    "clean-log": {
-        "description": "Remove log files from log/",
-        "run-description": "Removing log files from log/",
-        "cmd": "rm -f log/*"
-    },
-    "clean-comp": {
-        "description": "Remove compilation files",
-        "run-description": "Removing compilation files",
-        "cmd": "make clean"
-    },
-    "clean": {
-        "description": "Remove log, cache and compilation files",
-        "run-description": "Removing log, cache and compilation files",
-        "cmd": "rm -f log/* && make clean"
-    },
-    "compile": {
-        "description": "Compile the model using the makefile",
-        "run-description": "Compiling the model using the makefile",
-        "cmd": "make"
-    },
-    "run": {
-        "description": "Run the model (without compiling)",
-        "run-description": "Running the model (without compiling)",
-        "cmd": "make run"
-    },
-    "compile-run": {
-        "description": "Compile the model using the makefile and then run",
-        "run-description": "Compiling the model using the makefile and then running",
-        "cmd": "make && make run"
-    },
-    "view-log": {
-        "description": "View the latest log file",
-        "run-description": "Viewing the latest log file",
-        "cmd": "cat ./log/$(ls ./log -t | head -n1)"
-    },
-    "vi-log": {
-        "description": "Edit the latest log file in Vim",
-        "run-description": "Editting the latest log file in Vim",
-        "cmd": "vi ./log/$(ls ./log -t | head -n1)"
-    },
-    "subl-log": {
-        "description": "Edit the latest log file in Sublime Text",
-        "run-description": "Editting the latest log file in Sublime Text",
-        "cmd": "subl ./log/$(ls ./log -t | head -n1)"
-    }
-}
 
-if len(sys.argv) < 2:
-    print("Welcome to the NanoFASE CLI tool! Pass me one of the following options:")
-    for option, detail in options.items():
-        print("\t{0:20}\t{1}".format(option,detail['description']))
+# Compile data using the given config file
+def compile_data(config_file):
+    compiler = Compiler('create', config_file, os.path.join(sys.path[0], 'vendor/nanofase-data/model_vars.yaml'))
+    compiler.create()
 
-    n_files = len(os.listdir('./log'))
-    if n_files > 50:
-        print("\033[34mWarning:\033[0m There are {0} files in the log/ directory. Consider cleaning using the `clean` command.".format(n_files))
 
-else:
+# Edit data using the given config file
+def edit_data(config_file):
+    compiler = Compiler('edit', config_file, os.path.join(sys.path[0], 'vendor/nanofase-data/model_vars.yaml'))
+    compiler.edit()
 
-    n_files = len(os.listdir('./log'))
-    if n_files > 50:
-        print("\033[34mWarning:\033[0m There are {0} files in the log/ directory. Consider cleaning using the `clean` command.".format(n_files))
 
-    option = sys.argv[1]                        # Get the command
-    print(options[option]['run-description'])   # Print out what we're doing
-    os.system(options[option]['cmd'])           # Run the command
+# Compile the model using make. This is simply a wrapper to execute the make shell command
+def compile_model():
+    os.system(f'make')
+
+
+# Run the model, again using make. We use make so that we call the exe in the correct place.
+def run_model(config_file):
+    # Splitting the config file location to the path and the filename, to pass separately
+    # to the make run command
+    if os.path.isfile(config_file):
+        config_split = os.path.split(config_file)
+        os.system(f'make run CONFIG_PATH=\"{config_split[0]}/\" CONFIG_FILE=\"{config_split[1]}\"')
+    else:
+        sys.exit(f'Config file at {config_file} could not be found.')
+
+
+# Command line choices available
+choices = ['compile-data', 'edit-data', 'compile-model', 'run-model']
+
+# Parse the command line args
+parser = argparse.ArgumentParser(description='Common utilities for the NanoFASE model.')
+parser.add_argument('method', help='method to run', choices=choices)
+parser.add_argument('-c', '--config', help='path to the config file for this method')
+args = parser.parse_args()
+
+# Check the option chosen and run the relevant method for that choice
+if args.method == 'compile-data':
+    # Compile the data from scratch
+    compile_data(args.config)
+elif args.method == 'edit-data':
+    # Edit the data
+    edit_data(args.config)
+elif args.method == 'compile-model':
+    # Compile the model using make
+    compile_model()
+elif args.method == 'run-model':
+    # Run the model using the given config file
+    run_model(args.config)
