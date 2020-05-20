@@ -319,7 +319,9 @@ program main
         end do
     end do
 
-    close(2)                                                                ! Close the output file
+    ! Close and deallocate stuff
+    close(2)
+    deallocate(m_np, m_np_l1, m_np_l2, m_np_l3, m_np_l4, m_np_eroded, m_np_buried, m_np_in, C_np, npDep)
     
     ! Timings
     call cpu_time(finish)
