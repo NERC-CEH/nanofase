@@ -66,6 +66,7 @@ program main
     call LOGR%toConsole(" Welcome to the NanoFASE model! ")
     call LOGR%toConsole("--------------------------------\n")
 
+    ! TODO move all this to a data output module
     ! Open the output files to print to
     open(unit=2, file=trim(C%outputPath) // C%outputFile)
     open(unit=3, file=trim(C%outputPath) // 'output_spm.csv')
@@ -75,21 +76,21 @@ program main
     open(unit=10, file=trim(C%outputPath) // 'output_sediment.csv')
     if (C%calibrationRun) then
         open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
-        write(7, *) "t,site_code,site_type,x,y,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
+        write(7, *) "t,site_code,site_type,x,y,easts,norths,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
                     "reach_type,total_m_spm(kg),total_C_spm(g/l)"
     end if
-    write(2, *) "t,x,y,rr,reach_type,m_np,C_np,m_transformed,C_transformed,", &
+    write(2, *) "t,x,y,easts,norths,rr,reach_type,m_np,C_np,m_transformed,C_transformed,", &
         "m_dissolved,C_dissolved,m_np_dep,m_transformed_dep,m_spm,C_spm,reach_volume,reach_depth,reach_flow,", &
         "m_np_outflow,m_transformed_outflow,m_dissolved_outflow,k_settle,k_resus"
-    write(3, *) "t,x,y,rr,m_spm,j_spm_runoff,j_spm_outflow,j_spm_deposit,reach_type"
-    write(5, *) "t,x,y,total_m_np,total_C_np,total_C_transformed,total_C_dissolved,bulk_density,", &
+    write(3, *) "t,x,y,easts,norths,rr,m_spm,j_spm_runoff,j_spm_outflow,j_spm_deposit,reach_type"
+    write(5, *) "t,x,y,easts,norths,total_m_np,total_C_np,total_C_transformed,total_C_dissolved,bulk_density,", &
         "m_np_l1_free,m_np_l2_free,m_np_l3_free,m_np_l1_att,m_np_l2_att,m_np_l3_att,", &
         "C_np_l1,C_np_l2,C_np_l3,C_transformed_l1,C_transformed_l2,C_transformed_l3,C_dissolved_l1, ", &
         "C_dissolved_l2,C_dissolved_l3,m_np_eroded,m_np_buried,m_np_in"
-    write(8, *) "t,x,y,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
-    write(9, *) "t,x,y,rr,b,name,compartment,C_active,C_stored"
-    write(10, *) "t,x,y,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg dw),C_np_l1(kg/m3),", &
-        "C_np_l2(kg/m3),C_np_l3(kg/m3),C_np_l4(kg/m3),C_np_l1(kg/kg dw),C_np_l2(kg/kg dw),C_np_l3(kg/kg dw),", &
+    write(8, *) "t,x,y,easts,norths,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
+    write(9, *) "t,x,y,easts,norths,rr,b,name,compartment,C_active,C_stored"
+    write(10, *) "t,x,y,easts,norths,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg dw),C_np_l1(kg/m3),", &
+        "C_np_l2(kg/m3),C_np_l3(kg/m3),C_np_l4(kg/m3),C_np_l1(kg/kg dw),C_np_l2(kg/kg dw),C_np_l3(kg//kg dw),", &
         "C_np_l4(kg/kg dw),m_np_buried(kg)"
 
     allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -105,7 +106,7 @@ program main
     )
 
     call DATASET%init(C%inputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
-    r = env%create()                                                    ! Create the environment
+    r = env%create()                                                ! Create the environment
 
     do k = 1, C%nBatches
         ! If we're not on the first batch, we need to update the data for this batch
@@ -122,7 +123,7 @@ program main
                 m_np_free = 0
                 m_np_hetero = 0
                 r = env%update(t)
-                call LOGR%toFile(errors=.errors.r)                               ! Output any errors to the log file
+                call LOGR%toFile(errors=.errors.r)                              ! Output any errors to the log file
                 call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
 
                 ! TODO: Do something with Result object
@@ -142,7 +143,9 @@ program main
                                             reachType = 'est'
                                     end select
                                     ! Water output file
-                                    write(2, *) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", reachType, ",", &
+                                    write(2, *) t + tPreviousBatch, ",", x, ",", y, ",", &
+                                        DATASET%x(x), ",", DATASET%y(y), ",", rr, &
+                                        ",", reachType, ",", &
                                         trim(str(sum(reach%m_np))), ",", &
                                         trim(str(sum(reach%C_np))), ",", &
                                         trim(str(sum(reach%m_transformed))), ",", &
@@ -162,7 +165,8 @@ program main
                                         trim(str(sum(reach%k_settle))), ",", &
                                         trim(str(sum(reach%k_resus)))
                                     ! SPM output file
-                                    write(3,*) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", &
+                                    write(3,*) t + tPreviousBatch, ",", x, ",", y, ",", &
+                                        DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", &
                                         trim(str(sum(reach%m_spm))), ",", &
                                         trim(str(sum(reach%j_spm_runoff()))), ",", &
                                         trim(str(sum(reach%j_spm_outflow()))), ",", &
@@ -170,7 +174,8 @@ program main
                                         trim(reachType)
                                     ! Biota
                                     do b = 1, reach%nBiota
-                                        write(9, *) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", b, ",", &
+                                        write(9, *) t + tPreviousBatch, ",", x, ",", y, ",", &
+                                            DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", b, ",", &
                                             trim(reach%biota(b)%name), ",", &
                                             reachType, ",", &
                                             reach%biota(b)%C_active, ",", &
@@ -179,13 +184,16 @@ program main
 
                                     if (C%calibrationRun) then
                                         if (reach%calibrationSiteRef == C%startSite) then
-                                            write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", rr, ",", &
-                                                        trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                                        trim(str(reach%depth)), ",", trim(reachType), ",", &
+                                            write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", &
+                                                        DATASET%x(x), ",", DATASET%y(y), ",", &
+                                                        rr, ",", trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), &
+                                                        ",", trim(str(reach%depth)), ",", trim(reachType), ",", &
                                                         trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
                                         else if (reach%calibrationSiteRef == C%endSite) then
-                                            write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", rr, ",", &
-                                                        trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                            write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", &
+                                                        DATASET%x(x), ",", DATASET%y(y), ",", &
+                                                        rr, ",", trim(str(reach%volume)), ",", &
+                                                        trim(str(reach%Q(1)/C%timeStep)), ",", &
                                                         trim(str(reach%depth)), ",", trim(reachType), ",", &
                                                         trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
                                         else
@@ -193,8 +201,8 @@ program main
                                                 if (reach%calibrationSiteRef &
                                                     == C%otherSites(i)) then
                                                     write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", &
-                                                        rr, ",", &
-                                                        trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                                        DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", trim(str(reach%volume)), &
+                                                        ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
                                                         trim(str(reach%depth)), ",", trim(reachType), ",", &
                                                         trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
                                                 end if
@@ -236,9 +244,10 @@ program main
 
                                     total_C_np_byMass = sum(sum(sum(sum(reach%bedSediment%C_np_byMass, dim=4), dim=3), dim=2)) &
                                         / C%nSedimentLayers
-                                    write(10, *) t + tPreviousBatch, ",", x, ",", y, ",", rr, ",", reachType, ",", &
-                                        trim(str(total_m_np)), ",", &   ! Sum across layers
-                                        trim(str(total_C_np)), ",", &              ! TODO concentration by dw mass too
+                                    write(10, *) t + tPreviousBatch, ",", x, ",", y, ",", &
+                                        DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", reachType, ",", &
+                                        trim(str(total_m_np)), ",", &               ! Sum across layers
+                                        trim(str(total_C_np)), ",", &               ! TODO concentration by dw mass too
                                         trim(str(total_C_np_byMass)), ",", &
                                         trim(str(C_np_l1)), ",", &
                                         trim(str(C_np_l2)), ",", &
@@ -280,7 +289,7 @@ program main
                                 total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
                             end associate
 
-                            write(5,*) t + tPreviousBatch, ", ", x, ", ", y, ", ", &
+                            write(5,*) t + tPreviousBatch, ", ", x, ", ", y, ", ", DATASET%x(x), ",", DATASET%y(y), ",", &
                                 total_m_np, ", ", total_C_np, ", ", &
                                 C_transformed_l1 + C_transformed_l2 + C_transformed_l3, ",", &
                                 C_dissolved_l1 + C_dissolved_l2 + C_dissolved_l3, ",", bulkDensity, ",", &
@@ -301,7 +310,8 @@ program main
 
                             do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
                                 associate(profile => env%colGridCells(x,y)%item%colSoilProfiles(1)%item)
-                                    write(8, *) t + tPreviousBatch, ",", x, ",", y, ",", b, ",", &
+                                    write(8, *) t + tPreviousBatch, ",", x, ",", y, ",", &
+                                        DATASET%x(x), ",", DATASET%y(y), ",", b, ",", &
                                         trim(profile%colSoilLayers(1)%item%biota(b)%name), ",", &
                                         profile%colSoilLayers(1)%item%biota(b)%C_active, ",", &
                                         profile%colSoilLayers(1)%item%biota(b)%C_stored, ",", &

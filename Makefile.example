@@ -20,79 +20,79 @@ GIT_BRANCH = `git rev-parse --abbrev-ref HEAD`                          # branch
 COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_BRANCH)
 
 OBJ = vendor/feh/src/ErrorInstance.o \                                  # Modules listed in compilation order
-    vendor/feh/src/Result.o \
-    vendor/feh/src/ErrorHandler.o \
-    vendor/feh/src/ErrorCriteria.o \
-    vendor/mo_netcdf/src/mo_types.o \
-    vendor/mo_netcdf/src/mo_netcdf.o \
-    vendor/datetime-fortran/mod_timedelta.o \
-    vendor/datetime-fortran/mod_strftime.o \
-    vendor/datetime-fortran/mod_constants.o \
-    vendor/datetime-fortran/mod_datetime.o \
-    vendor/datetime-fortran/mod_clock.o \
-    vendor/datetime-fortran/datetime.o \
-    src/mod_strptime.o \
-    src/Globals.o \
-    src/UtilModule.o \
-    src/Logger/classLogger.o \
-    src/DataInterfacer/classDataInterfacer.o \
-    src/classDatabase.o \
-    src/Biota/spcBiota.o \
-    src/Biota/classBiotaSoil.o \
-    src/Biota/classBiotaWater.o \
-    src/Reactor/spcReactor.o \
-    src/Reactor/classReactor1.o \
-    src/BedSedimentLayer/classFineSediment1.o \
-    src/BedSedimentLayer/spcBedSedimentLayer.o \
-    src/BedSedimentLayer/classBedSedimentLayer1.o \
-    src/BedSediment/spcBedSediment.o \
-    src/BedSediment/classBedSediment1.o \
-    src/Source/classDiffuseSource2.o \
-    src/Source/classPointSource2.o \
-    src/WaterBody/spcWaterBody.o \
-    src/WaterBody/spcReach.o \
-    src/classRiverReach.o \
-    src/classEstuaryReach.o \
-    src/classSampleSite.o \
-    src/Soil/spcSoilLayer.o \
-    src/Soil/classSoilLayer1.o \
-    src/Soil/spcSoilProfile.o \
-    src/Soil/classSoilProfile1.o \
-    src/GridCell/classCrop.o \
-    src/GridCell/spcGridCell.o \
-    src/GridCell/classGridCell2.o \
-    src/Environment/spcEnvironment.o \
-    src/Environment/classEnvironment1.o \
-    src/main.o 
+	vendor/feh/src/Result.o \
+	vendor/feh/src/ErrorHandler.o \
+	vendor/feh/src/ErrorCriteria.o \
+	vendor/mo_netcdf/src/mo_types.o \
+	vendor/mo_netcdf/src/mo_netcdf.o \
+	vendor/datetime-fortran/mod_timedelta.o \
+	vendor/datetime-fortran/mod_strftime.o \
+	vendor/datetime-fortran/mod_constants.o \
+	vendor/datetime-fortran/mod_datetime.o \
+	vendor/datetime-fortran/mod_clock.o \
+	vendor/datetime-fortran/datetime.o \
+	src/mod_strptime.o \
+	src/Globals.o \
+	src/UtilModule.o \
+	src/Logger/classLogger.o \
+	src/DataInterfacer/classDataInterfacer.o \
+	src/classDatabase.o \
+	src/Biota/spcBiota.o \
+	src/Biota/classBiotaSoil.o \
+	src/Biota/classBiotaWater.o \
+	src/Reactor/spcReactor.o \
+	src/Reactor/classReactor1.o \
+	src/BedSedimentLayer/classFineSediment1.o \
+	src/BedSedimentLayer/spcBedSedimentLayer.o \
+	src/BedSedimentLayer/classBedSedimentLayer1.o \
+	src/BedSediment/spcBedSediment.o \
+	src/BedSediment/classBedSediment1.o \
+	src/Source/classDiffuseSource2.o \
+	src/Source/classPointSource2.o \
+	src/WaterBody/spcWaterBody.o \
+	src/WaterBody/spcReach.o \
+	src/classRiverReach.o \
+	src/classEstuaryReach.o \
+	src/classSampleSite.o \
+	src/Soil/spcSoilLayer.o \
+	src/Soil/classSoilLayer1.o \
+	src/Soil/spcSoilProfile.o \
+	src/Soil/classSoilProfile1.o \
+	src/GridCell/classCrop.o \
+	src/GridCell/spcGridCell.o \
+	src/GridCell/classGridCell2.o \
+	src/Environment/spcEnvironment.o \
+	src/Environment/classEnvironment1.o \
+	src/main.o 
 
 OBJECTS = $(notdir $(OBJ))
 
 VPATH = vendor/feh/src \                                                # Paths to search for .f90 source files
-    vendor/mo_netcdf/src \
-    vendor/datetime-fortran/src/lib \
-    src \
-    src/Logger \
-    src/DataInterfacer \
-    src/Biota \
-    src/Reactor \
-    src/BedSedimentLayer \
-    src/BedSediment \
-    src/Source \
-    src/WaterBody \
-    src/Soil \
-    src/GridCell \
-    src/Environment
+	vendor/mo_netcdf/src \
+	vendor/datetime-fortran/src/lib \
+	src \
+	src/Logger \
+	src/DataInterfacer \
+	src/Biota \
+	src/Reactor \
+	src/BedSedimentLayer \
+	src/BedSediment \
+	src/Source \
+	src/WaterBody \
+	src/Soil \
+	src/GridCell \
+	src/Environment
 
 $(EXEC_FILE): $(OBJECTS)
-    $(FC) $(FCFLAGS) $(DEBUGFLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
-    echo $(COMP_META) > $(EXEC_PATH)comp_meta
+	$(FC) $(FCFLAGS) $(DEBUGFLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
+	echo $(COMP_META) > $(EXEC_PATH)comp_meta
 %.o: %.f90
-    $(FC) -c $(FCFLAGS) $(DEBUGFLAGS) $< $(NETCDF)
+	$(FC) -c $(FCFLAGS) $(DEBUGFLAGS) $< $(NETCDF)
 run:
-    $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
+	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 profile:
-    gprof $(EXEC_PATH)$(EXEC_FILE) gmon.out
+	gprof $(EXEC_PATH)$(EXEC_FILE) gmon.out
 debug:
-    gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
+	gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 clean:
-    rm -f *.mod *.o *.stackdump Debug/*.*
+	rm -f *.mod *.o *.stackdump Debug/*.*
