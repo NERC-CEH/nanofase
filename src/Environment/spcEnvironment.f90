@@ -12,10 +12,10 @@ module spcEnvironment
     type, public, abstract :: Environment
         integer, allocatable                :: gridDimensions(:)    !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
         type(GridCellElement), allocatable  :: colGridCells(:,:)    !! Array of `GridCellElement` objects to hold polymorphic `GridCell`s
-        type(ReachPointer), allocatable :: headwaters(:)            !! Array of `GridCell`s that contain headwaters
-        type(ReachPointer), allocatable     :: routedReaches(:,:)   !! Array of pointers to routed reaches
-        integer, allocatable                :: routedReachIndices(:,:,:)    !! Indices of the routed reaches, use to construct the routedReaches pointer
+        type(ReachPointer), allocatable     :: headwaters(:)        !! Array of `GridCell`s that contain headwaters
+        type(ReachPointer), allocatable     :: routedReaches(:)     !! Array of pointers to routed reaches
         integer                             :: nHeadwaters = 0      !! The number of headwaters in the Environment
+        integer                             :: nWaterbodies = 0     !! The number of waterbodies in the Environment
         type(NcGroup)                       :: ncGroup              !! NetCDF group for this `Environment` object
         type(SampleSite), allocatable :: sites(:)                   !! Sample sites for calibrating with
         type(SampleSite), pointer :: startSite, endSite             !! Start and end calibration sites
@@ -25,6 +25,7 @@ module spcEnvironment
         procedure(destroyEnvironment), deferred :: destroy
         procedure(updateEnvironment), deferred :: update
         procedure(updateReachEnvironment), deferred :: updateReach
+        procedure(determineStreamOrderEnvironment), deferred :: determineStreamOrder
         procedure(parseNewBatchDataEnvironment), deferred :: parseNewBatchData
         ! Getters
         procedure(get_m_npEnvironment), deferred :: get_m_np
@@ -61,10 +62,10 @@ module spcEnvironment
             use ResultModule, only: Result
             use spcReach, only: ReachPointer
             import Environment
-            class(Environment), target :: me
-            integer :: t
-            type(ReachPointer) :: reach
-            type(Result) :: rslt
+            class(Environment), target :: me        !! This Environment instance
+            integer :: t                            !! The current timestep
+            type(ReachPointer) :: reach             !! The reach to update
+            type(Result) :: rslt                    !! Result object to return errors in
         end function
         
         !> Interface to import and parse input data for the `Environment` object
@@ -74,6 +75,12 @@ module spcEnvironment
             class(Environment) :: me
             type(Result) :: r
         end function
+
+        !> Determine the stream order of water bodies in the Environment
+        subroutine determineStreamOrderEnvironment(me)
+            import Environment
+            class(Environment) :: me
+        end subroutine
 
         subroutine parseNewBatchDataEnvironment(me)
             import Environment

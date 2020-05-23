@@ -47,9 +47,9 @@ module classEstuaryReach
         call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
         me%ref = trim(ref("EstuaryReach", x, y, w))
 
-        ! Parse input data and allocate/initialise variables. The order here is important:
-        ! allocation depends on the input data.
+        ! Parse input data and allocate/initialise variables
         call rslt%addErrors(.errors. me%parseInputData())
+
         call me%setDimensions(0)                ! Make sure the reach has some dimensions to begin with
 
         ! Create the BedSediment for this RiverReach
@@ -460,13 +460,6 @@ module classEstuaryReach
         class(EstuaryReach) :: me
         integer :: tHours
 
-        ! Width, as exponential function of distance from mouth, unless specified in data
-        if (isZero(me%width)) then
-            me%width = DATASET%estuaryWidthExpA * exp(-DATASET%estuaryWidthExpB * me%distanceToMouth)
-        end if
-        
-        ! Mean depth as exponential function of distance from mouth
-        me%meanDepth = DATASET%estuaryMeanDepthExpA * exp(-DATASET%estuaryMeanDepthExpB * me%distanceToMouth)
         ! Calculate actual depth based on these and number of hours through model run
         me%depth = me%calculateDepth(tHours)
         me%xsArea = me%depth*me%width                       ! Calculate the cross-sectional area of the reach [m2]
@@ -491,15 +484,7 @@ module classEstuaryReach
         type(Result) :: rslt
         integer :: i                                ! Loop iterator
         integer, allocatable :: inflowArray(:,:)    ! Temporary array for storing inflows from data file in
-
-        ! ! Set the data interfacer's group to the group for this reach
-        ! call rslt%addErrors(.errors. DATA%setGroup([character(len=100) :: &
-        !     'Environment', &
-        !     ref('GridCell', me%x, me%y), &
-        !     me%ref &
-        ! ]))
-        ! me%ncGroup = DATA%grp
-
+        ! Calculate the distance to the estuary mouth from data
         me%distanceToMouth = me%calculateDistanceToMouth( &
             DATASET%x(me%x), &
             DATASET%y(me%y), &
@@ -507,9 +492,12 @@ module classEstuaryReach
             DATASET%estuaryMouthCoords(1), &
             DATASET%estuaryMouthCoords(2) &
         )
+        ! Width, as exponential function of distance from mouth, unless specified in data
+        me%width = DATASET%estuaryWidthExpA * exp(-DATASET%estuaryWidthExpB * me%distanceToMouth)
+        ! Mean depth as exponential function of distance from mouth
+        me%meanDepth = DATASET%estuaryMeanDepthExpA * exp(-DATASET%estuaryMeanDepthExpB * me%distanceToMouth)
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         me%slope = 0.0005
-        me%width = 0.0_dp
         me%f_m = C%defaultMeanderingFactor
         me%alpha_hetero = C%default_alpha_hetero_estuary
         me%alpha_resus = DATASET%waterResuspensionAlphaEstuary

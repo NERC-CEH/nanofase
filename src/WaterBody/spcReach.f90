@@ -32,7 +32,7 @@ module spcReach
         logical :: isGridCellOutflow = .false.                      !! Does the reach outflow to another cell?
         logical :: isDomainOutflow = .false.                        !! Does the reach flow out of the gridded domain?
         integer :: branch = 0                                       !! Which branch is this reach on in the GridCell? 0 = not processed yet
-        integer :: streamOrder = 0                                  !! Shreve stream order of this reach [-]
+        integer :: streamOrder = 0                                  !! Stream order of this reach [-]
         ! Physical properties
         real(dp) :: slope                                           !! Slope of reach [m/m]
         real(dp) :: width                                           !! Width of the reach [m]
@@ -285,7 +285,7 @@ module spcReach
             !TODO: allow number of compositional fractions to be set 
             call rslt%addErrors(.errors. fineSediment(n)%set( &
                 Mf_in=spmDep_perArea(n), &
-                f_comp_in=C%defaultFractionalComp/100.0_dp &
+                f_comp_in=real(DATASET%sedimentFractionalCompositions,8) &
             ))
         end do
         

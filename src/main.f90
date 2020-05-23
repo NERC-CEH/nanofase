@@ -50,6 +50,7 @@ program main
     real(dp) :: total_C_np_byMass
     real(dp) :: bulkDensity
     real(dp) :: volume
+    real(dp) :: meanDepth
 
     call cpu_time(start)                                                ! Simulation start time
     !wallStart = omp_get_wtime()
@@ -74,6 +75,7 @@ program main
     open(unit=8, file=trim(C%outputPath) // 'output_soil_biota.csv')
     open(unit=9, file=trim(C%outputPath) // 'output_water_biota.csv')
     open(unit=10, file=trim(C%outputPath) // 'output_sediment.csv')
+    open(unit=12, file=trim(C%outputPath) // 'output_estuary_characteristics.csv')
     if (C%calibrationRun) then
         open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
         write(7, *) "t,site_code,site_type,x,y,easts,norths,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
@@ -92,6 +94,7 @@ program main
     write(10, *) "t,x,y,easts,norths,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg dw),C_np_l1(kg/m3),", &
         "C_np_l2(kg/m3),C_np_l3(kg/m3),C_np_l4(kg/m3),C_np_l1(kg/kg dw),C_np_l2(kg/kg dw),C_np_l3(kg//kg dw),", &
         "C_np_l4(kg/kg dw),m_np_buried(kg)"
+    write(12, *) "x,y,easts,norths,rr,width(m),datum(m),stream_order,f_m"
 
     allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             m_np_l1(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -107,6 +110,35 @@ program main
 
     call DATASET%init(C%inputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
     r = env%create()                                                ! Create the environment
+
+    ! Loop through grid cell and pull out static data to save to output.
+    ! TODO potentially create "geographical scenario" dataset for this
+    ! do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
+    !     do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
+    !         if (.not. env%colGridCells(x,y)%item%isEmpty) then
+    !             do rr = 1, env%colGridCells(x,y)%item%nReaches
+    !                 associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
+    !                     select type (reach)
+    !                         type is (EstuaryReach)
+    !                             reachType = 'est'
+    !                             meanDepth = reach%meanDepth
+    !                         type is (RiverReach)
+    !                             reachType = 'riv'
+    !                     end select
+    !                     if (trim(reachType) == 'est') then
+    !                         print *, "yep"
+    !                         write(12, *) x, ",", y, ",", int(DATASET%x(x)), ",", int(DATASET%y(y)), ",", rr, ",", &
+    !                             reach%width, ",", &
+    !                             meanDepth, ",", &
+    !                             reach%streamOrder, ",", reach%f_m
+    !                     end if
+    !                 end associate
+    !             end do
+    !         end if
+    !     end do
+    ! end do
+
+    ! error stop
 
     do k = 1, C%nBatches
         ! If we're not on the first batch, we need to update the data for this batch

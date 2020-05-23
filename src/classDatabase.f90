@@ -718,6 +718,8 @@ module classDatabase
         me%sedimentPorosity = porosity
         me%sedimentFractionalCompositions = fractional_compositions
 
+        ! TODO move the below out of Globals to here
+
         ! HACK to override Globals values, need to unify all this
         C%nSizeClassesSpm = me%nSizeClassesSPM
         C%nSizeClassesNP = me%nSizeClassesNM

@@ -77,7 +77,6 @@ module Globals
         integer :: nFracCompsSpm                    !! Number of sediment fractional compositions
         integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
-        integer, allocatable :: defaultFractionalComp(:)  !! Default fractional composition of sediment
         integer :: npDim(3)                         !! Default dimensions for arrays of NM
         integer :: ionicDim                         !! Default dimensions for ionic metal
 
@@ -93,11 +92,11 @@ module Globals
 
     !> Initialise global variables, such as `ERROR_HANDLER`
     subroutine GLOBALS_INIT()
-        type(NcVariable) :: var                             ! NetCDF variable
-        type(NcGroup) :: grp                                ! NetCDF group
-        real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
-        real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
-        real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
+        ! type(NcVariable) :: var                             ! NetCDF variable
+        ! type(NcGroup) :: grp                                ! NetCDF group
+        ! real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
+        ! real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
+        ! real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n, i                                     ! Iterators
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
         character(len=256) :: configFilePath, batchRunFilePath
@@ -107,20 +106,19 @@ module Globals
             startDateStr, site_data
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
-        integer :: default_fractional_comp_size, default_np_forms, default_np_extra_states, warm_up_period
+        integer :: default_np_forms, default_np_extra_states, warm_up_period
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_layers
-        integer, allocatable :: default_fractional_comp(:)
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_k_att, default_alpha_hetero_estuary, nanomaterial_density
         real, allocatable :: soil_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run
         namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
-        namelist /allocatable_array_sizes/ default_fractional_comp_size, default_np_forms, default_np_extra_states, &
+        namelist /allocatable_array_sizes/ default_np_forms, default_np_extra_states, &
                                             n_soil_layers, n_other_sites
         namelist /data/ input_file, constants_file, output_file, output_path
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
-        namelist /global/ default_fractional_comp, warm_up_period, nanomaterial_density
+        namelist /global/ warm_up_period, nanomaterial_density
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, default_k_att
         namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_alpha_hetero_estuary, include_bed_sediment
@@ -153,7 +151,6 @@ module Globals
         read(10, nml=allocatable_array_sizes)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
-        allocate(default_fractional_comp(default_fractional_comp_size))
         allocate(soil_layer_depth(n_soil_layers))
         allocate(other_sites(n_other_sites))
         ! Carry on reading in the different config groups
@@ -186,7 +183,6 @@ module Globals
         C%startSite = start_site
         C%endSite = end_site
         C%otherSites = other_sites
-        C%defaultFractionalComp = default_fractional_comp
         C%soilLayerDepth = soil_layer_depth
         C%defaultMeanderingFactor = default_meandering_factor
         C%maxRiverReaches = max_river_reaches

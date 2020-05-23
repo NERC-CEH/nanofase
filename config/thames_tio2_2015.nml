@@ -1,5 +1,4 @@
 &allocatable_array_sizes
-default_fractional_comp_size = 4
 default_np_forms = 4
 default_np_extra_states = 2
 n_soil_layers = 3
@@ -31,7 +30,6 @@ log_file_path = "log/"
 /
 
 &global
-default_fractional_comp = 30, 30, 30, 10
 warm_up_period = 0
 nanomaterial_density = 4320
 /
