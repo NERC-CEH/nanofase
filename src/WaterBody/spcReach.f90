@@ -37,7 +37,7 @@ module spcReach
         real(dp) :: slope                                           !! Slope of reach [m/m]
         real(dp) :: width                                           !! Width of the reach [m]
         real(dp) :: xsArea                                          !! The cross-sectional area of water in the reach [m2]
-        real(dp) :: f_m                                             !! Meandering factor used for calculating river volume. Default to 1 (no meandering).
+        real(dp) :: f_m                                             !! Meandering factor used for calculating river volume [-]
         real(dp) :: length                                          !! Length of the river, without meandering factor [m]
         real(dp) :: velocity                                        !! Water velocity [m/s]
         real(dp) :: alpha_resus                                     !! Maximum resuspendable particle size calibration param [-]
@@ -186,7 +186,6 @@ module spcReach
         me%j_ionic_final = 0
         ! Defaults
         me%n = C%n_river
-        me%f_m = C%defaultMeanderingFactor
     end subroutine
 
     subroutine parseNewBatchDataReach(me)
@@ -239,16 +238,16 @@ module spcReach
             do i = 1, C%nSizeClassesSpm
                 me%W_settle_spm(i) = me%calculateSettlingVelocity( &
                     C%d_spm(i), &
-                    sum(C%rho_spm)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
+                    sum(C%sedimentParticleDensities)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
                     me%T_water &
                 )
             end do
             me%k_settle = me%W_settle_spm/me%depth
 
             ! NP: Calculate this to pass to Reactor
-            do i = 1, C%nSizeClassesNP
+            do i = 1, C%nSizeClassesNM
                 me%W_settle_np(i) = me%calculateSettlingVelocity( &
-                    C%d_np(i), &
+                    C%d_nm(i), &
                     4230.0, &       ! HACK: rho_np, change this to account for different NP materials
                     me%T_water &
                 )
@@ -285,7 +284,7 @@ module spcReach
             !TODO: allow number of compositional fractions to be set 
             call rslt%addErrors(.errors. fineSediment(n)%set( &
                 Mf_in=spmDep_perArea(n), &
-                f_comp_in=real(DATASET%sedimentFractionalCompositions,8) &
+                f_comp_in=real(DATASET%sedimentFractionalComposition,8) &
             ))
         end do
         
@@ -342,7 +341,7 @@ module spcReach
                 end if
             end do
             ! Calculate the stream power per unit bed area
-            omega = C%rho_w(C%T)*C%g*(me%Q_in_total/C%timeStep)*me%slope/me%width
+            omega = C%rho_w(me%T_water)*C%g*(me%Q_in_total/C%timeStep)*me%slope/me%width
             f_fr = 4*me%depth/(me%width+2*me%depth)
             ! Set k_resus using the above
             me%k_resus = me%calculateResuspension( &
@@ -374,9 +373,9 @@ module spcReach
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
     function calculateSettlingVelocity(Me, d, rho_particle, T) result(W)
         class(Reach), intent(in) :: me                          !! The `Reach` instance
-        real, intent(in) :: d                               !! Sediment particle diameter [m]
-        real, intent(in) :: rho_particle                    !! Sediment particulate density [kg/m3]
-        real(dp), intent(in) :: T                               !! Temperature [C]
+        real, intent(in) :: d                                   !! Sediment particle diameter [m]
+        real, intent(in) :: rho_particle                        !! Sediment particulate density [kg/m3]
+        real, intent(in) :: T                                   !! Temperature [C]
         real(dp) :: W                                           !! Calculated settling velocity [m/s]
         real(dp) :: dStar                                       ! Dimensionless particle diameter.
         ! Settling only occurs if SPM particle density is greater than density of water

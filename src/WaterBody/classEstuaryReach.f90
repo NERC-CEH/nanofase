@@ -266,7 +266,7 @@ module classEstuaryReach
                     dj_spm(1,j) = min(me%outflow%item%C_spm_final(j) * dQ(1), &
                         me%outflow%item%m_spm(j)/me%outflow%item%nInflows)    ! SPM outflow
                 end do
-                do j = 1, C%nSizeClassesNP
+                do j = 1, C%nSizeClassesNM
                     dj_np(1,j,:,:) = min(me%outflow%item%C_np_final(j,:,:) * dQ(1), &
                         me%outflow%item%m_np(j,:,:)/me%outflow%item%nInflows)
                 end do
@@ -498,8 +498,8 @@ module classEstuaryReach
         me%meanDepth = DATASET%estuaryMeanDepthExpA * exp(-DATASET%estuaryMeanDepthExpB * me%distanceToMouth)
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         me%slope = 0.0005
-        me%f_m = C%defaultMeanderingFactor
-        me%alpha_hetero = C%default_alpha_hetero_estuary
+        me%f_m = DATASET%riverMeanderingFactor                          ! TODO change this to estuary meandering factor
+        me%alpha_hetero = DATASET%estuaryAttachmentEfficiency
         me%alpha_resus = DATASET%waterResuspensionAlphaEstuary
         me%beta_resus = DATASET%waterResuspensionBetaEstuary
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be

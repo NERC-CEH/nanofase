@@ -91,7 +91,7 @@ module spcEnvironment
             use Globals
             import Environment
             class(Environment) :: me
-            real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)
+            real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
         end function
     end interface
 end module

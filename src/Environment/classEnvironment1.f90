@@ -182,67 +182,31 @@ module classEnvironment1
         type(Result) :: r                                       !! Return error(s) in `Result` object
         type(ReachPointer) :: reach                             ! Pointer to the reach we're updating
         integer :: streamOrder                                  ! Keep track of the order in which reach updates were performed
-        integer :: i, j, x, y
+        integer :: i, x, y
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length in cell
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
         logical :: goDownstream                                 ! Have all the inflow reaches been updated yet?
         logical :: endSiteReached                               ! When doing the calibration loop, did we reach the end site?
         type(datetime) :: currentDate
-        type(ReachPointer), allocatable :: tmpJunctionReaches(:)
-        type(ReachPointer), allocatable :: junctionReaches(:)
-
+        ! type(ReachPointer), allocatable :: tmpJunctionReaches(:)
+        ! type(ReachPointer), allocatable :: junctionReaches(:)
+        
+        ! Get the current date and log it
         currentDate = C%startDate + timedelta(t-1)
         call LOGR%add("Performing simulation for " // trim(currentDate%strftime('%Y-%m-%d')) // "...")
-
-        ! Update all grid cells first
+        
         !!$omp parallel do private(y)
         do y = 1, DATASET%gridShape(2)
             do x = 1, DATASET%gridShape(1)
                 call r%addErrors(.errors. me%colGridCells(x,y)%item%update(t))
             end do
         end do
-
+        
+        ! Loop through the routed reaches array (which is in the correct order) and update each reach
         do i = 1, me%nWaterbodies
            call r%addErrors(.errors. me%updateReach(t, me%routedReaches(i))) 
         end do
-        !!$omp end parallel do
-        ! streamOrder = 1
-        ! ! Loop through the headwaters and route from these downstream. We don't need to do this separately
-        ! ! for calibration runs, because each reach with a sample site has already been told its boundary
-        ! ! conditions and thus will ignore inflows from upstream. Just bare in mind that only the calibration
-        ! ! output results will be valid, not the full model outputs.
-        ! do i = 1, me%nHeadwaters
-        !     reach%item => me%headwaters(i)%item
-        !     ! Update the headwater
-        !     call r%addErrors(.errors. me%updateReach(t, reach))
-        !     ! Check this reach has an outflow, before moving on to the outflow and updating that,
-        !     ! and so on downstream until we hit a reach that has inflows that haven't been updated.
-        !     ! If this is the case, we exit the loop and another headwater's downstream routing
-        !     ! will pick up where the current headwater's routing has stopped. We also check that
-        !     ! there is a downstream reach. The goDownstream flag is in charge of telling the loop
-        !     ! whether to proceed or not.
-        !     if (associated(reach%item%outflow%item)) then
-        !         reach%item => reach%item%outflow%item
-        !         goDownstream = .true.
-        !         do while (goDownstream)
-        !             call r%addErrors(.errors. me%updateReach(t, reach))
-        !             if (.not. associated(reach%item%outflow%item)) then
-        !                 goDownstream = .false.
-        !             else
-        !                 ! Point reach to the next downstream reach
-        !                 reach%item => reach%item%outflow%item
-        !                 ! Check all of the next reach's inflows have been updated,
-        !                 ! otherwise the do loop will stop and another headwater's
-        !                 ! downstream routing will pick up where we've left off
-        !                 do j = 1, reach%item%nInflows
-        !                     if (.not. reach%item%inflows(j)%item%isUpdated) then
-        !                         goDownstream = .false.
-        !                     end if
-        !                 end do
-        !             end if
-        !         end do
-        !     end if
-        ! end do
+        
         ! Finalise the routing by setting outflows to temporary outflows that were stored
         ! to avoid routing using the wrong timestep's outflow as an inflow.
         do y = 1, DATASET%gridShape(2)
@@ -250,6 +214,7 @@ module classEnvironment1
                 call me%colGridCells(x,y)%item%finaliseUpdate()
             end do
         end do
+
     end function
     
     !> Update an individual reach, also updating the containng grid cell, if it hasn't
@@ -360,7 +325,7 @@ module classEnvironment1
     
     function get_m_npEnvironment1(me) result(m_np)
         class(Environment1) :: me
-        real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)
+        real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
         integer :: x, y, rr
         m_np = 0
         do y = 1, size(me%colGridCells, 2)

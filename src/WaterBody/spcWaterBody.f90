@@ -41,7 +41,7 @@ module spcWaterBody
         real(dp) :: surfaceArea                                     !! Surface area of the `WaterBody` [m2]
         real(dp) :: bedArea                                         !! Area of the contained `BedSediment` [m2]
         real(dp) :: volume                                          !! Volume of water in the body [m3]
-        real(dp) :: T_water                                         !! Water temperature [C]
+        real :: T_water                                             !! Water temperature [C]
         ! Concentrations
         real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
         real(dp), allocatable :: C_spm_final(:)                     !! Sediment concentration [kg/m3]
@@ -189,7 +189,7 @@ module spcWaterBody
             me%k_resus(C%nSizeClassesSpm), &
             me%k_settle(C%nSizeClassesSpm), &
             me%W_settle_spm(C%nSizeClassesSpm), &
-            me%W_settle_np(C%nSizeClassesNP), &
+            me%W_settle_np(C%nSizeClassesNM), &
             me%C_transformed(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%C_transformed_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) &
@@ -208,7 +208,7 @@ module spcWaterBody
         me%m_dissolved = 0
         me%C_ionic = 0
         me%m_ionic = 0
-        me%T_water = 10             ! TODO set this from data or empirical relationship
+        ! me%T_water = 10             ! TODO set this from data or empirical relationship
         me%bedArea = 0
     end subroutine
 

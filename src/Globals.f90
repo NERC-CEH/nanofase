@@ -12,10 +12,8 @@ module Globals
 
     type, public :: GlobalsType
         ! Config
-        ! character(len=256)  :: inputFile
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
-        character(len=256)  :: outputFile
         character(len=256)  :: outputPath
         character(len=256)  :: logFilePath
         character(len=256)  :: configFilePath
@@ -24,17 +22,11 @@ module Globals
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
         real, allocatable   :: soilLayerDepth(:)                !! Soil layer depth [m]
-        real(dp)            :: defaultMeanderingFactor = 1.0_dp !! Default river meandering factor, >1
-        real(dp)            :: default_k_att                    !! Default attachment rate
-        integer             :: maxRiverReaches = 100            !! Maximum number of RiverReaches a SubRiver can have
-        real(dp)            :: default_alpha_hetero             !! Default NP-SPM attachment efficiency [-]
-        real(dp)            :: default_alpha_hetero_estuary     !! Default NP-SPM attachment efficiency [-]
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
         integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
-        real(dp)            :: nanomaterialDensity              !! Density of the nanomaterial modelled
         integer             :: nSoilLayers                      !! Number of soil layers to be modelled
         integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
         
@@ -62,23 +54,22 @@ module Globals
 
         ! Temp
         real(dp) :: T = 15.0_dp             !! Temperature [C]
-        real(dp) :: defaultWaterTemperature !! Default water temperature [C]
 
         ! Size class distributions
-        real, allocatable :: d_spm(:)           !! Suspended particulate matter size class diameters [m]
-        real, allocatable :: d_spm_low(:)       !! Lower bound when treating each size class as distribution [m]
-        real, allocatable :: d_spm_upp(:)       !! Upper bound when treating each size class as distribution [m]
-        real, allocatable :: d_np(:)            !! Nanoparticle size class diameters [m]
-        ! TODO: Get rid of d_pd (probably references to it in BedSediment). Analogous to rho_spm.
-        real, allocatable :: d_pd(:)            !! Sediment particle densities [kg m-3]
-        real, allocatable :: rho_spm(:)         !! Sediment particle densities [kg m-3]
-        integer :: nSizeClassesSpm                  !! Number of sediment particle size classes
-        integer :: nSizeClassesNP                   !! Number of nanoparticle size classes
-        integer :: nFracCompsSpm                    !! Number of sediment fractional compositions
-        integer, allocatable :: defaultDistributionSediment(:)  !! Default imposed size distribution for sediment
-        integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
-        integer :: npDim(3)                         !! Default dimensions for arrays of NM
-        integer :: ionicDim                         !! Default dimensions for ionic metal
+        real, allocatable :: d_spm(:)                       !! Suspended particulate matter size class diameters [m]
+        real, allocatable :: d_spm_low(:)                   !! Lower bound when treating each size class as distribution [m]
+        real, allocatable :: d_spm_upp(:)                   !! Upper bound when treating each size class as distribution [m]
+        real, allocatable :: d_nm(:)                        !! Nanomaterial size class diameters [m]
+        real, allocatable :: sedimentParticleDensities(:)   !! Sediment particle densities [kg m-3]
+        integer :: nSizeClassesSpm                          !! Number of sediment particle size classes
+        integer :: nSizeClassesNM                           !! Number of nanoparticle size classes
+        integer :: nFracCompsSpm                            !! Number of sediment fractional compositions
+        integer :: nFormsNM                                 !! Number of NM forms (e.g. pristine, transformed, etc)
+        integer :: nExtraStatesNM                           !! Number of NM states other than heteroaggregated to SPM
+        integer, allocatable :: defaultDistributionSediment(:) !! Default imposed size distribution for sediment
+        integer, allocatable :: defaultDistributionNP(:) !! Default imposed size distribution for NPs
+        integer :: npDim(3)                                 !! Default dimensions for arrays of NM
+        integer :: ionicDim                                 !! Default dimensions for ionic metal
 
       contains
         procedure :: rho_w      ! Density of water
@@ -92,37 +83,32 @@ module Globals
 
     !> Initialise global variables, such as `ERROR_HANDLER`
     subroutine GLOBALS_INIT()
-        ! type(NcVariable) :: var                             ! NetCDF variable
-        ! type(NcGroup) :: grp                                ! NetCDF group
-        ! real(dp), allocatable :: spmSizeClasses(:)          ! Array of sediment particle sizes
-        ! real(dp), allocatable :: spmFracComps(:)            ! Array of sediment fractional composition
-        ! real(dp), allocatable :: npSizeClasses(:)           ! Array of nanoparticle particle sizes
         integer :: n, i                                     ! Iterators
+        ! Water
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
         character(len=256) :: configFilePath, batchRunFilePath
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
-        character(len=256) :: input_file, constants_file, output_file, output_path, log_file_path, start_date, &
+        character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
             startDateStr, site_data
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
-        integer :: default_np_forms, default_np_extra_states, warm_up_period
+        integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
+            n_fractional_compositions
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_layers
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_k_att, default_alpha_hetero_estuary, nanomaterial_density
-        real, allocatable :: soil_layer_depth(:)
+            default_alpha_hetero_estuary
+        real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), sediment_particle_densities(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run
+        namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
+            n_fractional_compositions
         namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
-        namelist /allocatable_array_sizes/ default_np_forms, default_np_extra_states, &
-                                            n_soil_layers, n_other_sites
-        namelist /data/ input_file, constants_file, output_file, output_path
-        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date
-        namelist /global/ warm_up_period, nanomaterial_density
-        namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, default_k_att
-        namelist /river/ max_river_reaches, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_alpha_hetero_estuary, include_bed_sediment
-        namelist /sediment/ n_layers
+        namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
+        namelist /data/ input_file, constants_file, output_path
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period
+        namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
+        namelist /sediment/ spm_size_classes, n_layers, include_bed_sediment, sediment_particle_densities
         namelist /sources/ include_point_sources
 
         ! Has a path to the config path been provided as a command line argument?
@@ -153,50 +139,86 @@ module Globals
         ! must be allocated before being read in to)
         allocate(soil_layer_depth(n_soil_layers))
         allocate(other_sites(n_other_sites))
+        allocate(nm_size_classes(n_nm_size_classes))
+        allocate(spm_size_classes(n_spm_size_classes))
+        allocate(sediment_particle_densities(n_fractional_compositions))
         ! Carry on reading in the different config groups
-        read(10, nml=calibrate)
-        read(10, nml=data)
-        read(10, nml=run)
-        read(10, nml=global)
-        read(10, nml=soil)
-        read(10, nml=river)
-        read(10, nml=sediment)
-        read(10, nml=sources)
+        read(10, nml=nanomaterial); rewind(10)
+        read(10, nml=calibrate); rewind(10)
+        read(10, nml=data); rewind(10)
+        read(10, nml=run); rewind(10)
+        read(10, nml=soil); rewind(10)
+        ! read(10, nml=water); rewind(10)
+        read(10, nml=sediment); rewind(10)
+        read(10, nml=sources); rewind(10)
         close(10)
         
         ! Store this data in the Globals variable
+        ! Nanomaterial
+        C%nSizeClassesNM = n_nm_size_classes
+        C%nFormsNM = n_nm_forms
+        C%nExtraStatesNM = n_nm_extra_states
+        allocate(C%d_nm, source=nm_size_classes)
+        ! Data
         C%inputFile = input_file
         C%constantsFile = constants_file
-        C%outputFile = output_file
         C%outputPath = output_path
+        ! Run
         C%logFilePath = log_file_path
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps
         C%epsilon = epsilon
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
-        C%nSoilLayers = n_soil_layers
-        C%nSedimentLayers = n_layers
         ! Calibration
         C%calibrationRun = calibration_run
-        C%siteData = site_data
-        C%startSite = start_site
-        C%endSite = end_site
-        C%otherSites = other_sites
-        C%soilLayerDepth = soil_layer_depth
-        C%defaultMeanderingFactor = default_meandering_factor
-        C%maxRiverReaches = max_river_reaches
-        C%defaultWaterTemperature = default_water_temperature
-        C%default_alpha_hetero = default_alpha_hetero
-        C%default_alpha_hetero_estuary = default_alpha_hetero_estuary
-        C%default_k_att = default_k_att
-        C%warmUpPeriod = warm_up_period
-        C%nanomaterialDensity = nanomaterial_density
-        ! Processes to be modelled / data to be included
-        C%includeBioturbation = include_bioturbation
-        C%includePointSources = include_point_sources
-        C%includeAttachment = include_attachment
+        if (C%calibrationRun) then
+            C%siteData = site_data
+            C%startSite = start_site
+            C%endSite = end_site
+            C%otherSites = other_sites
+        end if
+        ! Sediment
+        C%nSizeClassesSpm = n_spm_size_classes
         C%includeBedSediment = include_bed_sediment
+        C%nSedimentLayers = n_layers
+        allocate(C%d_spm, source=spm_size_classes)
+        C%nFracCompsSpm = n_fractional_compositions
+        allocate(C%sedimentParticleDensities, source=sediment_particle_densities)
+        ! Soil
+        C%nSoilLayers = n_soil_layers
+        C%soilLayerDepth = soil_layer_depth
+        C%warmUpPeriod = warm_up_period
+        C%includeBioturbation = include_bioturbation
+        C%includeAttachment = include_attachment
+        ! Sources
+        C%includePointSources = include_point_sources
+
+        allocate(C%d_spm_low(C%nSizeClassesSpm))
+        allocate(C%d_spm_upp(C%nSizeClassesSpm))
+        ! Set the upper and lower bounds of each size class, if treated as a distribution
+        do n = 1, C%nSizeClassesSpm
+            ! Set the upper and lower limit of the size class's distributions
+            if (n == C%nSizeClassesSpm) then
+                C%d_spm_upp(n) = 1                                              ! failsafe overall upper size limit
+            else
+                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
+            end if                
+        end do
+        do n = 1, C%nSizeClassesSpm
+            if (n == 1) then
+                C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
+            else
+                C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
+            end if
+        end do        
+
+        ! Array to store default NM and ionic array dimensions. NM:
+        !   1: NP size class
+        !   2: form (core, shell, coating, corona)
+        !   3: state (free, bound, heteroaggregated)
+        ! Ionic: Form (free ion, solution, adsorbed)
+        C%npDim = [C%nSizeClassesNM, C%nFormsNM, C%nSizeClassesSpm + C%nExtraStatesNM]
         
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
@@ -237,74 +259,6 @@ module Globals
         ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=errors, on=error_output)
 
-        ! Get the sediment and nanoparticle size classes from data file
-        ! C%dataset = NcDataset(C%inputFile, "r")             ! Open dataset as read-only
-        ! grp = C%dataset%getGroup("global")                  ! Get the global variables group
-        ! var = grp%getVariable("spm_size_classes")           ! Get the sediment size classes variable
-        ! call var%getData(spmSizeClasses)                    ! Get the variable's data
-        ! allocate(C%d_spm, source=spmSizeClasses)            ! Allocate to class variable
-        ! var = grp%getVariable("np_size_classes")            ! Get the sediment size classes variable
-        ! call var%getData(npSizeClasses)                     ! Get the variable's data
-        ! allocate(C%d_np, source=npSizeClasses)              ! Allocate to class variable
-        ! var = grp%getVariable("spm_particle_densities")     ! Get the sediment particle density variable
-        ! call var%getData(spmFracComps)                      ! Get the variable's data
-        ! allocate(C%d_pd, source=spmFracComps)               ! Allocate to class variable
-        ! allocate(C%rho_spm, source=spmFracComps)
-        ! ! TODO: Check the distribution adds up to 100%
-        ! var = grp%getVariable("tidal_M2")                   ! Tidal harmonic coefficient M2
-        ! call var%getData(C%tidalM2)
-        ! var = grp%getVariable("tidal_S2")                   ! Tidal harmonic coefficient S2
-        ! call var%getData(C%tidalS2)
-        ! ! The following exponential components are used to calculate depth/width and function of distance to mouth,
-        ! ! using an expontential equation of the form A*exp(-Bt)
-        ! ! TODO check this, but I don't think we need charted depth - everything can be calculated as fn of mean depth (see spreadsheet)
-        ! ! var = grp%getVariable("estuary_charted_depth_expA") ! Charted depth exponential A coef
-        ! ! call var%getData(C%estuaryChartedDepthExpA)
-        ! ! var = grp%getVariable("estuary_charted_depth_expB") ! Charted depth exponential A coef
-        ! ! call var%getData(C%estuaryChartedDepthExpB)
-        ! var = grp%getVariable("estuary_mean_depth_expA")    ! Mean depth exponential A coef
-        ! call var%getData(C%estuaryMeanDepthExpA)
-        ! var = grp%getVariable("estuary_mean_depth_expB")    ! Mean depth exponential A coef
-        ! call var%getData(C%estuaryMeanDepthExpB)
-        ! var = grp%getVariable("estuary_width_expA")          ! Width exponential A coef
-        ! call var%getData(C%estuaryWidthExpA)
-        ! var = grp%getVariable("estuary_width_expB")         ! Width exponential A coef
-        ! call var%getData(C%estuaryWidthExpB)
-
-        ! call C%dataset%close()                              ! Close the dataset
-        ! TODO: Get default water temperature "T_water"
-
-        ! Set the number of size classes
-        ! C%nSizeClassesSpm = size(C%d_spm)
-        ! C%nSizeClassesNP = size(C%d_np)
-        ! C%nFracCompsSpm = size(C%rho_spm)
-        ! allocate(C%d_spm_low(C%nSizeClassesSpm))
-        ! allocate(C%d_spm_upp(C%nSizeClassesSpm))
-        ! ! Set the upper and lower bounds of each size class, if treated as a distribution
-        ! do n = 1, C%nSizeClassesSpm
-        !     ! Set the upper and lower limit of the size class's distributions
-        !     if (n == C%nSizeClassesSpm) then
-        !         C%d_spm_upp(n) = 1                                              ! failsafe overall upper size limit
-        !     else
-        !         C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
-        !     end if                
-        ! end do
-        ! do n = 1, C%nSizeClassesSpm
-        !     if (n == 1) then
-        !         C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
-        !     else
-        !         C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
-        !     end if
-        ! end do        
-
-        ! Array to store default NM and ionic array dimensions. NM:
-        !   1: NP size class
-        !   2: form (core, shell, coating, corona)
-        !   3: state (free, bound, heteroaggregated)
-        ! Ionic: Form (free ion, solution, adsorbed)
-        ! C%npDim = [C%nSizeClassesNP, default_np_forms, C%nSizeClassesSpm + default_np_extra_states]
-        ! C%ionicDim = 3
-        
     end subroutine
 
     !> Calculate the density of water at a given temperature \( T \):
@@ -321,7 +275,7 @@ module Globals
     !! [D. R. Maidment, Handbook of Hydrology (2012)](https://books.google.co.uk/books/about/Handbook_of_hydrology.html?id=4_9OAAAAMAAJ)
     function rho_w(me, T, S)
         class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
-        real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
+        real, intent(in) :: T                                   !! Temperature \( T \) [deg C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: rho_w                                       !! Density of water \( \rho_w \) [kg/m**3].
         if (present(S)) then
@@ -341,8 +295,8 @@ module Globals
     !! $$
     !! Reference: [T. Al-Shemmeri](http://varunkamboj.typepad.com/files/engineering-fluid-mechanics-1.pdf)
     function nu_w(me, T, S)
-        class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
-        real(dp), intent(in) :: T                               !! Temperature \( T \) [C]
+        class(GlobalsType), intent(in) :: me                    !! This Globals instance
+        real, intent(in) :: T                                   !! Temperature \( T \) [deg C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: nu_w                                        !! Kinematic viscosity of water \( \nu_{\text{w}} \)
         if (present(S)) then
@@ -359,7 +313,7 @@ module Globals
     !! Reference: [T. Al-Shemmeri](http://varunkamboj.typepad.com/files/engineering-fluid-mechanics-1.pdf)
     function mu_w(me, T)
         class(GlobalsType), intent(in) :: me
-        real(dp), intent(in) :: T
+        real, intent(in) :: T
         real(dp) :: mu_w
         mu_w = (2.414e-5_dp * 10.0_dp**(247.8_dp/((T+273.15_dp)-140.0_dp)))
     end function

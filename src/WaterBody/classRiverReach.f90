@@ -463,37 +463,13 @@ module classRiverReach
         class(RiverReach) :: me
         type(Result) :: rslt
 
-        ! Set the data interfacer's group to the group for this reach
-        ! call rslt%addErrors(.errors. DATA%setGroup([character(len=100) :: &
-        !     'Environment', &
-        !     ref('GridCell', me%x, me%y), &
-        !     me%ref &
-        ! ]))
-        ! me%ncGroup = DATA%grp
-
-        ! Get the length of the reach, if present. Otherwise, set to 0 and GridCell will deal with calculating
-        ! length. Note that errors might be thrown from GridCell if the reaches lengths within the GridCell are
-        ! not physically possible within the reach (e.g., too short).
-        ! call rslt%addErrors([ &
-        !     .errors. DATA%get('length', me%length, 0.0_dp), &   ! Length is calculated by GridCell if it defaults here
-        !         ! Note that errors might be thrown from GridCell if the reaches' lengths within GridCell are
-        !         ! not physicaly possible within the reach (e.g. too short)       
-        !     .errors. DATA%get('slope', me%slope), &             ! TODO: Slope should default to GridCell slope
-        !     .errors. DATA%get('f_m', me%f_m, C%defaultMeanderingFactor), &         ! Meandering factor
-        !     ! .errors. DATA%get('alpha_res', me%alpha_resus), &   ! Resuspension alpha parameter
-        !     ! .errors. DATA%get('beta_res', me%beta_resus), &     ! Resuspension beta parameter
-        !     .errors. DATA%get('alpha_hetero', me%alpha_hetero, C%default_alpha_hetero), &
-        !         ! alpha_hetero defaults to that specified in config.nml
-            ! .errors. DATA%get('domain_outflow', me%domainOutflow, silentlyFail=.true.) &
-        !     .errors. DATA%get('stream_order', me%streamOrder) &
-        ! ])
-        ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
-        me%f_m = C%defaultMeanderingFactor
-        me%alpha_hetero = C%default_alpha_hetero
+        me%f_m = DATASET%riverMeanderingFactor
+        me%alpha_hetero = DATASET%riverAttachmentEfficiency
         me%slope = 0.0005
-        ! HACK set alpha_resus and beta_resus always to the default value
+        ! TODO make alpha_resus and beta_resus spatially varying
         me%alpha_resus = DATASET%waterResuspensionAlpha
         me%beta_resus = DATASET%waterResuspensionBeta
+        me%T_water = DATASET%waterTemperature
         
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created

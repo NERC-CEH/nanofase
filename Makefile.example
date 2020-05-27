@@ -95,4 +95,4 @@ profile:
 debug:
 	gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 clean:
-	rm -f *.mod *.o *.stackdump Debug/*.*
+	rm -f *.mod *.o *.stackdump Debug/*.* *.out

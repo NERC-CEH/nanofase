@@ -69,7 +69,7 @@ program main
 
     ! TODO move all this to a data output module
     ! Open the output files to print to
-    open(unit=2, file=trim(C%outputPath) // C%outputFile)
+    open(unit=2, file=trim(C%outputPath) // 'output.csv')
     open(unit=3, file=trim(C%outputPath) // 'output_spm.csv')
     open(unit=5, file=trim(C%outputPath) // 'output_soil.csv')
     open(unit=8, file=trim(C%outputPath) // 'output_soil_biota.csv')
