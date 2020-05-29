@@ -54,7 +54,7 @@ module classGridCell2
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%colSoilProfiles(1))
         allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
-        allocate(me%j_np_diffuseSource(C%nSizeClassesNP, 4, C%nSizeClassesSpm + 2))
+        allocate(me%j_np_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
         me%q_runoff = 0   
 
         ! Set the GridCell's position, whether it's empty and its name
@@ -490,7 +490,7 @@ module classGridCell2
     function get_j_np_outGridCell2(me, b) result(j_np_out)
         class(GridCell2) :: me                      !! This `GridCell2` instance
         integer, optional :: b                      !! Branch
-        real(dp) :: j_np_out(C%nSizeClassesNP)
+        real(dp) :: j_np_out(C%nSizeClassesNM)
         j_np_out = 0
         ! TODO: Sum NP outflows here
     end function
@@ -519,7 +519,7 @@ module classGridCell2
     function get_m_npGridCell2(me, b) result(m_np)
         class(GridCell2) :: me                      !! This `GridCell2` instance
         integer, optional :: b                      !! Branch
-        real(dp) :: m_np(C%nSizeClassesNP)
+        real(dp) :: m_np(C%nSizeClassesNM)
         m_np = 0
         ! TODO: Sum NP masses here
     end function

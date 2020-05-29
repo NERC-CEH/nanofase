@@ -1,5 +1,5 @@
 &data
-input_file = "data/thames/flat_ag_2015_interp.nc"
+input_file = "data/thames/data_ag_2015_interp.nc"
 constants_file = "data/thames/constants_ag.nml"
 /
 

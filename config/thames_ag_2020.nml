@@ -1,57 +1,55 @@
+! Config file to run the model for Ag, Thames catchment, year 2020.
+! A quirk of Fortran namelist files is that the size of arrays must be present in the
+! namelist file before the variable itself, and so they are stored in this separate
+! allocatable array sizes group.
 &allocatable_array_sizes
-default_fractional_comp_size = 4
-default_np_forms = 4
-default_np_extra_states = 2
-n_soil_layers = 3
-n_other_sites = 1
+n_soil_layers = 3                                       ! Number of soil layers to model
+n_nm_size_classes = 5                                   ! Number of NM size classes
+n_spm_size_classes = 5                                  ! Number of SPM size classes
+n_fractional_compositions = 4                           ! Number of fractional compositions for sediment
 /
 
+&nanomaterial
+nm_size_classes = 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ! Diameter of NM in each binned size class [m]
+n_nm_forms = 4                                          ! Number of NM forms (free, matrix-embedded, etc)
+n_nm_extra_states = 2                                   ! Number of extra NM states, other than heteroaggregated to SPM
+/ 
+
+! Run the model in calibration mode? Documentation here: [doc/calibration.md](../doc/calibration.md)
 &calibrate
 calibration_run = .false.
-site_data = ""
-start_site = ""
-end_site = ""
-other_sites = ""
 /
 
+! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
 &data
-input_file = "data/thames/flat_ag_2020.nc"
-constants_file = "data/thames/constants_ag.nml"
-output_file = "output.csv"
-output_path = "data/output/"
+input_file = "data/thames/data_ag_2020.nc"              ! Path to NetCDF input data, which includes most of the spatial and temporally resolved data
+constants_file = "data/thames/constants_ag.nml"         ! Path to constants namelist file, which includes most of the non-spatiotemporal input data 
+output_path = "data/output/"                            ! Path to store the output data
 /
 
 &run
-timestep = 86400
-n_timesteps = 365
-start_date = "2020-01-01"
-epsilon = 1e-50,
-error_output = .false.
-log_file_path = "log/"
-/
-
-&global
-default_fractional_comp = 30, 30, 30, 10
-warm_up_period = 0
-nanomaterial_density = 10500
+timestep = 86400                                        ! Length of each time step, in seconds
+n_timesteps = 366                                       ! Number of time steps
+start_date = "2020-01-01"                               ! Start date for model run, in YYYY-MM-DD format
+epsilon = 1e-50,                                        ! Precision for numerical simulations
+error_output = .false.                                  ! Should error handling be turned on? Be careful if not, things might go wrong!
+log_file_path = "log/"                                  ! Where to place model logs
+warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
 
 &soil
-soil_layer_depth = 0.05, 0.15, 0.2
-default_k_att = 3.65d-3
-include_bioturbation = .true.
-include_attachment = .true.
+soil_layer_depth = 0.05, 0.15, 0.2                      ! Depth of each soil layer. Array of length &allocatable_array_sizes > n_soil_layers
+include_bioturbation = .true.                           ! Should bioturbation be modelled?
+include_attachment = .true.                             ! Should attachment be modelled?
 /
 
-&river
-max_river_reaches = 100
-default_meandering_factor = 1.0
-default_water_temperature = 10
-default_alpha_hetero = 0.01
-default_alpha_hetero_estuary = 0.01
-include_bed_sediment = .false.
+&sediment
+spm_size_classes = 1e-6, 3e-6, 10e-6, 30e-6, 100e-6     ! Diameter of SPM in each binned size class [m]
+n_layers = 4                                            ! How many bed sediment layers to model
+include_bed_sediment = .true.                           ! Should bed sediment be modelled?
+sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
 /
 
 &sources
-include_point_sources = .true.
+include_point_sources = .true.                          ! Should point sources be included?
 /

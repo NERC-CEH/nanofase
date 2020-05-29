@@ -245,7 +245,7 @@ module classSoilLayer1
         type(Result)        :: r
         real(dp)            :: m_soil_l1
         real(dp)            :: propEroded
-        real(dp)            :: erodedNP(C%nSizeClassesNp)
+        real(dp)            :: erodedNP(C%nSizeClassesNM)
         
         m_soil_l1 = bulkDensity * area * me%depth           ! Calculate the mass of the soil in this soil layer
         propEroded = sum(erodedSediment)*area/m_soil_l1     ! Proportion of this that is eroded, convert erodedSediment to kg/gridcell/day
@@ -276,29 +276,29 @@ module classSoilLayer1
     !!  - Tufenkji et al. 2004: https://doi.org/10.1021/es034049r
     function calculateAttachmentRateSoilLayer1(me) result(k_att)
         class(SoilLayer1) :: me
-        real :: k_att(C%nSizeClassesNP)
+        real :: k_att(C%nSizeClassesNM)
         integer :: i
         real(dp) :: gamma, r_i, kBT, N_G, N_VDW, N_Pe, N_R, A_s, eta_grav, eta_intercept, &
             eta_0, lambda_filter, D_i, eta_Brownian
 
         gamma = (1 - me%porosity) ** 0.333
-        kBT = C%k_B * (C%defaultWaterTemperature + 273.15)
+        kBT = C%k_B * (DATASET%waterTemperature + 273.15)
         N_VDW = DATASET%soilHamakerConstant / kBT                                       ! Van der Waals number
         A_s = 2 * (1 - gamma**5) / (2 - 3 * gamma + 3 * gamma**5 - 2 * gamma**6)        ! Porosity dependent param
         ! Loop through NM size classes for the parameters that are dependent on NM size
         do i = 1, DATASET%nSizeClassesNM
             r_i = DATASET%nmSizeClasses(i) * 0.5                                        ! NM radius
-            D_i = kBT / (6 * C%pi * C%mu_w(C%defaultWaterTemperature) * r_i)            ! Diffusivity of NM particle
-            N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                      ! Peclet number
-            N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(C%defaultWaterTemperature)) * C%g &
-                / (9 * C%mu_w(C%defaultWaterTemperature) * DATASET%soilDarcyVelocity)   ! Gravity number
+            D_i = kBT / (6 * C%pi * C%mu_w(DATASET%waterTemperature) * r_i)             ! Diffusivity of NM particle
+            N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                         ! Peclet number
+            N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(DATASET%waterTemperature)) * C%g &
+                / (9 * C%mu_w(DATASET%waterTemperature) * DATASET%soilDarcyVelocity)    ! Gravity number
             N_R = r_i / (me%d_grain * 0.5)                                              ! Aspect ratio number
             eta_grav = 2.22 * N_R**(-0.024) * N_G**1.11 * N_VDW**0.053                  ! Gravitational collection efficiency
             eta_intercept = 0.55 * N_R**1.55 * N_Pe**(-0.125) * N_VDW**0.125            ! Interception collection efficiency
             eta_Brownian = 2.4 * A_s**0.33 * N_R**(-0.081) * N_Pe**(-0.715) * N_VDW**0.053 ! Brownian motion collection efficiency
             eta_0 = eta_grav + eta_intercept + eta_Brownian                             ! Total collection efficiency
             lambda_filter = 1.5 * (1 - me%porosity) / (me%d_grain * me%porosity)        ! Filtration
-            k_att(i) = me%alpha_att * lambda_filter * eta_0 * DATASET%soilDarcyVelocity    ! Attachment rate [/s]
+            k_att(i) = me%alpha_att * lambda_filter * eta_0 * DATASET%soilDarcyVelocity ! Attachment rate [/s]
         end do
     end function
 

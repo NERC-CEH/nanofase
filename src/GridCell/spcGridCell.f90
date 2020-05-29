@@ -177,7 +177,7 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me
             integer, optional :: b
-            real(dp) :: j_np_out(C%nSizeClassesNP)
+            real(dp) :: j_np_out(C%nSizeClassesNM)
         end function
 
         function get_m_spmGridCell(me, b) result(m_spm)
@@ -195,7 +195,7 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me
             integer, optional :: b
-            real(dp) :: m_np(C%nSizeClassesNP)
+            real(dp) :: m_np(C%nSizeClassesNM)
         end function
 
         function getTotalReachLengthGridCell(me) result(totalReachLength)

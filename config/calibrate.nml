@@ -15,7 +15,7 @@ other_sites = "TC1", "TC3", "TC4", "TC8", "TC9", "TC10", "TC11", "TC12", "TC14",
 /
 
 &data
-input_file = "data/thames/flat_fccco.nc"
+input_file = "data/thames/data_fccco.nc"
 constants_file = "data/thames/constants_fccco.nml"
 output_file = "output.csv"
 output_path = "data/output/"

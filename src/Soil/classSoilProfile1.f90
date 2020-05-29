@@ -265,7 +265,7 @@ module classSoilProfile1
         integer             :: julianDay
         real(dp)            :: m_soil_l1
         real(dp)            :: propEroded
-        real(dp)            :: erodedNP(C%nSizeClassesNp)
+        real(dp)            :: erodedNP(C%nSizeClassesNM)
         integer             :: i
 
         ! TODO This function only works with daily timesteps
@@ -291,7 +291,7 @@ module classSoilProfile1
         ! TODO Depracate me%m_np for the whole profile, as it
         ! means updating NM mass in both the profile and the individual layers
 
-        do i = 1, C%nSizeClassesNP
+        do i = 1, C%nSizeClassesNM
             ! Transfer NM eroded from attached to heteroaggregated, by imposing the size distribution
             ! as for eroded SPM. The logic here is that the soil the NM is attached to will end up
             ! as SPM and thus the NM attached it will be heteroaggregated rather than attached/bound.

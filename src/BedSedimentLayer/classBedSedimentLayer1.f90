@@ -146,7 +146,7 @@ module classBedSedimentLayer1
             ! Get the fractional composition distribution from data
             allocate(f_comp(Me%nSizeClasses, Me%nfComp))             ! allocate space for fractional compositions
             do s = 1, me%nSizeClasses
-                f_comp(s,:) = DATASET%sedimentFractionalCompositions
+                f_comp(s,:) = DATASET%sedimentFractionalComposition
             end do
 
            
