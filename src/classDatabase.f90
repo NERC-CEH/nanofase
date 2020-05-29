@@ -563,7 +563,7 @@ module classDatabase
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
         real, allocatable :: spm_size_classes(:), stored_fraction(:), spm_particle_densities(:), &
             porosity(:), initial_mass(:), capacity(:), fractional_composition_distribution(:)
-        real :: darcy_velocity, default_attachment_efficiency, default_porosity, particle_density, &
+        real :: darcy_velocity, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
             estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, nm_density, river_meandering_factor, &
             water_temperature
@@ -590,7 +590,7 @@ module classDatabase
             k_uptake_dissolved, k_elim_dissolved, uptake_from_form, harvest_in_month
         namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, &
             urban_parks, vertical_distribution
-        namelist /soil/ darcy_velocity, default_attachment_efficiency, default_porosity, hamaker_constant, particle_density, &
+        namelist /soil/ darcy_velocity, default_porosity, hamaker_constant, particle_density, &
             erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b
         namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
@@ -656,7 +656,6 @@ module classDatabase
         me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
         me%nSizeClassesSpm = n_spm_size_classes
         me%soilDarcyVelocity = darcy_velocity       ! TODO maybe calculate from water flow, though it doesn't massively affect alpha_att calc
-        me%soilDefaultAttachmentEfficiency = default_attachment_efficiency
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density

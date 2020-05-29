@@ -288,17 +288,17 @@ module classSoilLayer1
         ! Loop through NM size classes for the parameters that are dependent on NM size
         do i = 1, DATASET%nSizeClassesNM
             r_i = DATASET%nmSizeClasses(i) * 0.5                                        ! NM radius
-            D_i = kBT / (6 * C%pi * C%mu_w(DATASET%waterTemperature) * r_i)            ! Diffusivity of NM particle
-            N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                      ! Peclet number
+            D_i = kBT / (6 * C%pi * C%mu_w(DATASET%waterTemperature) * r_i)             ! Diffusivity of NM particle
+            N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                         ! Peclet number
             N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(DATASET%waterTemperature)) * C%g &
-                / (9 * C%mu_w(DATASET%waterTemperature) * DATASET%soilDarcyVelocity)   ! Gravity number
+                / (9 * C%mu_w(DATASET%waterTemperature) * DATASET%soilDarcyVelocity)    ! Gravity number
             N_R = r_i / (me%d_grain * 0.5)                                              ! Aspect ratio number
             eta_grav = 2.22 * N_R**(-0.024) * N_G**1.11 * N_VDW**0.053                  ! Gravitational collection efficiency
             eta_intercept = 0.55 * N_R**1.55 * N_Pe**(-0.125) * N_VDW**0.125            ! Interception collection efficiency
             eta_Brownian = 2.4 * A_s**0.33 * N_R**(-0.081) * N_Pe**(-0.715) * N_VDW**0.053 ! Brownian motion collection efficiency
             eta_0 = eta_grav + eta_intercept + eta_Brownian                             ! Total collection efficiency
             lambda_filter = 1.5 * (1 - me%porosity) / (me%d_grain * me%porosity)        ! Filtration
-            k_att(i) = me%alpha_att * lambda_filter * eta_0 * DATASET%soilDarcyVelocity    ! Attachment rate [/s]
+            k_att(i) = me%alpha_att * lambda_filter * eta_0 * DATASET%soilDarcyVelocity ! Attachment rate [/s]
         end do
     end function
 
