@@ -40,13 +40,11 @@ Keep the defaults of "Application" and not 32-bit for the next screen. Click Fin
 ## Step 3, selecting the correct files to compile
 
 You now need to tag some files that shouldn't be compiled. Locate the following in the Solution Explorer window (`Ctrl+0` if it's not open):
-- `src/GridCell/classGridCell1.f90`
-- `src/sandbox.f90`
 - `src/vendor/feh/ResultFineSediment.f90`
 - `vendor/datetime-fortran/tests/datetime_tests.f90`
 - `vendor/feh/example/*`
-- `mo_netcdf/examples/*`
-- `mo_netcdf/tests/*`
+- `vendor/mo_netcdf/examples/*`
+- `vendor/mo_netcdf/tests/*`
 
 Select all of these (holding `Ctrl` to select multiple files) then press `Alt+Enter` (or right click and go to `Properties`). Go to the "General" section and change "Exclude File From Build" to "Yes". The little icon by the file in the Solution Explorer should change.
 
@@ -66,8 +64,6 @@ Go to `Project > <project name> Properties` and change the following options:
 
 ## Step 5, Building, data and running
 
-Building (compiling) the project should now work: `Build > Build Solution` (or `Ctrl+Shift+B`), and if it does, you should have a shiny new exe to run.
+Building (compiling) the project should now work: `Build > Build Solution` (or `Ctrl+Shift+B`), and if it does, you should have a shiny new exe to run. Now you're ready to run the model: `F5` or `Debug > Start Debugging`.
 
-Make sure your config file points to the correct directories for model input data. Example input data is given on Dropbox: `Dropbox\NanoFASE WP2 NERC\Model input data\data_thames_tio2_2015.zip.zip`. The simplest option, if running the model for the Thames catchment, is to extract this to `/path/to/model/repo/data/thames/`. Both the `data.nc` and `flat.nc` files are needed (`data.nc` is being gradually decprecated), as well as `spm-sampling-sites.csv`, if a calibration run is to be performed.
-
-Now you're ready to run the model: `F5` or `Debug > Start Debugging`.
+See the [README.md](../README.md) and [example-workflows.md](./example-workflows.md) for examples of how to run the model with different data.
