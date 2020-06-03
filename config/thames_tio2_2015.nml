@@ -28,6 +28,7 @@ output_path = "data/output/"                            ! Path to store the outp
 /
 
 &run
+description = "Thames catchment, nano-TiO2, 2015"       ! Short description of model run
 timestep = 86400                                        ! Length of each time step, in seconds
 n_timesteps = 365                                       ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format

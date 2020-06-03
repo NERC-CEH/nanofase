@@ -3,7 +3,6 @@ module classSoilLayer1
     use Globals
     use UtilModule
     use spcSoilLayer
-    use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     use classBiotaSoil
     implicit none

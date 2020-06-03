@@ -8,6 +8,10 @@ module spcEnvironment
     implicit none
     private
 
+    type, public :: EnvironmentPointer
+        class(Environment), pointer :: item => null()               !! Pointer to polymorphic Environment object
+    end type
+
     !> Abstract base class definition for `Environment`.
     type, public, abstract :: Environment
         integer, allocatable                :: gridDimensions(:)    !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)

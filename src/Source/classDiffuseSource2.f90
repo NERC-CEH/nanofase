@@ -17,7 +17,6 @@ module classDiffuseSource2
       contains
         procedure :: create => createDiffuseSource2
         procedure :: update => updateDiffuseSource2
-        ! procedure :: parseInputData => parseInputDataDiffuseSource2
     end type
 
   contains

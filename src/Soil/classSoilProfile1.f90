@@ -8,7 +8,6 @@ module classSoilProfile1
     use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
-    ! use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     implicit none
 

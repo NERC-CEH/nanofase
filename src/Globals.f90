@@ -11,12 +11,17 @@ module Globals
     integer, parameter :: qp = selected_real_kind(33, 4931)
 
     type, public :: GlobalsType
-        ! Config
+        ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
-        character(len=256)  :: outputPath
-        character(len=256)  :: logFilePath
-        character(len=256)  :: configFilePath
+        ! Data output 
+        character(len=256)  :: outputPath                       !! Path to directory to store output data
+        logical             :: writeCSV                         !! Should output data be written as CSV file?
+        logical             :: writeNetCDF                      !! Should output data be written as NetCDF file?
+        ! Run
+        character(len=256)  :: runDescription                   !! Short description of model run
+        character(len=256)  :: logFilePath                      !! Log file path
+        character(len=256)  :: configFilePath                   !! Config file path
         type(datetime)      :: startDate                        !! Datetime object representing the start date
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
@@ -90,7 +95,7 @@ module Globals
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
-            startDateStr, site_data
+            startDateStr, site_data, description
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
@@ -100,16 +105,22 @@ module Globals
             default_alpha_hetero_estuary
         real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), sediment_particle_densities(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
-            calibration_run
+            calibration_run, write_csv, write_netcdf
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
             n_fractional_compositions
         namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
         namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
-        namelist /data/ input_file, constants_file, output_path
-        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period
+        namelist /data/ input_file, constants_file, output_path, write_csv, write_netcdf
+        namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
+            description
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
         namelist /sediment/ spm_size_classes, n_layers, include_bed_sediment, sediment_particle_densities
         namelist /sources/ include_point_sources
+
+        ! Defaults, which will be overwritten if present in config file
+        write_csv = .true.
+        write_netcdf = .false.
+        description = ""
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -163,7 +174,10 @@ module Globals
         C%inputFile = input_file
         C%constantsFile = constants_file
         C%outputPath = output_path
+        C%writeCSV = write_csv
+        C%writeNetCDF = write_netcdf
         ! Run
+        C%runDescription = description
         C%logFilePath = log_file_path
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps

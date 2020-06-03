@@ -9,6 +9,7 @@ module UtilModule
         module procedure strFromInteger
         module procedure strFromReal
         module procedure strFromDp
+        module procedure strFromLogical
     end interface
 
     interface ref
@@ -95,9 +96,19 @@ module UtilModule
         !> Convert a double-precision real to a string
         function strFromDp(r) result(str)
             real(dp), intent(in) :: r           !! The integer to convert to a string
-            character(len=256) :: str       !! The string to return
+            character(len=256) :: str           !! The string to return
             write(str, *)r
             str = trim(adjustl(str))
+        end function
+
+        function strFromLogical(l) result(str)
+            logical, intent(in) :: l
+            character(len=5) :: str
+            if (l) then
+                str = "true"
+            else
+                str = "false"
+            end if
         end function
 
         !> Generate an object reference from a prefix (e.g., "GridCell")

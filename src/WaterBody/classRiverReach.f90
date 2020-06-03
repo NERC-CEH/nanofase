@@ -6,7 +6,6 @@ module classRiverReach
     use classBedSediment1
     use classLogger, only: LOGR
     use classDatabase, only: DATASET
-    ! use classDataInterfacer, only: DATA
     use classReactor1
     use classBiotaWater
     implicit none

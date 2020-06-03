@@ -5,8 +5,8 @@ program main
     use classRiverReach
     use classEstuaryReach
     use classEnvironment1
-    ! use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
+    use DataOutputModule
     use classLogger, only: LOGR, timestamp
     use datetime_module
     use omp_lib
@@ -14,6 +14,7 @@ program main
 
     real :: start, finish, wallStart, wallFinish                    ! Simulation start and finish times
     type(Result) :: r                                               ! Result object
+    type(DataOutput) :: output
     integer :: x, y, rr, t, i, s, j, b, yr, k                       ! Loop iterators
     integer :: tPreviousBatch = 0
     real(dp) :: m_spm(5)
@@ -110,6 +111,8 @@ program main
 
     call DATASET%init(C%inputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
     r = env%create()                                                ! Create the environment
+    call output%init(env)
+    error stop
 
     ! Loop through grid cell and pull out static data to save to output.
     ! TODO potentially create "geographical scenario" dataset for this
