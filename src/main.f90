@@ -112,7 +112,6 @@ program main
     call DATASET%init(C%inputFile, C%constantsFile)                 ! Initialise the flat dataset - this closes the input data file as well
     r = env%create()                                                ! Create the environment
     call output%init(env)
-    error stop
 
     ! Loop through grid cell and pull out static data to save to output.
     ! TODO potentially create "geographical scenario" dataset for this
@@ -161,6 +160,8 @@ program main
                 call LOGR%toFile(errors=.errors.r)                              ! Output any errors to the log file
                 call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
 
+                print *, env%C_np_soil()
+                error stop
                 ! TODO: Do something with Result object
                 do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
                     do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns

@@ -19,7 +19,6 @@ module spcSoilProfile
         integer :: p                                                !! `SoilProfile` reference (not needed currently as only one `SoilProfile` per `GridCell`)
         type(NcGroup) :: ncGroup                                    !! The NetCDF group for this object
         type(SoilLayerElement), allocatable :: colSoilLayers(:)     !! Array of `SoilLayerElement` objects to hold the soil layers
-        integer :: nSoilLayers                                !! Number of contained `SoilLayer`s
         real(dp) :: slope                                           !! The slope of the containing `GridCell`
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Nanomaterial
@@ -34,6 +33,7 @@ module spcSoilProfile
         real(dp), allocatable :: m_dissolved                        !! Mass of dissolved NM currently in profile [kg]
         real(dp), allocatable :: m_dissolved_in                     !! Mass of dissolved NM deposited to profile on a time step [kg]
         real(dp), allocatable :: m_dissolved_buried                 !! Cumulative mass of dissolved NM "lost" from the bottom `SoilLayer` [kg]
+        real(dp), allocatable :: C_np(:,:,:)                        !! Concentration of NM currently in profile [kg/m3]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
         real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
@@ -97,6 +97,7 @@ module spcSoilProfile
         procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
+        ! procedure(C_np_SoilProfile), deferred :: C_np
     end type
 
     !> Container type for `class(SoilProfile)` such that a polymorphic
@@ -213,5 +214,12 @@ module spcSoilProfile
             import SoilProfile
             class(SoilProfile) :: me
         end subroutine
+
+        ! function C_np_SoilProfile(me) result(C_np)
+        !     import SoilProfile
+        !     class(SoilProfile) :: me
+        !     real(dp) :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! end function
     end interface
+
 end module

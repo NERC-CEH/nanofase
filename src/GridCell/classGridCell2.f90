@@ -35,6 +35,7 @@ module classGridCell2
         procedure :: get_j_np_out => get_j_np_outGridCell2
         procedure :: get_m_spm => get_m_spmGridCell2
         procedure :: get_m_np => get_m_npGridCell2
+        procedure :: get_C_np_soil => get_C_np_soilGridCell2
         procedure :: getTotalReachLength => getTotalReachLengthGridCell2
         ! Calculators
         procedure :: reachLineParamsFromInflowsOutflow => reachLineParamsFromInflowsOutflowGridCell2
@@ -55,7 +56,9 @@ module classGridCell2
         allocate(me%colSoilProfiles(1))
         allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
         allocate(me%j_np_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
-        me%q_runoff = 0   
+        allocate(me%C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%q_runoff = 0
+        me%C_np_soil = 0.0_dp 
 
         ! Set the GridCell's position, whether it's empty and its name
         me%x = x
@@ -227,6 +230,8 @@ module classGridCell2
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
         real(dp) :: j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: j_dissolved_diffuseSource
+        real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: C_np_soil_p(me%nSoilProfiles, C%npDim(1), C%npDim(2), C%npDim(3))
 
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
@@ -260,6 +265,12 @@ module classGridCell2
                 ) &
             )
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
+            ! Loop over the soil profiles and get soil PEC
+
+            do i = 1, me%nSoilProfiles
+                C_np_soil_p(i, :, :, :) = me%colSoilProfiles(i)%item%C_np
+            end do
+            me%C_np_soil = sum(C_np_soil_p, dim=1) / me%nSoilProfiles
 
             ! Reaches will be updated separately in reach routing order, by the `Environment` object
         end if
@@ -579,5 +590,18 @@ module classGridCell2
         c = -(a * x0 + b * y0)
         lineParams = [a, b, c]
     end function
+
+    function get_C_np_soilGridCell2(me) result(C_np_soil)
+        class(GridCell2) :: me
+        real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: C_np_soil_p(me%nSoilProfiles, C%npDim(1), C%npDim(2), C%npDim(3))
+        integer :: i 
+        ! Loop over the soil profiles and get soil PEC
+        do i = 1, me%nSoilProfiles
+            C_np_soil_p(i, :, :, :) = me%colSoilProfiles(i)%item%C_np
+        end do
+        C_np_soil = sum(C_np_soil_p, dim=1) / me%nSoilProfiles
+    end function
+
     
 end module

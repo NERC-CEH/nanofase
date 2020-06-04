@@ -16,6 +16,7 @@ module spcEnvironment
     type, public, abstract :: Environment
         integer, allocatable                :: gridDimensions(:)    !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
         type(GridCellElement), allocatable  :: colGridCells(:,:)    !! Array of `GridCellElement` objects to hold polymorphic `GridCell`s
+        integer                             :: nGridCells = 0       !! Number of grid cells in the Environment
         type(ReachPointer), allocatable     :: headwaters(:)        !! Array of `GridCell`s that contain headwaters
         type(ReachPointer), allocatable     :: routedReaches(:)     !! Array of pointers to routed reaches
         integer                             :: nHeadwaters = 0      !! The number of headwaters in the Environment

@@ -19,7 +19,7 @@ COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'`                       # to be 
 GIT_BRANCH = `git rev-parse --abbrev-ref HEAD`                          # branch and compilation time
 COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_BRANCH)
 
-OBJ = vendor/feh/src/ErrorInstance.o \                                  # Modules listed in compilation order
+OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/feh/src/Result.o \
 	vendor/feh/src/ErrorHandler.o \
 	vendor/feh/src/ErrorCriteria.o \
@@ -62,14 +62,16 @@ OBJ = vendor/feh/src/ErrorInstance.o \                                  # Module
 	src/GridCell/classGridCell2.o \
 	src/Environment/spcEnvironment.o \
 	src/Environment/classEnvironment1.o \
+	src/Data/DataOutputModule.o \
 	src/main.o 
 
 OBJECTS = $(notdir $(OBJ))
 
-VPATH = vendor/feh/src \                                                # Paths to search for .f90 source files
+VPATH = vendor/feh/src \
 	vendor/mo_netcdf/src \
 	vendor/datetime-fortran/src/lib \
 	src \
+	src/Data \
 	src/Logger \
 	src/Biota \
 	src/Reactor \

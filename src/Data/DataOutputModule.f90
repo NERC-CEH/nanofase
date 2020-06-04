@@ -1,5 +1,6 @@
 module DataOutputModule
     use Globals, only: C
+    use classDatabase, only: DATASET
     use spcEnvironment
     use classEnvironment1
     use UtilModule
@@ -13,7 +14,7 @@ module DataOutputModule
         procedure, public :: init => initDataOutput
         procedure, public :: update => updateDataOutput
         procedure, public :: finalise => finaliseDataOutput
-        procedure :: writeHeaders => writeHeadersDataOutput
+        procedure, private :: writeHeaders => writeHeadersDataOutput
     end type
 
   contains
@@ -47,6 +48,9 @@ module DataOutputModule
     subroutine finaliseDataOutput(me)
         class(DataOutput) :: me
         ! Close the files
+        ! write(100, *) "\n## PECs"
+        ! write(100, *) "- Soil, final timestep:"
+        ! write(100, *) "  - Spatial median: " // me%env%item%
     end subroutine
 
     subroutine writeHeadersDataOutput(me)
@@ -59,7 +63,7 @@ module DataOutputModule
         modelEndDate = C%startDate + timedelta(C%nTimeSteps - 1)
 
         ! Summary file headers
-        write(100, *) "# NanoFASE model simulation summary"
+        write(100, '(a)') "# NanoFASE model simulation summary"
         write(100, *) "- Description: " // trim(C%runDescription)
         write(100, *) "- Simulation datetime: " // simDatetime%isoformat()
         write(100, *) "- Is batch run? " // str(C%isBatchRun)
@@ -72,8 +76,12 @@ module DataOutputModule
         write(100, *) "- Number of timesteps: " // trim(str(C%nTimeSteps))
         
         write(100, *) "\n## Spatial domain"
-        write(100, *) ""
-
+        write(100, *) "- Grid resolution: " // trim(str(DATASET%gridRes(1))) // ", " // trim(str(DATASET%gridRes(2))) 
+        write(100, *) "- Grid bounds: " // trim(str(DATASET%gridBounds(1))) // ", " // trim(str(DATASET%gridBounds(2))) // &
+            ", " // trim(str(DATASET%gridBounds(3))) // ", " // trim(str(DATASET%gridBounds(4)))
+        write(100, *) "- Grid shape: " // trim(str(DATASET%gridShape(1))) // ", " // trim(str(DATASET%gridShape(2)))
+        write(100, *) "- Number of non-empty grid cells: " // trim(str(me%env%item%nGridCells))
 
     end subroutine
+
 end module

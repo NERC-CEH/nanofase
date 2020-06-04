@@ -27,6 +27,7 @@ module classEnvironment1
         procedure :: parseNewBatchData => parseNewBatchDataEnvironment1
         ! Getters
         procedure :: get_m_np => get_m_npEnvironment1
+        procedure :: C_np_soil => C_np_soilEnvironment1
     end type
 
   contains
@@ -45,6 +46,7 @@ module classEnvironment1
         type(ReachPointer), allocatable :: tmpHeadwaters(:)     ! Temporary headwaters array
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
+        me%nGridCells = 0
         ! Allocate grid cells array to be the shape of the grid
         allocate(me%colGridCells(DATASET%gridShape(1), DATASET%gridShape(2)))
         ! Loop over grid and create cells
@@ -56,6 +58,7 @@ module classEnvironment1
                     call r%addErrors(.errors. &
                         me%colGridCells(x,y)%item%create(x,y) &
                     )
+                    me%nGridCells = me%nGridCells + 1
                 ! If it is masked, still create it but tell it that it's empty
                 else
                     allocate(GridCell2::me%colGridCells(x,y)%item)
@@ -335,7 +338,25 @@ module classEnvironment1
                 end do
             end do
         end do
-        
+    end function
+
+    !> Calculate the mean soil PEC in the environment
+    function C_np_soilEnvironment1(me) result(C_np_soil)
+        class(Environment1)     :: me                                                               !! This Environment instance
+        real(dp)                :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mean soil PEC [kg/m3]
+        real(dp)                :: C_np_soil_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Mean soil PEC per grid cell [kg/m3]
+        real(dp), allocatable   :: C_np_soil_p(:, :, :, :)                                          ! Mean soil PEC per soil profile [kg/m3] 
+        integer :: x, y, p, i                                                                       ! Iterators
+        i = 1
+        do y = 1, size(me%colGridCells, 2)
+            do x = 1, size(me%colGridCells, 1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    C_np_soil_i(i, :, :, :) = me%colGridCells(x,y)%item%C_np_soil
+                    i = i + 1
+                end if
+            end do
+        end do
+        C_np_soil = sum(C_np_soil_i, dim=1) / me%nGridCells
     end function
 
 end module

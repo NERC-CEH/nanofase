@@ -77,6 +77,8 @@ module spcGridCell
         real(dp) :: industrialDemand = 0                                !! Industrial demand for `GridCell` [Mm3/day]
         real(dp) :: surfaceWaterToTotalWaterRatio                       !! Ratio of surface to total water demand (same for all demands) [-]
         type(Crop), allocatable :: crops(:)                             !! Crops present in this `GridCell`
+        ! Nanomaterials
+        real(dp), allocatable :: C_np_soil(:,:,:)
       
     contains
         ! Creation/destruction
@@ -94,6 +96,7 @@ module spcGridCell
         procedure(get_j_np_outGridCell), deferred :: get_j_np_out
         procedure(get_m_spmGridCell), deferred :: get_m_spm
         procedure(getTotalReachLengthGridCell), deferred :: getTotalReachLength
+        ! procedure(get_C_np_soilGridCell), deferred :: get_C_np_soil
     end type
       
     !> Container type for polymorphic `GridCell`s
@@ -204,5 +207,12 @@ module spcGridCell
             class(GridCell) :: me
             real(dp) :: totalReachLength
         end function
+
+        ! function get_C_np_soilGridCell(me) result(C_np_soil)
+        !     use Globals, only: dp, C
+        !     import GridCell
+        !     class(GridCell) :: me
+        !     real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+        ! end function
     end interface
 end module

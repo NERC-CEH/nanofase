@@ -260,5 +260,4 @@ module UtilModule
             if (value <= -e) isLessThanZeroDp = .true.
         end function
 
-
 end module
