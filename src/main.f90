@@ -160,8 +160,6 @@ program main
                 call LOGR%toFile(errors=.errors.r)                              ! Output any errors to the log file
                 call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
 
-                print *, env%C_np_soil()
-                error stop
                 ! TODO: Do something with Result object
                 do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
                     do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
@@ -365,8 +363,10 @@ program main
         end do
     end do
 
+    ! Write the simulation summary to file
+    call output%finalise()
+
     ! Close and deallocate stuff
-    close(2)
     deallocate(m_np, m_np_l1, m_np_l2, m_np_l3, m_np_l4, m_np_eroded, m_np_buried, m_np_in, C_np, npDep)
     
     ! Timings

@@ -27,7 +27,8 @@ module classEnvironment1
         procedure :: parseNewBatchData => parseNewBatchDataEnvironment1
         ! Getters
         procedure :: get_m_np => get_m_npEnvironment1
-        procedure :: C_np_soil => C_np_soilEnvironment1
+        procedure :: get_C_np_soil => get_C_np_soilEnvironment1
+        procedure :: get_C_np_water => get_C_np_waterEnvironment1
     end type
 
   contains
@@ -162,6 +163,9 @@ module classEnvironment1
             end if
         end if
 
+        ! Allocate the per timestep spatial mean water conc array
+        allocate(me%C_np_water_t(C%nTimeSteps, C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%C_np_water_t = 0.0_dp
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
         call LOGR%toFile(errors=.errors.r)
@@ -217,6 +221,11 @@ module classEnvironment1
                 call me%colGridCells(x,y)%item%finaliseUpdate()
             end do
         end do
+
+        ! Add to the per timestep spatial mean water conc array
+        me%C_np_water_t(t,:,:,:) = me%get_C_np_water()
+        if (t==4) print *, me%C_np_water_t(4,:,:,:)
+        error stop
 
     end function
     
@@ -341,22 +350,40 @@ module classEnvironment1
     end function
 
     !> Calculate the mean soil PEC in the environment
-    function C_np_soilEnvironment1(me) result(C_np_soil)
+    function get_C_np_soilEnvironment1(me) result(C_np_soil)
         class(Environment1)     :: me                                                               !! This Environment instance
-        real(dp)                :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mean soil PEC [kg/m3]
-        real(dp)                :: C_np_soil_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Mean soil PEC per grid cell [kg/m3]
-        real(dp), allocatable   :: C_np_soil_p(:, :, :, :)                                          ! Mean soil PEC per soil profile [kg/m3] 
-        integer :: x, y, p, i                                                                       ! Iterators
+        real(dp)                :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mass concentration of NM in environment [kg/kg soil]
+        real(dp)                :: C_np_soil_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per grid NM conc [kg/kg soil]
+        integer                 :: x, y, i                                                          ! Iterators
         i = 1
         do y = 1, size(me%colGridCells, 2)
             do x = 1, size(me%colGridCells, 1)
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
-                    C_np_soil_i(i, :, :, :) = me%colGridCells(x,y)%item%C_np_soil
+                    associate (cell => me%colGridCells(x,y)%item)
+                        C_np_soil_i(i, :, :, :) = cell%get_C_np_soil()
+                    end associate
                     i = i + 1
                 end if
             end do
         end do
-        C_np_soil = sum(C_np_soil_i, dim=1) / me%nGridCells
+        C_np_soil = divideCheckZero(sum(C_np_soil_i, dim=1), me%nGridCells)
+    end function
+
+    function get_C_np_waterEnvironment1(me) result(C_np_water)
+        class(Environment1) :: me
+        real(dp)            :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp)            :: C_np_water_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))
+        integer             :: x, y, i
+        i = 1
+        do y = 1, size(me%colGridCells, 2)
+            do x = 1, size(me%colGridCells, 1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    associate (cell => me%colGridCells(x,y)%item)
+                        C_np_water_i(i, :, :, :) = cell%get_C_np_water()
+                    end associate
+                end if
+            end do
+        end do
     end function
 
 end module

@@ -27,7 +27,7 @@ module classSoilProfile1
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
         procedure :: parseNewBatchData => parseNewBatchDataSoilProfile1
         ! Getters
-        ! procedure :: C_np => C_np_SoilProfile1
+        procedure :: get_C_np => get_C_np_SoilProfile1
     end type
 
   contains
@@ -71,7 +71,7 @@ module classSoilProfile1
             me%m_transformed_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed_eroded(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed_in(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            ! me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%colSoilLayers(C%nSoilLayers))
         ! Initialise variables
         me%x = x                                            ! GridCell x index
@@ -94,7 +94,7 @@ module classSoilProfile1
         me%m_dissolved = 0.0_dp
         me%m_dissolved_in = 0.0_dp
         me%m_dissolved_buried = 0.0_dp
-        me%C_np = 0.0_dp
+        ! me%C_np = 0.0_dp
         
         ! Parse and store input data in this object's properties
         call r%addErrors(.errors. me%parseInputData())
@@ -145,7 +145,7 @@ module classSoilProfile1
         real(dp) :: j_dissolved_diffuseSource                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
         integer :: i, j, k
-        real(dp) :: C_np_l(C%nSoilLayers, C%npDim(1), C%npDim(2), C%npDim(3))
+        ! real(dp) :: C_np_l(C%nSoilLayers, C%npDim(1), C%npDim(2), C%npDim(3))
 
         if (.not. me%isUrban) then
             ! Set the timestep-specific object properties
@@ -174,20 +174,20 @@ module classSoilProfile1
             me%m_np = me%m_np - me%m_np_buried
 
             ! Update mean concentration across the layers for this profile (used for output)
-            do i = 1, C%nSoilLayers
-                C_np_l(i, :, :, :) = me%colSoilLayers(i)%item%C_np
-            end do
-            do k = 1, C%npDim(3)
-                do j = 1, C%npDim(2)
-                    do i = 1, C%npDim(1)
-                        if (.not. isZero(me%C_np(i,j,k))) then
-                            me%C_np(i,j,k) = sum(C_np_l(:,i,j,k)) / C%nSoilLayers
-                        else
-                            me%C_np(i,j,k) = 0.0_dp
-                        end if
-                    end do
-                end do
-            end do
+            ! do i = 1, C%nSoilLayers
+            !     C_np_l(i, :, :, :) = me%colSoilLayers(i)%item%C_np
+            ! end do
+            ! do k = 1, C%npDim(3)
+            !     do j = 1, C%npDim(2)
+            !         do i = 1, C%npDim(1)
+            !             if (.not. isZero(me%C_np(i,j,k))) then
+            !                 me%C_np(i,j,k) = sum(C_np_l(:,i,j,k)) / C%nSoilLayers
+            !             else
+            !                 me%C_np(i,j,k) = 0.0_dp
+            !             end if
+            !         end do
+            !     end do
+            ! end do
 
         else
             ! If this is an urban cell, presume nothing for the moment
@@ -544,16 +544,16 @@ module classSoilProfile1
         end select
     end subroutine
 
-    ! !> Calculate the mean PEC across all soil layers for this soil profile
-    ! function C_np_SoilProfile1(me) result(C_np)
-    !     class(SoilProfile1) :: me
-    !     real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))
-    !     integer             :: i
-    !     real(dp)            :: C_np_l(C%nSoilLayers, C%npDim(1), C%npDim(2), C%npDim(3))
-    !     do i = 1, C%nSoilLayers
-    !         C_np_l(i, :, :, :) = me%colSoilLayers(i)%item%C_np
-    !     end do
-    !     C_np = sum(C_np_l, dim=1) / C%nSoilLayers
-    ! end function
+    !> Calculate the mean PEC across all soil layers for this soil profile
+    function get_C_np_SoilProfile1(me) result(C_np)
+        class(SoilProfile1) :: me                                               !! This SoilProfile instance
+        real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))         !! Mass concentration of NM [kg/kg soil]
+        integer             :: i                                                ! Iterator
+        real(dp)            :: C_np_l(C%nSoilLayers, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per layer concentration [kg/kg soil]
+        do i = 1, C%nSoilLayers
+            C_np_l(i, :, :, :) = me%colSoilLayers(i)%item%C_np
+        end do
+        C_np = divideCheckZero(sum(C_np_l, dim=1), C%nSoilLayers)
+    end function
 
 end module

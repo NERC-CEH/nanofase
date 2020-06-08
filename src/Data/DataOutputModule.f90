@@ -48,9 +48,13 @@ module DataOutputModule
     subroutine finaliseDataOutput(me)
         class(DataOutput) :: me
         ! Close the files
-        ! write(100, *) "\n## PECs"
-        ! write(100, *) "- Soil, final timestep:"
-        ! write(100, *) "  - Spatial median: " // me%env%item%
+        write(100, *) "\n## PECs"
+        write(100, *) "- Soil, final timestep: " 
+        write(100, *) "  - Spatial mean: " // trim(str(sum(me%env%item%get_C_np_soil()))) // " kg/kg soil"
+        write(100, *) "  - Maximum: " // trim(str(maxval(me%env%item%get_C_np_soil()))) // " kg/kg soil"
+        write(100, *) "- Water, temporal mean: "
+        write(100, *) "  - Spatial mean: "
+        write(100, *) "  - Maximum: "
     end subroutine
 
     subroutine writeHeadersDataOutput(me)

@@ -25,6 +25,8 @@ module spcEnvironment
         type(SampleSite), allocatable :: sites(:)                   !! Sample sites for calibrating with
         type(SampleSite), pointer :: startSite, endSite             !! Start and end calibration sites
         type(SampleSite), allocatable :: otherSites(:)
+        ! Summary statistics
+        real(dp), allocatable               :: C_np_water_t(:,:,:,:) !! Water NM conc spatial mean on each timestep [kg/m3]
       contains
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy
@@ -34,6 +36,8 @@ module spcEnvironment
         procedure(parseNewBatchDataEnvironment), deferred :: parseNewBatchData
         ! Getters
         procedure(get_m_npEnvironment), deferred :: get_m_np
+        procedure(get_C_np_soilEnvironment), deferred :: get_C_np_soil
+        procedure(get_C_np_waterEnvironment), deferred :: get_C_np_water
     end type
 
     abstract interface
@@ -97,6 +101,20 @@ module spcEnvironment
             import Environment
             class(Environment) :: me
             real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
+        end function
+
+        function get_C_np_soilEnvironment(me) result(C_np_soil)
+            use Globals, only: C, dp
+            import Environment
+            class(Environment) :: me
+            real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_C_np_waterEnvironment(me) result(C_np_water)
+            use Globals, only: C, dp
+            import Environment
+            class(Environment) :: me
+            real(dp) :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
         end function
     end interface
 end module

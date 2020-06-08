@@ -32,6 +32,13 @@ module UtilModule
         module procedure isLessThanZeroDp
     end interface
 
+    interface divideCheckZero
+        module procedure divideCheckZeroReal
+        module procedure divideCheckZeroDp
+        module procedure divideCheckZeroRealNumeratorIntegerDenominator
+        module procedure divideCheckZeroDpNumeratorIntegerDenominator
+    end interface
+
     contains
         !> print a set of r x c matrices to the console
         subroutine print_matrix(m)
@@ -179,7 +186,7 @@ module UtilModule
         end function
 
         !> Check whether a real value is within epsilon of zero
-        function isZeroReal(value, epsilon)
+        pure function isZeroReal(value, epsilon)
             real, intent(in)                :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
@@ -194,7 +201,7 @@ module UtilModule
         end function
 
         !> Check whether a real(dp) value is within epsilon of zero
-        function isZeroDp(value, epsilon)
+        pure function isZeroDp(value, epsilon)
             real(dp), intent(in)            :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
@@ -208,7 +215,7 @@ module UtilModule
             if (abs(value) < e) isZeroDp = .true.
         end function
 
-        function isZeroDp3D(value, epsilon)
+        pure function isZeroDp3D(value, epsilon)
             real(dp), intent(in)            :: value(:,:,:)     !! Value to check
             real(dp), intent(in), optional  :: epsilon          !! Proximity to zero permitted
             real(dp)                        :: e                !! Internal epsilon
@@ -260,4 +267,55 @@ module UtilModule
             if (value <= -e) isLessThanZeroDp = .true.
         end function
 
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroReal(numerator, denominator)
+            real, intent(in) :: numerator
+            real, intent(in) :: denominator
+            real :: divideCheckZeroReal
+            if (isZero(numerator)) then
+                divideCheckZeroReal = 0.0
+            else
+                divideCheckZeroReal = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroDp(numerator, denominator)
+            real(dp), intent(in) :: numerator
+            real(dp), intent(in) :: denominator
+            real(dp) :: divideCheckZeroDp
+            if (isZero(numerator)) then
+                divideCheckZeroDp = 0.0_dp
+            else
+                divideCheckZeroDp = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroRealNumeratorIntegerDenominator(numerator, denominator)
+            real, intent(in) :: numerator
+            integer, intent(in) :: denominator
+            real :: divideCheckZeroRealNumeratorIntegerDenominator
+            if (isZero(numerator)) then
+                divideCheckZeroRealNumeratorIntegerDenominator = 0.0_dp
+            else
+                divideCheckZeroRealNumeratorIntegerDenominator = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroDpNumeratorIntegerDenominator(numerator, denominator)
+            real(dp), intent(in) :: numerator
+            integer, intent(in) :: denominator
+            real(dp) :: divideCheckZeroDpNumeratorIntegerDenominator
+            if (isZero(numerator)) then
+                divideCheckZeroDpNumeratorIntegerDenominator = 0.0_dp
+            else
+                divideCheckZeroDpNumeratorIntegerDenominator = numerator / denominator
+            end if
+        end function
 end module

@@ -36,6 +36,7 @@ module classGridCell2
         procedure :: get_m_spm => get_m_spmGridCell2
         procedure :: get_m_np => get_m_npGridCell2
         procedure :: get_C_np_soil => get_C_np_soilGridCell2
+        procedure :: get_C_np_water => get_C_np_waterGridCell2
         procedure :: getTotalReachLength => getTotalReachLengthGridCell2
         ! Calculators
         procedure :: reachLineParamsFromInflowsOutflow => reachLineParamsFromInflowsOutflowGridCell2
@@ -56,15 +57,14 @@ module classGridCell2
         allocate(me%colSoilProfiles(1))
         allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
         allocate(me%j_np_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
-        allocate(me%C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3)))
         me%q_runoff = 0
-        me%C_np_soil = 0.0_dp 
 
         ! Set the GridCell's position, whether it's empty and its name
         me%x = x
         me%y = y
         if (present(isEmpty)) me%isEmpty = isEmpty      ! isEmpty defaults to false if not present
         me%ref = trim(ref("GridCell", x, y))            ! ref() interface is from the Util module
+        me%nSoilProfiles = 1                            ! Only one soil profile, for the moment
         
         ! Only carry on if there's stuff to be simulated for this GridCell
         if (.not. me%isEmpty) then
@@ -230,8 +230,6 @@ module classGridCell2
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
         real(dp) :: j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: j_dissolved_diffuseSource
-        real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: C_np_soil_p(me%nSoilProfiles, C%npDim(1), C%npDim(2), C%npDim(3))
 
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
@@ -265,13 +263,6 @@ module classGridCell2
                 ) &
             )
             me%erodedSediment = me%colSoilProfiles(1)%item%erodedSediment
-            ! Loop over the soil profiles and get soil PEC
-
-            do i = 1, me%nSoilProfiles
-                C_np_soil_p(i, :, :, :) = me%colSoilProfiles(i)%item%C_np
-            end do
-            me%C_np_soil = sum(C_np_soil_p, dim=1) / me%nSoilProfiles
-
             ! Reaches will be updated separately in reach routing order, by the `Environment` object
         end if
 
@@ -592,16 +583,31 @@ module classGridCell2
     end function
 
     function get_C_np_soilGridCell2(me) result(C_np_soil)
-        class(GridCell2) :: me
-        real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: C_np_soil_p(me%nSoilProfiles, C%npDim(1), C%npDim(2), C%npDim(3))
-        integer :: i 
+        class(GridCell2)    :: me                                               !! This GridCell instance
+        real(dp)            :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))    !! Mass concentration of NM in this GridCell [kg/kg soil]
+        real(dp)            :: C_np_soil_p(me%nSoilProfiles, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per profile NM concentration [kg/kg soil]
+        integer             :: i                                                ! Iterator 
         ! Loop over the soil profiles and get soil PEC
         do i = 1, me%nSoilProfiles
-            C_np_soil_p(i, :, :, :) = me%colSoilProfiles(i)%item%C_np
+            associate (profile => me%colSoilProfiles(i)%item)
+                C_np_soil_p(i, :, :, :) = profile%get_C_np()
+            end associate
         end do
-        C_np_soil = sum(C_np_soil_p, dim=1) / me%nSoilProfiles
+        C_np_soil = divideCheckZero(sum(C_np_soil_p, dim=1), me%nSoilProfiles)
     end function
 
+    function get_C_np_waterGridCell2(me) result(C_np_water)
+        class(GridCell2)    :: me                                               !! This GridCell instance
+        real(dp)            :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))   !! Mass concentration of NM in this GridCell [kg/m3]
+        real(dp)            :: C_np_water_p(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per waterbody NM concentration [kg/m3]
+        integer             :: i                                                ! Iterator 
+        ! Loop over the soil profiles and get soil PEC
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                C_np_water_p(i, :, :, :) = reach%C_np
+            end associate
+        end do
+        C_np_water = divideCheckZero(sum(C_np_water_p, dim=1), me%nReaches)
+    end function
     
 end module

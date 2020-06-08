@@ -33,7 +33,7 @@ module spcSoilProfile
         real(dp), allocatable :: m_dissolved                        !! Mass of dissolved NM currently in profile [kg]
         real(dp), allocatable :: m_dissolved_in                     !! Mass of dissolved NM deposited to profile on a time step [kg]
         real(dp), allocatable :: m_dissolved_buried                 !! Cumulative mass of dissolved NM "lost" from the bottom `SoilLayer` [kg]
-        real(dp), allocatable :: C_np(:,:,:)                        !! Concentration of NM currently in profile [kg/m3]
+        ! real(dp), allocatable :: C_np(:,:,:)                        !! Concentration of NM currently in profile [kg/kg soil]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
         real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
@@ -97,7 +97,7 @@ module spcSoilProfile
         procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
-        ! procedure(C_np_SoilProfile), deferred :: C_np
+        procedure(get_C_np_SoilProfile), deferred :: get_C_np
     end type
 
     !> Container type for `class(SoilProfile)` such that a polymorphic
@@ -215,11 +215,12 @@ module spcSoilProfile
             class(SoilProfile) :: me
         end subroutine
 
-        ! function C_np_SoilProfile(me) result(C_np)
-        !     import SoilProfile
-        !     class(SoilProfile) :: me
-        !     real(dp) :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))
-        ! end function
+        function get_C_np_SoilProfile(me) result(C_np)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
     end interface
 
 end module

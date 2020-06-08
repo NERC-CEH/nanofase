@@ -27,8 +27,8 @@ module classDatabase
         real, allocatable :: spmSizeClasses(:)                  ! Diameter of each SPM size class [m]
         real, allocatable :: defaultMatrixEmbeddedDistributionToSpm(:)  ! Default distribution to proportion matrix-embedded releases to SPM size classes
         integer :: nSizeClassesSpm                              ! Number of SPM size classes
+        ! Soil
         real(dp) :: soilDarcyVelocity                           ! Darcy velocity in soil [m/s]
-        real(dp) :: soilDefault_alpha_att                       ! Default attachment efficiency [-]
         real(dp) :: soilDefaultPorosity                         ! Default porosity [-]  ! TODO deprecate this in favour of spatially resolved porosity
         real(dp) :: soilHamakerConstant                         ! Hamaker constant for soil [J]
         real(dp) :: soilParticleDensity                         ! Particle density of soil [kg m-3]
@@ -36,7 +36,8 @@ module classDatabase
         real(dp) :: soilErosivity_a2                            ! Erosivity a2 parameter [-]
         real(dp) :: soilErosivity_a3                            ! Erosivity a3 parameter [-]
         real(dp) :: soilErosivity_b                             ! Erosivity b parameter [-]
-        real :: soilDefaultAttachmentEfficiency                 ! Attachment efficiency to soil matrix [-]
+        real :: soilConstantAttachmentEfficiency                ! Attachment efficiency to soil matrix [-]
+        ! Earthworms
         integer :: earthwormDensityArable                       ! Earthworm density arable [individuals/m2]
         integer :: earthwormDensityConiferous                   ! Earthworm density coniferous [individuals/m2]
         integer :: earthwormDensityDeciduous                    ! Earthworm density deciduous [individuals/m2]
@@ -353,7 +354,7 @@ module classDatabase
             call var%getData(me%soilAttachmentEfficiency)
         else
             allocate(me%soilAttachmentEfficiency(me%gridShape(1), me%gridShape(2)))
-            me%soilAttachmentEfficiency = me%soilDefaultAttachmentEfficiency
+            me%soilAttachmentEfficiency = me%soilConstantAttachmentEfficiency
         end if
         ! Emissions - areal                         [kg/m2/timestep]
         ! Soil
@@ -570,7 +571,7 @@ module classDatabase
         real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
             resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
             k_transform_pristine, erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, &
-            river_attachment_efficiency, estuary_attachment_efficiency
+            river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
             k_elim_dissolved(:)
@@ -591,7 +592,7 @@ module classDatabase
         namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, &
             urban_parks, vertical_distribution
         namelist /soil/ darcy_velocity, default_porosity, hamaker_constant, particle_density, &
-            erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b
+            erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, soil_attachment_efficiency
         namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
@@ -621,6 +622,7 @@ module classDatabase
         ! TODO move to separate defaults.nml file, or similar
         resuspension_alpha_estuary = 0.0_dp
         resuspension_beta_estuary = 0.0_dp
+        soil_attachment_efficiency = 0.0_dp
         k_diss_pristine = 0.0_dp
         k_diss_transformed = 0.0_dp
         k_transform_pristine = 0.0_dp
@@ -659,6 +661,7 @@ module classDatabase
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
+        me%soilConstantAttachmentEfficiency = soil_attachment_efficiency
         me%soilErosivity_a1 = erosivity_a1
         me%soilErosivity_a2 = erosivity_a2
         me%soilErosivity_a3 = erosivity_a3
