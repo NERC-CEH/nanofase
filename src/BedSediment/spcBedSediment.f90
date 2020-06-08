@@ -21,7 +21,6 @@ module spcBedSediment
         character(len=256) :: name                                   !! Name for this object, of the form *BedSediment_x_y_s_r*
         class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:) !! Collection of `BedSedimentLayer` objects
         integer :: nSizeClasses                                      !! Number of fine sediment size classes
-        integer :: nLayers                                           !! Number of layers (`BedSedimentLayer` objects)
         real(dp), allocatable :: delta_sed(:,:,:)                    !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
         integer :: nfComp                                            !! number of fractional composition terms for sediment
         type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`

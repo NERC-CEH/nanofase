@@ -71,7 +71,7 @@ module Globals
         integer :: nFracCompsSpm                            !! Number of sediment fractional compositions
         integer :: nFormsNM                                 !! Number of NM forms (e.g. pristine, transformed, etc)
         integer :: nExtraStatesNM                           !! Number of NM states other than heteroaggregated to SPM
-        integer, allocatable :: defaultDistributionSediment(:) !! Default imposed size distribution for sediment
+        integer, allocatable :: defaultDistrSedimentbutionSediment(:) !! Default imposed size distribution for sediment
         integer, allocatable :: defaultDistributionNP(:) !! Default imposed size distribution for NPs
         integer :: npDim(3)                                 !! Default dimensions for arrays of NM
         integer :: ionicDim                                 !! Default dimensions for ionic metal

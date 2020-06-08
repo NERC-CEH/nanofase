@@ -37,6 +37,7 @@ module classGridCell2
         procedure :: get_m_np => get_m_npGridCell2
         procedure :: get_C_np_soil => get_C_np_soilGridCell2
         procedure :: get_C_np_water => get_C_np_waterGridCell2
+        procedure :: get_C_np_sediment => get_C_np_sedimentGridCell2
         procedure :: getTotalReachLength => getTotalReachLengthGridCell2
         ! Calculators
         procedure :: reachLineParamsFromInflowsOutflow => reachLineParamsFromInflowsOutflowGridCell2
@@ -599,15 +600,29 @@ module classGridCell2
     function get_C_np_waterGridCell2(me) result(C_np_water)
         class(GridCell2)    :: me                                               !! This GridCell instance
         real(dp)            :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))   !! Mass concentration of NM in this GridCell [kg/m3]
-        real(dp)            :: C_np_water_p(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per waterbody NM concentration [kg/m3]
+        real(dp)            :: C_np_water_w(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per waterbody NM concentration [kg/m3]
         integer             :: i                                                ! Iterator 
-        ! Loop over the soil profiles and get soil PEC
+        ! Loop over the water bodies in this cell and get sediment PEC
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
-                C_np_water_p(i, :, :, :) = reach%C_np
+                C_np_water_w(i, :, :, :) = reach%C_np
             end associate
         end do
-        C_np_water = divideCheckZero(sum(C_np_water_p, dim=1), me%nReaches)
+        C_np_water = divideCheckZero(sum(C_np_water_w, dim=1), me%nReaches)
     end function
     
+    function get_C_np_sedimentGridCell2(me) result(C_np_sediment)
+        class(GridCell2)    :: me                                                   !! This GridCell instance
+        real(dp)            :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))    !! Mass concentration of NM in this GridCell's sediment [kg/m3]
+        real(dp)            :: C_np_sediment_b(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per sediment NM concentration [kg/m3]
+        integer             :: i                                                    ! Iterator 
+        ! Loop over the water bodies in this cell and get sediment PEC
+        do i = 1, me%nReaches
+            associate (bedSediment => me%colRiverReaches(i)%item%bedSediment)
+                C_np_sediment_b(i, :, :, :) = divideCheckZero(sum(bedSediment%C_np_byMass, dim=1), C%nSedimentLayers)
+            end associate
+        end do
+        C_np_sediment = divideCheckZero(sum(C_np_sediment_b, dim=1), me%nReaches)
+    end function
+
 end module

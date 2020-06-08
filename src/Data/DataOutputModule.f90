@@ -1,5 +1,5 @@
 module DataOutputModule
-    use Globals, only: C
+    use Globals, only: C, dp
     use classDatabase, only: DATASET
     use spcEnvironment
     use classEnvironment1
@@ -15,6 +15,7 @@ module DataOutputModule
         procedure, public :: update => updateDataOutput
         procedure, public :: finalise => finaliseDataOutput
         procedure, private :: writeHeaders => writeHeadersDataOutput
+        procedure, private :: writeHeadersSimulationSummary => writeHeadersSimulationSummaryDataOutput
     end type
 
   contains
@@ -46,18 +47,33 @@ module DataOutputModule
     end subroutine
 
     subroutine finaliseDataOutput(me)
-        class(DataOutput) :: me
-        ! Close the files
+        class(DataOutput)   :: me
+        ! Write the final model summary info to the simulation summary file
         write(100, *) "\n## PECs"
         write(100, *) "- Soil, final timestep: " 
         write(100, *) "  - Spatial mean: " // trim(str(sum(me%env%item%get_C_np_soil()))) // " kg/kg soil"
-        write(100, *) "  - Maximum: " // trim(str(maxval(me%env%item%get_C_np_soil()))) // " kg/kg soil"
         write(100, *) "- Water, temporal mean: "
-        write(100, *) "  - Spatial mean: "
-        write(100, *) "  - Maximum: "
+        write(100, *) "  - Spatial mean: " // trim(str(sum(sum(me%env%item%get_C_np_water(), dim=1)) / C%nTimeSteps)) &
+            // " kg/m3"
+        write(100, *) "- Sediment, temporal mean: "
+        write(100, *) "  - Spatial mean: " // trim(str(sum(sum(me%env%item%get_C_np_sediment(), dim=1)) / C%nTimeSteps)) &
+            // " kg/kg sediment"
+        ! Close the files
+        close(100)
     end subroutine
 
     subroutine writeHeadersDataOutput(me)
+        class(DataOutput)   :: me
+
+        ! Write headers for the simulation summary
+        call me%writeHeadersSimulationSummary()
+
+    end subroutine
+
+    !> Write headers for the simulation summary file, including basic
+    !! info about the model run
+    !! TODO currently doesn't work with batch runs
+    subroutine writeHeadersSimulationSummaryDataOutput(me)
         class(DataOutput)   :: me
         type(datetime)      :: simDatetime
         type(datetime)      :: modelEndDate
@@ -85,7 +101,6 @@ module DataOutputModule
             ", " // trim(str(DATASET%gridBounds(3))) // ", " // trim(str(DATASET%gridBounds(4)))
         write(100, *) "- Grid shape: " // trim(str(DATASET%gridShape(1))) // ", " // trim(str(DATASET%gridShape(2)))
         write(100, *) "- Number of non-empty grid cells: " // trim(str(me%env%item%nGridCells))
-
     end subroutine
 
 end module

@@ -29,6 +29,7 @@ module classEnvironment1
         procedure :: get_m_np => get_m_npEnvironment1
         procedure :: get_C_np_soil => get_C_np_soilEnvironment1
         procedure :: get_C_np_water => get_C_np_waterEnvironment1
+        procedure :: get_C_np_sediment => get_C_np_sedimentEnvironment1
     end type
 
   contains
@@ -165,7 +166,9 @@ module classEnvironment1
 
         ! Allocate the per timestep spatial mean water conc array
         allocate(me%C_np_water_t(C%nTimeSteps, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%C_np_sediment_t(C%nTimeSteps, C%npDim(1), C%npDim(2), C%npDim(3)))
         me%C_np_water_t = 0.0_dp
+        me%C_np_sediment_t = 0.0_dp
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
         call LOGR%toFile(errors=.errors.r)
@@ -222,10 +225,9 @@ module classEnvironment1
             end do
         end do
 
-        ! Add to the per timestep spatial mean water conc array
+        ! Add to the per timestep spatial mean water and sediment conc array
         me%C_np_water_t(t,:,:,:) = me%get_C_np_water()
-        if (t==4) print *, me%C_np_water_t(4,:,:,:)
-        error stop
+        me%C_np_sediment_t(t,:,:,:) = me%get_C_np_sediment()
 
     end function
     
@@ -369,6 +371,8 @@ module classEnvironment1
         C_np_soil = divideCheckZero(sum(C_np_soil_i, dim=1), me%nGridCells)
     end function
 
+    !> Get the mean water NM PEC at this moment in time, by looping over all grid cells
+    !! and their water bodies and averaging.
     function get_C_np_waterEnvironment1(me) result(C_np_water)
         class(Environment1) :: me
         real(dp)            :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
@@ -381,9 +385,32 @@ module classEnvironment1
                     associate (cell => me%colGridCells(x,y)%item)
                         C_np_water_i(i, :, :, :) = cell%get_C_np_water()
                     end associate
+                    i = i + 1
                 end if
             end do
         end do
+        C_np_water = divideCheckZero(sum(C_np_water_i, dim=1), me%nGridCells)
+    end function
+
+    !> Get the mean sediment NM PEC at this moment in time, by looping over all grid cells
+    !! and their water bodies and averaging.
+    function get_C_np_sedimentEnvironment1(me) result(C_np_sediment)
+        class(Environment1) :: me
+        real(dp)            :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp)            :: C_np_sediment_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))
+        integer             :: x, y, i
+        i = 1
+        do y = 1, size(me%colGridCells, 2)
+            do x = 1, size(me%colGridCells, 1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    associate (cell => me%colGridCells(x,y)%item)
+                        C_np_sediment_i(i, :, :, :) = cell%get_C_np_sediment()
+                    end associate
+                    i = i + 1
+                end if
+            end do
+        end do
+        C_np_sediment = divideCheckZero(sum(C_np_sediment_i, dim=1), me%nGridCells)
     end function
 
 end module
