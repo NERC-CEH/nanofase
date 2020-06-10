@@ -53,6 +53,11 @@ program main
     real(dp) :: volume
     real(dp) :: meanDepth
 
+
+    real(dp) :: val(2,2,2)
+    real(dp) :: w(2)
+    real(dp) :: rtn(2,2)
+
     call cpu_time(start)                                                ! Simulation start time
     !wallStart = omp_get_wtime()
 
@@ -94,7 +99,7 @@ program main
     write(9, *) "t,x,y,easts,norths,rr,b,name,compartment,C_active,C_stored"
     write(10, *) "t,x,y,easts,norths,rr,reach_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg dw),C_np_l1(kg/m3),", &
         "C_np_l2(kg/m3),C_np_l3(kg/m3),C_np_l4(kg/m3),C_np_l1(kg/kg dw),C_np_l2(kg/kg dw),C_np_l3(kg//kg dw),", &
-        "C_np_l4(kg/kg dw),m_np_buried(kg)"
+        "C_np_l4(kg/kg dw),m_np_buried(kg),bed_area(m2)"
     write(12, *) "x,y,easts,norths,rr,width(m),datum(m),stream_order,f_m"
 
     allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -276,8 +281,8 @@ program main
                                         total_C_np = 0.0_dp
                                     end if
 
-                                    total_C_np_byMass = sum(sum(sum(sum(reach%bedSediment%C_np_byMass, dim=4), dim=3), dim=2)) &
-                                        / C%nSedimentLayers
+                                    total_C_np_byMass = sum(divideCheckZero(sum(reach%bedSediment%C_np_byMass, dim=1), &
+                                        C%nSedimentLayers))
                                     write(10, *) t + tPreviousBatch, ",", x, ",", y, ",", &
                                         DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", reachType, ",", &
                                         trim(str(total_m_np)), ",", &               ! Sum across layers
@@ -291,7 +296,8 @@ program main
                                         trim(str(sum(reach%bedSediment%C_np_byMass(2,:,:,:)))), ",", &
                                         trim(str(sum(reach%bedSediment%C_np_byMass(3,:,:,:)))), ",", &
                                         trim(str(sum(reach%bedSediment%C_np_byMass(4,:,:,:)))), ",", &
-                                        trim(str(sum(reach%bedSediment%M_np(C%nSedimentLayers+3,:,:,:))))
+                                        trim(str(sum(reach%bedSediment%M_np(C%nSedimentLayers+3,:,:,:)))), ",", &
+                                        trim(str(reach%bedArea))
                                 end associate
                             end do
 
@@ -320,6 +326,7 @@ program main
                                 m_np_buried = profile%m_np_buried
                                 m_np_in = profile%m_np_in
                                 total_m_np = sum(m_np_l1) + sum(m_np_l2) + sum(m_np_l3)
+                                ! TODO base on variable soil layer depths and cell areas, not hardcoded!!!!
                                 total_C_np = total_m_np / (bulkDensity * 0.4 * 5000 * 5000)
                             end associate
 

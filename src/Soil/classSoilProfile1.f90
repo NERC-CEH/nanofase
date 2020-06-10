@@ -550,10 +550,14 @@ module classSoilProfile1
         real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))         !! Mass concentration of NM [kg/kg soil]
         integer             :: i                                                ! Iterator
         real(dp)            :: C_np_l(C%nSoilLayers, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per layer concentration [kg/kg soil]
+        real(dp)            :: depths(C%nSoilLayers)
+        ! Loop over soil layers and get NM conc and layer depth
         do i = 1, C%nSoilLayers
             C_np_l(i, :, :, :) = me%colSoilLayers(i)%item%C_np
+            depths(i) = me%colSoilLayers(i)%item%depth
         end do
-        C_np = divideCheckZero(sum(C_np_l, dim=1), C%nSoilLayers)
+        ! Get the weighted average across soil layers, using the depths as the weight
+        C_np = weightedAverage(C_np_l, depths)
     end function
 
 end module

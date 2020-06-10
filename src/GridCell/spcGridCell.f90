@@ -97,6 +97,8 @@ module spcGridCell
         procedure(get_C_np_soilGridCell), deferred :: get_C_np_soil
         procedure(get_C_np_waterGridCell), deferred :: get_C_np_water
         procedure(get_C_np_sedimentGridCell), deferred :: get_C_np_sediment
+        procedure(getWaterVolumeGridCell), deferred :: getWaterVolume
+        procedure(getBedSedimentAreaGridCell), deferred :: getBedSedimentArea
     end type
       
     !> Container type for polymorphic `GridCell`s
@@ -227,6 +229,20 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me
             real(dp) :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function getWaterVolumeGridCell(me) result(waterVolume)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: waterVolume
+        end function
+
+        function getBedSedimentAreaGridCell(me) result(bedArea)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: bedArea
         end function
     end interface
 end module

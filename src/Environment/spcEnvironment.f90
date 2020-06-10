@@ -40,6 +40,7 @@ module spcEnvironment
         procedure(get_C_np_soilEnvironment), deferred :: get_C_np_soil
         procedure(get_C_np_waterEnvironment), deferred :: get_C_np_water
         procedure(get_C_np_sedimentEnvironment), deferred :: get_C_np_sediment
+        procedure(getBedSedimentAreaEnvironment), deferred :: getBedSedimentArea
     end type
 
     abstract interface
@@ -124,6 +125,13 @@ module spcEnvironment
             import Environment
             class(Environment) :: me
             real(dp) :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function getBedSedimentAreaEnvironment(me) result(bedArea)
+            use Globals, only: dp
+            import Environment
+            class(Environment) :: me
+            real(dp) :: bedArea
         end function
     end interface
 end module

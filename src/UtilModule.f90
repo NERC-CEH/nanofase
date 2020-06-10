@@ -39,6 +39,13 @@ module UtilModule
         module procedure divideCheckZeroDpNumeratorIntegerDenominator
     end interface
 
+    interface weightedAverage
+        module procedure weightedAverageDp
+        module procedure weightedAverageDp1D
+        module procedure weightedAverageDp2D
+        module procedure weightedAverageDp3D
+    end interface
+
     contains
         !> print a set of r x c matrices to the console
         subroutine print_matrix(m)
@@ -317,5 +324,57 @@ module UtilModule
             else
                 divideCheckZeroDpNumeratorIntegerDenominator = numerator / denominator
             end if
+        end function
+
+        function weightedAverageDp(x, w) result(x_w)
+            real(dp), intent(in) :: x(:)
+            real(dp), intent(in) :: w(:)
+            real(dp) :: x_w
+            x_w = divideCheckZero(sum(x * w), sum(w))
+        end function
+
+        !> Calculate the weighted average of an array of 1D variables (i.e. a 2D array)
+        !! using the provided weights
+        function weightedAverageDp1D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:)
+            integer :: i
+            allocate(x_w(size(x, dim=2)))
+            do i = 1, size(x, dim=2)
+                x_w(i) = weightedAverage(x(:,i), w)
+            end do
+        end function
+
+        !> Calculate the weighted average of an array of 2D variables (i.e. a 3D array)
+        !! using the provided weights
+        function weightedAverageDp2D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:,:)
+            integer :: i, j
+            allocate(x_w(size(x, dim=2), size(x, dim=3)))
+            do j = 1, size(x, dim=3)    
+                do i = 1, size(x, dim=2)
+                    x_w(i,j) = weightedAverage(x(:,i,j), w)
+                end do
+            end do
+        end function
+
+        !> Calculate the weighted average of an array of 3D variables (i.e. a 4D array)
+        !! using the provided weights
+        function weightedAverageDp3D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:,:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:,:,:)
+            integer :: i, j, k
+            allocate(x_w(size(x, dim=2), size(x, dim=3), size(x, dim=4)))
+            do k = 1, size(x, dim=4)
+                do j = 1, size(x, dim=3)
+                    do i = 1, size(x, dim=2)
+                        x_w(i,j,k) = weightedAverage(x(:,i,j,k), w)
+                    end do
+                end do
+            end do
         end function
 end module

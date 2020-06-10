@@ -50,14 +50,12 @@ module DataOutputModule
         class(DataOutput)   :: me
         ! Write the final model summary info to the simulation summary file
         write(100, *) "\n## PECs"
-        write(100, *) "- Soil, final timestep: " 
-        write(100, *) "  - Spatial mean: " // trim(str(sum(me%env%item%get_C_np_soil()))) // " kg/kg soil"
-        write(100, *) "- Water, temporal mean: "
-        write(100, *) "  - Spatial mean: " // trim(str(sum(sum(me%env%item%get_C_np_water(), dim=1)) / C%nTimeSteps)) &
-            // " kg/m3"
-        write(100, *) "- Sediment, temporal mean: "
-        write(100, *) "  - Spatial mean: " // trim(str(sum(sum(me%env%item%get_C_np_sediment(), dim=1)) / C%nTimeSteps)) &
-            // " kg/kg sediment"
+        write(100, *) "- Soil, spatial mean on final timestep: " // &
+            trim(str(sum(me%env%item%get_C_np_soil()))) // " kg/kg soil"
+        write(100, *) "- Water, spatiotemporal mean: " // &
+            trim(str(sum(sum(me%env%item%C_np_water_t, dim=1)) / C%nTimeSteps)) // " kg/m3"
+        write(100, *) "- Sediment, spatiotemporal mean: " // &
+            trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / C%nTimeSteps)) // " kg/kg sediment"
         ! Close the files
         close(100)
     end subroutine
@@ -96,9 +94,9 @@ module DataOutputModule
         write(100, *) "- Number of timesteps: " // trim(str(C%nTimeSteps))
         
         write(100, *) "\n## Spatial domain"
-        write(100, *) "- Grid resolution: " // trim(str(DATASET%gridRes(1))) // ", " // trim(str(DATASET%gridRes(2))) 
+        write(100, *) "- Grid resolution: " // trim(str(DATASET%gridRes(1))) // ", " // trim(str(DATASET%gridRes(2))) // " m" 
         write(100, *) "- Grid bounds: " // trim(str(DATASET%gridBounds(1))) // ", " // trim(str(DATASET%gridBounds(2))) // &
-            ", " // trim(str(DATASET%gridBounds(3))) // ", " // trim(str(DATASET%gridBounds(4)))
+            ", " // trim(str(DATASET%gridBounds(3))) // ", " // trim(str(DATASET%gridBounds(4))) // " m"
         write(100, *) "- Grid shape: " // trim(str(DATASET%gridShape(1))) // ", " // trim(str(DATASET%gridShape(2)))
         write(100, *) "- Number of non-empty grid cells: " // trim(str(me%env%item%nGridCells))
     end subroutine
