@@ -42,7 +42,7 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/Globals.o \
 	src/UtilModule.o \
 	src/Logger/classLogger.o \
-	src/classDatabase.o \
+	src/Data/classDatabase.o \
 	src/Biota/spcBiota.o \
 	src/Biota/classBiotaSoil.o \
 	src/Biota/classBiotaWater.o \
