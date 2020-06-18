@@ -94,6 +94,12 @@ module spcGridCell
         procedure(get_j_np_outGridCell), deferred :: get_j_np_out
         procedure(get_m_spmGridCell), deferred :: get_m_spm
         procedure(getTotalReachLengthGridCell), deferred :: getTotalReachLength
+        procedure(get_C_np_soilGridCell), deferred :: get_C_np_soil
+        procedure(get_C_np_waterGridCell), deferred :: get_C_np_water
+        procedure(get_C_np_sedimentGridCell), deferred :: get_C_np_sediment
+        procedure(getWaterVolumeGridCell), deferred :: getWaterVolume
+        procedure(getBedSedimentAreaGridCell), deferred :: getBedSedimentArea
+        procedure(getBedSedimentMassGridCell), deferred :: getBedSedimentMass
     end type
       
     !> Container type for polymorphic `GridCell`s
@@ -203,6 +209,48 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me
             real(dp) :: totalReachLength
+        end function
+
+        function get_C_np_soilGridCell(me) result(C_np_soil)
+            use Globals, only: dp, C
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_C_np_waterGridCell(me) result(C_np_water)
+            use Globals, only: dp, C
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_C_np_sedimentGridCell(me) result(C_np_sediment)
+            use Globals, only: dp, C
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function getWaterVolumeGridCell(me) result(waterVolume)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: waterVolume
+        end function
+
+        function getBedSedimentAreaGridCell(me) result(bedArea)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: bedArea
+        end function
+
+        function getBedSedimentMassGridCell(me) result(sedimentMass)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: sedimentMass
         end function
     end interface
 end module

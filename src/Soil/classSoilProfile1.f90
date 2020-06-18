@@ -8,7 +8,6 @@ module classSoilProfile1
     use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
-    ! use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     implicit none
 
@@ -27,6 +26,13 @@ module classSoilProfile1
         procedure :: calculateAverageGrainSize => calculateAverageGrainSizeSoilProfile1 ! Calculate the average grain diameter from soil texture
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
         procedure :: parseNewBatchData => parseNewBatchDataSoilProfile1
+        ! Getters
+        procedure :: get_m_np => get_m_np_SoilProfile1
+        procedure :: get_m_transformed => get_m_transformed_SoilProfile1
+        procedure :: get_m_dissolved => get_m_dissolved_SoilProfile1
+        procedure :: get_C_np => get_C_np_SoilProfile1
+        procedure :: get_C_transformed => get_C_transformed_SoilProfile1
+        procedure :: get_C_dissolved => get_C_dissolved_SoilProfile1
     end type
 
   contains
@@ -70,6 +76,7 @@ module classSoilProfile1
             me%m_transformed_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed_eroded(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed_in(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            ! me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%colSoilLayers(C%nSoilLayers))
         ! Initialise variables
         me%x = x                                            ! GridCell x index
@@ -92,6 +99,7 @@ module classSoilProfile1
         me%m_dissolved = 0.0_dp
         me%m_dissolved_in = 0.0_dp
         me%m_dissolved_buried = 0.0_dp
+        ! me%C_np = 0.0_dp
         
         ! Parse and store input data in this object's properties
         call r%addErrors(.errors. me%parseInputData())
@@ -141,6 +149,8 @@ module classSoilProfile1
         real(dp) :: j_transformed_diffuseSource(:,:,:)          !! Diffuse source of NM for this timestep [kg/m2/timestep]
         real(dp) :: j_dissolved_diffuseSource                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
+        integer :: i, j, k
+        ! real(dp) :: C_np_l(C%nSoilLayers, C%npDim(1), C%npDim(2), C%npDim(3))
 
         if (.not. me%isUrban) then
             ! Set the timestep-specific object properties
@@ -167,6 +177,22 @@ module classSoilProfile1
             ! Remove buried NM (eroded NM removed in me%erode)
             ! TODO unify where me%m_np is updated (or deprecate, see me%erode())
             me%m_np = me%m_np - me%m_np_buried
+
+            ! Update mean concentration across the layers for this profile (used for output)
+            ! do i = 1, C%nSoilLayers
+            !     C_np_l(i, :, :, :) = me%colSoilLayers(i)%item%C_np
+            ! end do
+            ! do k = 1, C%npDim(3)
+            !     do j = 1, C%npDim(2)
+            !         do i = 1, C%npDim(1)
+            !             if (.not. isZero(me%C_np(i,j,k))) then
+            !                 me%C_np(i,j,k) = sum(C_np_l(:,i,j,k)) / C%nSoilLayers
+            !             else
+            !                 me%C_np(i,j,k) = 0.0_dp
+            !             end if
+            !         end do
+            !     end do
+            ! end do
 
         else
             ! If this is an urban cell, presume nothing for the moment
@@ -288,9 +314,6 @@ module classSoilProfile1
         ! The top soil layer deals with eroding NM
         call rslt%addErrors(.errors. me%colSoilLayers(1)%item%erode(me%erodedSediment, me%bulkDensity, me%area))
         ! Remove this eroded soil from the total m_np in the profile
-        ! TODO Depracate me%m_np for the whole profile, as it
-        ! means updating NM mass in both the profile and the individual layers
-
         do i = 1, C%nSizeClassesNM
             ! Transfer NM eroded from attached to heteroaggregated, by imposing the size distribution
             ! as for eroded SPM. The logic here is that the soil the NM is attached to will end up
@@ -407,30 +430,46 @@ module classSoilProfile1
         end if
 
         ! Get earthworm density from land use. Select the maximum land use fraction and use all
-        ! of profile is that.
+        ! of profile as that
         landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
         ! TODO get these values more intelligently
         select case (landUse)
             case (1)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
+                me%dominantLandUseName = 'urban_no_soil'
             case (2)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanParks
+                me%dominantLandUseName = 'urban_parks_leisure'
             case (3)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+                me%dominantLandUseName = 'urban_industrial_soil'
             case (4)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+                me%dominantLandUseName = 'urban_green_residential'
             case (5)
                 me%earthwormDensity = DATASET%earthwormDensityArable
+                me%dominantLandUseName = 'arable'
             case (6)
                 me%earthwormDensity = DATASET%earthwormDensityGrassland
+                me%dominantLandUseName = 'grassland'
             case (7)
                 me%earthwormDensity = DATASET%earthwormDensityDeciduous
+                me%dominantLandUseName = 'deciduous'
             case (8)
                 me%earthwormDensity = DATASET%earthwormDensityConiferous
+                me%dominantLandUseName = 'coniferous'
             case (9)
                 me%earthwormDensity = DATASET%earthwormDensityHeathland
+                me%dominantLandUseName = 'heathland'
+            case (10)
+                me%earthwormDensity = 0.0_dp
+                me%dominantLandUseName = 'water'
+            case (11)
+                me%earthwormDensity = 0.0_dp
+                me%dominantLandUseName = 'desert'
             case default
                 me%earthwormDensity = 0.0_dp
+                me%dominantLandUseName = 'other'
         end select
 
         ! Auditing
@@ -522,4 +561,58 @@ module classSoilProfile1
                 me%earthwormDensity = 0.0_dp
         end select
     end subroutine
+
+    !> Calculate the mean NM PEC across all soil layers for this soil profile
+    function get_C_np_SoilProfile1(me) result(C_np)
+        class(SoilProfile1) :: me                                                   !! This SoilProfile instance
+        real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))             !! Mass concentration of NM [kg/kg soil]
+        C_np = me%get_m_np() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
+    end function
+
+    !> Calculate the mean transformed NM PEC across all soil layers for this soil profile
+    function get_C_transformed_SoilProfile1(me) result(C_transformed)
+        class(SoilProfile1) :: me                                                   !! This SoilProfile instance
+        real(dp)            :: C_transformed(C%npDim(1), C%npDim(2), C%npDim(3))    !! Mass concentration of NM [kg/kg soil]
+        C_transformed = me%get_m_transformed() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
+    end function
+
+    !> Calculate the mean dissolved species PEC across all soil layers for this soil profile
+    function get_C_dissolved_SoilProfile1(me) result(C_dissolved)
+        class(SoilProfile1) :: me                           !! This SoilProfile instance
+        real(dp)            :: C_dissolved                  !! Mass concentration of dissolved species [kg/kg soil]
+        C_dissolved = me%get_m_dissolved() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
+    end function
+
+    function get_m_np_SoilProfile1(me) result(m_np)
+        class(SoilProfile1) :: me
+        real(dp)            :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer             :: i
+        m_np = 0.0_dp
+        ! Loop through the soil layers and sum m_np
+        do i = 1, C%nSoilLayers
+            m_np = m_np + me%colSoilLayers(i)%item%m_np
+        end do
+    end function
+
+    function get_m_transformed_SoilProfile1(me) result(m_transformed)
+        class(SoilProfile1) :: me
+        real(dp)            :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer             :: i
+        m_transformed = 0.0_dp
+        ! Loop through the soil layers and sum m_transformed
+        do i = 1, C%nSoilLayers
+            m_transformed = m_transformed + me%colSoilLayers(i)%item%m_transformed
+        end do
+    end function
+
+    function get_m_dissolved_SoilProfile1(me) result(m_dissolved)
+        class(SoilProfile1) :: me
+        real(dp)            :: m_dissolved
+        integer             :: i
+        m_dissolved = 0.0_dp
+        ! Loop through the soil layers and sum m_dissolved
+        do i = 1, C%nSoilLayers
+            m_dissolved = m_dissolved + me%colSoilLayers(i)%item%m_dissolved
+        end do
+    end function
 end module

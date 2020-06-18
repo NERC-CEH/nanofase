@@ -8,18 +8,26 @@ module spcEnvironment
     implicit none
     private
 
+    type, public :: EnvironmentPointer
+        class(Environment), pointer :: item => null()                   !! Pointer to polymorphic Environment object
+    end type
+
     !> Abstract base class definition for `Environment`.
     type, public, abstract :: Environment
-        integer, allocatable                :: gridDimensions(:)    !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
-        type(GridCellElement), allocatable  :: colGridCells(:,:)    !! Array of `GridCellElement` objects to hold polymorphic `GridCell`s
-        type(ReachPointer), allocatable     :: headwaters(:)        !! Array of `GridCell`s that contain headwaters
-        type(ReachPointer), allocatable     :: routedReaches(:)     !! Array of pointers to routed reaches
-        integer                             :: nHeadwaters = 0      !! The number of headwaters in the Environment
-        integer                             :: nWaterbodies = 0     !! The number of waterbodies in the Environment
-        type(NcGroup)                       :: ncGroup              !! NetCDF group for this `Environment` object
-        type(SampleSite), allocatable :: sites(:)                   !! Sample sites for calibrating with
-        type(SampleSite), pointer :: startSite, endSite             !! Start and end calibration sites
+        integer, allocatable                :: gridDimensions(:)        !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
+        type(GridCellElement), allocatable  :: colGridCells(:,:)        !! Array of `GridCellElement` objects to hold polymorphic `GridCell`s
+        integer                             :: nGridCells = 0           !! Number of grid cells in the Environment
+        type(ReachPointer), allocatable     :: headwaters(:)            !! Array of `GridCell`s that contain headwaters
+        type(ReachPointer), allocatable     :: routedReaches(:)         !! Array of pointers to routed reaches
+        integer                             :: nHeadwaters = 0          !! The number of headwaters in the Environment
+        integer                             :: nWaterbodies = 0         !! The number of waterbodies in the Environment
+        type(NcGroup)                       :: ncGroup                  !! NetCDF group for this `Environment` object
+        type(SampleSite), allocatable :: sites(:)                       !! Sample sites for calibrating with
+        type(SampleSite), pointer :: startSite, endSite                 !! Start and end calibration sites
         type(SampleSite), allocatable :: otherSites(:)
+        ! Summary statistics
+        real(dp), allocatable               :: C_np_water_t(:,:,:,:)    !! Water NM conc spatial mean on each timestep [kg/m3]
+        real(dp), allocatable               :: C_np_sediment_t(:,:,:,:) !! Sediment NM conc spatial mean on each timestep [kg/kg]
       contains
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy
@@ -29,6 +37,10 @@ module spcEnvironment
         procedure(parseNewBatchDataEnvironment), deferred :: parseNewBatchData
         ! Getters
         procedure(get_m_npEnvironment), deferred :: get_m_np
+        procedure(get_C_np_soilEnvironment), deferred :: get_C_np_soil
+        procedure(get_C_np_waterEnvironment), deferred :: get_C_np_water
+        procedure(get_C_np_sedimentEnvironment), deferred :: get_C_np_sediment
+        procedure(getBedSedimentAreaEnvironment), deferred :: getBedSedimentArea
     end type
 
     abstract interface
@@ -92,6 +104,34 @@ module spcEnvironment
             import Environment
             class(Environment) :: me
             real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
+        end function
+
+        function get_C_np_soilEnvironment(me) result(C_np_soil)
+            use Globals, only: C, dp
+            import Environment
+            class(Environment) :: me
+            real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_C_np_waterEnvironment(me) result(C_np_water)
+            use Globals, only: C, dp
+            import Environment
+            class(Environment) :: me
+            real(dp) :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_C_np_sedimentEnvironment(me) result(C_np_sediment)
+            use Globals, only: C, dp
+            import Environment
+            class(Environment) :: me
+            real(dp) :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function getBedSedimentAreaEnvironment(me) result(bedArea)
+            use Globals, only: dp
+            import Environment
+            class(Environment) :: me
+            real(dp) :: bedArea
         end function
     end interface
 end module

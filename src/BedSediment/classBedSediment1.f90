@@ -287,9 +287,9 @@ module classBedSediment1
         real(dp) :: M_np_mass_balance(C%npDim(1), C%npDim(2), C%npDim(3))
         ! Assumes me%delta_sed has already been set
         ! Add new deposited NM to matrix, reset resus and buried to zero
-        me%M_np(1,:,:,:) = j_np_dep             ! Deposited     [kg/m2]
-        me%M_np(2,:,:,:) = 0.0_dp               ! Resuspended   [kg/m2]
-        me%M_np(C%nSedimentLayers+3,:,:,:) = 0.0_dp    ! Buried        [kg/m2]
+        me%M_np(1,:,:,:) = j_np_dep                     ! Deposited     [kg/m2]
+        me%M_np(2,:,:,:) = 0.0_dp                       ! Resuspended   [kg/m2]
+        me%M_np(C%nSedimentLayers+3,:,:,:) = 0.0_dp     ! Buried        [kg/m2]
 
         ! Set small values in delta_sed (likely to cause numerical issues) to zero, and
         ! values near unity to unity.
@@ -326,8 +326,8 @@ module classBedSediment1
         end do
 
         ! Mass balance check
-        M_np_mass_balance = sum(me%M_np(3:6,:,:,:), dim=1) - &
-            sum(old_M_np(3:6,:,:,:), dim=1) - old_M_np(1,:,:,:) + me%M_np(2,:,:,:) + me%M_np(7,:,:,:)
+        ! M_np_mass_balance = sum(me%M_np(3:6,:,:,:), dim=1) - &
+        !     sum(old_M_np(3:6,:,:,:), dim=1) - old_M_np(1,:,:,:) + me%M_np(2,:,:,:) + me%M_np(7,:,:,:)
         ! if (.not. isZero(M_np_mass_balance)) then
         !     print *, "Woah!"
         !     call print_matrix(me%delta_sed)
@@ -764,77 +764,76 @@ module classBedSediment1
                             end if
                             ! print *, "T%M_f() after water burial", T%V_f()
                         end associate
-                        L = L - 1                                    ! decrement the layer count
-                    end do                                           ! and loop
-                                                                     ! now to actually bury fine sediment and water
-                                                                     ! we still use the object T to hold the depositing material - firstly, its mass
-                                                                     ! needs to be reset, as it was decremented to zero in the computation of the water requirement
+                        L = L - 1                                       ! decrement the layer count
+                    end do                                              ! and loop
+                                                                        ! now to actually bury fine sediment and water
+                                                                        ! we still use the object T to hold the depositing material - firstly, its mass
+                                                                        ! needs to be reset, as it was decremented to zero in the computation of the water requirement
                     call r%addErrors(.errors. &
                          T%set(Vf_in = FS_dep(S)%V_f() - A_f_sed &
                               ) &
-                                    )                                ! reset the fine sediment burial requirement, still using object T
-                    if (r%hasCriticalError()) return                 ! return if critical error thrown
-                                                                     ! now we remove and bury material from the base of the sediment upwards, 
-                                                                     ! to create sufficient space to accommodate deposited material
-                    L = C%nSedimentLayers                                   ! start with the bottom layer
-                    do while (L > 0 .and. T%V_f() + T%V_w() > 0)     ! loop through each layer, while there is still material to bury
+                                    )                                   ! reset the fine sediment burial requirement, still using object T
+                    if (r%hasCriticalError()) return                    ! return if critical error thrown
+                                                                        ! now we remove and bury material from the base of the sediment upwards, 
+                                                                        ! to create sufficient space to accommodate deposited material
+                    L = C%nSedimentLayers                               ! start with the bottom layer
+                    do while (L > 0 .and. T%V_f() + T%V_w() > 0)        ! loop through each layer, while there is still material to bury
                         if (T%V_f() > 0) Then
                             associate(O => &
-                                Me%colBedSedimentLayers(L)%item)     ! association reference to layer L object
+                                Me%colBedSedimentLayers(L)%item)        ! association reference to layer L object
                                 call r%addErrors(.errors. &
                                     O%RemoveSediment(S, T, U) &
-                                                )                    ! remove the sediment, return amount removed (U) and not removed (T), and any errors thrown
+                                                )                       ! remove the sediment, return amount removed (U) and not removed (T), and any errors thrown
                             
-                                if (r%hasCriticalError()) then       ! if RemoveSediment throws a critical error
-                                    call r%addToTrace(tr)            ! add trace to all errors
-                                    return                           ! and exit
+                                if (r%hasCriticalError()) then          ! if RemoveSediment throws a critical error
+                                    call r%addToTrace(tr)               ! add trace to all errors
+                                    return                              ! and exit
                                 end if
-                                delta_l_b(L, S) = U%M_f()            ! delta for layer L to burial
+                                delta_l_b(L, S) = U%M_f()               ! delta for layer L to burial
                                 delta_l_l(L, L, S) = &
-                                    delta_l_l(L, L, S) - U%M_f()     ! delta for loss of sediment from L to burial
+                                    delta_l_l(L, L, S) - U%M_f()        ! delta for loss of sediment from L to burial
                             end associate
                         end if
-                                                                     ! note that these are CHANGES in delta due to burial, not absolute values
-                        L = L - 1                                    ! move up to next layer
-                    end do                                           ! finished burial. temporary object T can be reused
-                                                                     ! now we shift sediment downwards from upper layers to fill the hole created by burial
-                    do L = C%nSedimentLayers, 2, -1                         ! downward shift of fine sediment. Loop through the layers, starting at the bottom
-                                                                     ! and working upwards
+                                                                        ! note that these are CHANGES in delta due to burial, not absolute values
+                        L = L - 1                                       ! move up to next layer
+                    end do                                              ! finished burial. temporary object T can be reused
+                                                                        ! now we shift sediment downwards from upper layers to fill the hole created by burial
+                    do L = C%nSedimentLayers, 2, -1                     ! downward shift of fine sediment. Loop through the layers, starting at the bottom
+                                                                        ! and working upwards
                         assoc1 : associate &
-                            (O => Me%colBedSedimentLayers(L)%item)   ! association to "receiving" layer L
-                            A = L - 1                                ! counter for "donating" layer - initially the layer above
+                            (O => Me%colBedSedimentLayers(L)%item)      ! association to "receiving" layer L
+                            A = L - 1                                   ! counter for "donating" layer - initially the layer above
                             call r%addErrors(.errors. &
                                 T%set(Vf_in = .dp. O%A_f(S), &
                                       Vw_in = .dp. O%A_w(S) &
                                      ) &
-                                            )                        ! set FineSediment object T to hold the available capacity in the receiving layer i.e. the volumes that require shifting downwards
-                                                                     ! Note no need to set f_comp in T
-                            do while (A > 0 .and. T%IsNotEmpty())    ! loop through "donating" layers, moving upwards
+                                            )                           ! set FineSediment object T to hold the available capacity in the receiving layer i.e. the volumes that require shifting downwards
+                                                                        ! Note no need to set f_comp in T
+                            do while (A > 0 .and. T%IsNotEmpty())       ! loop through "donating" layers, moving upwards
                                 assoc2 : associate (P => &
-                                Me%colBedSedimentLayers(A)%item)     ! association to "donating" layer A
+                                Me%colBedSedimentLayers(A)%item)        ! association to "donating" layer A
                                 if (P%colFineSediment(S)%V_f() > 0) &
-                                    then                             ! if there is sediment in the "donating" layer
+                                    then                                ! if there is sediment in the "donating" layer
                                         call r%addErrors(.errors. &
-                                        P%RemoveSediment(S, T, U))   ! remove the sediment, return amounts removed (U) and not removed (T), the delta, and any errors thrown
-                                        if (r%hasCriticalError()) then   ! if RemoveSediment throws a critical error
-                                            call r%addToTrace(tr)    ! add trace to all errors
-                                            return                   ! and exit
+                                        P%RemoveSediment(S, T, U))      ! remove the sediment, return amounts removed (U) and not removed (T), the delta, and any errors thrown
+                                        if (r%hasCriticalError()) then  ! if RemoveSediment throws a critical error
+                                            call r%addToTrace(tr)       ! add trace to all errors
+                                            return                      ! and exit
                                         end if
                                         delta_l_l(A, L, S) = &
                                             delta_l_l(A, L, S) + &
-                                            U%M_f()                  ! delta for transfer of sediment from Layer A to Layer L, correcting for material previously buried
+                                            U%M_f()                     ! delta for transfer of sediment from Layer A to Layer L, correcting for material previously buried
                                         delta_l_l(A, A, S) = &
                                             delta_l_l(A, A, S) - &
-                                            U%M_f()                  ! delta for retention of sediment in Layer A
-                                        ! print *, "l->l", A, L, S, delta_l_l(A, L, S)
+                                            U%M_f()                     ! delta for retention of sediment in Layer A
                                         call r%addErrors(.errors. &
-                                            O%addSediment(S, U))     ! add the sediment in U to the "receiving" layer L
-                                    if (r%hasCriticalError()) then   ! if AddSediment throws a critical error
-                                        call r%addToTrace(tr)        ! add trace to all errors
-                                        return                       ! and exit
+                                            O%addSediment(S, U))        ! add the sediment in U to the "receiving" layer L
+                                    if (r%hasCriticalError()) then      ! if AddSediment throws a critical error
+                                        call r%addToTrace(tr)           ! add trace to all errors
+                                        return                          ! and exit
                                     end if
                                 end if
-                                A = A - 1                            ! shift up to next "donating" layer
+                                A = A - 1                               ! shift up to next "donating" layer
                                 end associate assoc2
                             end do
                         end associate assoc1
@@ -842,61 +841,49 @@ module classBedSediment1
                 end if
             end if
         end do
-
-        do S = 1, Me%nSizeClasses                                    ! now add in the depositing sediment, work by size class
-            ! print *, "SC", s
-            ! do L = 1, Me%nLayers                                     ! start with the bottom layer and work upwards
-            do L = C%nSedimentLayers, 1, -1                                 ! start with the bottom layer and work upwards
+        V_w_tot = 0.0_dp                                                ! Initialise V_w_tot to zero
+        do S = 1, Me%nSizeClasses                                       ! now add in the depositing sediment, work by size class
+            do L = C%nSedimentLayers, 1, -1                             ! start with the bottom layer and work upwards
                 if (FS_dep(S)%M_f() > 0.0_dp) then
-                    associate(O => Me%colBedSedimentLayers(L)%item)  ! size class S in Layer L
-                    ! print *, "l, A_f and A_w", L, .dp. O%A_f(S), .dp. O%A_w(s)
-                    ! print *, "FS_dep", FS_dep(S)%V_f()
+                    associate(O => Me%colBedSedimentLayers(L)%item)     ! size class S in Layer L
                         if (.dp. O%A_f(S) > 0.0_dp .or. &
-                            .dp. O%A_w(S) > 0.0_dp) then             ! if there is available capacity in this layer, add deposition here
+                            .dp. O%A_w(S) > 0.0_dp) then                ! if there is available capacity in this layer, add deposition here
                             V_w_b = FS_dep(S)%V_f() / &
-                                .dp. O%volSLR(S)                     ! the volume of water needed to maintain SLR in the "receiving" layer,
+                                .dp. O%volSLR(S)                        ! the volume of water needed to maintain SLR in the "receiving" layer,
                             call r%addErrors(.errors. &
-                                FS_dep(S)%set(Vw_in = V_w_b))        ! if all deposition were to fit into this layer
-                            M_f_la = FS_dep(S)%M_f()                 ! store the amount of sediment still to be deposited, for computation of deltas
+                                FS_dep(S)%set(Vw_in = V_w_b))           ! if all deposition were to fit into this layer
+                            M_f_la = FS_dep(S)%M_f()                    ! store the amount of sediment still to be deposited, for computation of deltas
                             call r%addErrors(.errors. &
-                                O%addSediment(S, FS_dep(S)))         ! add the fine sediment in deposition. FS_dep(S) returns volumes that could not be added
-                            
-                            ! print *, ""
-                            ! print *, ""
-                            ! print *, "still to be dep, l, S,", L, S, FS_dep(S)%M_f()
-                            ! print *, ""
-                            ! print *, ""
-
-
-                            if (r%hasCriticalError()) then           ! if addSediment throws a critical error
-                                call r%addToTrace(tr)                ! add trace to all errors
-                                return                               ! and exit
+                                O%addSediment(S, FS_dep(S)))            ! add the fine sediment in deposition. FS_dep(S) returns volumes that could not be added
+                            if (r%hasCriticalError()) then              ! if addSediment throws a critical error
+                                call r%addToTrace(tr)                   ! add trace to all errors
+                                return                                  ! and exit
                             end if
                             delta_d_l(L, S) = &
-                                M_f_la - FS_dep(S)%M_f()             ! delta_d_l: the mass of material deposited to this layer
+                                M_f_la - FS_dep(S)%M_f()                ! delta_d_l: the mass of material deposited to this layer
                         end if
-                        V_w_tot = V_w_tot + V_w_b - FS_dep(S)%V_w()  ! tally up V_w_b to compute water requirement to take from the water column
+                        V_w_tot = V_w_tot + V_w_b - FS_dep(S)%V_w()     ! tally up V_w_b to compute water requirement to take from the water column
                     end associate
                 end if
             end do
         end do
-        r = Result(data = V_w_tot)                                   ! return Result object, with volume of water required from water column
-        do S = 1, Me%nSizeClasses                                    ! incorporate delta_d_b, delta_d_l, delta_l_b, delta_l_l into the mass transfer coefficients matrix delta_sed 
+        r = Result(data = V_w_tot)                                      ! return Result object, with volume of water required from water column
+        do S = 1, Me%nSizeClasses                                       ! incorporate delta_d_b, delta_d_l, delta_l_b, delta_l_l into the mass transfer coefficients matrix delta_sed 
             Me%delta_sed(C%nSedimentLayers + 3, 1, S) = &
                 Me%delta_sed(C%nSedimentLayers + 3, 1, S) + delta_d_b(S)    ! element (S) of delta_d_b is added to element (Layers+3, 1, S) of Me%delta_sed
             do L = 1, C%nSedimentLayers
                 Me%delta_sed(L + 2, 1, S) = &
-                    Me%delta_sed(L + 2, 1, S) + delta_d_l(L, S)      ! element (L, S) of delta_d_l is added to element (L+2, 1, S) of Me%delta_sed
+                    Me%delta_sed(L + 2, 1, S) + delta_d_l(L, S)         ! element (L, S) of delta_d_l is added to element (L+2, 1, S) of Me%delta_sed
                 Me%delta_sed(C%nSedimentLayers + 3, L + 2, S) = &
                     Me%delta_sed(C%nSedimentLayers + 3, L + 2, S) + &
-                    delta_l_b(L, S)                                  ! element (L, S) of delta_l_b is added to element (Layers+3, L+2, S) of Me%delta_sed
+                    delta_l_b(L, S)                                     ! element (L, S) of delta_l_b is added to element (Layers+3, L+2, S) of Me%delta_sed
                 do LL = 1, C%nSedimentLayers
                     if (isZero(Me%delta_sed(L + 2, LL + 2, S))) then
                         Me%delta_sed(L + 2, LL + 2, S) = 0.0_dp
                     end if
                     Me%delta_sed(L + 2, LL + 2, S) = &
                         Me%delta_sed(L + 2, LL + 2, S) + &
-                        delta_l_l(LL, L, S)                          ! element (LL, L, S) of delta_l_l is added to element (L+2, LL+2, S) of Me%delta_sed
+                        delta_l_l(LL, L, S)                             ! element (LL, L, S) of delta_l_l is added to element (L+2, LL+2, S) of Me%delta_sed
                 end do
             end do
         end do

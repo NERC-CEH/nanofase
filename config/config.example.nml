@@ -4,6 +4,7 @@
 ! arrays themselves. This is that group.
 &allocatable_array_sizes
 n_soil_layers = 3                                       ! Number of soil layers to model
+n_sediment_layers = 4                                   ! Number of sediment layers to model
 n_nm_size_classes = 5                                   ! Number of NM size classes
 n_spm_size_classes = 5                                  ! Number of SPM size classes
 n_fractional_compositions = 4                           ! Number of fractional compositions for sediment
@@ -31,7 +32,18 @@ constants_file = "data/thames/constants_tio2.nml"       ! Path to constants name
 output_path = "data/output/"                            ! Path to store the output data
 /
 
+&output
+write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
+include_sediment_layer_breakdown = .true.               ! Include breakdown of data over sediment layers?
+include_soil_layer_breakdown = .true.                   ! Include breakdown of data over soil layers?
+soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3?
+sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3?
+include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
+! output_rate_constant_summary = .true.
+/
+
 &run
+description = "Short description of model run"          ! Not used by model, but included in output data
 timestep = 86400                                        ! Length of each time step, in seconds
 n_timesteps = 365                                       ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
@@ -48,8 +60,8 @@ include_attachment = .true.                             ! Should attachment be m
 /
 
 &sediment
+sediment_layer_depth = 0.01, 0.01, 0.01, 0.01           ! Depth of each sediment layer. Array of length &allocatable_array_sizes > n_sediment_layers
 spm_size_classes = 1e-6, 3e-6, 10e-6, 30e-6, 100e-6     ! Diameter of SPM in each binned size class [m]
-n_layers = 4                                            ! How many bed sediment layers to model
 include_bed_sediment = .true.                           ! Should bed sediment be modelled?
 sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
 /

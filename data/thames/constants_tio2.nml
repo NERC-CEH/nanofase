@@ -44,6 +44,7 @@
     erosivity_b = 1.204
     hamaker_constant = 6.9e-21
     particle_density = 2500.0
+    soil_attachment_efficiency = 0.1
 /
 
 &water

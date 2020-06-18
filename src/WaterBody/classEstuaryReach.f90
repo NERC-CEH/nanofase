@@ -5,7 +5,6 @@ module classEstuaryReach
     use ResultModule
     use classBedSediment1
     use classLogger, only: LOGR
-    ! use classDataInterfacer, only: DATA
     use classReactor1
     ! use classBiota1
     implicit none

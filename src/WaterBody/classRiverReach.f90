@@ -6,7 +6,6 @@ module classRiverReach
     use classBedSediment1
     use classLogger, only: LOGR
     use classDatabase, only: DATASET
-    ! use classDataInterfacer, only: DATA
     use classReactor1
     use classBiotaWater
     implicit none
@@ -565,6 +564,11 @@ module classRiverReach
                     // trim(adjustl(iChar)) // ") exceeded. " &
                     // "Precision (proximity to zero) required: " // trim(adjustl(epsilonChar)) &
                     // ". Final value: " // trim(adjustl(fChar)) // "." &
+            )
+        else if (D_i < 0.0_dp) then
+            error = ErrorInstance( &
+                code = 300, &
+                message = "Newton's method gave negative river depth. Depth: " // trim(str(D_i)) &
             )
         else
             error = ERROR_HANDLER%getNoError()                                  ! Otherwise, no error occurred

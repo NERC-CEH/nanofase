@@ -27,6 +27,10 @@ module classEnvironment1
         procedure :: parseNewBatchData => parseNewBatchDataEnvironment1
         ! Getters
         procedure :: get_m_np => get_m_npEnvironment1
+        procedure :: get_C_np_soil => get_C_np_soilEnvironment1
+        procedure :: get_C_np_water => get_C_np_waterEnvironment1
+        procedure :: get_C_np_sediment => get_C_np_sedimentEnvironment1
+        procedure :: getBedSedimentArea => getBedSedimentAreaEnvironment1
     end type
 
   contains
@@ -45,6 +49,7 @@ module classEnvironment1
         type(ReachPointer), allocatable :: tmpHeadwaters(:)     ! Temporary headwaters array
         type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
+        me%nGridCells = 0
         ! Allocate grid cells array to be the shape of the grid
         allocate(me%colGridCells(DATASET%gridShape(1), DATASET%gridShape(2)))
         ! Loop over grid and create cells
@@ -56,6 +61,7 @@ module classEnvironment1
                     call r%addErrors(.errors. &
                         me%colGridCells(x,y)%item%create(x,y) &
                     )
+                    me%nGridCells = me%nGridCells + 1
                 ! If it is masked, still create it but tell it that it's empty
                 else
                     allocate(GridCell2::me%colGridCells(x,y)%item)
@@ -159,6 +165,11 @@ module classEnvironment1
             end if
         end if
 
+        ! Allocate the per timestep spatial mean water conc array
+        allocate(me%C_np_water_t(C%nTimeSteps, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%C_np_sediment_t(C%nTimeSteps, C%npDim(1), C%npDim(2), C%npDim(3)))
+        me%C_np_water_t = 0.0_dp
+        me%C_np_sediment_t = 0.0_dp
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
         call LOGR%toFile(errors=.errors.r)
@@ -214,6 +225,10 @@ module classEnvironment1
                 call me%colGridCells(x,y)%item%finaliseUpdate()
             end do
         end do
+
+        ! Add to the per timestep spatial weighted mean water and sediment conc array
+        me%C_np_water_t(t,:,:,:) = me%get_C_np_water()
+        me%C_np_sediment_t(t,:,:,:) = me%get_C_np_sediment()
 
     end function
     
@@ -335,7 +350,86 @@ module classEnvironment1
                 end do
             end do
         end do
-        
+    end function
+
+    !> Calculate the mean soil PEC in the environment
+    function get_C_np_soilEnvironment1(me) result(C_np_soil)
+        class(Environment1)     :: me                                                               !! This Environment instance
+        real(dp)                :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mass concentration of NM in environment [kg/kg soil]
+        real(dp)                :: C_np_soil_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per grid NM conc [kg/kg soil]
+        integer                 :: x, y, i                                                          ! Iterators
+        i = 1
+        do y = 1, size(me%colGridCells, 2)
+            do x = 1, size(me%colGridCells, 1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    associate (cell => me%colGridCells(x,y)%item)
+                        C_np_soil_i(i, :, :, :) = cell%get_C_np_soil()
+                    end associate
+                    i = i + 1
+                end if
+            end do
+        end do
+        C_np_soil = divideCheckZero(sum(C_np_soil_i, dim=1), me%nGridCells)
+    end function
+
+    !> Get the mean water NM PEC at this moment in time, by looping over all grid cells
+    !! and their water bodies and averaging.
+    function get_C_np_waterEnvironment1(me) result(C_np_water)
+        class(Environment1) :: me
+        real(dp)            :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp)            :: C_np_water_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp)            :: volumes(me%nGridCells)
+        integer             :: x, y, i
+        i = 1
+        do y = 1, size(me%colGridCells, 2)
+            do x = 1, size(me%colGridCells, 1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    associate (cell => me%colGridCells(x,y)%item)
+                        C_np_water_i(i, :, :, :) = cell%get_C_np_water()
+                        volumes(i) = cell%getWaterVolume()
+                    end associate
+                    i = i + 1
+                end if
+            end do
+        end do
+        C_np_water = weightedAverage(C_np_water_i, volumes)
+    end function
+
+    !> Get the mean sediment NM PEC [kg/kg] at this moment in time, by looping over all grid cells
+    !! and their water bodies and getting the weighted average.
+    function get_C_np_sedimentEnvironment1(me) result(C_np_sediment)
+        class(Environment1) :: me                                                                   !! The Environment
+        real(dp)            :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mean sediment PEC [kg/kg]
+        real(dp)            :: C_np_sediment_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per cell mean sediment PEC [kg/kg]
+        real(dp)            :: sedimentMasses(me%nGridCells)                                        ! Per cell sediment masses, for weighted average [kg]
+        integer             :: x, y, i                                                              ! Iterators
+        i = 1
+        do y = 1, size(me%colGridCells, 2)
+            do x = 1, size(me%colGridCells, 1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    associate (cell => me%colGridCells(x,y)%item)
+                        C_np_sediment_i(i, :, :, :) = cell%get_C_np_sediment()
+                        sedimentMasses(i) = cell%getBedSedimentMass()
+                    end associate
+                    i = i + 1
+                end if
+            end do
+        end do
+        C_np_sediment = weightedAverage(C_np_sediment_i, sedimentMasses)
+    end function
+
+    function getBedSedimentAreaEnvironment1(me) result(bedArea)
+        class(Environment1) :: me
+        real(dp)            :: bedArea
+        integer             :: x, y
+        bedArea = 0.0_dp
+        do y = 1, size(me%colGridCells, dim=2)
+            do x = 1, size(me%colGridCells, dim=1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    bedArea = bedArea + me%colGridCells(x,y)%item%getBedSedimentArea()
+                end if
+            end do
+        end do
     end function
 
 end module

@@ -17,9 +17,9 @@ cache/
 dll/
 x64/
 
-# Directory for personal code snippets and any output.txt data file
+# Directory for personal code snippets and any output data files
 snip/
-output*.*
+data/output/
 
 # Prerequisites
 *.d

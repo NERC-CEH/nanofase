@@ -3,7 +3,6 @@ module classSoilLayer1
     use Globals
     use UtilModule
     use spcSoilLayer
-    use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     use classBiotaSoil
     implicit none
@@ -170,23 +169,11 @@ module classSoilLayer1
         me%m_transformed = me%m_transformed - me%m_transformed_perc     ! Get rid of percolated transformed NM
         me%m_dissolved = me%m_dissolved - me%m_dissolved_perc   ! Get rid of dissovled species
         me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
-        do k = 1, C%npDim(3)                                    ! Calculate the concentration TODO can we get rid of is zero check?
-            do j = 1, C%npDim(2)
-                do i = 1, C%npDim(1)
-                    if (isZero(me%m_np(i,j,k))) then
-                        me%C_np(i,j,k) = 0.0_dp
-                    else
-                        me%C_np(i,j,k) = me%m_np(i,j,k) / (me%depth * me%area * me%bulkDensity)
-                    end if
-                end do
-            end do
-        end do
+        me%C_np = divideCheckZero(me%m_np, me%depth * me%area * me%bulkDensity)
         me%C_transformed = me%m_transformed / (me%depth * me%area * me%bulkDensity)
         me%C_dissolved = me%m_dissolved / (me%depth * me%area * me%bulkDensity)
 
-        ! Emit a warning if all water removed. C%epsilon is a tolerance to account for impression
-        ! in floating point numbers. Here, we're really checking whether me%V_w == 0
-        ! Error code 600 = "All water removed from SoilLayer"
+        ! Emit a warning if all water removed
         if (isZero(me%V_w) .and. initial_V_w > 0) then
             call r%addError(ErrorInstance(600, isCritical=.false.))
         end if
@@ -222,7 +209,7 @@ module classSoilLayer1
         integer             :: i
         real(dp)            :: dm_att
         if (C%includeAttachment) then
-            do i = 1, DATASET%nSizeClassesNM
+            do i = 1, C%nSizeClassesNM
                 ! Pristine NM
                 dm_att = min(me%k_att(i)*C%timeStep*me%m_np(i,1,1), me%m_np(i,1,1))     ! Mass to move from free -> attached, max of the current mass
                 me%m_np(i,1,1) = me%m_np(i,1,1) - dm_att                                ! Remove from free
@@ -286,8 +273,8 @@ module classSoilLayer1
         N_VDW = DATASET%soilHamakerConstant / kBT                                       ! Van der Waals number
         A_s = 2 * (1 - gamma**5) / (2 - 3 * gamma + 3 * gamma**5 - 2 * gamma**6)        ! Porosity dependent param
         ! Loop through NM size classes for the parameters that are dependent on NM size
-        do i = 1, DATASET%nSizeClassesNM
-            r_i = DATASET%nmSizeClasses(i) * 0.5                                        ! NM radius
+        do i = 1, C%nSizeClassesNM
+            r_i = C%d_nm(i) * 0.5                                                       ! NM radius
             D_i = kBT / (6 * C%pi * C%mu_w(DATASET%waterTemperature) * r_i)             ! Diffusivity of NM particle
             N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                         ! Peclet number
             N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(DATASET%waterTemperature)) * C%g &

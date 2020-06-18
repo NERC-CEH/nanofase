@@ -9,6 +9,7 @@ module UtilModule
         module procedure strFromInteger
         module procedure strFromReal
         module procedure strFromDp
+        module procedure strFromLogical
     end interface
 
     interface ref
@@ -30,6 +31,24 @@ module UtilModule
         module procedure isLessThanZeroReal
         module procedure isLessThanZeroDp
     end interface
+
+    interface divideCheckZero
+        module procedure divideCheckZeroReal
+        module procedure divideCheckZeroDp
+        module procedure divideCheckZeroRealNumeratorIntegerDenominator
+        module procedure divideCheckZeroDpNumeratorIntegerDenominator
+    end interface
+
+    interface weightedAverage
+        module procedure weightedAverageDp
+        module procedure weightedAverageDp1D
+        module procedure weightedAverageDp2D
+        module procedure weightedAverageDp3D
+    end interface
+
+    ! procedure freeNM
+    ! procedure attachedNM
+    ! procedure heteroaggregatedNM
 
     contains
         !> print a set of r x c matrices to the console
@@ -95,9 +114,19 @@ module UtilModule
         !> Convert a double-precision real to a string
         function strFromDp(r) result(str)
             real(dp), intent(in) :: r           !! The integer to convert to a string
-            character(len=256) :: str       !! The string to return
+            character(len=256) :: str           !! The string to return
             write(str, *)r
             str = trim(adjustl(str))
+        end function
+
+        function strFromLogical(l) result(str)
+            logical, intent(in) :: l
+            character(len=5) :: str
+            if (l) then
+                str = "true"
+            else
+                str = "false"
+            end if
         end function
 
         !> Generate an object reference from a prefix (e.g., "GridCell")
@@ -168,7 +197,7 @@ module UtilModule
         end function
 
         !> Check whether a real value is within epsilon of zero
-        function isZeroReal(value, epsilon)
+        pure function isZeroReal(value, epsilon)
             real, intent(in)                :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
@@ -183,7 +212,7 @@ module UtilModule
         end function
 
         !> Check whether a real(dp) value is within epsilon of zero
-        function isZeroDp(value, epsilon)
+        pure function isZeroDp(value, epsilon)
             real(dp), intent(in)            :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
@@ -197,7 +226,7 @@ module UtilModule
             if (abs(value) < e) isZeroDp = .true.
         end function
 
-        function isZeroDp3D(value, epsilon)
+        pure function isZeroDp3D(value, epsilon)
             real(dp), intent(in)            :: value(:,:,:)     !! Value to check
             real(dp), intent(in), optional  :: epsilon          !! Proximity to zero permitted
             real(dp)                        :: e                !! Internal epsilon
@@ -249,5 +278,126 @@ module UtilModule
             if (value <= -e) isLessThanZeroDp = .true.
         end function
 
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroReal(numerator, denominator)
+            real, intent(in) :: numerator
+            real, intent(in) :: denominator
+            real :: divideCheckZeroReal
+            if (isZero(numerator)) then
+                divideCheckZeroReal = 0.0
+            else
+                divideCheckZeroReal = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroDp(numerator, denominator)
+            real(dp), intent(in) :: numerator
+            real(dp), intent(in) :: denominator
+            real(dp) :: divideCheckZeroDp
+            if (isZero(numerator)) then
+                divideCheckZeroDp = 0.0_dp
+            else
+                divideCheckZeroDp = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroRealNumeratorIntegerDenominator(numerator, denominator)
+            real, intent(in) :: numerator
+            integer, intent(in) :: denominator
+            real :: divideCheckZeroRealNumeratorIntegerDenominator
+            if (isZero(numerator)) then
+                divideCheckZeroRealNumeratorIntegerDenominator = 0.0_dp
+            else
+                divideCheckZeroRealNumeratorIntegerDenominator = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroDpNumeratorIntegerDenominator(numerator, denominator)
+            real(dp), intent(in) :: numerator
+            integer, intent(in) :: denominator
+            real(dp) :: divideCheckZeroDpNumeratorIntegerDenominator
+            if (isZero(numerator)) then
+                divideCheckZeroDpNumeratorIntegerDenominator = 0.0_dp
+            else
+                divideCheckZeroDpNumeratorIntegerDenominator = numerator / denominator
+            end if
+        end function
+
+        function weightedAverageDp(x, w) result(x_w)
+            real(dp), intent(in) :: x(:)
+            real(dp), intent(in) :: w(:)
+            real(dp) :: x_w
+            x_w = divideCheckZero(sum(x * w), sum(w))
+        end function
+
+        !> Calculate the weighted average of an array of 1D variables (i.e. a 2D array)
+        !! using the provided weights
+        function weightedAverageDp1D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:)
+            integer :: i
+            allocate(x_w(size(x, dim=2)))
+            do i = 1, size(x, dim=2)
+                x_w(i) = weightedAverage(x(:,i), w)
+            end do
+        end function
+
+        !> Calculate the weighted average of an array of 2D variables (i.e. a 3D array)
+        !! using the provided weights
+        function weightedAverageDp2D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:,:)
+            integer :: i, j
+            allocate(x_w(size(x, dim=2), size(x, dim=3)))
+            do j = 1, size(x, dim=3)    
+                do i = 1, size(x, dim=2)
+                    x_w(i,j) = weightedAverage(x(:,i,j), w)
+                end do
+            end do
+        end function
+
+        !> Calculate the weighted average of an array of 3D variables (i.e. a 4D array)
+        !! using the provided weights
+        function weightedAverageDp3D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:,:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:,:,:)
+            integer :: i, j, k
+            allocate(x_w(size(x, dim=2), size(x, dim=3), size(x, dim=4)))
+            do k = 1, size(x, dim=4)
+                do j = 1, size(x, dim=3)
+                    do i = 1, size(x, dim=2)
+                        x_w(i,j,k) = weightedAverage(x(:,i,j,k), w)
+                    end do
+                end do
+            end do
+        end function
+
+        function freeNM(x) result(free)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: free(C%nSizeClassesNM)
+            free = x(:,1,1)
+        end function
+
+        function attachedNM(x) result(attached)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: attached(C%nSizeClassesNM)
+            attached = x(:,1,2)
+        end function
+
+        function heteroaggregatedNM(x) result(heteroaggregated)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: heteroaggregated(C%nSizeClassesNM)
+            heteroaggregated = sum(x(:,1,3:), dim=1)
+        end function
 
 end module

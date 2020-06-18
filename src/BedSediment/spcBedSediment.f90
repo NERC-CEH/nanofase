@@ -21,13 +21,12 @@ module spcBedSediment
         character(len=256) :: name                                   !! Name for this object, of the form *BedSediment_x_y_s_r*
         class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:) !! Collection of `BedSedimentLayer` objects
         integer :: nSizeClasses                                      !! Number of fine sediment size classes
-        integer :: nLayers                                           !! Number of layers (`BedSedimentLayer` objects)
         real(dp), allocatable :: delta_sed(:,:,:)                    !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
         integer :: nfComp                                            !! number of fractional composition terms for sediment
         type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`
         ! Nanomaterials
         real(dp), allocatable :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
-        real(dp), allocatable :: C_np_byMass(:,:,:,:)               !! Concentration of nanomaterial [kg/kg dw]
+        real(dp), allocatable :: C_np_byMass(:,:,:,:)               !! Concentration of NM across sediment layers [kg/kg dw]
     contains
                                                                      ! deferred methods: must be defined in all subclasses
         procedure(createBedSediment), public, deferred :: &
@@ -55,6 +54,14 @@ module spcBedSediment
         procedure, public :: Mf_bed_by_size => Get_Mf_bed_by_size    ! fine sediment mass in all size classes (1D array by size)
         procedure, public :: Mf_bed_by_layer => get_Mf_bed_by_layer  ! fine sediment mass as an array of all layers
         procedure, public :: V_w_by_layer => get_V_w_by_layer        ! total water volume in each layer
+        ! Getters
+        procedure, public :: get_m_np => get_m_npBedSediment
+        procedure, public :: get_C_np => get_C_npBedSediment
+        procedure, public :: get_C_np_byMass => get_C_np_byMassBedSediment
+        procedure, public :: get_m_np_l => get_m_np_lBedSediment
+        procedure, public :: get_C_np_l => get_C_np_lBedSediment
+        procedure, public :: get_C_np_l_byMass => get_C_np_l_byMassBedSediment
+        procedure, public :: get_m_np_buried => get_m_np_buriedBedSediment
     end type
     abstract interface
         !> **Function purpose**                                         <br>
@@ -490,11 +497,7 @@ contains
             V_w(i) = .dp. me%colBedSedimentLayers(i)%item%V_w_layer()
         end do
     end function
-    !> **function purpose**
-    !!
-    !!
-    !!
-    !!
+    
     function Get_Mf_bed_by_size(Me) result(Mf_size)
         class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
         integer :: L                                                 ! LOCAL loop counter
@@ -513,17 +516,63 @@ contains
             Mf_size(S) = Mf                                          ! assign to array for output
         end do
     end function
-                                ! Get the FineSediment objects from the Result1D object, temporarily
-                                !! store in array and then assign to U and T
-                                !tmpFineSediment = .finesediment. r1D
-                                !U = tmpFineSediment(1)               ! sediment removed - to be added to Layer L
-                                !T = tmpFineSediment(2)               ! sediment not removed - *** should be none ***
-                                !r0D = O%addSediment(S, U)            ! add the sediment in U to the "receiving" layer
-                                !! SL: r0D returns fine sediment that could not be added - *** should be none ***
-                                !call r%addErrors(.errors. r0D)       ! retrieve errors into main Result object
-                                !if (r%hasCriticalError()) then       ! if RemoveSediment throws a critical error
-                                !    call r%addToTrace(tr)            ! add trace to all errors
-                                !    return                           ! and exit
-                                !end if
+    
+    !> Get the current mass of NM in all bed sediment layers
+    function get_m_npBedSediment(me) result(m_np)
+        class(BedSediment)  :: me                                           !! This BedSediment instance
+        real(dp)            :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))     !! NM mass in all bed sediment layers [kg/m2]
+        ! Sum the layer mass from the bed sediment m_np array. The first two elements
+        ! are ignored as they are deposited and resuspended NM
+        m_np = sum(me%m_np(3:C%nSedimentLayers+2,:,:,:), dim=1)
+    end function
+
+    !> Get the NM mass in layer l [kg/m2]
+    function get_m_np_lBedSediment(me, l) result(m_np_l)
+        class(BedSediment)  :: me                                           !! This BedSediment instance 
+        integer             :: l                                            !! Layer index to retrieve NM mass for
+        real(dp)            :: m_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM mass in layer l
+        m_np_l = me%m_np(2+l,:,:,:)
+    end function
+
+    !> Get the current NM PEC [kg/m3] across all bed sediment layers
+    function get_C_npBedSediment(me) result(C_np)
+        class(BedSediment)  :: me                                           !! This BedSediment instance
+        real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))     !! NM PEC across all bed sediment layers [kg/m3]
+        C_np = me%get_m_np() / sum(C%sedimentLayerDepth)
+    end function
+
+    !> Get the current NM PEC by volume [kg/m3] in layer 1
+    function get_C_np_lBedSediment(me, l) result(C_np_l)
+        class(BedSediment)  :: me                                           !! This BedSediment instance
+        integer             :: l                                            !! Layer index to retrieve NM PEC for
+        real(dp)            :: C_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM PEC in layer l
+        C_np_l = me%get_m_np_l(l) / C%sedimentLayerDepth(l)
+    end function
+
+    !> Get the current NM PEC by mass [kg/kg] across all bed sediment layers
+    function get_C_np_byMassBedSediment(me) result(C_np_byMass)
+        class(BedSediment)  :: me                                               !! This BedSediment instance
+        real(dp)            :: C_np_byMass(C%npDim(1), C%npDim(2), C%npDim(3))  !! NM PEC across all bed layers [kg/kg]
+        real(dp)            :: layerMasses(C%nSedimentLayers)                   !! Mass (per m2) of each layer to weight average NM PEC by [kg/m2]
+        ! Get the masses of the sediment in each layer to use in weighting PEC average
+        layerMasses = me%Mf_bed_by_layer()
+        ! Calculate the weighted average using these masses
+        C_np_byMass = weightedAverage(me%C_np_byMass, layerMasses)
+    end function
+
+    !> Get the current NM PEC by mass [kg/kg] in layer l 
+    function get_C_np_l_byMassBedSediment(me, l) result(C_np_l_byMass)
+        class(BedSediment)  :: me                                                   !! This BedSediment instance
+        integer             :: l                                                    !! Layer index to retrieve NM PEC for
+        real(dp)            :: C_np_l_byMass(C%npDim(1), C%npDim(2), C%npDim(3))    !! NM PEC by mass for layer l [kg/kg]
+        C_np_l_byMass = me%C_np_byMass(l,:,:,:)
+    end function
+    
+    !> Get the mass of NM buried on this timestep [kg/m2]
+    function get_m_np_buriedBedSediment(me) result(m_np_buried)
+        class(BedSediment)  :: me                                                   !! This BedSediment instance
+        real(dp)            :: m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3))      !! Mass of buried NM [kg/m2]
+        m_np_buried = me%m_np(C%nSedimentLayers+3,:,:,:)
+    end function
 
 end module
