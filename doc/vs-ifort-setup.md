@@ -25,7 +25,7 @@ $ cd nanofase
 $ git submodule update --init --recursive
 ```
 
-You may also need to create a couple of new directories, if you use the default config files provided: `log` and `data/output`:
+You may also need to create a couple of new directories, if you use the [example config file](../config/config.example.nml) provided: `log` and `data/output`:
 
 ```shell
 $ mkdir data/output log
@@ -35,12 +35,11 @@ $ mkdir data/output log
 
 Open VS, go to `File > New > Fortran Project from Existing Code`. Fill in the details in the box that pops up as follows. For "Add files to the project from this folder", select the folder you've just cloned the model into. Untick the checkbox to "Create default virtual folders structure" (unless you actually like VS's virtual folders structure), and add `*.nml;` to the end of the "File types to add to the project" text box. Click Next.
 
-Keep the defaults of "Application" and not 32-bit for the next screen. Click Finish.
+Keep the defaults for the next screen. Click Finish.
 
 ## Step 3, selecting the correct files to compile
 
 You now need to tag some files that shouldn't be compiled. Locate the following in the Solution Explorer window (`Ctrl+0` if it's not open):
-- `src/vendor/feh/ResultFineSediment.f90`
 - `vendor/datetime-fortran/tests/datetime_tests.f90`
 - `vendor/feh/example/*`
 - `vendor/mo_netcdf/examples/*`

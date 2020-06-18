@@ -1,6 +1,6 @@
 # Data output
 
-Data output is handled by the [`DataOutput`](../src/Data/DataOutputModule.f90) class and configured in the [model config file](../config.example.nml). Output is to a series of text files:
+Data output is handled by the [`DataOutput`](../src/Data/DataOutputModule.f90) class and configured in the [model config file](../config/config.example.nml). Output is to a series of text files:
 
 - `simulation_summary.md`: A plain-text summary of the model simulation, including compartmental mean PECs. These means are simply a summary of what is output in the following CSV files.
 - `output_water.csv`: Output data for every waterbody.
