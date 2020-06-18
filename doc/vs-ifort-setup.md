@@ -52,9 +52,9 @@ Select all of these (holding `Ctrl` to select multiple files) then press `Alt+En
 First off, if you have NetCDF installed, locate the directories containing the lib, bin and include files. If not, they are available for 32-bit Windows in the NanoFASE WP2 NERC Dropbox folder: `Dropbox\NanoFASE WP2 NERC\NetCDF`. In the following, the folder structure in this Dropbox folder is assumed, and `path\to\netcdf\` is the path to that folder.
 
 Go to `Project > <project name> Properties` and change the following options:
-- `General > Output directory`: Change to somewhere that you can run exes from without tripping Carbon Black.
-- `General > Target directory`: If you have a Carbon Black rule that requires a particular filename convention, use that here.
-- `Debugging > Command Arguments`: Add the path to your config file here. Examples are given in `config/` and it's highly recommended you use one of these. `config/calibrate.nml` is the most relevant if you wish to perform calibration, and `config/thames.nml` is the best if you wish to run the model without calibration for the whole of the Thames catchment.
+- `General > Output Directory`: Change to somewhere that you can run exes from without tripping Carbon Black.
+- `General > Target Name`: If you have a Carbon Black rule that requires a particular filename convention, use that here.
+- `Debugging > Command Arguments`: Add the path to your config file here. An examples is given at `config/config.example.nml` and it's highly recommended you use this to begin.
 - `Fortran > General > Additional Include Directories`: Set to `path\to\netcdf\NetCDF32\include; path\to\netcdf\NetCDFF\include\ia32`.
 - Make sure `Fortran > Preprocessor > Additional Include Directories` is the same.
 - `Fortran > Floating Point > Floating-Point Exception Handling`: Set to "Underflow gives 0.0; Abort on other IEEE exceptions (/fpe:0)", because there's something wrong if we're getting FPEs!
