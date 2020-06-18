@@ -46,6 +46,10 @@ module UtilModule
         module procedure weightedAverageDp3D
     end interface
 
+    ! procedure freeNM
+    ! procedure attachedNM
+    ! procedure heteroaggregatedNM
+
     contains
         !> print a set of r x c matrices to the console
         subroutine print_matrix(m)
@@ -377,4 +381,23 @@ module UtilModule
                 end do
             end do
         end function
+
+        function freeNM(x) result(free)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: free(C%nSizeClassesNM)
+            free = x(:,1,1)
+        end function
+
+        function attachedNM(x) result(attached)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: attached(C%nSizeClassesNM)
+            attached = x(:,1,2)
+        end function
+
+        function heteroaggregatedNM(x) result(heteroaggregated)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: heteroaggregated(C%nSizeClassesNM)
+            heteroaggregated = sum(x(:,1,3:), dim=1)
+        end function
+
 end module

@@ -18,6 +18,12 @@ module Globals
         character(len=256)  :: outputPath                       !! Path to directory to store output data
         logical             :: writeCSV                         !! Should output data be written as CSV file?
         logical             :: writeNetCDF                      !! Should output data be written as NetCDF file?
+        logical             :: writeMetadataAsComment           !! Should CSV files be prepended with metadata as a #-delimited comment?
+        logical             :: includeSedimentLayerBreakdown    !! Include breakdown of data over sediment layers?
+        logical             :: includeSoilLayerBreakdown        !! Include breakdown of data over soil layers?
+        character(len=5)    :: soilPECUnits                     !! What units to use for soil PEC - kg/m3 or kg/kg dw?
+        character(len=5)    :: sedimentPECUnits                 !! What units to use for sediment PEC - kg/m4 or kg/kg dw?
+        logical             :: includeSoilStateBreakdown        !! Should the breakdown of NM state (free vs attached) be included?
         ! Run
         character(len=256)  :: runDescription                   !! Short description of model run
         character(len=256)  :: logFilePath                      !! Log file path
@@ -27,6 +33,7 @@ module Globals
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
         real, allocatable   :: soilLayerDepth(:)                !! Soil layer depth [m]
+        real, allocatable   :: sedimentLayerDepth(:)            !! Sediment layer depth [m]
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
@@ -98,29 +105,40 @@ module Globals
             startDateStr, site_data, description
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
+        character(len=5) :: soil_pec_units, sediment_pec_units
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions
-        integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_layers
+        integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_sediment_layers
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_alpha_hetero_estuary
-        real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), sediment_particle_densities(:)
+        real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
+            sediment_particle_densities(:), sediment_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
-            calibration_run, write_csv, write_netcdf
+            calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
+            include_soil_layer_breakdown, include_soil_state_breakdown
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
-            n_fractional_compositions
+            n_fractional_compositions, n_sediment_layers
         namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
         namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
-        namelist /data/ input_file, constants_file, output_path, write_csv, write_netcdf
+        namelist /data/ input_file, constants_file, output_path
+        namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
+            soil_pec_units, sediment_pec_units, include_soil_state_breakdown
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
             description
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
-        namelist /sediment/ spm_size_classes, n_layers, include_bed_sediment, sediment_particle_densities
+        namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
         namelist /sources/ include_point_sources
 
         ! Defaults, which will be overwritten if present in config file
         write_csv = .true.
         write_netcdf = .false.
         description = ""
+        write_metadata_as_comment = .true.
+        include_sediment_layer_breakdown = .true.
+        include_soil_layer_breakdown = .true.
+        include_soil_state_breakdown = .false.
+        soil_pec_units = 'kg/kg'
+        sediment_pec_units = 'kg/kg'
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -149,6 +167,7 @@ module Globals
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
         allocate(soil_layer_depth(n_soil_layers))
+        allocate(sediment_layer_depth(n_sediment_layers))
         allocate(other_sites(n_other_sites))
         allocate(nm_size_classes(n_nm_size_classes))
         allocate(spm_size_classes(n_spm_size_classes))
@@ -157,9 +176,9 @@ module Globals
         read(10, nml=nanomaterial); rewind(10)
         read(10, nml=calibrate); rewind(10)
         read(10, nml=data); rewind(10)
+        read(10, nml=output); rewind(10)
         read(10, nml=run); rewind(10)
         read(10, nml=soil); rewind(10)
-        ! read(10, nml=water); rewind(10)
         read(10, nml=sediment); rewind(10)
         read(10, nml=sources); rewind(10)
         close(10)
@@ -174,8 +193,15 @@ module Globals
         C%inputFile = input_file
         C%constantsFile = constants_file
         C%outputPath = output_path
+        ! Output
         C%writeCSV = write_csv
         C%writeNetCDF = write_netcdf
+        C%writeMetadataAsComment = write_metadata_as_comment
+        C%includeSedimentLayerBreakdown = include_sediment_layer_breakdown
+        C%includeSoilLayerBreakdown = include_soil_layer_breakdown
+        C%soilPECUnits = soil_pec_units
+        C%sedimentPECUnits = sediment_pec_units
+        C%includeSoilStateBreakdown = include_soil_state_breakdown
         ! Run
         C%runDescription = description
         C%logFilePath = log_file_path
@@ -193,9 +219,10 @@ module Globals
             C%otherSites = other_sites
         end if
         ! Sediment
+        C%sedimentLayerDepth = sediment_layer_depth
         C%nSizeClassesSpm = n_spm_size_classes
         C%includeBedSediment = include_bed_sediment
-        C%nSedimentLayers = n_layers
+        C%nSedimentLayers = n_sediment_layers
         allocate(C%d_spm, source=spm_size_classes)
         C%nFracCompsSpm = n_fractional_compositions
         allocate(C%sedimentParticleDensities, source=sediment_particle_densities)

@@ -86,7 +86,6 @@ module classDatabase
         real :: estuaryMeanderingFactor             ! Estuary meandering factor, used to calculate distance to mouth [-]
         real :: estuaryMouthCoords(2)               ! Coordinates of the estuary mouth, used to calculate distance to mouth
         ! Sediment
-        real, allocatable :: sedimentCapacity(:)    ! Capacity of the bed sediment layers [m3/m2]
         real, allocatable :: sedimentPorosity(:)    ! Porosity of the bed sediment layers [-]
         real, allocatable :: sedimentInitialMass(:) ! Initial mass of each sediment size class [kg/m2]
         real, allocatable :: sedimentFractionalComposition(:) ! Distribution of sediment amongst fractional compositions [-]
@@ -725,7 +724,6 @@ module classDatabase
         me%estuaryMeanderingFactor = estuary_meandering_factor
         me%estuaryMouthCoords = estuary_mouth_coords
         ! Sediment
-        me%sedimentCapacity = capacity
         me%sedimentInitialMass = initial_mass
         me%sedimentPorosity = porosity
         me%sedimentFractionalComposition = fractional_composition_distribution

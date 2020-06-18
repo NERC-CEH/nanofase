@@ -99,6 +99,7 @@ module spcGridCell
         procedure(get_C_np_sedimentGridCell), deferred :: get_C_np_sediment
         procedure(getWaterVolumeGridCell), deferred :: getWaterVolume
         procedure(getBedSedimentAreaGridCell), deferred :: getBedSedimentArea
+        procedure(getBedSedimentMassGridCell), deferred :: getBedSedimentMass
     end type
       
     !> Container type for polymorphic `GridCell`s
@@ -243,6 +244,13 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me
             real(dp) :: bedArea
+        end function
+
+        function getBedSedimentMassGridCell(me) result(sedimentMass)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp) :: sedimentMass
         end function
     end interface
 end module

@@ -7,6 +7,20 @@ Project links:
  - [Facebook](https://www.facebook.com/nanofase/)
  - [Twitter](https://twitter.com/NanoFASE_EU)
 
+## Getting the code
+
+Simply clone this repo, making sure to specify `--recurse-submodules` to pull in code for the submodules in the `vendor/` directory:
+
+```shell
+$ git clone https://github.com/nerc-ceh/nanofase.git --recurse-submodules
+```
+
+If you forget the `--recurse-submodule` flag, then run the following from the repo directory:
+
+```shell
+$ git submodule update --init --recursive
+```
+
 ## Compiling
 
 The model code is regularly compiled using the latest version of gfortran (9.2.1 at the time of writing), and periodically using ifort 18. We recommend using gfortran to avoid complications (`sudo apt-get install gcc gfortran`). An example makefile ([Makefile.example](./Makefile.example)) is provided. If you already have NetCDF installed, then compiling the model is as simple as making the `bin` directory to place your exectuble in, then running `make`:
@@ -25,6 +39,8 @@ The only dependency outside of the `vendor` directory (which are compiled from s
 $ sudo apt-get install libnetcdf-dev
 $ sudo apt-get install libnetcdff-dev
 ```
+
+If your system has multiple versions of gfortran, make sure that the NetCDF libraries are compiled using the same compiler version. Issues can occur if, for instance, you have an older version of gfortran installed that is run using the `gfortran` command, and version 9 installed that is run using `gfortran-9`. `apt-get` will default to compiling NetCDF using the `gfortran` command, and thus the compiled libraries will not be compatible with NanoFASE model code compiled using `gfortran-9`. Updating your operating system to a recent version (e.g. Ubuntu 18 or 20) should solve these issues.
 
 If you're on Windows and not using Cygwin or MinGW, it's likely you will have to build from source. Good luck.
 
@@ -51,6 +67,10 @@ $ ./bin/main /path/to/config/file.nml
 ### Input data
 
 The config file is responsible for telling the model where the input data are (via the `&data` group). To compile your own input data for the NanoFASE model, it is highly recommended that you use the [NanoFASE data module](https://github.com/NERC-CEH/nanofase-data). This module is responsible for (amongst other things) compiling multiple spatial and/or temporal input files into the main NetCDF input file required by the model. It is included as a submodule to this repo: [vendor/nanofase-data](./vendor/nanofase-data).
+
+### Output data
+
+Output data is [documented here](./doc/output.md).
 
 ### Batch runs
 

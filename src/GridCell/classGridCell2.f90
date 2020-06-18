@@ -40,6 +40,7 @@ module classGridCell2
         procedure :: get_C_np_sediment => get_C_np_sedimentGridCell2
         procedure :: getWaterVolume => getWaterVolumeGridCell2
         procedure :: getBedSedimentArea => getBedSedimentAreaGridCell2
+        procedure :: getBedSedimentMass => getBedSedimentMassGridCell2
         procedure :: getTotalReachLength => getTotalReachLengthGridCell2
         ! Calculators
         procedure :: reachLineParamsFromInflowsOutflow => reachLineParamsFromInflowsOutflowGridCell2
@@ -67,10 +68,13 @@ module classGridCell2
         me%y = y
         if (present(isEmpty)) me%isEmpty = isEmpty      ! isEmpty defaults to false if not present
         me%ref = trim(ref("GridCell", x, y))            ! ref() interface is from the Util module
-        me%nSoilProfiles = 1                            ! Only one soil profile, for the moment
+        me%nSoilProfiles = 0                            ! Default to no soil profiles
         
         ! Only carry on if there's stuff to be simulated for this GridCell
         if (.not. me%isEmpty) then
+
+            ! If cell not empty, then create just one soil profile
+            me%nSoilProfiles = 1
             
             ! Parse the input data for this cell
             rslt = me%parseInputData()
@@ -620,22 +624,24 @@ module classGridCell2
     end function
    
     !> Get the current weighted mean sediment PEC [kg/kg] in this grid cell,
-    !! weighted by the current bed sediment area in the cell
+    !! weighted by the current sediment masses in the cell
     function get_C_np_sedimentGridCell2(me) result(C_np_sediment)
         class(GridCell2)    :: me                                                   !! This GridCell instance
         real(dp)            :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))    !! Mass concentration of NM in this GridCell's sediment [kg/kg]
         real(dp)            :: C_np_sediment_b(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per sediment NM concentration [kg/kg]
-        real(dp)            :: bedAreas(me%nReaches)                                ! Bed sediment areas [m2] of each reach, used for weighting
-        integer             :: i                                                    ! Iterator 
+        real(dp)            :: sedimentMasses(me%nReaches)                          ! Mass of sediment in each reach, used to weight average [kg]
+        integer             :: i                                                    ! Iterator
         ! Loop over the water bodies in this cell and get sediment PEC and bed area
         do i = 1, me%nReaches
             associate (bedSediment => me%colRiverReaches(i)%item%bedSediment)
-                C_np_sediment_b(i, :, :, :) = divideCheckZero(sum(bedSediment%C_np_byMass, dim=1), C%nSedimentLayers)
+                ! Get the NM PEC [kg/kg] for each sediment
+                C_np_sediment_b(i, :, :, :) = bedSediment%get_C_np_byMass()
+                ! Get the sediment mass from BedSediment [kg/m2] and multiple by bed area to give total mass
+                sedimentMasses(i) = .dp. bedSediment%Mf_bed_all() * me%colRiverReaches(i)%item%bedArea
             end associate
-            bedAreas(i) = me%colRiverReaches(i)%item%bedArea
         end do
         ! Get the weighted mean across the bed sediments, using bed area as the weight
-        C_np_sediment = weightedAverage(C_np_sediment_b, bedAreas)
+        C_np_sediment = weightedAverage(C_np_sediment_b, sedimentMasses)
     end function
 
     !> Get the total volume of water [m3] in this grid cell
@@ -657,6 +663,20 @@ module classGridCell2
         bedArea = 0.0_dp
         do i = 1, me%nReaches
             bedArea = bedArea + me%colRiverReaches(i)%item%bedArea
+        end do
+    end function
+
+    !> Get the total mass of sediment [kg] in this grid cellg
+    function getBedSedimentMassGridCell2(me) result(sedimentMass)
+        class(GridCell2)    :: me               !! This GridCell instance
+        real(dp)            :: sedimentMass     !! Bed sediment mass [kg]
+        integer             :: i                ! Iterator
+        sedimentMass = 0.0_dp
+        ! Loop over the reaches and sum the total masses of sediment in each reach
+        do i = 1, me%nReaches
+            sedimentMass = sedimentMass &
+                + .dp. me%colRiverReaches(i)%item%bedSediment%Mf_bed_all() &        ! Sediment mass in this reach, kg/m2
+                * me%colRiverReaches(i)%item%bedArea                                ! Mutiply by bed area to get total mass in this reach 
         end do
     end function
 

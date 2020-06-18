@@ -299,10 +299,9 @@ module spcReach
         ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
         ! Retrieve the amount of water to be taken from the reach
         V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
-        ! Subtract that volume for the reach (as a depth)
-        ! TODO: Subtracting the water doesn't have any effect at the moment,
-        ! since the depth is recalculated based on hydrology at the start
-        ! of every time step.
+        ! Subtract that volume for the reach (as a depth). This doesn't have any effect on
+        ! the model calculations, as the model recalculates depth depth on hydrology at the
+        ! start of every timestep. However, it is this updated depth that is saved to data.
         me%depth = me%depth - V_water_toDeposit
 
         ! Add any errors that occured in the deposit procedure

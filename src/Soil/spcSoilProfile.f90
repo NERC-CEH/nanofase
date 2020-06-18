@@ -57,6 +57,7 @@ module spcSoilProfile
         real(dp) :: porosity                                        !! Soil porosity [%]
         real(dp) :: bulkDensity                                     !! Soil bulk density [kg/m3]
         real(dp) :: earthwormDensity                                !! Earthworm density [individuals/m2]
+        character(len=23) :: dominantLandUseName                    !! Name of the dominant land use category in this cell
         ! Soil erosion
         real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]
         real(dp) :: usle_K                                          !! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
@@ -97,7 +98,12 @@ module spcSoilProfile
         procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
+        procedure(get_m_np_SoilProfile), deferred :: get_m_np
+        procedure(get_m_transformed_SoilProfile), deferred :: get_m_transformed
+        procedure(get_m_dissolved_SoilProfile), deferred :: get_m_dissolved
         procedure(get_C_np_SoilProfile), deferred :: get_C_np
+        procedure(get_C_transformed_SoilProfile), deferred :: get_C_transformed
+        procedure(get_C_dissolved_SoilProfile), deferred :: get_C_dissolved
     end type
 
     !> Container type for `class(SoilProfile)` such that a polymorphic
@@ -215,11 +221,46 @@ module spcSoilProfile
             class(SoilProfile) :: me
         end subroutine
 
+        function get_m_np_SoilProfile(me) result(m_np)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_m_transformed_SoilProfile(me) result(m_transformed)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_m_dissolved_SoilProfile(me) result(m_dissolved)
+            use Globals, only: dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: m_dissolved
+        end function
+
         function get_C_np_SoilProfile(me) result(C_np)
             use Globals, only: C, dp
             import SoilProfile
             class(SoilProfile) :: me
             real(dp) :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_C_transformed_SoilProfile(me) result(C_transformed)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: C_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
+        end function
+
+        function get_C_dissolved_SoilProfile(me) result(C_dissolved)
+            use Globals, only: dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: C_dissolved
         end function
     end interface
 

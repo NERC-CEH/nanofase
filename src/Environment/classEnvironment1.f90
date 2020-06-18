@@ -395,13 +395,13 @@ module classEnvironment1
         C_np_water = weightedAverage(C_np_water_i, volumes)
     end function
 
-    !> Get the mean sediment NM PEC at this moment in time, by looping over all grid cells
-    !! and their water bodies and averaging.
+    !> Get the mean sediment NM PEC [kg/kg] at this moment in time, by looping over all grid cells
+    !! and their water bodies and getting the weighted average.
     function get_C_np_sedimentEnvironment1(me) result(C_np_sediment)
         class(Environment1) :: me                                                                   !! The Environment
         real(dp)            :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mean sediment PEC [kg/kg]
         real(dp)            :: C_np_sediment_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per cell mean sediment PEC [kg/kg]
-        real(dp)            :: bedAreas(me%nGridCells)                                              ! Per cell bed areas, for weighted average [m2]
+        real(dp)            :: sedimentMasses(me%nGridCells)                                        ! Per cell sediment masses, for weighted average [kg]
         integer             :: x, y, i                                                              ! Iterators
         i = 1
         do y = 1, size(me%colGridCells, 2)
@@ -409,13 +409,13 @@ module classEnvironment1
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
                     associate (cell => me%colGridCells(x,y)%item)
                         C_np_sediment_i(i, :, :, :) = cell%get_C_np_sediment()
-                        bedAreas(i) = cell%getBedSedimentArea()
+                        sedimentMasses(i) = cell%getBedSedimentMass()
                     end associate
                     i = i + 1
                 end if
             end do
         end do
-        C_np_sediment = weightedAverage(C_np_sediment_i, bedAreas)
+        C_np_sediment = weightedAverage(C_np_sediment_i, sedimentMasses)
     end function
 
     function getBedSedimentAreaEnvironment1(me) result(bedArea)

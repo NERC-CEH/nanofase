@@ -99,7 +99,7 @@ module classBedSedimentLayer1
             ! var = layerGroup%getVariable("capacity")                 ! Get the layer capacity [m3 m-2]
             ! call var%getData(Me%C_total)                             ! retrieve into C_total variable
             ! Get the layer capacity [m3/m2] from data for this layer
-            me%C_total = DATASET%sedimentCapacity(me%l)
+            me%C_total = C%sedimentLayerDepth(me%l)
             if (Me%C_total == 0) then                                ! CRITICAL ERROR HERE: C_total == 0
                 call r%addError(ErrorInstance( &
                             code = 1, &

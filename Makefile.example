@@ -5,18 +5,25 @@
 # 	`make debug`    Run in debug mode with gdb. Make sure -g flag is present in DEBUGFLAGS
 #	`make clean`    Clean compilation files
 
-FC = gfortran                                                           # What compiler to use? gfortran recommended
-WARNINGS = -Wall                                                        # Compiler warnings
-FCFLAGS = -O1 -fcheck=all -fbackslash -fopenmp ${WARNINGS}              # Compiler flags. Caution using -O0 due to this issue: https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran
-DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow -pg          # Debug flags
-EXEC_FILE = main                                                        # Name of the executable file to create
-EXEC_PATH = ./bin/                                                      # Path to the executable file
-NETCDF = `nf-config --fflags --flibs`                                   # NetCDF config
-CONFIG_PATH = ./config/                                                 # When using `make run`, this gives the path to the config file
-CONFIG_FILE = thames.nml                                                # When using `make run`, this gives the name of the config file
-GIT_HASH = `git rev-parse HEAD`                                         # The following variables generate a unique compilation metadata file
-COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'`                       # to be placed in EXEC_PATH, which includes the current Git commit,
-GIT_BRANCH = `git rev-parse --abbrev-ref HEAD`                          # branch and compilation time
+# What compiler to use? gfortran recommended
+FC = gfortran
+# Compiler warnings and flags. Caution using -O0 due to this issue: https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran
+WARNINGS = -Wall
+FCFLAGS = -O1 -fcheck=all -fbackslash -fopenmp ${WARNINGS}
+DEBUGFLAGS = -g -ffpe-trap=zero,invalid,overflow,underflow -pg
+# Executable file name and path
+EXEC_FILE = main
+EXEC_PATH = ./bin/
+# NetCDF config
+NETCDF = `nf-config --fflags --flibs`
+# Config file name and path. Used when running `make run`.
+CONFIG_PATH = ./config/
+CONFIG_FILE = thames.nml
+# The following variables generate a unique compilation metadata file to be placed in EXEC_PATH,
+# which includes the current Git commit, branch and compilation time
+GIT_HASH = `git rev-parse HEAD`
+COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'`
+GIT_BRANCH = `git rev-parse --abbrev-ref HEAD`
 COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_BRANCH)
 
 OBJ = vendor/feh/src/ErrorInstance.o \
