@@ -20,10 +20,6 @@ x64/
 # Directory for personal code snippets and data files
 snip/
 data/
-*.nc
-**/*.nc
-*.json
-**/*.json
 
 # Prerequisites
 *.d
