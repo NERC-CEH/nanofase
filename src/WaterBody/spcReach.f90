@@ -557,8 +557,8 @@ module spcReach
     !> Get the outflow from NM flux array
     function j_np_outflow(me)
         class(Reach) :: me
-        real(dp) :: j_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_outflow = me%j_np(1,:,:,:)
+        real(dp), allocatable :: j_np_outflow(:,:,:)
+        allocate(j_np_outflow, source=me%j_np(1,:,:,:))
     end function
 
     !> Get the inflowing NM from NM flux array
@@ -589,8 +589,9 @@ module spcReach
     !> Get the total deposited NM (settling + resus) from NM flux array
     function j_np_deposit(me)
         class(Reach) :: me
-        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_deposit = me%j_np(4+me%nInflows,:,:,:)
+        real(dp), allocatable :: j_np_deposit(:,:,:)
+        allocate(j_np_deposit, source=me%j_np(4+me%nInflows,:,:,:))
+        !j_np_deposit = me%j_np(4+me%nInflows,:,:,:)
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
@@ -611,14 +612,14 @@ module spcReach
     !> Get the outflow from transformed flux array
     function j_transformed_outflow(me)
         class(Reach) :: me
-        real(dp) :: j_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_outflow = me%j_transformed(1,:,:,:)
+        real(dp), allocatable :: j_transformed_outflow(:,:,:)
+        allocate(j_transformed_outflow, source=me%j_transformed(1,:,:,:))
     end function
 
     function j_transformed_deposit(me)
         class(Reach) :: me
-        real(dp) :: j_transformed_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_deposit = me%j_transformed(4+me%nInflows,:,:,:)
+        real(dp), allocatable :: j_transformed_deposit(:,:,:)
+        allocate(j_transformed_deposit, source=me%j_transformed(4+me%nInflows,:,:,:))
     end function
 
     !> Get the total diffuse source fluxes from NM flux array

@@ -116,12 +116,6 @@ module spcWaterBody
         procedure :: allocateAndInitialise => allocateAndInitialiseWaterBody
         procedure :: parseInputData => parseInputDataWaterBody
         procedure :: parseNewBatchData => parseNewBatchDataWaterBody
-        ! Getters
-        procedure :: j_np_runoff => j_np_runoffWaterBody
-        procedure :: j_np_transfer => j_np_transferWaterBody
-        procedure :: j_np_deposit => j_np_depositWaterBody
-        procedure :: j_np_diffusesource => j_np_diffusesourceWaterBody
-        procedure :: j_np_pointsource => j_np_pointsourceWaterBody
     end type
       
     !> Container type for `class(WaterBody)`, the actual type of the `WaterBody` class.
@@ -252,35 +246,5 @@ module spcWaterBody
         me%C_dissolved_final = me%C_dissolved
         me%isUpdated = .false.
     end subroutine
-
-    function j_np_runoffWaterBody(me) result(j_np_runoff)
-        class(WaterBody) :: me
-        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
-        ! Do stuff
-    end function
-
-    function j_np_transferWaterBody(me) result(j_np_transfer)
-        class(WaterBody) :: me
-        real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
-        ! Do stuff
-    end function
-
-    function j_np_depositWaterBody(me) result(j_np_deposit)
-        class(WaterBody) :: me
-        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        ! Do stuff
-    end function
-
-    function j_np_diffusesourceWaterBody(me) result(j_np_diffusesource)
-        class(WaterBody) :: me
-        real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        ! Do stuff
-    end function
-
-    function j_np_pointsourceWaterBody(me) result(j_np_pointsource)
-        class(WaterBody) :: me
-        real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        ! Do stuff
-    end function
 
 end module

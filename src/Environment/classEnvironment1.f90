@@ -355,9 +355,10 @@ module classEnvironment1
     !> Calculate the mean soil PEC in the environment
     function get_C_np_soilEnvironment1(me) result(C_np_soil)
         class(Environment1)     :: me                                                               !! This Environment instance
-        real(dp)                :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mass concentration of NM in environment [kg/kg soil]
+        real(dp), allocatable   :: C_np_soil(:,:,:)                                                 !! Mass concentration of NM in environment [kg/kg soil]
         real(dp)                :: C_np_soil_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per grid NM conc [kg/kg soil]
         integer                 :: x, y, i                                                          ! Iterators
+        allocate(C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3)))
         i = 1
         do y = 1, size(me%colGridCells, 2)
             do x = 1, size(me%colGridCells, 1)
@@ -375,11 +376,12 @@ module classEnvironment1
     !> Get the mean water NM PEC at this moment in time, by looping over all grid cells
     !! and their water bodies and averaging.
     function get_C_np_waterEnvironment1(me) result(C_np_water)
-        class(Environment1) :: me
-        real(dp)            :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: C_np_water_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: volumes(me%nGridCells)
-        integer             :: x, y, i
+        class(Environment1)     :: me                                                                   !! This Environment instance
+        real(dp), allocatable   :: C_np_water(:,:,:)                                                    !! Mean water PEC [kg/m3]
+        real(dp)                :: C_np_water_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))      ! Per cell mean water PEC [kg/m3]
+        real(dp)                :: volumes(me%nGridCells)                                               ! Per cell sediment volumes, for weighted average [m3]
+        integer                 :: x, y, i                                                              ! Iterators
+        allocate(C_np_water(C%npDim(1), C%npDim(2), C%npDim(3)))
         i = 1
         do y = 1, size(me%colGridCells, 2)
             do x = 1, size(me%colGridCells, 1)
@@ -398,11 +400,12 @@ module classEnvironment1
     !> Get the mean sediment NM PEC [kg/kg] at this moment in time, by looping over all grid cells
     !! and their water bodies and getting the weighted average.
     function get_C_np_sedimentEnvironment1(me) result(C_np_sediment)
-        class(Environment1) :: me                                                                   !! The Environment
-        real(dp)            :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))                    !! Mean sediment PEC [kg/kg]
-        real(dp)            :: C_np_sediment_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per cell mean sediment PEC [kg/kg]
-        real(dp)            :: sedimentMasses(me%nGridCells)                                        ! Per cell sediment masses, for weighted average [kg]
-        integer             :: x, y, i                                                              ! Iterators
+        class(Environment1)     :: me                                                                   !! This Environment instance
+        real(dp), allocatable   :: C_np_sediment(:,:,:)                                                 !! Mean sediment PEC [kg/kg]
+        real(dp)                :: C_np_sediment_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per cell mean sediment PEC [kg/kg]
+        real(dp)                :: sedimentMasses(me%nGridCells)                                        ! Per cell sediment masses, for weighted average [kg]
+        integer                 :: x, y, i                                                              ! Iterators
+        allocate(C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3)))
         i = 1
         do y = 1, size(me%colGridCells, 2)
             do x = 1, size(me%colGridCells, 1)

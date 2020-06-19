@@ -215,21 +215,21 @@ module spcGridCell
             use Globals, only: dp, C
             import GridCell
             class(GridCell) :: me
-            real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_np_soil(:,:,:)
         end function
 
         function get_C_np_waterGridCell(me) result(C_np_water)
             use Globals, only: dp, C
             import GridCell
             class(GridCell) :: me
-            real(dp) :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_np_water(:,:,:)
         end function
 
         function get_C_np_sedimentGridCell(me) result(C_np_sediment)
             use Globals, only: dp, C
             import GridCell
             class(GridCell) :: me
-            real(dp) :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_np_sediment(:,:,:)
         end function
 
         function getWaterVolumeGridCell(me) result(waterVolume)

@@ -225,14 +225,14 @@ module spcSoilProfile
             use Globals, only: C, dp
             import SoilProfile
             class(SoilProfile) :: me
-            real(dp) :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: m_np(:,:,:)
         end function
 
         function get_m_transformed_SoilProfile(me) result(m_transformed)
             use Globals, only: C, dp
             import SoilProfile
             class(SoilProfile) :: me
-            real(dp) :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: m_transformed(:,:,:)
         end function
 
         function get_m_dissolved_SoilProfile(me) result(m_dissolved)
@@ -246,14 +246,14 @@ module spcSoilProfile
             use Globals, only: C, dp
             import SoilProfile
             class(SoilProfile) :: me
-            real(dp) :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_np(:,:,:)
         end function
 
         function get_C_transformed_SoilProfile(me) result(C_transformed)
             use Globals, only: C, dp
             import SoilProfile
             class(SoilProfile) :: me
-            real(dp) :: C_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_transformed(:,:,:)
         end function
 
         function get_C_dissolved_SoilProfile(me) result(C_dissolved)
@@ -262,6 +262,7 @@ module spcSoilProfile
             class(SoilProfile) :: me
             real(dp) :: C_dissolved
         end function
+    
     end interface
 
 end module

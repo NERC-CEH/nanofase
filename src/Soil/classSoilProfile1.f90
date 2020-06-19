@@ -564,15 +564,18 @@ module classSoilProfile1
 
     !> Calculate the mean NM PEC across all soil layers for this soil profile
     function get_C_np_SoilProfile1(me) result(C_np)
-        class(SoilProfile1) :: me                                                   !! This SoilProfile instance
-        real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))             !! Mass concentration of NM [kg/kg soil]
+        class(SoilProfile1)     :: me                       !! This SoilProfile instance
+        real(dp), allocatable   :: C_np(:,:,:)              !! Mass concentration of NM [kg/kg soil]
+        ! For some reason, ifort 18 won't compile if C_np isn't allocatable. Same for the other getter functions
+        allocate(C_np(C%npDim(1), C%npDim(2), C%npDim(3)))
         C_np = me%get_m_np() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
     end function
 
     !> Calculate the mean transformed NM PEC across all soil layers for this soil profile
     function get_C_transformed_SoilProfile1(me) result(C_transformed)
-        class(SoilProfile1) :: me                                                   !! This SoilProfile instance
-        real(dp)            :: C_transformed(C%npDim(1), C%npDim(2), C%npDim(3))    !! Mass concentration of NM [kg/kg soil]
+        class(SoilProfile1)     :: me                               !! This SoilProfile instance
+        real(dp), allocatable   :: C_transformed(:,:,:)             !! Mass concentration of NM [kg/kg soil]
+        allocate(C_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
         C_transformed = me%get_m_transformed() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
     end function
 
@@ -583,10 +586,12 @@ module classSoilProfile1
         C_dissolved = me%get_m_dissolved() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
     end function
 
+    !> Get the total NM mass in the soil profile
     function get_m_np_SoilProfile1(me) result(m_np)
-        class(SoilProfile1) :: me
-        real(dp)            :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))
-        integer             :: i
+        class(SoilProfile1)     :: me               !! This SoilProfile instance
+        real(dp), allocatable   :: m_np(:,:,:)      !! NM mass in the soil profile [kg]
+        integer                 :: i                ! Iterator
+        allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)))
         m_np = 0.0_dp
         ! Loop through the soil layers and sum m_np
         do i = 1, C%nSoilLayers
@@ -594,10 +599,12 @@ module classSoilProfile1
         end do
     end function
 
+    !> Get the total transformed NM mass in the soil profile
     function get_m_transformed_SoilProfile1(me) result(m_transformed)
-        class(SoilProfile1) :: me
-        real(dp)            :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
-        integer             :: i
+        class(SoilProfile1)     :: me                       !! This SoilProfile instance
+        real(dp), allocatable   :: m_transformed(:,:,:)     !! Transformed NM mass in the soil profile [kg]
+        integer                 :: i                        ! Iterator
+        allocate(m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
         m_transformed = 0.0_dp
         ! Loop through the soil layers and sum m_transformed
         do i = 1, C%nSoilLayers
@@ -605,10 +612,11 @@ module classSoilProfile1
         end do
     end function
 
+    !> Get the total dissolved NM mass in the soil profile
     function get_m_dissolved_SoilProfile1(me) result(m_dissolved)
-        class(SoilProfile1) :: me
-        real(dp)            :: m_dissolved
-        integer             :: i
+        class(SoilProfile1) :: me               !! This SoilProfile instance 
+        real(dp)            :: m_dissolved      !! Dissolved NM mass in the soil profile [kg]
+        integer             :: i                ! Iterator
         m_dissolved = 0.0_dp
         ! Loop through the soil layers and sum m_dissolved
         do i = 1, C%nSoilLayers

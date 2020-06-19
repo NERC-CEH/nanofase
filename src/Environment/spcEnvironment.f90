@@ -110,21 +110,21 @@ module spcEnvironment
             use Globals, only: C, dp
             import Environment
             class(Environment) :: me
-            real(dp) :: C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_np_soil(:,:,:)
         end function
 
         function get_C_np_waterEnvironment(me) result(C_np_water)
             use Globals, only: C, dp
             import Environment
             class(Environment) :: me
-            real(dp) :: C_np_water(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_np_water(:,:,:)
         end function
 
         function get_C_np_sedimentEnvironment(me) result(C_np_sediment)
             use Globals, only: C, dp
             import Environment
             class(Environment) :: me
-            real(dp) :: C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp), allocatable :: C_np_sediment(:,:,:)
         end function
 
         function getBedSedimentAreaEnvironment(me) result(bedArea)

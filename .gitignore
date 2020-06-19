@@ -17,9 +17,13 @@ cache/
 dll/
 x64/
 
-# Directory for personal code snippets and any output data files
+# Directory for personal code snippets and data files
 snip/
-data/output/
+data/
+*.nc
+**/*.nc
+*.json
+**/*.json
 
 # Prerequisites
 *.d
@@ -73,10 +77,4 @@ fort*
 # Temp files
 ~$*.docx
 *.csv#
-
-# netCDF
-*.nc
-**/*.nc
-*.json
-**/*.json
 
