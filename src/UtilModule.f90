@@ -46,10 +46,6 @@ module UtilModule
         module procedure weightedAverageDp3D
     end interface
 
-    ! procedure freeNM
-    ! procedure attachedNM
-    ! procedure heteroaggregatedNM
-
     contains
         !> print a set of r x c matrices to the console
         subroutine print_matrix(m)
@@ -399,5 +395,21 @@ module UtilModule
             real(dp)                :: heteroaggregated(C%nSizeClassesNM)
             heteroaggregated = sum(x(:,1,3:), dim=1)
         end function
+
+        subroutine progress(j)
+            integer :: j,k
+            character(len=118) :: bar="\r???% |                                          "//&
+                "                                                          |"
+             
+            ! Updates the fraction of calculation done
+            write(unit=bar(2:4), fmt="(i3)") j
+            do k = 1, j
+                bar(7+k:7+k)="*"
+            end do
+             
+            ! Print the progress bar.
+            write(*,'(a)', advance='no') bar
+             
+        end subroutine
 
 end module

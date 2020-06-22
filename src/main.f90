@@ -67,7 +67,7 @@ program main
     call LOGR%toConsole("--------------------------------")
     call LOGR%toConsole(" Welcome to the NanoFASE model! ")
     call LOGR%toConsole("--------------------------------\n")
-   
+
     ! Pull in the input data, create the output and set up the output data files
     call DATASET%init(C%inputFile, C%constantsFile)
     r = env%create()

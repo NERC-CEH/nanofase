@@ -1,3 +1,4 @@
+!> Module container for the DataOutput class
 module DataOutputModule
     use Globals, only: C, dp
     use classDatabase, only: DATASET
@@ -10,6 +11,7 @@ module DataOutputModule
     use datetime_module
     implicit none
 
+    !> The DataOutput class is responsible for writing output data to disk
     type, public :: DataOutput
         character(len=256) :: outputPath                    !! Path to the output directory
         type(EnvironmentPointer) :: env                     !! Pointer to the environment, to retrieve state variables
@@ -64,6 +66,7 @@ module DataOutputModule
         date = C%startDate + timedelta(t - 1)
         dateISO = date%isoformat()
         
+        ! Loop through the grid cells and update each compartment
         do y = 1, size(me%env%item%colGridCells, dim=2)
             do x = 1, size(me%env%item%colGridCells, dim=1)
                 easts = DATASET%x(x)
@@ -73,10 +76,9 @@ module DataOutputModule
                 call me%updateSoil(t, x, y, dateISO, easts, norths)
             end do
         end do
-
     end subroutine
 
-    !> Update the water output file for the current timestep t
+    !> Update the water output file for the current timestep
     subroutine updateWaterDataOutput(me, t, x, y, date, easts, norths)
         class(DataOutput)   :: me               !! The DataOutput instance
         integer             :: t                !! The current timestep
@@ -85,6 +87,7 @@ module DataOutputModule
         real                :: easts, norths    !! Eastings and northings of this grid cell
         integer             :: w                ! Waterbody iterator
         character(len=3)    :: reachType        ! Is this a river of estuary?
+        
         ! Loop through the waterbodies in this cell
         do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
             associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
@@ -115,7 +118,7 @@ module DataOutputModule
         end do
     end subroutine
 
-    !> Update the current sediment output file on the current timestep t
+    !> Update the current sediment output file on the current timestep
     subroutine updateSedimentDataOutput(me, t, x, y, date, easts, norths)
         class(DataOutput)   :: me               !! The DataOutput instance
         integer             :: t                !! The current timestep
@@ -124,6 +127,7 @@ module DataOutputModule
         real                :: easts, norths    !! Eastings and northings of this grid cell
         integer             :: w, l             ! Iterators
         character(len=3)    :: reachType        ! Is this a river of estuary?
+       
         ! Loop through the waterbodies in this cell
         do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
             associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
@@ -151,7 +155,7 @@ module DataOutputModule
         end do
     end subroutine
 
-    !> Write this timestep's row for the soil profile
+    !> Update the sediment output file on the current timestep
     subroutine updateSoilDataOutput(me, t, x, y, date, easts, norths)
         class(DataOutput)   :: me               !! This DataOutput instance
         integer             :: t                !! The current timestep
@@ -212,10 +216,7 @@ module DataOutputModule
         write(100, *) "- Sediment, spatiotemporal mean: " // &
             trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / C%nTimeSteps)) // " kg/kg sediment"
         ! Close the files
-        close(100)
-        close(101)
-        close(102)
-        close(103)
+        close(100); close(101); close(102); close(103)
     end subroutine
 
     ! Write the headers for the output files
@@ -258,7 +259,6 @@ module DataOutputModule
             ", " // trim(str(DATASET%gridBounds(3))) // ", " // trim(str(DATASET%gridBounds(4))) // " m"
         write(100, *) "- Grid shape: " // trim(str(DATASET%gridShape(1))) // ", " // trim(str(DATASET%gridShape(2)))
         write(100, *) "- Number of non-empty grid cells: " // trim(str(me%env%item%nGridCells))
-
     end subroutine
 
     !> Write the headers for the water output file

@@ -53,11 +53,12 @@ First off, if you have NetCDF installed, locate the directories containing the l
 
 Go to `Project > <project name> Properties` and change the following options:
 - `General > Output Directory`: Change to somewhere that you can run exes from without tripping Carbon Black.
-- `General > Target Name`: If you have a Carbon Black rule that requires a particular filename convention, use that here.
-- `Debugging > Command Arguments`: Add the path to your config file here. An examples is given at `config/config.example.nml` and it's highly recommended you use this to begin.
+- `General > Target Name`: This is the name of the executable that will be created. If you have a Carbon Black rule that requires a particular filename convention, use that here.
+- `Debugging > Command Arguments`: Add the path to your config file here. An example is given at `config/config.example.nml` and it's highly recommended you make a copy of this to begin with.
 - `Fortran > General > Additional Include Directories`: Set to `path\to\netcdf\NetCDF32\include; path\to\netcdf\NetCDFF\include\ia32`.
 - Make sure `Fortran > Preprocessor > Additional Include Directories` is the same.
 - `Fortran > Floating Point > Floating-Point Exception Handling`: Set to "Underflow gives 0.0; Abort on other IEEE exceptions (/fpe:0)", because there's something wrong if we're getting FPEs!
+- `Fortran > Command Line` Add `/assume:bscc` to the Additional Options to allow C-style escape characters in output (e.g. to produce coloured console text).
 - `Linker > General > Additional Library Directories`: Set to `path\to\netcdf\NetCDF32\lib; path\to\netcdf\NetCDFF\lib`.
 - `Linker > Input > Additional Dependencies`: Set to `path\to\netcdf\NetCDFF\lib\netcdff.lib`.
 
