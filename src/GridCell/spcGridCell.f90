@@ -48,8 +48,8 @@ module spcGridCell
             !! (and Fortran matrices must be rectangular)
         real(dp), allocatable :: q_runoff_timeSeries(:)                 !! Runoff = slow flow + quick flow, from the hydrological model [m/timestep]
         real(dp), allocatable :: q_quickflow_timeSeries(:)              !! Quick flow from the hydrological model [m/timestep]
-        real(dp), allocatable :: q_evap_timeSeries(:)                   !! Evaporation time series [m/s]
-        real(dp), allocatable :: q_precip_timeSeries(:)                 !! Precipitation time series [m/s]
+        real, allocatable :: q_evap_timeSeries(:)                       !! Evaporation time series [m/s]
+        real, allocatable :: q_precip_timeSeries(:)                     !! Precipitation time series [m/s]
         real(dp) :: q_runoff                                            !! Runoff from the hydrological model for this time step [m/timestep]
         real(dp) :: Q_out                                               !! Discharge from this `GridCell` on a given timestep [m3/timestep]
         real(dp) :: tmp_Q_out                                           !! Temporary storage for Q_out until all `GridCell`s have been processed

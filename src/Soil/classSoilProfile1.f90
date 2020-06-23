@@ -55,8 +55,8 @@ module classSoilProfile1
         real(dp)            :: slope                        !! Slope of the containing `GridCell` [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
         real(dp)            :: area                         !! The surface area of the `SoilProfile` [m3]
-        real(dp), allocatable :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
-        real(dp), allocatable :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
+        real, allocatable :: q_precip_timeSeries(:)         !! Precipitation time series [m/timestep]
+        real, allocatable :: q_evap_timeSeries(:)           !! Evaporation time series [m/timestep]
         type(Result)        :: r                            !! The `Result` object
         integer             :: l                            ! Soil layer iterator
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
@@ -64,8 +64,7 @@ module classSoilProfile1
         me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
 
         ! Allocate the object properties that need to be
-        allocate(me%usle_C(C%nTimeSteps), &
-            me%usle_alpha_half(C%nTimeSteps), &
+        allocate(me%usle_alpha_half(C%nTimeSteps), &
             me%erodedSediment(C%nSizeClassesSpm), &
             me%distributionSediment(C%nSizeClassesSpm), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -307,7 +306,7 @@ module classSoilProfile1
         ! Now the modified MMF version of K, dependent on sand, silt and clay content [g/J]
         K_MMF = 0.1*(me%clayContent/100.0_dp) + 0.3*(me%sandContent/100.0_dp) + 0.5*(me%siltContent/100.0_dp)
         ! Total eroded sediment [g/m2/day]
-        erodedSedimentTotal = E_k * K_MMF * me%usle_C(t) * me%usle_P * me%usle_LS
+        erodedSedimentTotal = E_k * K_MMF * me%usle_C * me%usle_P * me%usle_LS
         ! Split this into a size distribution and convert to [kg/m2/day]
         me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
         
@@ -417,7 +416,7 @@ module classSoilProfile1
         ! USLE params
         me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
         ! TODO make usle_C not temporal
-        if ((me%usle_C(1) == nf90_fill_double) .or. (me%usle_C(1) < 0) .or. (me%usle_C(1) > 100)) then
+        if (me%usle_C == nf90_fill_double) then
             me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
         end if
         me%usle_P = DATASET%soilUslePFactor(me%x, me%y)
@@ -495,6 +494,11 @@ module classSoilProfile1
         class(SoilProfile1) :: me
         integer :: landUse
 
+        ! These timeseries are passed to soil profile in create(), so we need to set again here
+        deallocate(me%q_evap_timeSeries, me%q_precip_timeSeries)
+        allocate(me%q_evap_timeSeries, source=DATASET%evap(me%x, me%y, :))
+        allocate(me%q_precip_timeSeries, source=DATASET%precip(me%x, me%y, :))
+
         me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
         me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
         me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
@@ -522,7 +526,7 @@ module classSoilProfile1
         ! USLE params
         me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
         ! TODO make usle_C not temporal
-        if ((me%usle_C(1) == nf90_fill_double) .or. (me%usle_C(1) < 0) .or. (me%usle_C(1) > 100)) then
+        if (me%usle_C == nf90_fill_double) then
             me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
         end if
         me%usle_P = DATASET%soilUslePFactor(me%x, me%y)

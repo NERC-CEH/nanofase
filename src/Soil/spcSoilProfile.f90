@@ -37,10 +37,10 @@ module spcSoilProfile
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
         real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
-        real(dp), allocatable :: q_precip_timeSeries(:)             !! Time series of precipitation data [m3 m-2 s-1]
-        real(dp) :: q_precip                                        !! Precipitation for this time step [m3 m-2 s-1]
-        real(dp), allocatable :: q_evap_timeSeries(:)               !! Time series of evapotranspiration data [m3 m-2 s-1]
-        real(dp) :: q_evap                                          !! Evapotranspiration for this time step [m3 m-2 s-1]
+        real, allocatable :: q_precip_timeSeries(:)                 !! Time series of precipitation data [m3 m-2 s-1]
+        real :: q_precip                                            !! Precipitation for this time step [m3 m-2 s-1]
+        real, allocatable :: q_evap_timeSeries(:)                   !! Time series of evapotranspiration data [m3 m-2 s-1]
+        real :: q_evap                                              !! Evapotranspiration for this time step [m3 m-2 s-1]
         real(dp) :: q_in
             !! Infiltration for this time step: \( q_{\text{in}} = q_{\text{precip}} - q_{\text{evap}} \) [m3 m-2 s-1]
         real(dp) :: WC_sat                                          !! Water content at saturation [m3 m-3]
@@ -59,7 +59,7 @@ module spcSoilProfile
         real(dp) :: earthwormDensity                                !! Earthworm density [individuals/m2]
         character(len=23) :: dominantLandUseName                    !! Name of the dominant land use category in this cell
         ! Soil erosion
-        real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]
+        real(dp) :: usle_C                                          !! Cover and land management factor time series [-]
         real(dp) :: usle_K                                          !! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
         real(dp) :: usle_LS                                         !! Topographic factor [-]
         real(dp) :: usle_P                                          !! Support practice factor [-]
@@ -136,8 +136,8 @@ module spcSoilProfile
             real(dp)            :: slope                        !! Slope of the containing `GridCell` [m m-1]
             real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
             real(dp)            :: area                         !! The area of the `SoilProfile`'s surface
-            real(dp), allocatable :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
-            real(dp), allocatable :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
+            real, allocatable   :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
+            real, allocatable   :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
             type(Result)        :: r                            !! `Result` object to return
         end function
 

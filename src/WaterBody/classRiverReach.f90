@@ -141,12 +141,12 @@ module classRiverReach
                 call me%set_j_dissolved_inflow(-me%inflows(i)%item%j_dissolved(1), i)
             end do
 
+
             ! Inflows from runoff
             if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep to m3/timestep] TODO what does HMF output?
             if (present(j_spm_runoff)) call me%set_j_spm_runoff(j_spm_runoff)
             if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
             if (present(j_transformed_runoff)) call me%set_j_transformed_runoff(j_transformed_runoff)
-            ! TODO transformed not an array at the moment
 
             ! TODO Inflows from transfers
 
@@ -174,6 +174,7 @@ module classRiverReach
             j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
             j_transformed_in_total = sum(me%j_transformed(2:,:,:,:))
             j_dissolved_in_total = sum(me%j_dissolved(2:))
+
 
             ! Set the reach dimensions and calculate the velocity
             call rslt%addErrors(.errors. me%setDimensions())
@@ -205,6 +206,7 @@ module classRiverReach
             dj_transformed = me%j_transformed/nDisp             ! Transformed flow array for each displacement
             dj_dissolved = me%j_dissolved/nDisp                 ! Dissolved flow array for each displacement
 
+
             do i = 1, nDisp
                 ! Water mass balance (outflow = all the inflows)
                 dQ(1) = -sum(dQ(2:))
@@ -228,6 +230,7 @@ module classRiverReach
                 dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1)), &
                     me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1))
                 dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
+
                 ! Calculate the fraction of SPM from each size class that was deposited, for use in calculating mass of NM deposited
                 do j = 1, C%nSizeClassesSpm 
                     if (isZero(dj_spm_deposit(j))) then
@@ -282,22 +285,7 @@ module classRiverReach
                     if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
                 end if
 
-                ! print *, "\n DELTA SED not coef"
-                ! call print_matrix(me%bedSediment%delta_sed)
-                ! print *, "\n"
-
                 call rslt%addErrors(.errors. me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea))    ! Fills bedSediment%delta_sed mass transfer matrix
-
-                ! print *, "l4 loss", sum(me%bedSediment%delta_sed(6, 6, :))
-                ! print *, "l4 to b", sum(me%bedSediment%delta_sed(7, 6, :))
-                ! print *, "sum d->l", sum(me%bedSediment%delta_sed(3:6, 1, 1))
-                ! print *, "sum l->r", sum(me%bedSediment%delta_sed(2, 3:6, 1))
-                ! print *, "sum l->l, l->b", sum(me%bedSediment%delta_sed(3:7, 3:6, 1))
-
-                ! print *, "\n DELTA SED"
-                ! call print_matrix(me%bedSediment%delta_sed)
-                ! print *, "\n"
-
                 ! ^ Must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
                 call rslt%addErrors(.errors. me%bedSediment%transferNM(dj_np_deposit_perArea))
                 ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices

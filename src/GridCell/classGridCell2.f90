@@ -565,7 +565,7 @@ module classGridCell2
             x0 = me%x + 0.5
             y0 = me%y + 0.5
         end if
-        ! TODO calculate domainOutflow here as opposed to getting from data
+        ! Get the outflow x,y coords, whether it's in the model domain or not
         if (.not. me%colRiverReaches(i)%item%isDomainOutflow) then
             x_out = me%colRiverReaches(i)%item%outflow%item%x
             y_out = me%colRiverReaches(i)%item%outflow%item%y

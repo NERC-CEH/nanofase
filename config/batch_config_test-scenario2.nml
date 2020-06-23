@@ -1,0 +1,9 @@
+&data
+input_file = "data/test-scenario2.nc"
+constants_file = "data/constants_test-scenario.nml"
+/
+
+&run
+n_timesteps = 11
+start_date = "2015-01-11"
+/

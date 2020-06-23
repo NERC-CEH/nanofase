@@ -285,13 +285,25 @@ module classDatabase
         call me%nc%close()
     end subroutine
 
+    !> Read variables in for the new chunk as part of a batch run
     subroutine readBatchVariablesDatabase(me)
         class(Database) :: me
         type(NcVariable) :: var
         type(NcDimension) :: p_dim
         integer :: maxPointSources
 
+        ! Spatial data (grid setup, rivers etc) will stay the same between chunks,
+        ! but the number of timesteps might not, so let's change that
+        var = me%nc%getVariable('t')
+        call var%getData(me%t)
+        me%nTimesteps = size(me%t)
+
         ! SPATIOTEMPORAL VARIABLES
+        ! If number of timesteps in this chunk is different, the getData() method
+        ! will take care of reallocating the variable to the correct length. But
+        ! we need to be careful to reallocate variables we don't get by getData
+        ! (i.e. ones that aren't present in the data file)
+        
         ! Runoff        [m/timestep]
         var = me%nc%getVariable('runoff')
         call var%getData(me%runoff)
@@ -305,7 +317,7 @@ module classDatabase
             call var%getData(me%evap)
         else
             if (allocated(me%evap)) deallocate(me%evap)
-            allocate(me%evap(me%gridShape(1), me%gridShape(2), C%nTimesteps)) ! HACK
+            allocate(me%evap(me%gridShape(1), me%gridShape(2), C%nTimesteps))
             me%evap = 0.0
         end if
 
@@ -815,3 +827,4 @@ end module
 ! AUDITING TO DO:
 !   array size checks, particularly variables for size classes of NM and SPM
 !   sedimentPorosity: 0 <= x <= 1
+!   water content at saturation is greater than water content at field capacity

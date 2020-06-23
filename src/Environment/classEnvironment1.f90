@@ -165,9 +165,10 @@ module classEnvironment1
             end if
         end if
 
-        ! Allocate the per timestep spatial mean water conc array
-        allocate(me%C_np_water_t(C%nTimeSteps, C%npDim(1), C%npDim(2), C%npDim(3)))
-        allocate(me%C_np_sediment_t(C%nTimeSteps, C%npDim(1), C%npDim(2), C%npDim(3)))
+        ! Allocate the per timestep spatial mean water conc array. Being with 0 timesteps, as this array
+        ! is reallocated on each timestep (to account for batch runs)
+        allocate(me%C_np_water_t(0, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%C_np_sediment_t(0, C%npDim(1), C%npDim(2), C%npDim(3)))
         me%C_np_water_t = 0.0_dp
         me%C_np_sediment_t = 0.0_dp
         
@@ -199,8 +200,7 @@ module classEnvironment1
         logical :: goDownstream                                 ! Have all the inflow reaches been updated yet?
         logical :: endSiteReached                               ! When doing the calibration loop, did we reach the end site?
         type(datetime) :: currentDate
-        ! type(ReachPointer), allocatable :: tmpJunctionReaches(:)
-        ! type(ReachPointer), allocatable :: junctionReaches(:)
+        real(dp), allocatable :: tmp_C_np(:,:,:,:)              ! Temporary array
         
         ! Get the current date and log it
         currentDate = C%startDate + timedelta(t-1)
@@ -227,9 +227,17 @@ module classEnvironment1
         end do
 
         ! Add to the per timestep spatial weighted mean water and sediment conc array
-        me%C_np_water_t(t,:,:,:) = me%get_C_np_water()
-        me%C_np_sediment_t(t,:,:,:) = me%get_C_np_sediment()
-
+        ! Here we simply append to the array because we don't want to loose data from
+        ! a previous chunk, if we're in batch run mode
+        call move_alloc(me%C_np_water_t, tmp_C_np)
+        allocate(me%C_np_water_t(size(tmp_C_np, dim=1) + 1, size(tmp_C_np, dim=2), size(tmp_C_np, dim=3), size(tmp_C_np, dim=4)))
+        me%C_np_water_t(:size(tmp_C_np, dim=1), :, :, :) = tmp_C_np
+        me%C_np_water_t(size(tmp_C_np, dim=1) + 1, :, :, :) = me%get_C_np_water()
+        ! Same for sediment
+        call move_alloc(me%C_np_sediment_t, tmp_C_np)
+        allocate(me%C_np_sediment_t(size(tmp_C_np, dim=1) + 1, size(tmp_C_np, dim=2), size(tmp_C_np, dim=3), size(tmp_C_np, dim=4)))
+        me%C_np_sediment_t(:size(tmp_C_np, dim=1), :, :, :) = tmp_C_np
+        me%C_np_sediment_t(size(tmp_C_np, dim=1) + 1, :, :, :) = me%get_C_np_sediment()
     end function
     
     !> Update an individual reach, also updating the containng grid cell, if it hasn't
@@ -337,7 +345,9 @@ module classEnvironment1
             end do
         end do
     end subroutine
-    
+   
+    !> Get the mass of NM in all waterbodies in the environment
+    !! TODO is this used? If so, check it works
     function get_m_npEnvironment1(me) result(m_np)
         class(Environment1) :: me
         real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)

@@ -212,9 +212,9 @@ module DataOutputModule
         write(100, *) "- Soil, spatial mean on final timestep: " // &
             trim(str(sum(me%env%item%get_C_np_soil()))) // " kg/kg soil"
         write(100, *) "- Water, spatiotemporal mean: " // &
-            trim(str(sum(sum(me%env%item%C_np_water_t, dim=1)) / C%nTimeSteps)) // " kg/m3"
+            trim(str(sum(sum(me%env%item%C_np_water_t, dim=1)) / size(me%env%item%C_np_water_t, dim=1))) // " kg/m3"
         write(100, *) "- Sediment, spatiotemporal mean: " // &
-            trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / C%nTimeSteps)) // " kg/kg sediment"
+            trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / size(me%env%item%C_np_sediment_t, dim=1))) // " kg/kg sediment"
         ! Close the files
         close(100); close(101); close(102); close(103)
     end subroutine

@@ -2,7 +2,7 @@
 
 *Batch runs are still in the experimental phase - use with caution.*
 
-The model allows for multiple simulations to be chained together, such that the final temporal state of one model simulation provides the intial temporal state of the next. The main advantage to this is when doing model runs over long temporal periods. The model stores all input data in memory, and so long runs may use a significant amount of memory (depending on your geographical setup). Batch runs together means that only the input data for the current batch is stored in memory at any time. 
+The model allows for multiple simulations to be chained together, such that the final temporal state of one model simulation provides the intial temporal state of the next. The main advantage to this is when doing model runs over long temporal periods. The model stores all input data in memory, and so long runs may use a significant amount of memory (depending on your geographical setup). Batching runs together means that only the input data for the current batch is stored in memory at any time. 
 
 In additional to the normal config file (which for batch runs provides config options for the entire batch run), batch runs need:
 - A *batch config file* for each simulation within the batch run. This specifies the location of input data for this simulation, amongst other things.
@@ -51,3 +51,7 @@ config/batch_sim2.example.nml
 ```
 
 *Note that the first batch simulation file provided in the batch run file is actually ignored in favour of the normal config file provided as a command line argument.*
+
+## Data considerations
+
+To enable compatibility between simulations in the batch run, it is important that the geographical setup for each data file is identical, otherwise the model will fail. In brief, this means that spatial data must be for the same geographical region and have the same grid resolution and coordinate reference system. The temporal period of each simulation *can change* between simulation, and this is specified in the inidividual simulation batch config file.

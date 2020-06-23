@@ -279,7 +279,8 @@ module spcReach
             spmDep_perArea = spmDep/me%bedArea
         end if
         do n = 1, C%nSizeClassesSpm
-            !HACK
+            ! print *, spmDep_perArea(n)
+            ! print *, DATASET%sedimentFractionalComposition
             call rslt%addErrors(.errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n)), 4))
             !TODO: allow number of compositional fractions to be set 
             call rslt%addErrors(.errors. fineSediment(n)%set( &
@@ -436,19 +437,25 @@ module spcReach
         ! simply by looping through the indices starting with the first it encounters in
         ! DATASET%inflows, so the outflow reach ref will follow this convention
         outflowCell = DATASET%outflow(:, me%x, me%y)
+        ! Check if the outflow is in the model domain first
         if (.not. DATASET%inModelDomain(outflowCell(1), outflowCell(2))) then
             me%isDomainOutflow = .true.
+            ! Set outflow array with waterbody index of 1 if this outflow is out of the
+            ! model domain. The waterbody index isn't used, so this isn't important that
+            ! it might be wrong.
+            me%outflowArr = [1, outflowCell(1), outflowCell(2)]
+        else
+            ! Loop through outflow cell reaches and find index where inflow (x,y) equals
+            ! this cell (x,y)
+            do i = 1, DATASET%nWaterbodies(outflowCell(1),outflowCell(2))
+                if (DATASET%inflows(1, i, outflowCell(1), outflowCell(2)) == outflowCell(1) &
+                    .and. DATASET%inflows(2, i, outflowCell(1), outflowCell(2)) == outflowCell(2)) then
+                    i_out = i
+                end if
+            end do
+            ! Set reach outflow based on this
+            me%outflowArr =  [i_out, outflowCell(1), outflowCell(2)]
         end if
-        ! Loop through outflow cell reaches and find index where inflow (x,y) equals
-        ! this cell (x,y)
-        do i = 1, DATASET%nWaterbodies(outflowCell(1),outflowCell(2))
-            if (DATASET%inflows(1, i, outflowCell(1), outflowCell(2)) == outflowCell(1) &
-                .and. DATASET%inflows(2, i, outflowCell(1), outflowCell(2)) == outflowCell(2)) then
-                i_out = i
-            end if
-        end do
-        ! Set reach outflow based on this
-        me%outflowArr =  [i_out, outflowCell(1), outflowCell(2)]
     end function
 
     function setReachLengthReach(me) result(rslt)
