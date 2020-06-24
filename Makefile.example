@@ -39,7 +39,7 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/datetime-fortran/mod_clock.o \
 	vendor/datetime-fortran/datetime.o \
 	src/mod_strptime.o \
-	src/DefaultsModule.f90
+	src/DefaultsModule.f90 \
 	src/Globals.o \
 	src/UtilModule.o \
 	src/Logger/classLogger.o \
