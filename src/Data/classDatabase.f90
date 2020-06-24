@@ -5,6 +5,7 @@
 module classDatabase
     use mo_netcdf
     use netcdf
+    use DefaultsModule
     use Globals
     use ResultModule, only: Result
     use ErrorInstanceModule, only: ErrorInstance
@@ -175,10 +176,8 @@ module classDatabase
         type(Result)        :: rslt
         integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
         integer, allocatable :: isEstuaryInt(:,:)
-        type(NcDimension)   :: p_dim
-        integer             :: maxPointSources
         
-        ! Open the dataset and constants NML file
+        ! Open the dataset and parse constants NML file
         me%nc = NcDataset(inputFile, 'r')
         call me%parseConstants(constantsFile)
         
@@ -236,27 +235,23 @@ module classDatabase
         call LOGR%add("Initialising database: success")
     end subroutine
 
-    subroutine updateDatabase(me, batchConfigFile)
-        class(Database) :: me
-        character(len=*) :: batchConfigFile
-        character(len=256) :: input_file, constants_file, start_date
-        integer :: n_timesteps, maxPointSources
-        type(NcVariable)    :: var
-        namelist /data/ input_file, constants_file
-        namelist /run/ n_timesteps, start_date
-        ! For the new batch, open the config file and change a few things in Globals
-        open(13, file=batchConfigFile, status="old")
-        read(13, nml=data)
-        rewind(13)
-        read(13, nml=run)
-        close(13)
-        C%inputFile = input_file
-        C%constantsFile = constants_file
-        C%nTimeSteps = n_timesteps
-        C%startDate = f_strptime(start_date)
+    !> Update the database based on data for a new chunk
+    subroutine updateDatabase(me, k)
+        class(Database) :: me                           !! This Database instance
+        integer         :: k                            !! The index of this chunk, used to access correct config options
+
+        ! Get the config options for this chunk
+        C%inputFile = C%batchInputFiles(k)
+        C%constantsFile = C%batchConstantFiles(k)
+        C%nTimeSteps = C%batchNTimesteps(k)
+        C%startDate = C%batchStartDates(k)
+
+        ! Read in the new constants file
+        call me%parseConstants(C%constantsFile)
+
         ! Open the new dataset
         me%nc = NcDataset(C%inputFile, 'r')
-        ! Deallocate the previous batch's variables
+        ! Deallocate the previous chunk's variables
         deallocate(me%soilAttachmentRate)
         deallocate(me%soilAttachmentEfficiency)
         deallocate(me%emissionsArealSoilPristine)
@@ -279,7 +274,7 @@ module classDatabase
         deallocate(me%emissionsPointWaterMatrixEmbedded)
         deallocate(me%emissionsPointWaterTransformed)
         deallocate(me%emissionsPointWaterDissolved)
-        ! Read this batch's variables
+        ! Read this chunk's variables
         call me%readBatchVariables()
         ! Close the dataset
         call me%nc%close()
@@ -287,10 +282,10 @@ module classDatabase
 
     !> Read variables in for the new chunk as part of a batch run
     subroutine readBatchVariablesDatabase(me)
-        class(Database) :: me
-        type(NcVariable) :: var
-        type(NcDimension) :: p_dim
-        integer :: maxPointSources
+        class(Database)     :: me
+        type(NcVariable)    :: var
+        type(NcDimension)   :: p_dim
+        integer             :: maxPointSources
 
         ! Spatial data (grid setup, rivers etc) will stay the same between chunks,
         ! but the number of timesteps might not, so let's change that
@@ -558,18 +553,17 @@ module classDatabase
     end subroutine
 
     subroutine parseConstantsDatabase(me, constantsFile)
-        class(Database)         :: me
-        character(len=*)        :: constantsFile
-        integer                 :: nmlIOStat
-        integer :: n
+        class(Database)         :: me                   !! This Database instance
+        character(len=*)        :: constantsFile        !! The constants file path
+        integer                 :: nmlIOStat            ! IO status for NML file
         integer :: n_default_nm_size_distribution, n_default_spm_size_distribution, &
             n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
             n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
             n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
             n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
             n_spm_particle_densities, n_porosity, n_initial_mass, n_capacity, &
-            n_fractional_composition_distribution, n_estuary_mouth_coords
-        integer :: arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
+            n_fractional_composition_distribution, n_estuary_mouth_coords, &
+            arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
         real :: estuary_mouth_coords(2)
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
@@ -588,6 +582,8 @@ module classDatabase
             k_elim_dissolved(:)
         character(len=100), allocatable :: name(:), compartment(:)
         character(len=17), allocatable :: uptake_from_form(:)
+
+        ! Define the namelists and their variables
         namelist /allocatable_array_sizes/ n_default_nm_size_distribution, &
             n_default_spm_size_distribution, n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, &
             n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
@@ -612,9 +608,9 @@ module classDatabase
             default_spm_size_distribution, spm_size_classes, default_matrixembedded_distribution_to_spm, spm_particle_densities
 
         ! Open and read the NML file
-        open(11, file=constantsFile, status="old")
-        read(11, nml=allocatable_array_sizes)
-        rewind(11)
+        open(ioUnitConstants, file=constantsFile, status="old")
+        read(ioUnitConstants, nml=allocatable_array_sizes)
+        rewind(ioUnitConstants)
 
         ! Allocate the appropriate variable dimensions
         allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
@@ -633,16 +629,17 @@ module classDatabase
         ! TODO move to separate defaults.nml file, or similar
         resuspension_alpha_estuary = 0.0_dp
         resuspension_beta_estuary = 0.0_dp
-        soil_attachment_efficiency = 0.0_dp
-        k_diss_pristine = 0.0_dp
-        k_diss_transformed = 0.0_dp
-        k_transform_pristine = 0.0_dp
-        estuary_meandering_factor = 1.0
-        river_meandering_factor = 1.0
+        soil_attachment_efficiency = defaultSoilAttachmentEfficiency
+        k_diss_pristine = default_k_diss_pristine
+        k_diss_transformed = default_k_diss_transformed
+        k_transform_pristine = default_k_transform_pristine
+        estuary_meandering_factor = defaultEstuaryMeanderingFactor
+        river_meandering_factor = defaultRiverMeanderingFactor
         porosity = 0.0
 
-        read(11, nml=n_biota_grp, iostat=nmlIOStat)
-        rewind(11)
+        ! Read in the namelists
+        read(ioUnitConstants, nml=n_biota_grp, iostat=nmlIOStat); rewind(ioUnitConstants)
+        ! Only read in the biota group if there is one
         if (nmlIOStat .ge. 0) then
             allocate(initial_C_org(n_biota), k_death(n_biota), k_elim_np(n_biota), &
                 k_uptake_np(n_biota), k_growth(n_biota), name(n_biota), &
@@ -650,16 +647,15 @@ module classDatabase
                 k_elim_transformed(n_biota), compartment(n_biota), &
                 k_uptake_dissolved(n_biota), k_elim_dissolved(n_biota), &
                 uptake_from_form(n_biota), harvest_in_month(n_biota))
-            read(11, nml=biota); rewind(11)
+            read(ioUnitConstants, nml=biota); rewind(ioUnitConstants)
             me%hasBiota = .true.
         end if
-
-        read(11, nml=nanomaterial); rewind(11)
-        read(11, nml=earthworm_densities); rewind(11)
-        read(11, nml=soil); rewind(11)
-        read(11, nml=water); rewind(11)
-        read(11, nml=sediment); rewind(11)
-        close(11)
+        read(ioUnitConstants, nml=nanomaterial); rewind(ioUnitConstants)
+        read(ioUnitConstants, nml=earthworm_densities); rewind(ioUnitConstants)
+        read(ioUnitConstants, nml=soil); rewind(ioUnitConstants)
+        read(ioUnitConstants, nml=water); rewind(ioUnitConstants)
+        read(ioUnitConstants, nml=sediment); rewind(ioUnitConstants)
+        close(ioUnitConstants)
 
         ! Save these to class variables
         me%nmDensity = nm_density
@@ -739,7 +735,6 @@ module classDatabase
         me%sedimentInitialMass = initial_mass
         me%sedimentPorosity = porosity
         me%sedimentFractionalComposition = fractional_composition_distribution
-
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)
@@ -828,3 +823,4 @@ end module
 !   array size checks, particularly variables for size classes of NM and SPM
 !   sedimentPorosity: 0 <= x <= 1
 !   water content at saturation is greater than water content at field capacity
+!   are batch runs contiguous (dates follow on from each other for different chunks)

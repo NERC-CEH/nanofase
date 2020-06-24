@@ -2,6 +2,7 @@ module Globals
     use mo_netcdf
     use datetime_module
     use mod_strptime, only: f_strptime
+    use DefaultsModule, only: ioUnitConfig, ioUnitBatchConfig
     use ErrorCriteriaModule
     use ErrorInstanceModule
     implicit none
@@ -49,10 +50,17 @@ module Globals
         character(len=6)    :: endSite                          !! Where does the calibration end?
         character(len=6), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
 
-        ! Batched run
-        integer             :: nBatches = 1                     !! Numbers of batches to run
-        logical             :: isBatchRun = .false.             !! Are we batch running config files?
+        ! Batch run
+        integer                         :: nChunks = 1          !! Numbers of chunks to run
+        logical                         :: isBatchRun = .false. !! Are we batch running?
+        character(len=256), allocatable :: batchInputFiles(:)   !! Paths to input files for each chunk
+        character(len=256), allocatable :: batchConstantFiles(:) !! Paths to constants files for each chunk
+        type(datetime), allocatable     :: batchStartDates(:)   !! Start dates for each chunk
+        integer, allocatable            :: batchNTimesteps(:)   !! Number of timesteps for each chunk
         character(len=256), allocatable :: batchConfigFiles(:)  !! Paths to config files for batches
+        integer                         :: nTimestepsInBatch    !! Total number of timesteps in batch run
+        type(datetime)                  :: batchStartDate       !! Start date of batch run
+        type(datetime)                  :: batchEndDate         !! End date of batch run
 
         ! General
         type(NcDataset) :: dataset                          !! The NetCDF dataset
@@ -103,11 +111,13 @@ module Globals
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
             startDateStr, site_data, description
+        character(len=256), allocatable :: input_files(:), constants_files(:), start_dates(:)
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
         character(len=5) :: soil_pec_units, sediment_pec_units
+        integer, allocatable :: n_timesteps_per_chunk(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
-            n_fractional_compositions
+            n_fractional_compositions, n_chunks
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_sediment_layers
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
             default_alpha_hetero_estuary
@@ -116,6 +126,8 @@ module Globals
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown
+        
+        ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
             n_fractional_compositions, n_sediment_layers
         namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
@@ -128,6 +140,10 @@ module Globals
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
         namelist /sources/ include_point_sources
+
+        ! Batch config namelists
+        namelist /batch_config/ n_chunks
+        namelist /chunks/ input_files, constants_files, start_dates, n_timesteps_per_chunk
 
         ! Defaults, which will be overwritten if present in config file
         write_csv = .true.
@@ -143,27 +159,44 @@ module Globals
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
         call get_command_argument(2, batchRunFilePath, batchRunFilePathLength)
-        ! Open the config file and read the different config groups
+
+        ! Open the config file, or try and find one at config/config.nml if it can't be found 
         if (configFilePathLength > 0) then
-            open(10, file=trim(configFilePath), status="old")
+            open(ioUnitConfig, file=trim(configFilePath), status="old")
             C%configFilePath = configFilePath
         else
-            open(10, file="config/config.nml", status="old")
+            open(ioUnitConfig, file="config/config.nml", status="old")
             C%configFilePath = "config/config.nml"
         end if
 
+        ! If this is a batch run, then open the batch run config file and store the data from it
         if (batchRunFilePathLength > 0) then
             C%isBatchRun = .true.
-            open(12, file=trim(batchRunFilePath), status="old")
-            read(12, '(i2)') C%nBatches
-            allocate(C%batchConfigFiles(C%nBatches))
-            do i = 1, C%nBatches
-                read(12, '(A)') C%batchConfigFiles(i)
+            ! Open and read the namelists
+            open(ioUnitBatchConfig, file=trim(batchRunFilePath), status="old")
+            read(ioUnitBatchConfig, nml=batch_config); rewind(ioUnitBatchConfig)
+            C%nChunks = n_chunks
+            ! Allocate variables based on the number of batches
+            allocate(input_files(C%nChunks), &
+                constants_files(C%nChunks), &
+                start_dates(C%nChunks), &
+                n_timesteps_per_chunk(C%nChunks))
+            ! Now we can read the other variables in
+            read(ioUnitBatchConfig, nml=chunks)
+            ! Store these in config variables
+            allocate(C%batchInputFiles, source=input_files)
+            allocate(C%batchConstantFiles, source=constants_files)
+            allocate(C%batchStartDates(C%nChunks))
+            allocate(C%batchNTimesteps, source=n_timesteps_per_chunk)
+            ! Turn the datetime string into a datetime object
+            do i = 1, C%nChunks
+                C%batchStartDates(i) = f_strptime(start_dates(i))
             end do
-            close(12)
+            ! Close the file
+            close(ioUnitBatchConfig)
         end if
 
-        read(10, nml=allocatable_array_sizes)
+        read(ioUnitConfig, nml=allocatable_array_sizes)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
         allocate(soil_layer_depth(n_soil_layers))
@@ -173,15 +206,15 @@ module Globals
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(sediment_particle_densities(n_fractional_compositions))
         ! Carry on reading in the different config groups
-        read(10, nml=nanomaterial); rewind(10)
-        read(10, nml=calibrate); rewind(10)
-        read(10, nml=data); rewind(10)
-        read(10, nml=output); rewind(10)
-        read(10, nml=run); rewind(10)
-        read(10, nml=soil); rewind(10)
-        read(10, nml=sediment); rewind(10)
-        read(10, nml=sources); rewind(10)
-        close(10)
+        read(ioUnitConfig, nml=nanomaterial); rewind(10)
+        read(ioUnitConfig, nml=calibrate); rewind(10)
+        read(ioUnitConfig, nml=data); rewind(10)
+        read(ioUnitConfig, nml=output); rewind(10)
+        read(ioUnitConfig, nml=run); rewind(10)
+        read(ioUnitConfig, nml=soil); rewind(10)
+        read(ioUnitConfig, nml=sediment); rewind(10)
+        read(ioUnitConfig, nml=sources)
+        close(ioUnitConfig)
         
         ! Store this data in the Globals variable
         ! Nanomaterial
@@ -234,6 +267,23 @@ module Globals
         C%includeAttachment = include_attachment
         ! Sources
         C%includePointSources = include_point_sources
+
+        ! If this is batch run, then use the config options in the batch config file
+        ! to override those given in the config file. Also set some variable about the
+        ! whole batch run
+        if (C%isBatchRun) then
+            C%inputFile = C%batchInputFiles(1)
+            C%constantsFile = C%batchConstantFiles(1)
+            C%startDate = C%batchStartDates(1)
+            C%nTimeSteps = C%batchNTimesteps(1)
+            C%nTimestepsInBatch = sum(C%batchNTimesteps)
+            C%batchStartDate = C%batchStartDates(1)
+            C%batchEndDate = C%batchStartDates(C%nChunks) + timedelta(C%batchNTimesteps(C%nChunks) - 1)
+        else
+            C%nTimestepsInBatch = C%nTimesteps
+            C%batchStartDate = C%startDate
+            C%batchEndDate = C%startDate + timedelta(C%nTimeSteps - 1)
+        end if
 
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))

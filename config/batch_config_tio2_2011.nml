@@ -1,9 +1,0 @@
-&data
-input_file = "data/thames/data_tio2_2011.nc"
-constants_file = "data/thames/constants_tio2.nml"
-/
-
-&run
-n_timesteps = 365
-start_date = "2011-01-01"
-/

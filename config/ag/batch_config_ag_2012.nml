@@ -1,9 +1,0 @@
-&data
-input_file = "data/thames/data_ag_2012.nc"
-constants_file = "data/thames/constants_ag.nml"
-/
-
-&run
-n_timesteps = 366
-start_date = "2012-01-01"
-/

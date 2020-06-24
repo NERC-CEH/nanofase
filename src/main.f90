@@ -117,13 +117,13 @@ program main
 
     ! error stop
 
-    do k = 1, C%nBatches
+    do k = 1, C%nChunks
         ! If we're not on the first batch, we need to update the data for this batch
         ! TODO at the moment the first config file specified in the batch config file doesn't have any effect
         ! update this to be more logical (and less likely to break, e.g. audit grid dimensions etc are the same
         ! between data files)
         if (k > 1) then
-            call DATASET%update(C%batchConfigFiles(k))
+            call DATASET%update(k)
             call env%parseNewBatchData()
         end if
 
