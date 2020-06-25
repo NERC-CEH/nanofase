@@ -85,7 +85,7 @@ module spcBedSedimentLayer
         !! All allocated variables deallocated
         function destroyBedSedimentLayer(Me) result (r)
             use ResultModule, only: Result
-            import BedSedimentLayer, Result
+            import BedSedimentLayer
             class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
             type(Result) :: r                                        !! The `Result` object
         end function

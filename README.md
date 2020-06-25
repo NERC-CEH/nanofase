@@ -31,6 +31,17 @@ $ mkdir ./bin
 $ make
 ```
 
+### Debug vs release
+
+The [example makefile](./Makefile.example) provides targets for both debug and release compilation. The main make target builds the debug version, whilst the `release` target builds an optimised release version. Run times can be significantly improved using the `release` target, and so unless you need detailed debugging or profiling, then it is recommended to use the `release` target.
+
+```shell
+# Build the debug version
+$ make
+# Build the release version
+$ make release
+```
+
 ### Dependencies
 
 The only dependency outside of the `vendor` directory (which are compiled from source when the model is compiled, so don't worry about these) is the [NetCDF Fortran](https://www.unidata.ucar.edu/software/netcdf/docs/building_netcdf_fortran.html) library, which must already be installed on your system. NetCDF4 is available on most default application repositories, such as those for Ubuntu and Red Hat, and this is the easiest way to install. For example, on Ubuntu:
