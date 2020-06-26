@@ -172,18 +172,14 @@ module spcReach
             me%j_transformed_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
                 C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%j_dissolved(me%nInflows + me%nPointSources + me%nDiffuseSources + 4), &
-            me%j_dissolved_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4), &
-            me%j_ionic(me%nInflows + 3, C%ionicDim), &
-            me%j_ionic_final(me%nInflows + 3, C%ionicDim) &
+            me%j_dissolved_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4) &
         )
-        me%Q = 0
-        me%Q_final = 0
-        me%j_spm = 0
-        me%j_spm_final = 0
-        me%j_np = 0
-        me%j_np_final = 0
-        me%j_ionic = 0
-        me%j_ionic_final = 0
+        me%Q = 0.0_dp
+        me%Q_final = 0.0_dp
+        me%j_spm = 0.0_dp
+        me%j_spm_final = 0.0_dp
+        me%j_np = 0.0_dp
+        me%j_np_final = 0.0_dp
         ! Defaults
         me%n = C%n_river
     end subroutine

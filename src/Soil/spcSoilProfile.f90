@@ -16,8 +16,7 @@ module spcSoilProfile
         character(len=256) :: ref                                   !! A reference name for the object
         integer :: x                                                !! `GridCell` x reference
         integer :: y                                                !! `GridCell` y reference
-        integer :: p                                                !! `SoilProfile` reference (not needed currently as only one `SoilProfile` per `GridCell`)
-        type(NcGroup) :: ncGroup                                    !! The NetCDF group for this object
+        integer :: p                                                !! `SoilProfile` reference
         type(SoilLayerElement), allocatable :: colSoilLayers(:)     !! Array of `SoilLayerElement` objects to hold the soil layers
         real(dp) :: slope                                           !! The slope of the containing `GridCell`
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
@@ -74,19 +73,6 @@ module spcSoilProfile
 
         ! TODO this will probably be modified when we start properly using land cover. Currently this is to account for urban soils
         logical :: isUrban = .false.
-
-        ! ------------------------------------
-        ! TODO Q_peak parameters - to be deprecated
-        real(dp), allocatable :: usle_alpha_half(:)                 !! Fraction of rainfall falling during maximum half hour [-]
-        real(dp) :: usle_area_hru                                   !! Area of the HRU corresponding to the containing `GridCell` [ha]
-        real(dp) :: usle_area_sb                                    !! Area of the subbasin corresponding to the containing `GridCell` [km2]
-        real(dp) :: usle_L_sb                                       !! Hillslope length for the subbasin [m]
-        real(dp) :: usle_n_sb                                       !! Manning's roughness coefficient for the subbasin [-]
-        real(dp) :: usle_slp_sb                                     !! Slope of the subbasin [m m-1]
-        real(dp) :: usle_slp_ch                                     !! Slope of the channel [m m-1]
-        real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
-        !--------------------------------------
-        
       contains
         procedure(createSoilProfile), deferred :: create                    ! Create the SoilProfile object
         procedure(destroySoilProfile), deferred :: destroy                  ! Remove the SoilProfile object and all contained objects

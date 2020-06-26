@@ -11,6 +11,8 @@ module DefaultsModule
     integer, parameter :: ioUnitOutputWater = 101
     integer, parameter :: ioUnitOutputSediment = 102
     integer, parameter :: ioUnitOutputSoil = 103
+    ! Checkpoint
+    integer, parameter :: ioUnitCheckpoint = 500
 
     ! Defaults for constants
     real, parameter :: defaultSoilAttachmentEfficiency = 0.0

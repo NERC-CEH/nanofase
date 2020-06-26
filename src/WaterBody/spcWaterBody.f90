@@ -56,9 +56,9 @@ module spcWaterBody
         real(dp) :: C_dissolved                                     !! Dissolved NM concentration [kg/m3]
         real(dp) :: C_dissolved_final
         real(dp), allocatable :: C_ionic(:)                         !! Ionic metal concentration [kg/m3]
-        real(dp), allocatable :: m_ionic(:)                         !! Ionic metal mass [kg/m3]
-        real(dp), allocatable :: m_np_disp(:,:,:,:)                 !! Mass of nanomaterial on each displacement [kg]
-        real(dp), allocatable :: C_np_disp(:,:,:,:)                 !! Concentration of nanomaterial on each displacement [kg]
+        ! real(dp), allocatable :: m_ionic(:)                         !! Ionic metal mass [kg/m3]
+        ! real(dp), allocatable :: m_np_disp(:,:,:,:)                 !! Mass of nanomaterial on each displacement [kg]
+        ! real(dp), allocatable :: C_np_disp(:,:,:,:)                 !! Concentration of nanomaterial on each displacement [kg]
         ! Flows and fluxes
         integer, allocatable :: neighboursArray(:,:)                !! Neighbouring waterbodies, as array of indices
         type(WaterBodyPointer), allocatable :: neighbours(:)        !! Neighbouring waterbodies
@@ -81,9 +81,9 @@ module spcWaterBody
         real(dp), allocatable :: j_transformed_final(:,:,:,:)       !! Final transformed flux array [kg/timestep]
         real(dp), allocatable :: j_dissolved(:)                     !! Dissolved species flux array [kg/timestep]
         real(dp), allocatable :: j_dissolved_final(:)               !! Final dissolved flux array [kg/timestep]
-        real(dp), allocatable :: j_ionic(:,:)
+        ! real(dp), allocatable :: j_ionic(:,:)
             !! Flow of ionic metal, same conventions as Q [kg/timestep]. 2nd dimension is the state of ionic metal
-        real(dp), allocatable :: j_ionic_final(:,:)                 !! Final ionic flux array - see Q_final [kg/timestep]
+        ! real(dp), allocatable :: j_ionic_final(:,:)                 !! Final ionic flux array - see Q_final [kg/timestep]
         real(dp), allocatable :: k_resus(:)                         !! Resuspension rate for a given timestep [s-1]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
@@ -179,7 +179,7 @@ module spcWaterBody
             me%C_np_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%C_ionic(C%ionicDim), &
-            me%m_ionic(C%ionicDim), &
+            ! me%m_ionic(C%ionicDim), &
             me%k_resus(C%nSizeClassesSpm), &
             me%k_settle(C%nSizeClassesSpm), &
             me%W_settle_spm(C%nSizeClassesSpm), &
@@ -188,22 +188,22 @@ module spcWaterBody
             me%C_transformed_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) &
         )
-        me%C_spm = 0
-        me%C_spm_final = 0
-        me%C_np_final = 0
-        me%m_spm = 0
-        me%C_np = 0
-        me%m_np = 0
-        me%C_transformed = 0
-        me%C_transformed_final = 0
-        me%m_transformed = 0
-        me%C_dissolved = 0
-        me%C_dissolved_final = 0
-        me%m_dissolved = 0
-        me%C_ionic = 0
-        me%m_ionic = 0
+        me%C_spm = 0.0_dp
+        me%C_spm_final = 0.0_dp
+        me%C_np_final = 0.0_dp
+        me%m_spm = 0.0_dp
+        me%C_np = 0.0_dp
+        me%m_np = 0.0_dp
+        me%C_transformed = 0.0_dp
+        me%C_transformed_final = 0.0_dp
+        me%m_transformed = 0.0_dp
+        me%C_dissolved = 0.0_dp
+        me%C_dissolved_final = 0.0_dp
+        me%m_dissolved = 0.0_dp
+        me%C_ionic = 0.0_dp
         ! me%T_water = 10             ! TODO set this from data or empirical relationship
-        me%bedArea = 0
+        me%bedArea = 0.0_dp
+        me%volume = 0.0_dp
     end subroutine
 
     subroutine addPointSourceWaterBody(me, index)
@@ -239,7 +239,7 @@ module spcWaterBody
         me%j_np_final = me%j_np
         me%j_transformed_final = me%j_transformed
         me%j_dissolved_final = me%j_dissolved
-        me%j_ionic_final = me%j_ionic
+        ! me%j_ionic_final = me%j_ionic
         me%C_spm_final = me%C_spm
         me%C_np_final = me%C_np
         me%C_transformed_final = me%C_transformed

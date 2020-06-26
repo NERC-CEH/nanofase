@@ -64,8 +64,7 @@ module classSoilProfile1
         me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
 
         ! Allocate the object properties that need to be
-        allocate(me%usle_alpha_half(C%nTimeSteps), &
-            me%erodedSediment(C%nSizeClassesSpm), &
+        allocate(me%erodedSediment(C%nSizeClassesSpm), &
             me%distributionSediment(C%nSizeClassesSpm), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &

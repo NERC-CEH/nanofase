@@ -126,7 +126,7 @@ module classRiverReach
         me%j_np = 0
         me%j_transformed = 0
         me%j_dissolved = 0
-        me%j_ionic = 0
+        ! me%j_ionic = 0
         
         ! Check if this is a boundary reach for calibrating with
         if (.not. me%isBoundary) then

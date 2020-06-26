@@ -150,6 +150,7 @@ module classDatabase
         real(dp), allocatable :: emissionsPointWaterDissolved(:,:,:,:)
         real(dp), allocatable :: emissionsPointWaterCoords(:,:,:,:)
         integer, allocatable :: nPointSources(:,:)
+        integer :: maxPointSources                                              ! Maximum number of point sources in a cell in the whole environment
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
       contains
@@ -285,7 +286,6 @@ module classDatabase
         class(Database)     :: me
         type(NcVariable)    :: var
         type(NcDimension)   :: p_dim
-        integer             :: maxPointSources
 
         ! Spatial data (grid setup, rivers etc) will stay the same between chunks,
         ! but the number of timesteps might not, so let's change that
@@ -481,7 +481,7 @@ module classDatabase
         end if
         ! Emissions - point (all water)                     [kg/timestep]
         p_dim = me%nc%getDimension('p')
-        maxPointSources = p_dim%getLength()
+        me%maxPointSources = p_dim%getLength()
         ! Pristine
         if (me%nc%hasVariable('emissions_point_water_pristine')) then
             var = me%nc%getVariable('emissions_point_water_pristine')
@@ -492,7 +492,7 @@ module classDatabase
                 call var%getData(me%emissionsPointWaterCoords)
             end if
         else
-            allocate(me%emissionsPointWaterPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            allocate(me%emissionsPointWaterPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
             me%emissionsPointWaterPristine = nf90_fill_double
         end if
         ! Matrix-embedded
@@ -505,7 +505,7 @@ module classDatabase
                 call var%getData(me%emissionsPointWaterCoords)
             end if
         else
-            allocate(me%emissionsPointWaterMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            allocate(me%emissionsPointWaterMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
             me%emissionsPointWaterMatrixEmbedded = nf90_fill_double
         end if
         ! Transformed
@@ -518,7 +518,7 @@ module classDatabase
                 call var%getData(me%emissionsPointWaterCoords)
             end if
         else
-            allocate(me%emissionsPointWaterTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            allocate(me%emissionsPointWaterTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
             me%emissionsPointWaterTransformed = nf90_fill_double
         end if
         if (me%nc%hasVariable('emissions_point_water_dissolved')) then
@@ -530,13 +530,13 @@ module classDatabase
                 call var%getData(me%emissionsPointWaterCoords)
             end if
         else
-            allocate(me%emissionsPointWaterDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps, maxPointSources))
+            allocate(me%emissionsPointWaterDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
             me%emissionsPointWaterDissolved = nf90_fill_double
         end if
         ! Emissions - point coordinates. We only need to use one form's point coords (they should
         ! all be the same), so we'll go through them all until we hit one that exists (in case
         ! we're only inputting a certain form)
-        if ((maxPointSources > 0) .and. (.not. allocated(me%emissionsPointWaterCoords))) then
+        if ((me%maxPointSources > 0) .and. (.not. allocated(me%emissionsPointWaterCoords))) then
             call ERROR_HANDLER%trigger(error=ErrorInstance( &
                 message="Unable to find coordinates for point sources in input data. Check point sources " // &
                         "have coordinates sidecar variables." &
@@ -544,7 +544,7 @@ module classDatabase
         end if
 
         ! Calculate the number of point source per cell
-        call me%calculateNPointSources(maxPointSources)
+        call me%calculateNPointSources(me%maxPointSources)
 
         ! SPATIAL 1D VARIABLES
         ! Land use                                  [-]

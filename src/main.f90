@@ -6,6 +6,7 @@ program main
     use classEstuaryReach
     use classEnvironment1
     use classDatabase, only: DATASET
+    use CheckpointModule, only: Checkpoint
     use DataOutputModule
     use classLogger, only: LOGR, timestamp
     use datetime_module
@@ -16,6 +17,7 @@ program main
     type(Environment1) :: env       ! Environment object
     type(Result) :: r               ! Result object
     type(DataOutput) :: output      ! Data output class
+    type(Checkpoint) :: checkpt     ! Checkpoint module
     integer :: x, y, t, k           ! Loop iterators
     integer :: tPreviousBatch = 0   ! Timestep at end of previous batch
 
@@ -74,6 +76,12 @@ program main
     call LOGR%toFile(errors=.errors.r)
     call ERROR_HANDLER%trigger(errors=.errors.r)
     call output%init(env)
+    
+    ! Set up checkpointing and check if we're meant to be reinstating a checkpoint now
+    call checkpt%init(env, C%checkpointFile)
+    if (C%reinstateCheckpoint) then
+        call checkpt%reinstate(preserve_timestep=C%preserveTimestep)
+    end if
 
     ! TODO move all this to a data output module
     ! Open the output files to print to
@@ -208,6 +216,11 @@ program main
         end do
         tPreviousBatch = tPreviousBatch + t
     end do
+
+    ! Have we been asked to create a checkpoint?
+    if (C%saveCheckpoint) then
+        call checkpt%save(tPreviousBatch)
+    end if
 
     ! Write the simulation summary to file and close output data files
     call output%finalise()

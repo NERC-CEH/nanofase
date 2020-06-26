@@ -136,12 +136,13 @@ module classEstuaryReach
         me%j_np = 0
         me%j_transformed = 0
         me%j_dissolved = 0
-        me%j_ionic = 0
-        if (t == 1) then
-            previousVolume = 0.0_dp
-        else
-            previousVolume = me%volume      ! me%volume will be changed by setDimensions() below
-        end if
+        previousVolume = me%volume
+        ! me%j_ionic = 0
+        ! if (t == 1) then
+        !     previousVolume = 0.0_dp
+        ! else
+        !     previousVolume = me%volume      ! me%volume will be changed by setDimensions() below
+        ! end if
         
         ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
         ! getting their outflow on this timestep, rather than the last timestep

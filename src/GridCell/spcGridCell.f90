@@ -38,8 +38,6 @@ module spcGridCell
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
         type(DiffuseSource2), allocatable :: diffuseSources(:)          !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
         logical :: hasDiffuseSource = .false.                           !! Does this `GridCell` have a `DiffuseSource`?
-        integer :: nRiverReaches = 0                                    !! TODO deprecate - Number of contained `RiverReach`es
-        integer :: nEstuaryReaches = 0                                  !! TODO deprecate - Number of contained `EstuaryReach`es
         integer :: nReaches = 0                                         !! Number of `Reach`es in this cell
         integer :: nSoilProfiles = 0                                    !! Number of contained `SoilProfile`s
         integer :: nBranches = 0                                        !! Number of river branches in the `GridCell`

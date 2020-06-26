@@ -33,13 +33,21 @@ module Globals
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
+        integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
+
+        ! Checkpointing
+        character(len=256)  :: checkpointFile                   !! Path to checkpoint file, to save to and/or read from
+        logical             :: saveCheckpoint                   !! Should a checkpoint be saved when the run finishes?
+        logical             :: reinstateCheckpoint              !! Should a checkpoint be reinstated before the run starts?
+        logical             :: preserveTimestep                 !! Should the final timestep from the checkpoint be used to start the reinstated run?
+
+        ! Soil, sediment
         real, allocatable   :: soilLayerDepth(:)                !! Soil layer depth [m]
         real, allocatable   :: sedimentLayerDepth(:)            !! Sediment layer depth [m]
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
-        integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
         integer             :: nSoilLayers                      !! Number of soil layers to be modelled
         integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
         
@@ -61,6 +69,9 @@ module Globals
         integer                         :: nTimestepsInBatch    !! Total number of timesteps in batch run
         type(datetime)                  :: batchStartDate       !! Start date of batch run
         type(datetime)                  :: batchEndDate         !! End date of batch run
+
+        ! Checkpointing
+        integer                         :: t0 = 1               !! Used to preserve timestep between checkpoints. Timestep number at start of run
 
         ! General
         type(NcDataset) :: dataset                          !! The NetCDF dataset
@@ -103,14 +114,15 @@ module Globals
 
     !> Initialise global variables, such as `ERROR_HANDLER`
     subroutine GLOBALS_INIT()
-        integer :: n, i                                     ! Iterators
-        ! Water
-        type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
-        character(len=256) :: configFilePath, batchRunFilePath
-        integer :: configFilePathLength, batchRunFilePathLength
+        integer             :: n, i                                             ! Iterators
+        type(ErrorInstance) :: errors(17)                                       ! ErrorInstances to be added to ErrorHandler
+        character(len=256)  :: configFilePath, batchRunFilePath                 ! Variable to read file paths into
+        integer             :: configFilePathLength, batchRunFilePathLength     ! Variable to read file path lengths into
+        integer             :: nmlIOStat                                        ! NML IO status code, to check if group exists
+        
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
-            startDateStr, site_data, description
+            startDateStr, site_data, description, checkpoint_file
         character(len=256), allocatable :: input_files(:), constants_files(:), start_dates(:)
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
@@ -125,7 +137,8 @@ module Globals
             sediment_particle_densities(:), sediment_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
-            include_soil_layer_breakdown, include_soil_state_breakdown
+            include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
+            preserve_timestep
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
@@ -137,6 +150,7 @@ module Globals
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
             description
+        namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
         namelist /sources/ include_point_sources
@@ -155,6 +169,9 @@ module Globals
         include_soil_state_breakdown = .false.
         soil_pec_units = 'kg/kg'
         sediment_pec_units = 'kg/kg'
+        save_checkpoint = .false.
+        reinstate_checkpoint = .false.
+        preserve_timestep = .false.
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -206,13 +223,14 @@ module Globals
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(sediment_particle_densities(n_fractional_compositions))
         ! Carry on reading in the different config groups
-        read(ioUnitConfig, nml=nanomaterial); rewind(10)
-        read(ioUnitConfig, nml=calibrate); rewind(10)
-        read(ioUnitConfig, nml=data); rewind(10)
-        read(ioUnitConfig, nml=output); rewind(10)
-        read(ioUnitConfig, nml=run); rewind(10)
-        read(ioUnitConfig, nml=soil); rewind(10)
-        read(ioUnitConfig, nml=sediment); rewind(10)
+        read(ioUnitConfig, nml=nanomaterial); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=calibrate); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=data); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=output); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=run); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=checkpoint); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=soil); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=sediment); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=sources)
         close(ioUnitConfig)
         
@@ -243,6 +261,14 @@ module Globals
         C%epsilon = epsilon
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
+        ! Checkpoint - check if group exists before reading
+        read(ioUnitConfig, nml=checkpoint, iostat=nmlIOStat); rewind(ioUnitConfig)
+        ! Only read in the biota group if there is one
+        if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=checkpoint); rewind(ioUnitConfig)
+        C%checkpointFile = checkpoint_file
+        C%saveCheckpoint = save_checkpoint
+        C%reinstateCheckpoint = reinstate_checkpoint
+        C%preserveTimestep = preserve_timestep
         ! Calibration
         C%calibrationRun = calibration_run
         if (C%calibrationRun) then
