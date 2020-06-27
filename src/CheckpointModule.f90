@@ -5,6 +5,7 @@ module CheckpointModule
     use Globals, only: dp, C
     use classDatabase, only: DATASET
     use classLogger, only: LOGR
+    use ResultModule
     implicit none
     private
 
@@ -38,7 +39,7 @@ module CheckpointModule
     subroutine save(me, t)
         class(Checkpoint)       :: me               !! This Checkpoint instance
         integer                 :: t                !! The current timestep
-        integer                 :: i, j, k, l       ! Iterators
+        integer                 :: i, j, k, l, m    ! Iterators
         ! Variables to save
         ! TODO allow multiple soil profiles
         ! Soil profile
@@ -77,6 +78,19 @@ module CheckpointModule
         real(dp) :: water_m_transformed(DATASET%gridShape(1), DATASET%gridShape(2), &
             maxval(DATASET%nWaterbodies), C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: water_m_dissolved(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
+        ! Sediment
+        real(dp) :: sediment_m_np(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: sedimentLayer_M_f(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp) :: sedimentLayer_M_f_backup(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp) :: sedimentLayer_V_w(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp) :: sedimentLayer_f_comp(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm, C%nFracCompsSpm)
+        real(dp) :: sedimentLayer_pd_comp(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm, C%nFracCompsSpm)
 
         ! There will be empty elements in the water arrays, as the number of waterbodies, inflows and emissions
         ! varies between each grid cell. So, set to zero so we're at least storing a small number
@@ -108,18 +122,17 @@ module CheckpointModule
         ! so we only save variables that alter on each time step here
         do j = 1, size(me%env%item%colGridCells, dim=2)
             do i = 1, size(me%env%item%colGridCells, dim=1)
-                associate(cell => me%env%item%colGridCells(i,j)%item)
+                associate (cell => me%env%item%colGridCells(i,j)%item)
                 
                     ! Soil
                     do k = 1, cell%nSoilProfiles
-                        associate(profile => cell%colSoilProfiles(k)%item)
+                        associate (profile => cell%colSoilProfiles(k)%item)
                             ! Soil profile dynamic properties
                             soilProfile_m_np(i,j,k,:,:,:) = profile%m_np
                             soilProfile_m_transformed(i,j,k,:,:,:) = profile%m_transformed
                             soilProfile_m_dissolved(i,j,k) = profile%m_dissolved
-                            ! CHECK: m_np_eroded
                             do l = 1, C%nSoilLayers
-                                associate(layer => profile%colSoilLayers(l)%item)
+                                associate (layer => profile%colSoilLayers(l)%item)
                                     ! Soil layer dynamic properties
                                     soilLayer_m_np(i,j,k,l,:,:,:) = layer%m_np
                                     soilLayer_m_transformed(i,j,k,l,:,:,:) = layer%m_transformed
@@ -133,7 +146,7 @@ module CheckpointModule
 
                     ! Water
                     do k = 1, cell%nReaches
-                        associate(water => cell%colRiverReaches(k)%item)
+                        associate (water => cell%colRiverReaches(k)%item)
                             ! Waterbody dynamic properties
                             water_volume(i,j,k) = water%volume
                             water_Q(i,j,k,:3+water%nInflows) = water%Q
@@ -155,6 +168,23 @@ module CheckpointModule
                             water_m_np(i,j,k,:,:,:) = water%m_np
                             water_m_transformed(i,j,k,:,:,:) = water%m_transformed
                             water_m_dissolved(i,j,k) = water%m_dissolved
+
+                            ! Sediment
+                            associate (sediment => water%bedSediment)
+                                sediment_m_np(i,j,k,:,:,:,:) = sediment%M_np
+                                ! Sediment layers
+                                do l = 1, C%nSedimentLayers
+                                    associate (layer => sediment%colBedSedimentLayers(l)%item)
+                                        do m = 1, C%nSizeClassesSpm
+                                            sedimentLayer_M_f(i,j,k,l,m) = layer%colFineSediment(m)%M_f()
+                                            sedimentLayer_M_f_backup(i,j,k,l,m) = layer%colFineSediment(m)%M_f_backup()
+                                            sedimentLayer_V_w(i,j,k,l,m) = layer%colFineSediment(m)%V_w()
+                                            sedimentLayer_f_comp(i,j,k,l,m,:) = layer%colFineSediment(m)%f_comp
+                                            sedimentLayer_pd_comp(i,j,k,l,m,:) = layer%colFineSediment(m)%pd_comp
+                                        end do
+                                    end associate
+                                end do
+                            end associate
                         end associate
                     end do
 
@@ -170,6 +200,8 @@ module CheckpointModule
         write(ioUnitCheckpoint) water_volume, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
             water_j_np, water_j_np_final, water_j_transformed, water_j_transformed_final, water_j_dissolved, &
             water_j_dissolved_final, water_m_spm, water_m_np, water_m_transformed, water_m_dissolved
+        write(ioUnitCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
+            sedimentLayer_f_comp, sedimentLayer_pd_comp
         ! Close the file
         close(ioUnitCheckpoint)
         
@@ -183,7 +215,8 @@ module CheckpointModule
     subroutine reinstate(me, preserve_timestep)
         class(Checkpoint)       :: me                                   !! This Checkpoint instance
         logical, optional       :: preserve_timestep                    !! Should the restarted run preserve the model timestep at the end of saved run?
-        integer                 :: i, j, k, l                           ! Iterators
+        integer                 :: i, j, k, l, m                        ! Iterators
+        type(Result)            :: rslt
         integer                 :: t                                    ! Timestep
         ! Soil profile
         real(dp) :: soilProfile_m_np(DATASET%gridShape(1), DATASET%gridShape(2), 1, C%npDim(1), C%npDim(2), C%npDim(3))       ! TODO allow multiple soil profiles
@@ -221,6 +254,19 @@ module CheckpointModule
         real(dp) :: water_m_transformed(DATASET%gridShape(1), DATASET%gridShape(2), &
             maxval(DATASET%nWaterbodies), C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: water_m_dissolved(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
+        ! Sediment
+        real(dp) :: sediment_m_np(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: sedimentLayer_M_f(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp) :: sedimentLayer_M_f_backup(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp) :: sedimentLayer_V_w(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp) :: sedimentLayer_f_comp(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm, C%nFracCompsSpm)
+        real(dp) :: sedimentLayer_pd_comp(DATASET%gridShape(1), DATASET%gridShape(2), &
+            maxval(DATASET%nWaterbodies), C%nSedimentLayers, C%nSizeClassesSpm, C%nFracCompsSpm)
 
         ! If preserve timestep not present, then default to false
         if (.not. present(preserve_timestep)) preserve_timestep = .false.
@@ -232,6 +278,8 @@ module CheckpointModule
         read(ioUnitCheckpoint) water_volume, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
             water_j_np, water_j_np_final, water_j_transformed, water_j_transformed_final, water_j_dissolved, &
             water_j_dissolved_final, water_m_spm, water_m_np, water_m_transformed, water_m_dissolved
+        read(ioUnitCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
+            sedimentLayer_f_comp, sedimentLayer_pd_comp
         close(ioUnitCheckpoint)
 
         ! Now we've read in those variables, we need to reinstate them.
@@ -244,18 +292,18 @@ module CheckpointModule
         ! their dynamic state variables. Basically the opposite of me%save()
         do j = 1, size(me%env%item%colGridCells, dim=2)
             do i = 1, size(me%env%item%colGridCells, dim=1)
-                associate(cell => me%env%item%colGridCells(i,j)%item)
+                associate (cell => me%env%item%colGridCells(i,j)%item)
                 
                     ! Soil
                     do k = 1, cell%nSoilProfiles
-                        associate(profile => cell%colSoilProfiles(k)%item)
+                        associate (profile => cell%colSoilProfiles(k)%item)
                             ! Soil profile dynamic properties
                             profile%m_np = soilProfile_m_np(i,j,k,:,:,:) 
                             profile%m_transformed = soilProfile_m_transformed(i,j,k,:,:,:) 
                             profile%m_dissolved = soilProfile_m_dissolved(i,j,k) 
                             ! CHECK: m_np_eroded
                             do l = 1, C%nSoilLayers
-                                associate(layer => profile%colSoilLayers(l)%item)
+                                associate (layer => profile%colSoilLayers(l)%item)
                                     ! Soil layer dynamic properties
                                     layer%m_np = soilLayer_m_np(i,j,k,l,:,:,:) 
                                     layer%m_transformed = soilLayer_m_transformed(i,j,k,l,:,:,:) 
@@ -269,7 +317,7 @@ module CheckpointModule
 
                     ! Water
                     do k = 1, cell%nReaches
-                        associate(water => cell%colRiverReaches(k)%item)
+                        associate (water => cell%colRiverReaches(k)%item)
                             ! Waterbody dynamic properties
                             water%volume = water_volume(i,j,k) 
                             water%Q = water_Q(i,j,k,:3+water%nInflows) 
@@ -291,6 +339,25 @@ module CheckpointModule
                             water%m_np = water_m_np(i,j,k,:,:,:) 
                             water%m_transformed = water_m_transformed(i,j,k,:,:,:) 
                             water%m_dissolved = water_m_dissolved(i,j,k) 
+
+                            ! Sediment
+                            associate (sediment => water%bedSediment)
+                                sediment%M_np = sediment_m_np(i,j,k,:,:,:,:) 
+                                ! Sediment layers
+                                do l = 1, C%nSedimentLayers
+                                    associate (layer => sediment%colBedSedimentLayers(l)%item)
+                                        do m = 1, C%nSizeClassesSpm
+                                            rslt = layer%colFineSediment(m)%set( &
+                                                Mf_in = sedimentLayer_M_f(i,j,k,l,m), &
+                                                Vw_in = sedimentLayer_V_w(i,j,k,l,m) &
+                                            )
+                                            call layer%colFineSediment(m)%backup_M_f()  
+                                            layer%colFineSediment(m)%f_comp = sedimentLayer_f_comp(i,j,k,l,m,:)
+                                            layer%colFineSediment(m)%pd_comp = sedimentLayer_pd_comp(i,j,k,l,m,:) 
+                                        end do
+                                    end associate
+                                end do
+                            end associate
                         end associate
                     end do
 

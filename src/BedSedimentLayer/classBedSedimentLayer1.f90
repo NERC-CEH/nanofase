@@ -96,10 +96,9 @@ module classBedSedimentLayer1
                                )                                     ! error if name is not provided
                 return                                               ! critical error, so exit here
             end if
-            ! var = layerGroup%getVariable("capacity")                 ! Get the layer capacity [m3 m-2]
-            ! call var%getData(Me%C_total)                             ! retrieve into C_total variable
             ! Get the layer capacity [m3/m2] from data for this layer
             me%C_total = C%sedimentLayerDepth(me%l)
+            ! TODO move auditing to data
             if (Me%C_total == 0) then                                ! CRITICAL ERROR HERE: C_total == 0
                 call r%addError(ErrorInstance( &
                             code = 1, &
@@ -204,6 +203,7 @@ module classBedSedimentLayer1
                                              ) &
                                )                                     ! add to Result
             end if
+            ! TOOD is me%pd_comp used or 
             tr = trim(Me%name) // &
                 "%createBedSedimentLayer1%pd_comp"                   ! trace message
             allocate(Me%pd_comp(Me%nfComp), &
