@@ -1,1 +1,0 @@
-# NanoFASE model simulation summary
