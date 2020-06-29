@@ -83,9 +83,11 @@ The config file is responsible for telling the model where the input data are (v
 
 Output data is [documented here](./doc/output.md).
 
-### Batch runs
+## Batch runs and checkpointing
 
-The model allow for multiple simulations to be chained together. See the [batch docs](./doc/batch.md) for more details.
+The model allow for multiple simulations to be chained together into batch runs, and model simulations to be saved and reinstated by use of checkpointing. See the following for more details:
+- [Batch runs](./doc/batch.md)
+- [Checkpointing](./doc/checkpointing.md)
 
 ## Example workflows
 
