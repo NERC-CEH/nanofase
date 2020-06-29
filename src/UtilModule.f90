@@ -109,11 +109,12 @@ module UtilModule
         end function
         
         !> Convert a real 1D array to a string
-        function strFromReal1D(r) result(str)
+        function strFromReal1D(r) result(string)
             real, intent(in) :: r(:)        !! The integer to convert to a string
-            character(len=256) :: str       !! The string to return
-            ! write(str, *) (trim(str(r(i))) // ", ", i=1, size(r - 1))
-            ! str = trim(str) // trim(str(r(size(r))))
+            character(len=256) :: string       !! The string to return
+            integer         :: i
+            write(string, *) (trim(str(r(i))) // ", ", i=1, size(r) - 1)
+            string = trim(string) // " " // trim(str(r(size(r))))
         end function
 
         !> Convert a double-precision real to a string

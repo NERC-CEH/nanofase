@@ -49,7 +49,7 @@ warm_up_period = 0                                      ! Warm up period before 
 
 &checkpoint
 checkpoint_file = "./checkpoint.dat"                    ! Location of checkpoint file to read from and/or save to
-save_checkpoint = .true.                                ! Save a checkpoint file when the run is finished? Defaults to false
+save_checkpoint = .false.                                ! Save a checkpoint file when the run is finished? Defaults to false
 reinstate_checkpoint = .true.                          ! Reinstate a checkpoint from checkpoint_file? Defaults to false
 preserve_timestep = .false.                             ! Should the timestep from the checkpoint be used as a starting timestep in a reinstated run?
 /

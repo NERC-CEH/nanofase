@@ -7,6 +7,7 @@ module CheckpointModule
     use classLogger, only: LOGR
     use ErrorInstanceModule
     use ResultModule
+    use UtilModule
     implicit none
     private
 
@@ -285,12 +286,17 @@ module CheckpointModule
         read(ioUnitCheckpoint) gridBounds, gridRes
 
         if (any(abs(gridBounds - DATASET%gridBounds) > C%epsilon)) then
-            ! call ERROR_HANDLER%trigger( &
-            !     error=ErrorInstance(message="Grid bounds of checkpoint and current simulation do not match. " // &
-            !         "Grid setup must be identical to reinstate a checkpoint. Checkpoint bounds: " // &
-            !         (trim(str(gridBounds(b))), i=1, size(gridBounds)) // ". Simulation boudns: " // &
-            !         (trim(str(DATASET%gridBounds(b))), i=1, size(gridBounds)) &
-            ! )
+            call ERROR_HANDLER%trigger( &
+                error=ErrorInstance(message="Grid bounds of checkpoint and current simulation do not match. " // &
+                    "Grid setup must be identical to reinstate a checkpoint. Checkpoint bounds: " // &
+                    trim(adjustl(str(gridBounds))) // ". Simulation bounds: " // trim(adjustl(str(DATASET%gridBounds))) // ".") &
+            )
+        else if (any(abs(gridRes - DATASET%gridRes) > C%epsilon)) then
+            call ERROR_HANDLER%trigger( &
+                error=ErrorInstance(message="Grid resolution of checkpoint and current simulation do not match. " // &
+                    "Grid setup must be identical to reinstate a checkpoint. Checkpoint resolution: " // &
+                    trim(adjustl(str(gridRes))) // ". Simulation resolution: " // trim(adjustl(str(DATASET%gridRes))) // ".") &
+            )
         end if
 
         read(ioUnitCheckpoint) t
