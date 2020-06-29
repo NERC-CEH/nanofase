@@ -1,0 +1,63 @@
+constants_file: /home/pantelispanka/Jaqpot/nanofase-api/src/data/model/data/constants/thames_tio2_2015/constants.yaml
+emissions_areal_soil_pristine: {type: raster, units: kg/m**2/year}
+emissions_atmospheric_drydepo_matrixembedded: {path: '<root_dir>emissions_atmospheric_drydepo_matrix-embedded/{t}.tif',
+  t_min: 1, type: raster, units: kg/m**2/s}
+emissions_atmospheric_drydepo_pristine: {path: '<root_dir>emissions_atmospheric_drydepo_pristine/{t}.tif',
+  t_min: 1, type: raster, units: kg/m**2/s}
+emissions_atmospheric_drydepo_transformed: {path: '<root_dir>emissions_atmospheric_drydepo_transformed/{t}.tif',
+  t_min: 1, type: raster, units: kg/m**2/s}
+emissions_atmospheric_wetdepo_matrixembedded: {path: '<root_dir>emissions_atmospheric_wetdepo_matrix-embedded/{t}.tif',
+  t_min: 1, type: raster, units: kg/m**2/s}
+emissions_atmospheric_wetdepo_pristine: {path: '<root_dir>emissions_atmospheric_wetdepo_pristine/{t}.tif',
+  t_min: 1, type: raster, units: kg/m**2/s}
+emissions_atmospheric_wetdepo_transformed: {path: '<root_dir>emissions_atmospheric_wetdepo_transformed/{t}.tif',
+  t_min: 1, type: raster, units: kg/m**2/s}
+emissions_point_water_matrixembedded:
+  path: /home/pantelispanka/Jaqpot/nanofase-api/src/data/points/water_matrix_pAyWsrMF5g9UzE.shp
+  source_type_col: profile
+  temporal_profile: {factor_col: Factor, for_source_type: P2, path: <root_dir>emissions_temporal-profile_2015.csv,
+    source_type_col: Emission_source_type}
+  type: shapefile
+  units: kg/year
+  value_var: emission
+emissions_point_water_pristine:
+  path: /home/pantelispanka/Jaqpot/nanofase-api/src/data/points/water_pristine_pAyWsrMF5g9UzE.shp
+  source_type_col: profile
+  temporal_profile: {factor_col: Factor, for_source_type: P2, path: <root_dir>emissions_temporal-profile_2015.csv,
+    source_type_col: Emission_source_type}
+  type: shapefile
+  units: kg/year
+  value_var: emission
+flow_dir: {crs: 'EPSG:27700', path: <root_dir>flow_dir.tif, type: raster}
+is_estuary: {path: <root_dir>is_estuary.tif, type: raster}
+iso3: GBR
+land_use: {path: <root_dir>land_use.tif, type: raster}
+land_use_config: /home/pantelispanka/Jaqpot/nanofase-api/src/data/model/data/constants/thames_tio2_2015/land_use.yaml
+nanomaterial: TiO2
+output: {constants_file: /home/pantelispanka/Jaqpot/nanofase-api/src/data/pAyWsrMF5g9UzE/constants.nml,
+  nc_file: /home/pantelispanka/Jaqpot/nanofase-api/src/data/pAyWsrMF5g9UzE/data.nc}
+precip: {path: '<root_dir>precip/rainfall_5km_2015-{t}.tif', references: References
+    to scientific papers., source: 'Provided information about the source of the data
+    here, and any data processing it has already been through (e.g. reprojection).',
+  t_min: 1, type: raster, units: mm/day}
+root_dir: /home/pantelispanka/Jaqpot/nanofase-api/src/data/model/data/constants/thames_tio2_2015/
+runoff: {path: <root_dir>runoff.csv, type: csv, units: mm/day}
+soil_bulk_density: {path: <root_dir>soil_bulk_density.tif, source: 'European Soil
+    Data Centre topsoil physical properties resampled to OS National Grid (ESPG:27700)
+    by bilinear interpolation. See https://esdac.jrc.ec.europa.eu/content/topsoil-physical-properties-europe-based-lucas-topsoil-data.',
+  type: raster, units: t/m**3}
+soil_hydraulic_conductivity: {path: <root_dir>soil_hydraulic_conductivity.tif, type: raster,
+  units: cm/day}
+soil_texture_clay_content: {path: <root_dir>soil_texture_clay_content.tif, type: raster}
+soil_texture_coarse_frag_content: {path: <root_dir>soil_texture_coarse_frag_content.tif,
+  type: raster}
+soil_texture_sand_content: {path: <root_dir>soil_texture_sand_content.tif, type: raster}
+soil_texture_silt_content: {path: <root_dir>soil_texture_silt_content.tif, type: raster}
+soil_usle_c_factor: {path: <root_dir>soil_usle_c_factor.tif, type: raster}
+soil_usle_ls_factor: {path: <root_dir>soil_usle_ls_factor.tif, type: raster}
+soil_usle_p_factor: {path: <root_dir>soil_usle_p_factor.tif, type: raster}
+soil_water_content_field_capacity: {path: <root_dir>soil_water_content_field_capacity.tif,
+  type: raster}
+soil_water_content_saturation: {path: <root_dir>soil_water_content_saturation.tif,
+  type: raster}
+time: {dt: 86400, n: 365, start_date: 2015-01-01}

@@ -479,6 +479,7 @@ module classDatabase
             allocate(me%emissionsAtmosphericWetDepoDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps))
             me%emissionsAtmosphericWetDepoDissolved = nf90_fill_double
         end if
+
         ! Emissions - point (all water)                     [kg/timestep]
         p_dim = me%nc%getDimension('p')
         maxPointSources = p_dim%getLength()

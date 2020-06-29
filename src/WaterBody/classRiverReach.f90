@@ -206,7 +206,6 @@ module classRiverReach
             dj_transformed = me%j_transformed/nDisp             ! Transformed flow array for each displacement
             dj_dissolved = me%j_dissolved/nDisp                 ! Dissolved flow array for each displacement
 
-
             do i = 1, nDisp
                 ! Water mass balance (outflow = all the inflows)
                 dQ(1) = -sum(dQ(2:))

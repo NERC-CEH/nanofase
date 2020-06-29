@@ -1,0 +1,64 @@
+&allocatable_array_sizes
+    n_soil_layers = 3
+    n_sediment_layers = 4
+    n_nm_size_classes = 5
+    n_spm_size_classes = 5
+    n_fractional_compositions = 4
+/
+
+&nanomaterial
+    nm_size_classes = 1e-08, 3e-08, 1e-07, 3e-07, 1e-06
+    n_nm_forms = 4
+    n_nm_extra_states = 2
+/
+
+&calibrate
+    calibration_run = .false.
+    site_data = ''
+    start_site = ''
+    end_site = ''
+    other_sites = ''
+/
+
+&data
+    input_file = 'scratch/data.nc'
+    constants_file = 'scratch/constants.nml'
+    output_path = 'scratch/'
+/
+
+&output
+    write_metadata_as_comment = .true.
+    include_sediment_layer_breakdown = .false.
+    include_soil_layer_breakdown = .false.
+    soil_pec_units = 'kg/kg'
+    sediment_pec_units = 'kg/kg'
+    include_soil_state_breakdown = .false.
+/
+
+&run
+    description = 'Short description of model run'
+    timestep = 86400
+    n_timesteps = 365
+    start_date = '2015-01-01'
+    epsilon = 1e-50
+    error_output = .false.
+    log_file_path = 'log/'
+    warm_up_period = 0
+/
+
+&soil
+    soil_layer_depth = 0.05, 0.15, 0.2
+    include_bioturbation = .true.
+    include_attachment = .true.
+/
+
+&sediment
+    sediment_layer_depth = 0.01, 0.01, 0.01, 0.01
+    spm_size_classes = 1e-06, 3e-06, 1e-05, 3e-05, 0.0001
+    include_bed_sediment = .true.
+    sediment_particle_densities = 1500, 2600, 2600, 2600
+/
+
+&sources
+    include_point_sources = .true.
+/
