@@ -8,6 +8,7 @@ module UtilModule
     interface str
         module procedure strFromInteger
         module procedure strFromReal
+        module procedure strFromReal1D
         module procedure strFromDp
         module procedure strFromLogical
     end interface
@@ -101,15 +102,23 @@ module UtilModule
 
         !> Convert a real to a string
         function strFromReal(r) result(str)
-            real, intent(in) :: r           !! The integer to convert to a string
+            real, intent(in) :: r           !! The real to convert to a string
             character(len=256) :: str       !! The string to return
             write(str, *)r
             str = trim(adjustl(str))
         end function
+        
+        !> Convert a real 1D array to a string
+        function strFromReal1D(r) result(str)
+            real, intent(in) :: r(:)        !! The integer to convert to a string
+            character(len=256) :: str       !! The string to return
+            ! write(str, *) (trim(str(r(i))) // ", ", i=1, size(r - 1))
+            ! str = trim(str) // trim(str(r(size(r))))
+        end function
 
         !> Convert a double-precision real to a string
         function strFromDp(r) result(str)
-            real(dp), intent(in) :: r           !! The integer to convert to a string
+            real(dp), intent(in) :: r           !! The dp real to convert to a string
             character(len=256) :: str           !! The string to return
             write(str, *)r
             str = trim(adjustl(str))

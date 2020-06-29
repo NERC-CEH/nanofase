@@ -228,7 +228,10 @@ module Globals
         read(ioUnitConfig, nml=data); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=output); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=run); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=checkpoint); rewind(ioUnitConfig)
+        ! Checkpoint - check if group exists before reading
+        read(ioUnitConfig, nml=checkpoint, iostat=nmlIOStat); rewind(ioUnitConfig)
+        ! Only read in the biota group if there is one
+        if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=checkpoint); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=soil); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=sediment); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=sources)
@@ -261,10 +264,6 @@ module Globals
         C%epsilon = epsilon
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
-        ! Checkpoint - check if group exists before reading
-        read(ioUnitConfig, nml=checkpoint, iostat=nmlIOStat); rewind(ioUnitConfig)
-        ! Only read in the biota group if there is one
-        if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=checkpoint); rewind(ioUnitConfig)
         C%checkpointFile = checkpoint_file
         C%saveCheckpoint = save_checkpoint
         C%reinstateCheckpoint = reinstate_checkpoint

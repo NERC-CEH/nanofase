@@ -2,9 +2,10 @@ module CheckpointModule
     use spcEnvironment, only: EnvironmentPointer
     use classEnvironment1
     use DefaultsModule, only: ioUnitCheckpoint
-    use Globals, only: dp, C
+    use Globals, only: dp, C, ERROR_HANDLER
     use classDatabase, only: DATASET
     use classLogger, only: LOGR
+    use ErrorInstanceModule
     use ResultModule
     implicit none
     private
@@ -54,6 +55,7 @@ module CheckpointModule
         real(dp) :: soilLayer_V_w(DATASET%gridShape(1), DATASET%gridShape(2), 1, C%nSoilLayers)
         ! Waterbodies
         real(dp) :: water_volume(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
+        real(dp) :: water_bedArea(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies)) 
         real(dp) :: water_Q(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 10)                           ! Dim 10 = max 7 inflows + outflow + runoff + transfers
         real(dp) :: water_Q_final(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 10)
         real(dp) :: water_j_spm(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 11, C%nSizeClassesSPM)    ! Dim: 11 = max 7 inflows + outflow + dep/res + runoff + transfers
@@ -149,6 +151,7 @@ module CheckpointModule
                         associate (water => cell%colRiverReaches(k)%item)
                             ! Waterbody dynamic properties
                             water_volume(i,j,k) = water%volume
+                            water_bedArea(i,j,k) = water%bedArea
                             water_Q(i,j,k,:3+water%nInflows) = water%Q
                             water_Q_final(i,j,k,:3+water%nInflows) = water%Q_final
                             water_j_spm(i,j,k,:4+water%nInflows,:) = water%j_spm
@@ -192,12 +195,14 @@ module CheckpointModule
             end do
         end do
 
+        ! Grid properties, used to check this checkpoint is compatible with the model run we want to reinstate it to
+        write(ioUnitCheckpoint) DATASET%gridBounds, DATASET%gridRes
         ! Write the timestep first, in case we want to use that to resume the model run from
         write(ioUnitCheckpoint) t
         ! Now the compartment specific stuff we obtained above
         write(ioUnitCheckpoint) soilProfile_m_np, soilProfile_m_transformed, soilProfile_m_dissolved
         write(ioUnitCheckpoint) soilLayer_m_np, soilLayer_m_transformed, soilLayer_m_dissolved, soilLayer_V_w
-        write(ioUnitCheckpoint) water_volume, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
+        write(ioUnitCheckpoint) water_volume, water_bedArea, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
             water_j_np, water_j_np_final, water_j_transformed, water_j_transformed_final, water_j_dissolved, &
             water_j_dissolved_final, water_m_spm, water_m_np, water_m_transformed, water_m_dissolved
         write(ioUnitCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
@@ -216,8 +221,10 @@ module CheckpointModule
         class(Checkpoint)       :: me                                   !! This Checkpoint instance
         logical, optional       :: preserve_timestep                    !! Should the restarted run preserve the model timestep at the end of saved run?
         integer                 :: i, j, k, l, m                        ! Iterators
-        type(Result)            :: rslt
+        integer                 :: ioStat                               ! IO status, for checking the checkpoint file
+        type(Result)            :: rslt                                 ! Result object
         integer                 :: t                                    ! Timestep
+        real                    :: gridRes(2), gridBounds(4)            ! Grid properties, for checking the checkpoint is compatible with this model run
         ! Soil profile
         real(dp) :: soilProfile_m_np(DATASET%gridShape(1), DATASET%gridShape(2), 1, C%npDim(1), C%npDim(2), C%npDim(3))       ! TODO allow multiple soil profiles
         real(dp) :: soilProfile_m_transformed(DATASET%gridShape(1), DATASET%gridShape(2), 1, C%npDim(1), C%npDim(2), C%npDim(3))       ! TODO allow multiple soil profiles
@@ -230,6 +237,7 @@ module CheckpointModule
         real(dp) :: soilLayer_V_w(DATASET%gridShape(1), DATASET%gridShape(2), 1, C%nSoilLayers)
         ! Water
         real(dp) :: water_volume(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
+        real(dp) :: water_bedArea(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies)) 
         real(dp) :: water_Q(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 10)
         real(dp) :: water_Q_final(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 10)
         real(dp) :: water_j_spm(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 11, C%nSizeClassesSPM)
@@ -271,11 +279,32 @@ module CheckpointModule
         ! If preserve timestep not present, then default to false
         if (.not. present(preserve_timestep)) preserve_timestep = .false.
 
+        ! Open the checkpoint file, read in the grid properties and use these to check if the checkpoint file
+        ! is compatible with the current grid setup
         open(ioUnitCheckpoint, file=trim(me%checkpointFile), form='unformatted', status='old')
+        read(ioUnitCheckpoint) gridBounds, gridRes
+
+        if (any(abs(gridBounds - DATASET%gridBounds) > C%epsilon)) then
+            ! call ERROR_HANDLER%trigger( &
+            !     error=ErrorInstance(message="Grid bounds of checkpoint and current simulation do not match. " // &
+            !         "Grid setup must be identical to reinstate a checkpoint. Checkpoint bounds: " // &
+            !         (trim(str(gridBounds(b))), i=1, size(gridBounds)) // ". Simulation boudns: " // &
+            !         (trim(str(DATASET%gridBounds(b))), i=1, size(gridBounds)) &
+            ! )
+        end if
+
         read(ioUnitCheckpoint) t
-        read(ioUnitCheckpoint) soilProfile_m_np, soilProfile_m_transformed, soilProfile_m_dissolved
+        read(ioUnitCheckpoint, iostat=ioStat) soilProfile_m_np, soilProfile_m_transformed, soilProfile_m_dissolved
+        ! If there is a read error, it's likely the geographical scenario is different
+        if (ioStat /= 0) then
+            print *, ioStat
+            call ERROR_HANDLER%trigger( &
+                error=ErrorInstance(message="Error reading from checkpoint file. Are you sure the checkpoint you " // &
+                    "are trying to reinstate is the same geographical scenario as this model run?") &
+            )
+        end if
         read(ioUnitCheckpoint) soilLayer_m_np, soilLayer_m_transformed, soilLayer_m_dissolved, soilLayer_V_w
-        read(ioUnitCheckpoint) water_volume, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
+        read(ioUnitCheckpoint) water_volume, water_bedArea, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
             water_j_np, water_j_np_final, water_j_transformed, water_j_transformed_final, water_j_dissolved, &
             water_j_dissolved_final, water_m_spm, water_m_np, water_m_transformed, water_m_dissolved
         read(ioUnitCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
@@ -319,7 +348,8 @@ module CheckpointModule
                     do k = 1, cell%nReaches
                         associate (water => cell%colRiverReaches(k)%item)
                             ! Waterbody dynamic properties
-                            water%volume = water_volume(i,j,k) 
+                            water%volume = water_volume(i,j,k)
+                            water%bedArea = water_bedArea(i,j,k)
                             water%Q = water_Q(i,j,k,:3+water%nInflows) 
                             water%Q_final = water_Q_final(i,j,k,:3+water%nInflows) 
                             water%j_spm = water_j_spm(i,j,k,:4+water%nInflows,:) 
