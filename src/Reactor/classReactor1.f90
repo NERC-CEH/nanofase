@@ -85,7 +85,7 @@ module classReactor1
         type(Result)    :: r                                        !! The `Result` object to return
         integer         :: s                                        ! Iterator for SPM size classes
         integer         :: n                                        ! Iterator for NP size classes
-        
+
         ! Set current mass of NP in reactor to that given. Reactor doesn't deal
         ! with inflows/outflows and just takes a mass on each timestep and transforms
         ! that mass
@@ -192,10 +192,12 @@ module classReactor1
         class(Reactor1) :: me
         type(Result)    :: rslt
         real(dp)        :: dm_transform(C%npDim(1), C%npDim(2), C%npDim(3))
+        
         ! Transformation (e.g. sulphidation) of pristine NM
         dm_transform = min(me%k_transform_pristine * C%timeStep * me%m_np, me%m_np)
         me%m_np = me%m_np - dm_transform
-        me%m_transformed = me%m_transformed + dm_transform        
+        me%m_transformed = me%m_transformed + dm_transform
+
     end function
     
     !> Parse the input data for this Reactor
