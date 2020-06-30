@@ -660,8 +660,8 @@ module classDatabase
 
         ! Save these to class variables
         me%nmDensity = nm_density
-        allocate(me%defaultNMSizeDistribution, source=default_nm_size_distribution / 100.0)
-        allocate(me%defaultSpmSizeDistribution, source=default_spm_size_distribution / 100.0)
+        allocate(me%defaultNMSizeDistribution, source=(default_nm_size_distribution / 100.0))
+        allocate(me%defaultSpmSizeDistribution, source=(default_spm_size_distribution / 100.0))
         me%spmSizeClasses = spm_size_classes
         allocate(me%defaultMatrixEmbeddedDistributionToSpm, source=default_matrixembedded_distribution_to_spm / 100.0)
         me%nSizeClassesSpm = n_spm_size_classes
