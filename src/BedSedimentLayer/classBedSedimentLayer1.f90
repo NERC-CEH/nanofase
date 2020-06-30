@@ -109,8 +109,8 @@ module classBedSedimentLayer1
                                )
             end if
             ! var = layerGroup%getVariable("initial_mass")             ! Get the sediment initial masses
-            ! call var%getData(M_f)                                    ! Put initial masses into local variable
-            M_f = DATASET%sedimentInitialMass                       ! Get the initial sediment mass from the dataset
+            allocate(M_f, source=DATASET%sedimentInitialMass)
+            ! M_f = DATASET%sedimentInitialMass                       ! Get the initial sediment mass from the dataset
             if (size(M_f) /= Me%nSizeClasses) then                   ! array of fine sediment masses must have correct size
                 call r%AddError(ErrorInstance( &
                             code = 1, &

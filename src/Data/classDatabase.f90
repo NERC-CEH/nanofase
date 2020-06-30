@@ -88,7 +88,7 @@ module classDatabase
         real :: estuaryMouthCoords(2)               ! Coordinates of the estuary mouth, used to calculate distance to mouth
         ! Sediment
         real, allocatable :: sedimentPorosity(:)    ! Porosity of the bed sediment layers [-]
-        real, allocatable :: sedimentInitialMass(:) ! Initial mass of each sediment size class [kg/m2]
+        real(dp), allocatable :: sedimentInitialMass(:) ! Initial mass of each sediment size class [kg/m2]
         real, allocatable :: sedimentFractionalComposition(:) ! Distribution of sediment amongst fractional compositions [-]
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)        ! Number of grid cells along each grid axis [-]
