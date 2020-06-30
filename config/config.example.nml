@@ -49,7 +49,6 @@ n_timesteps = 365                                       ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
 epsilon = 1e-50,                                        ! Precision for numerical simulations
 error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
-trigger_warnings = .true.                               ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
