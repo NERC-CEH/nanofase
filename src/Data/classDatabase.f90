@@ -569,7 +569,7 @@ module classDatabase
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
         real, allocatable :: spm_size_classes(:), stored_fraction(:), spm_particle_densities(:), &
-            porosity(:), initial_mass(:), capacity(:), fractional_composition_distribution(:)
+            porosity(:), capacity(:), fractional_composition_distribution(:)
         real :: darcy_velocity, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
             estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, nm_density, river_meandering_factor, &
@@ -580,7 +580,7 @@ module classDatabase
             river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
-            k_elim_dissolved(:)
+            k_elim_dissolved(:), initial_mass(:)
         character(len=100), allocatable :: name(:), compartment(:)
         character(len=17), allocatable :: uptake_from_form(:)
 
@@ -660,10 +660,10 @@ module classDatabase
 
         ! Save these to class variables
         me%nmDensity = nm_density
-        me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
-        me%defaultSpmSizeDistribution = default_spm_size_distribution / 100.0
+        allocate(me%defaultNMSizeDistribution, source=default_nm_size_distribution / 100.0)
+        allocate(me%defaultSpmSizeDistribution, source=default_spm_size_distribution / 100.0)
         me%spmSizeClasses = spm_size_classes
-        me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
+        allocate(me%defaultMatrixEmbeddedDistributionToSpm, source=default_matrixembedded_distribution_to_spm / 100.0)
         me%nSizeClassesSpm = n_spm_size_classes
         me%soilDarcyVelocity = darcy_velocity       ! TODO maybe calculate from water flow, though it doesn't massively affect alpha_att calc
         me%soilDefaultPorosity = default_porosity
@@ -733,9 +733,9 @@ module classDatabase
         me%estuaryMeanderingFactor = estuary_meandering_factor
         me%estuaryMouthCoords = estuary_mouth_coords
         ! Sediment
-        me%sedimentInitialMass = initial_mass
-        me%sedimentPorosity = porosity
-        me%sedimentFractionalComposition = fractional_composition_distribution
+        allocate(me%sedimentInitialMass, source=initial_mass)
+        allocate(me%sedimentPorosity, source=porosity)
+        allocate(me%sedimentFractionalComposition, source=fractional_composition_distribution)
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)
