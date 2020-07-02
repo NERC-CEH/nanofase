@@ -621,16 +621,33 @@ module classDatabase
             vertical_distribution(n_vertical_distribution), &
             porosity(n_porosity), &
             initial_mass(n_initial_mass), &
-            fractional_composition_distribution(n_fractional_composition_distribution), &
-            me%defaultNMSizeDistribution(n_default_nm_size_distribution), &
-            me%defaultSpmSizeDistribution(n_default_spm_size_distribution), &
-            me%spmSizeClasses(n_spm_size_classes), &
-            me%defaultMatrixEmbeddedDistributionToSpm(n_default_matrixembedded_distribution_to_spm), &
-            me%earthwormVerticalDistribution(n_vertical_distribution), &
-            me%sedimentPorosity(n_porosity), &
-            me%sedimentInitialMass(n_initial_mass), &
-            me%sedimentFractionalComposition(n_fractional_composition_distribution) &
+            fractional_composition_distribution(n_fractional_composition_distribution) &
         )
+        ! Allocate the class variables, first checking they're not already allocated (e.g. from a previous batch)
+        if (.not. allocated(me%defaultNMSizeDistribution)) then
+            allocate(me%defaultNMSizeDistribution(n_default_nm_size_distribution))
+        end if
+        if (.not. allocated(me%defaultSpmSizeDistribution)) then
+            allocate(me%defaultSpmSizeDistribution(n_default_spm_size_distribution))
+        end if
+        if (.not. allocated(me%spmSizeClasses)) then
+            allocate(me%spmSizeClasses(n_spm_size_classes))
+        end if
+        if (.not. allocated(me%defaultMatrixEmbeddedDistributionToSpm)) then
+            allocate(me%defaultMatrixEmbeddedDistributionToSpm(n_default_matrixembedded_distribution_to_spm))
+        end if
+        if (.not. allocated(me%earthwormVerticalDistribution)) then
+            allocate(me%earthwormVerticalDistribution(n_vertical_distribution))
+        end if
+        if (.not. allocated(me%sedimentPorosity)) then
+            allocate(me%sedimentPorosity(n_porosity))
+        end if
+        if (.not. allocated(me%sedimentInitialMass)) then
+            allocate(me%sedimentInitialMass(n_initial_mass))
+        end if
+        if (.not. allocated(me%sedimentFractionalComposition)) then
+            allocate(me%sedimentFractionalComposition(n_fractional_composition_distribution))
+        end if
 
         ! Defaults, if the variable doesn't exist in namelist
         ! TODO move to separate defaults.nml file, or similar
@@ -689,7 +706,7 @@ module classDatabase
         me%earthwormDensityUrbanCapped = urban_capped
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
-        me%earthwormVerticalDistribution, source=(vertical_distribution / 100.0)
+        me%earthwormVerticalDistribution = vertical_distribution / 100.0
         ! Biota
         if (me%hasBiota) then
             me%biotaName = name
