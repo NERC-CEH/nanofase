@@ -21,6 +21,7 @@ x64/
 snip/
 data/
 scratch/
+*.dat
 
 # Prerequisites
 *.d

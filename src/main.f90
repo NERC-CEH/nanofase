@@ -55,7 +55,7 @@ program main
     ! real(dp) :: meanDepth
 
     ! Get the CPU time at the start of the model run
-    call cpu_time(start) 
+    call cpu_time(start)
 
     ! Set up global vars/constants and initialise the logger
     call GLOBALS_INIT()

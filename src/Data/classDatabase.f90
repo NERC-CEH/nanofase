@@ -562,14 +562,14 @@ module classDatabase
             n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
             n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
             n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
-            n_spm_particle_densities, n_porosity, n_initial_mass, n_capacity, &
+            n_porosity, n_initial_mass, &
             n_fractional_composition_distribution, n_estuary_mouth_coords, &
             arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
         real :: estuary_mouth_coords(2)
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
-        real, allocatable :: spm_size_classes(:), stored_fraction(:), spm_particle_densities(:), &
-            porosity(:), capacity(:), fractional_composition_distribution(:)
+        real, allocatable :: spm_size_classes(:), stored_fraction(:), &
+            porosity(:), fractional_composition_distribution(:)
         real :: darcy_velocity, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
             estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, nm_density, river_meandering_factor, &
@@ -590,7 +590,7 @@ module classDatabase
             n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
             n_k_uptake_np, n_k_elim_np, n_k_uptake_transformed, n_k_elim_transformed, &
             n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, &
-            n_uptake_from_form, n_harvest_in_month, n_spm_particle_densities, n_capacity, n_porosity, &
+            n_uptake_from_form, n_harvest_in_month, n_porosity, &
             n_initial_mass, n_fractional_composition_distribution, n_estuary_mouth_coords
         namelist /nanomaterial/ nm_density, default_nm_size_distribution
         namelist /n_biota_grp/ n_biota
@@ -605,8 +605,8 @@ module classDatabase
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
             river_meandering_factor, water_temperature, river_attachment_efficiency, estuary_attachment_efficiency
-        namelist /sediment/ porosity, initial_mass, capacity, fractional_composition_distribution, &
-            default_spm_size_distribution, spm_size_classes, default_matrixembedded_distribution_to_spm, spm_particle_densities
+        namelist /sediment/ porosity, initial_mass, fractional_composition_distribution, &
+            default_spm_size_distribution, spm_size_classes, default_matrixembedded_distribution_to_spm
 
         ! Open and read the NML file
         open(ioUnitConstants, file=constantsFile, status="old")
@@ -619,11 +619,17 @@ module classDatabase
             spm_size_classes(n_spm_size_classes), &
             default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
             vertical_distribution(n_vertical_distribution), &
-            spm_particle_densities(n_spm_particle_densities), &
             porosity(n_porosity), &
             initial_mass(n_initial_mass), &
-            capacity(n_capacity), &
-            fractional_composition_distribution(n_fractional_composition_distribution) &
+            fractional_composition_distribution(n_fractional_composition_distribution), &
+            me%defaultNMSizeDistribution(n_default_nm_size_distribution), &
+            me%defaultSpmSizeDistribution(n_default_spm_size_distribution), &
+            me%spmSizeClasses(n_spm_size_classes), &
+            me%defaultMatrixEmbeddedDistributionToSpm(n_default_matrixembedded_distribution_to_spm), &
+            me%earthwormVerticalDistribution(n_vertical_distribution), &
+            me%sedimentPorosity(n_porosity), &
+            me%sedimentInitialMass(n_initial_mass), &
+            me%sedimentFractionalComposition(n_fractional_composition_distribution) &
         )
 
         ! Defaults, if the variable doesn't exist in namelist
@@ -660,16 +666,10 @@ module classDatabase
 
         ! Save these to class variables
         me%nmDensity = nm_density
-        if (.not. allocated(me%defaultNMSizeDistribution)) then
-            allocate(me%defaultNMSizeDistribution, source=(default_nm_size_distribution / 100.0))
-        end if
-        if (.not. allocated(me%defaultSpmSizeDistribution)) then
-            allocate(me%defaultSpmSizeDistribution, source=(default_spm_size_distribution / 100.0))
-        end if
+        me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
+        me%defaultSpmSizeDistribution = default_spm_size_distribution / 100.0
         me%spmSizeClasses = spm_size_classes
-        if (.not. allocated(me%defaultMatrixEmbeddedDistributionToSpm)) then
-            allocate(me%defaultMatrixEmbeddedDistributionToSpm, source=(default_matrixembedded_distribution_to_spm / 100.0))
-        end if
+        me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
         me%nSizeClassesSpm = n_spm_size_classes
         me%soilDarcyVelocity = darcy_velocity       ! TODO maybe calculate from water flow, though it doesn't massively affect alpha_att calc
         me%soilDefaultPorosity = default_porosity
@@ -689,9 +689,7 @@ module classDatabase
         me%earthwormDensityUrbanCapped = urban_capped
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
-        if (.not. allocated(me%earthwormVerticalDistribution)) then
-            allocate(me%earthwormVerticalDistribution, source=(vertical_distribution / 100.0))
-        end if
+        me%earthwormVerticalDistribution, source=(vertical_distribution / 100.0)
         ! Biota
         if (me%hasBiota) then
             me%biotaName = name
@@ -741,15 +739,9 @@ module classDatabase
         me%estuaryMeanderingFactor = estuary_meandering_factor
         me%estuaryMouthCoords = estuary_mouth_coords
         ! Sediment
-        if (.not. allocated(me%sedimentInitialMass)) then
-            allocate(me%sedimentInitialMass, source=initial_mass)
-        end if
-        if (.not. allocated(me%sedimentPorosity)) then
-            allocate(me%sedimentPorosity, source=porosity)
-        end if
-        if (.not. allocated(me%sedimentFractionalComposition)) then
-            allocate(me%sedimentFractionalComposition, source=fractional_composition_distribution)
-        end if
+        me%sedimentInitialMass = initial_mass
+        me%sedimentPorosity = porosity
+        me%sedimentFractionalComposition = fractional_composition_distribution
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)
