@@ -660,10 +660,16 @@ module classDatabase
 
         ! Save these to class variables
         me%nmDensity = nm_density
-        allocate(me%defaultNMSizeDistribution, source=(default_nm_size_distribution / 100.0))
-        allocate(me%defaultSpmSizeDistribution, source=(default_spm_size_distribution / 100.0))
+        if (.not. allocated(me%defaultNMSizeDistribution)) then
+            allocate(me%defaultNMSizeDistribution, source=(default_nm_size_distribution / 100.0))
+        end if
+        if (.not. allocated(me%defaultSpmSizeDistribution)) then
+            allocate(me%defaultSpmSizeDistribution, source=(default_spm_size_distribution / 100.0))
+        end if
         me%spmSizeClasses = spm_size_classes
-        allocate(me%defaultMatrixEmbeddedDistributionToSpm, source=default_matrixembedded_distribution_to_spm / 100.0)
+        if (.not. allocated(me%defaultMatrixEmbeddedDistributionToSpm)) then
+            allocate(me%defaultMatrixEmbeddedDistributionToSpm, source=(default_matrixembedded_distribution_to_spm / 100.0))
+        end if
         me%nSizeClassesSpm = n_spm_size_classes
         me%soilDarcyVelocity = darcy_velocity       ! TODO maybe calculate from water flow, though it doesn't massively affect alpha_att calc
         me%soilDefaultPorosity = default_porosity
@@ -683,7 +689,9 @@ module classDatabase
         me%earthwormDensityUrbanCapped = urban_capped
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
-        me%earthwormVerticalDistribution = vertical_distribution / 100.0
+        if (.not. allocated(me%earthwormVerticalDistribution)) then
+            allocate(me%earthwormVerticalDistribution, source=(vertical_distribution / 100.0))
+        end if
         ! Biota
         if (me%hasBiota) then
             me%biotaName = name
@@ -733,9 +741,15 @@ module classDatabase
         me%estuaryMeanderingFactor = estuary_meandering_factor
         me%estuaryMouthCoords = estuary_mouth_coords
         ! Sediment
-        allocate(me%sedimentInitialMass, source=initial_mass)
-        allocate(me%sedimentPorosity, source=porosity)
-        allocate(me%sedimentFractionalComposition, source=fractional_composition_distribution)
+        if (.not. allocated(me%sedimentInitialMass)) then
+            allocate(me%sedimentInitialMass, source=initial_mass)
+        end if
+        if (.not. allocated(me%sedimentPorosity)) then
+            allocate(me%sedimentPorosity, source=porosity)
+        end if
+        if (.not. allocated(me%sedimentFractionalComposition)) then
+            allocate(me%sedimentFractionalComposition, source=fractional_composition_distribution)
+        end if
     end subroutine
 
     elemental function maskDatabase(me, int) result(mask)

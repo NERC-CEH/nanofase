@@ -33,6 +33,8 @@ module Globals
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
+        logical             :: triggerWarnings                  !! Should error warnings be printed to the console?
+        ! Compartments
         real, allocatable   :: soilLayerDepth(:)                !! Soil layer depth [m]
         real, allocatable   :: sedimentLayerDepth(:)            !! Sediment layer depth [m]
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
@@ -125,7 +127,7 @@ module Globals
             sediment_particle_densities(:), sediment_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
-            include_soil_layer_breakdown, include_soil_state_breakdown
+            include_soil_layer_breakdown, include_soil_state_breakdown, trigger_warnings
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
@@ -136,7 +138,7 @@ module Globals
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description
+            description, trigger_warnings
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
         namelist /sources/ include_point_sources
@@ -243,6 +245,7 @@ module Globals
         C%epsilon = epsilon
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
+        C%triggerWarnings = trigger_warnings
         ! Calibration
         C%calibrationRun = calibration_run
         if (C%calibrationRun) then
@@ -348,7 +351,7 @@ module Globals
         errors(17) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
 
         ! Add custom errors to the error handler
-        call ERROR_HANDLER%init(errors=errors, on=error_output)
+        call ERROR_HANDLER%init(errors=errors, triggerWarnings=C%triggerWarnings, on=error_output)
 
     end subroutine
 
