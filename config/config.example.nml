@@ -48,7 +48,8 @@ timestep = 86400                                        ! Length of each time st
 n_timesteps = 365                                       ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
 epsilon = 1e-50,                                        ! Precision for numerical simulations
-error_output = .false.                                  ! Should error handling be turned on? Be careful if not, things might go wrong!
+error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
+trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
@@ -58,6 +59,11 @@ checkpoint_file = "./checkpoint.dat"                    ! Location of checkpoint
 save_checkpoint = .true.                                ! Save a checkpoint file when the run is finished? Defaults to false
 reinstate_checkpoint = .false.                          ! Reinstate a checkpoint from checkpoint_file? Defaults to false
 preserve_timestep = .false.                             ! Should the timestep from the checkpoint be used as a starting timestep in a reinstated run?
+/
+
+&steady_state
+run_to_steady_state = .true.                            ! Should the model be run until steady state by iterating over current simulation input data?
+mode = 'sediment_size_distribution'                     ! Mode defines what variable will be used to assess steady state
 /
 
 &soil

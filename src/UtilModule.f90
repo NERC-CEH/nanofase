@@ -388,6 +388,8 @@ module UtilModule
             end do
         end function
 
+! Functions without interfaces
+
         function freeNM(x) result(free)
             real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
             real(dp)                :: free(C%nSizeClassesNM)

@@ -2,9 +2,10 @@ module Globals
     use mo_netcdf
     use datetime_module
     use mod_strptime, only: f_strptime
-    use DefaultsModule, only: ioUnitConfig, ioUnitBatchConfig
+    use DefaultsModule, only: ioUnitConfig, ioUnitBatchConfig, configDefaults
     use ErrorCriteriaModule
     use ErrorInstanceModule
+    use ResultModule, only: Result
     implicit none
 
     type(ErrorCriteria) :: ERROR_HANDLER
@@ -34,6 +35,7 @@ module Globals
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
         integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
+        logical             :: triggerWarnings                  !! Should error warnings be printed to the console?
 
         ! Checkpointing
         character(len=256)  :: checkpointFile                   !! Path to checkpoint file, to save to and/or read from
@@ -41,7 +43,12 @@ module Globals
         logical             :: reinstateCheckpoint              !! Should a checkpoint be reinstated before the run starts?
         logical             :: preserveTimestep                 !! Should the final timestep from the checkpoint be used to start the reinstated run?
 
-        ! Soil, sediment
+        ! Steady state
+        logical             :: runToSteadyState                 !! Should the model be run until steady state by iterating over current simulation input data?
+        character(len=50)   :: steadyStateMode                  !! Mode defines what variable will be used to assess steady state
+        real(dp)            :: steadyStateDelta                 !! Delta value used to test whether we're at steady state
+
+        ! Compartments
         real, allocatable   :: soilLayerDepth(:)                !! Soil layer depth [m]
         real, allocatable   :: sedimentLayerDepth(:)            !! Sediment layer depth [m]
         logical             :: includeBioturbation              !! Should bioturbation be modelled?
@@ -106,6 +113,7 @@ module Globals
         procedure :: rho_w      ! Density of water
         procedure :: nu_w       ! Kinematic viscosity of water
         procedure :: mu_w       ! Dynamic viscosity of water
+        procedure :: audit      ! Audit the config options
     end type
 
     type(GlobalsType) :: C
@@ -123,6 +131,7 @@ module Globals
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
             startDateStr, site_data, description, checkpoint_file
+        character(len=50) :: mode
         character(len=256), allocatable :: input_files(:), constants_files(:), start_dates(:)
         character(len=6) :: start_site, end_site
         character(len=6), allocatable :: other_sites(:)
@@ -132,13 +141,13 @@ module Globals
             n_fractional_compositions, n_chunks
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_sediment_layers
         real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
-            default_alpha_hetero_estuary
+            default_alpha_hetero_estuary, delta
         real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
             sediment_particle_densities(:), sediment_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
-            preserve_timestep
+            preserve_timestep, trigger_warnings, run_to_steady_state
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
@@ -147,10 +156,11 @@ module Globals
         namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
-            soil_pec_units, sediment_pec_units, include_soil_state_breakdown
+            soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description
+            description, trigger_warnings
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
+        namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
         namelist /sources/ include_point_sources
@@ -160,6 +170,7 @@ module Globals
         namelist /chunks/ input_files, constants_files, start_dates, n_timesteps_per_chunk
 
         ! Defaults, which will be overwritten if present in config file
+        ! TODO move defaults to DefaultsModule.f90
         write_csv = .true.
         write_netcdf = .false.
         description = ""
@@ -172,6 +183,9 @@ module Globals
         save_checkpoint = .false.
         reinstate_checkpoint = .false.
         preserve_timestep = .false.
+        run_to_steady_state = configDefaults%runToSteadyState
+        delta = configDefaults%steadyStateDelta
+        mode = configDefaults%steadyStateMode
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -228,10 +242,11 @@ module Globals
         read(ioUnitConfig, nml=data); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=output); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=run); rewind(ioUnitConfig)
-        ! Checkpoint - check if group exists before reading
+        ! Checkpoint and steady state - check if groups exist before reading
         read(ioUnitConfig, nml=checkpoint, iostat=nmlIOStat); rewind(ioUnitConfig)
-        ! Only read in the biota group if there is one
         if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=checkpoint); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=steady_state, iostat=nmlIOStat); rewind(ioUnitConfig)
+        if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=steady_state); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=soil); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=sediment); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=sources)
@@ -264,10 +279,16 @@ module Globals
         C%epsilon = epsilon
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
+        C%triggerWarnings = trigger_warnings
+        ! Checkpointing
         C%checkpointFile = checkpoint_file
         C%saveCheckpoint = save_checkpoint
         C%reinstateCheckpoint = reinstate_checkpoint
         C%preserveTimestep = preserve_timestep
+        ! Steady state
+        C%runToSteadyState = run_to_steady_state
+        C%steadyStateMode = mode
+        C%steadyStateDelta = delta
         ! Calibration
         C%calibrationRun = calibration_run
         if (C%calibrationRun) then
@@ -373,8 +394,30 @@ module Globals
         errors(17) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
 
         ! Add custom errors to the error handler
-        call ERROR_HANDLER%init(errors=errors, on=error_output)
+        call ERROR_HANDLER%init(errors=errors, triggerWarnings=C%triggerWarnings, on=error_output)
+        
+        ! Auditing the config. Must be done after error handler and logger
+        ! have been initialised
+        call C%audit()
 
+    end subroutine
+
+    !> Audit the config file options
+    subroutine audit(me)
+        class(GlobalsType), intent(in)  :: me
+        type(Result)                    :: rslt
+
+        if (me%runToSteadyState) then
+            if (trim(me%steadyStateMode) /= 'sediment_size_distribution') then
+                call rslt%addError(ErrorInstance( &
+                    message='Invalid or non-present config file value for &steady_state > mode.' &
+                ))
+            end if
+        end if
+        
+        ! Trigger the errors, if there were any
+        call rslt%addToTrace('Auditing config file')
+        call ERROR_HANDLER%trigger(errors=.errors.rslt)
     end subroutine
 
     !> Calculate the density of water at a given temperature \( T \):

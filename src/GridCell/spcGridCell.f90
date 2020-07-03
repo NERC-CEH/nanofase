@@ -250,5 +250,6 @@ module spcGridCell
             class(GridCell) :: me
             real(dp) :: sedimentMass
         end function
+
     end interface
 end module

@@ -44,6 +44,7 @@ module classDiffuseSource2
         me%j_np_diffuseSource = 0.0_dp
         me%j_dissolved_diffuseSource = 0.0_dp
         me%j_transformed_diffuseSource = 0.0_dp
+
         ! Check the environmental compartment we're in, get the corresponding areal source
         ! data and impose the default NM size distribution on it. Data already kg/m2/timestep.
         ! If data doesn't exist, classDatabase has already created array filled with nf90_fill_double

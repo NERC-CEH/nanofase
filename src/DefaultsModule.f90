@@ -1,5 +1,10 @@
+!> The DefaultsModule holds default values used throughout the model, such as those
+!! used in input data or config
 module DefaultsModule
     implicit none
+
+    ! Double precision reals. Private for the moment as it's also in Globals
+    integer, private, parameter :: dp = selected_real_kind(15, 307)
 
     ! Config file IO units
     integer, parameter :: ioUnitConfig = 1
@@ -11,8 +16,19 @@ module DefaultsModule
     integer, parameter :: ioUnitOutputWater = 101
     integer, parameter :: ioUnitOutputSediment = 102
     integer, parameter :: ioUnitOutputSoil = 103
-    ! Checkpoint
+    integer, parameter :: ioUnitOutputSSD = 104
+    ! Checkpoint and logging
     integer, parameter :: ioUnitCheckpoint = 500
+    integer, parameter :: ioUnitLog = 501
+
+    ! Defaults for config, encapsulation in a type
+    type, public :: ConfigDefaultsType
+        logical             :: runToSteadyState = .false.
+        character(len=50)   :: steadyStateMode = ''
+        real(dp)            :: steadyStateDelta = 1e-5
+    end type
+    ! Object to exposre the config defaults
+    type(ConfigDefaultsType) :: configDefaults
 
     ! Defaults for constants
     real, parameter :: defaultSoilAttachmentEfficiency = 0.0

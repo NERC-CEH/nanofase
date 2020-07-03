@@ -27,12 +27,13 @@ other_sites = ""                                        ! Which other sites shou
 
 ! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
 &data
-input_file = "data/test-scenario.nc"                    ! Path to NetCDF input data, which includes most of the spatial and temporally resolved data
-constants_file = "data/constants_test-scenario.nml"     ! Path to constants namelist file, which includes most of the non-spatiotemporal input data 
+input_file = "data.example/test-scenario.nc"            ! Path to NetCDF input data, which includes most of the spatial and temporally resolved data
+constants_file = "data.example/constants_test-scenario.nml" ! Path to constants namelist file, which includes most of the non-spatiotemporal input data 
 output_path = "data/output/"                            ! Path to store the output data
 /
 
 &output
+write_csv = .false.                                     ! Should we write output data to CSV files (n.b. turning this off currently suppresses all output, except for runs to steady state)
 write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
 include_sediment_layer_breakdown = .true.               ! Include breakdown of data over sediment layers?
 include_soil_layer_breakdown = .false.                  ! Include breaedown of data over soil layers?
@@ -47,17 +48,24 @@ description = "12 cell, 10 timestep test scenario"      ! Not used by model, but
 timestep = 86400                                        ! Length of each time step, in seconds
 n_timesteps = 10                                        ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
-epsilon = 1e-20,                                        ! Precision for numerical simulations
-error_output = .true.                                  ! Should error handling be turned on? Be careful if not, things might go wrong!
+epsilon = 1e-50,                                        ! Precision for numerical simulations
+error_output = .false.                                  ! Should error handling be turned on? Be careful if not, things might go wrong!
+trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
 
 &checkpoint
 checkpoint_file = "./checkpoint.dat"                    ! Location of checkpoint file to read from and/or save to
-save_checkpoint = .true.                                ! Save a checkpoint file when the run is finished? Defaults to false
+save_checkpoint = .false.                                ! Save a checkpoint file when the run is finished? Defaults to false
 reinstate_checkpoint = .false.                          ! Reinstate a checkpoint from checkpoint_file? Defaults to false
 preserve_timestep = .false.                             ! Should the timestep from the checkpoint be used as a starting timestep in a reinstated run?
+/
+
+&steady_state
+run_to_steady_state = .true.
+mode = 'sediment_size_distribution'
+delta = 1e-5                                            ! Delta value to test whether at steady state
 /
 
 &soil

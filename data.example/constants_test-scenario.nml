@@ -1,5 +1,4 @@
 &allocatable_array_sizes
-    n_capacity = 4
     n_default_matrixembedded_distribution_to_spm = 5
     n_default_nm_size_distribution = 5
     n_default_spm_size_distribution = 5
@@ -27,7 +26,6 @@
 /
 
 &sediment
-    capacity = 0.01, 0.01, 0.01, 0.01
     default_matrixembedded_distribution_to_spm = 20, 20, 20, 20, 20
     default_spm_size_distribution = 50, 30, 10, 7, 3
     fractional_composition_distribution = 0.3, 0.3, 0.3, 0.1

@@ -670,7 +670,7 @@ module classGridCell2
         end do
     end function
 
-    !> Get the total mass of sediment [kg] in this grid cellg
+    !> Get the total mass of sediment [kg] in this grid cell
     function getBedSedimentMassGridCell2(me) result(sedimentMass)
         class(GridCell2)    :: me               !! This GridCell instance
         real(dp)            :: sedimentMass     !! Bed sediment mass [kg]

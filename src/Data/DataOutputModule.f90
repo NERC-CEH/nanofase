@@ -1,7 +1,7 @@
 !> Module container for the DataOutput class
 module DataOutputModule
     use DefaultsModule, only: ioUnitOutputSummary, ioUnitOutputWater, &
-        ioUnitOutputSediment, ioUnitOutputSoil
+        ioUnitOutputSediment, ioUnitOutputSoil, ioUnitOutputSSD
     use Globals, only: C, dp
     use classDatabase, only: DATASET
     use spcEnvironment
@@ -17,8 +17,12 @@ module DataOutputModule
     type, public :: DataOutput
         character(len=256) :: outputPath                    !! Path to the output directory
         type(EnvironmentPointer) :: env                     !! Pointer to the environment, to retrieve state variables
+        ! Storing variables across timesteps for dynamics calculations
+        real(dp), allocatable :: previousSSDByLayer(:,:)
+        real(dp), allocatable :: previousSSD(:)
       contains
         procedure, public :: init => initDataOutput
+        procedure, public :: initSedimentSizeDistribution => initSedimentSizeDistributionDataOutput
         procedure, public :: update => updateDataOutput
         procedure, public :: finalise => finaliseDataOutput
         procedure, private :: writeHeaders => writeHeadersDataOutput
@@ -29,6 +33,7 @@ module DataOutputModule
         procedure, private :: updateWater => updateWaterDataOutput
         procedure, private :: updateSediment => updateSedimentDataOutput
         procedure, private :: updateSoil => updateSoilDataOutput
+        procedure, public :: updateSedimentSizeDistribution => updateSedimentSizeDistributionDataOutput
     end type
 
   contains
@@ -55,6 +60,39 @@ module DataOutputModule
         call me%writeHeaders()
     end subroutine
 
+    subroutine initSedimentSizeDistributionDataOutput(me)
+        class(DataOutput)           :: me
+        integer                     :: i, j
+
+        ! Sediment begins with equal distribution
+        allocate(me%previousSSD(C%nSizeClassesSpm), &
+            me%previousSSDByLayer(C%nSedimentLayers, C%nSizeClassesSpm))
+        me%previousSSD = 1.0_dp / C%nSizeClassesSpm
+        me%previousSSDByLayer = 1.0_dp / C%nSizeClassesSpm
+
+        ! Open the SSD file and write the headers
+        open(ioUnitOutputSSD, file=trim(C%outputPath) // 'output_ssd.csv')
+        if (C%writeMetadataAsComment) then
+            write(ioUnitOutputSSD, '(a)') "# NanoFASE model output data - SEDIMENT SIZE DISTRIBUTION."
+            write(ioUnitOutputSSD, '(a)') "# Output file running the model until sediment size distribution is at steady state."
+            write(ioUnitOutputSSD, '(a)') "# Each row represents a complete model run (as defined by the config/batch config file)."
+            write(ioUnitOutputSSD, '(a)') "#\ti: model run index (number of iterations of the same input data)"
+            write(ioUnitOutputSSD, '(a)') "#\tssd_sci_all_layers: sediment size distribution across size classes i, " // &
+                "averaged across sediment layers"
+            write(ioUnitOutputSSD, '(a)') "#\tssd_sci_lj: sediment size distribution across size classes i, for layer j"
+            write(ioUnitOutputSSD, '(a)') "#\tdelta_max_lj: maximum difference between size distribution bins for layer j"
+            write(ioUnitOutputSSD, '(a)') "#\tdelta_max_all_layers: maximum difference between size " // &
+                "distribution bins for size distribution averaged across sediment layers"
+        end if
+        write(ioUnitOutputSSD, '(a)', advance='no') "i,"
+        write(ioUnitOutputSSD, '(*(a))', advance='no') ('ssd_sc'//trim(str(i))//'_all_layers,', i=1, C%nSizeClassesSpm)
+        write(ioUnitOutputSSD, '(*(a))', advance='no') (('ssd_sc'//trim(str(i))//'_l'//trim(str(j))//',', &
+            i=1, C%nSizeClassesSpm), j=1, C%nSedimentLayers)
+        write(ioUnitOutputSSD, '(*(a))', advance='no') ('delta_max_l'//trim(str(i))//',', i=1, C%nSedimentLayers)
+        write(ioUnitOutputSSD, '(*(a))') 'delta_max_all_layers'
+
+    end subroutine
+
     !> Save the output from the current timestep to the output files
     subroutine updateDataOutput(me, t)
         class(DataOutput)   :: me       !! The DataOutput instance
@@ -73,9 +111,11 @@ module DataOutputModule
             do x = 1, size(me%env%item%colGridCells, dim=1)
                 easts = DATASET%x(x)
                 norths = DATASET%y(y)
-                call me%updateWater(t, x, y, dateISO, easts, norths)
-                call me%updateSediment(t, x, y, dateISO, easts, norths)
-                call me%updateSoil(t, x, y, dateISO, easts, norths)
+                if (C%writeCSV) then
+                    call me%updateWater(t, x, y, dateISO, easts, norths)
+                    call me%updateSediment(t, x, y, dateISO, easts, norths)
+                    call me%updateSoil(t, x, y, dateISO, easts, norths)
+                end if
             end do
         end do
     end subroutine
@@ -207,17 +247,60 @@ module DataOutputModule
         end do
     end subroutine
 
+    function updateSedimentSizeDistributionDataOutput(me, i_model) result(delta_max)
+        class(DataOutput)   :: me                           !! This DataOutput instance
+        integer             :: i_model                      !! Current model iteration
+        real(dp)            :: m_sediment_byLayer(C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp)            :: sedimentSizeDistributionByLayer(C%nSedimentLayers, C%nSizeClassesSpm)
+        real(dp)            :: sedimentSizeDistribution(C%nSizeClassesSpm)
+        integer             :: i, j
+        real(dp)            :: delta_max
+        real(dp)            :: delta_max_l(C%nSedimentLayers)
+        ! Get the current mass of sediment in each layer
+        m_sediment_byLayer = me%env%item%get_m_sediment_byLayer()
+        ! Calculate the sediment size distribution across all layers
+        sedimentSizeDistribution = sum(m_sediment_byLayer, dim=1) / sum(m_sediment_byLayer)
+        ! Calculate the sediment size distribution for each layer
+        do j = 1, C%nSedimentLayers
+            sedimentSizeDistributionByLayer(j,:) = m_sediment_byLayer(j,:) / sum(m_sediment_byLayer(j,:))
+            delta_max_l = maxval(abs(me%previousSSDByLayer(j,:) - sedimentSizeDistributionByLayer(j,:)))
+        end do
+        delta_max = maxval(abs(me%previousSSD - sedimentSizeDistribution))
+        ! Write the values to file
+        write(ioUnitOutputSSD, '(a)', advance='no') trim(str(i_model)) // ","
+        write(ioUnitOutputSSD, '(*(a))', advance='no') (trim(str(sedimentSizeDistribution(i))) // &
+            ",", i=1, C%nSizeClassesSpm)
+        write(ioUnitOutputSSD, '(*(a))', advance='no') ((trim(str(sedimentSizeDistributionByLayer(j,i))) // &
+            ",", i=1, C%nSizeClassesSpm), j=1, C%nSedimentLayers)
+        write(ioUnitOutputSSD, '(*(a))', advance='no') (trim(str(delta_max_l(i)))//',', i=1, C%nSedimentLayers)
+        write(ioUnitOutputSSD, '(a)') trim(str(delta_max))
+        ! Update the previous SSDs to use on the next model iteration
+        me%previousSSD = sedimentSizeDistribution
+        me%previousSSDByLayer = sedimentSizeDistributionByLayer
+    end function
+
     ! Finalise the data output by adding PECs to the simulation summary file and closing output files
-    subroutine finaliseDataOutput(me)
+    subroutine finaliseDataOutput(me, iSteadyState)
         class(DataOutput)   :: me
+        integer             :: iSteadyState
         ! Write the final model summary info to the simulation summary file
-        write(ioUnitOutputSummary, *) "\n## PECs"
+        if (.not. C%runToSteadyState) then
+            write(ioUnitOutputSummary, *) "\n## PECs"
+        else
+            write(ioUnitOutputSummary, *) "\n## PECs (final model iteration)"
+        end if
         write(ioUnitOutputSummary, *) "- Soil, spatial mean on final timestep: " // &
             trim(str(sum(me%env%item%get_C_np_soil()))) // " kg/kg soil"
         write(ioUnitOutputSummary, *) "- Water, spatiotemporal mean: " // &
             trim(str(sum(sum(me%env%item%C_np_water_t, dim=1)) / size(me%env%item%C_np_water_t, dim=1))) // " kg/m3"
         write(ioUnitOutputSummary, *) "- Sediment, spatiotemporal mean: " // &
-            trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / size(me%env%item%C_np_sediment_t, dim=1))) // " kg/kg sediment"
+            trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / size(me%env%item%C_np_sediment_t, dim=1))) // &
+            " kg/kg sediment"
+        if (C%runToSteadyState) then
+            write(ioUnitOutputSummary, *) "\n## Steady state"
+            write(ioUnitOutputSummary, *) "- Iterations until steady state: " // trim(str(iSteadyState))
+            write(ioUnitOutputSummary, *) "- Time until steady state (s): " // trim(str(iSteadyState * C%timeStep))
+        end if
         ! Close the files
         close(ioUnitOutputSummary); close(ioUnitOutputWater); close(ioUnitOutputSediment); close(ioUnitOutputSoil)
     end subroutine
@@ -245,8 +328,10 @@ module DataOutputModule
         write(ioUnitOutputSummary, '(a)') "# NanoFASE model simulation summary"
         write(ioUnitOutputSummary, *) "- Description: " // trim(C%runDescription)
         write(ioUnitOutputSummary, *) "- Simulation datetime: " // simDatetime%isoformat()
-        write(ioUnitOutputSummary, *) "- Is batch run? " // str(C%isBatchRun)
-        write(ioUnitOutputSummary, *) "- Number of batches: " // str(C%nChunks)
+        write(ioUnitOutputSummary, *) "- Is batch run? " // trim(str(C%isBatchRun))
+        write(ioUnitOutputSummary, *) "- Number of batches: " // trim(str(C%nChunks))
+        write(ioUnitOutputSummary, *) "- Is steady state? " // trim(str(C%runToSteadyState)) // " (" // &
+            trim(C%steadyStateMode) // " mode"
 
         write(ioUnitOutputSummary, *) "\n## Temporal domain"
         write(ioUnitOutputSummary, *) "- Start date: " // C%batchStartDate%strftime('%Y-%m-%d')

@@ -31,6 +31,7 @@ module classEnvironment1
         procedure :: get_C_np_water => get_C_np_waterEnvironment1
         procedure :: get_C_np_sediment => get_C_np_sedimentEnvironment1
         procedure :: getBedSedimentArea => getBedSedimentAreaEnvironment1
+        procedure :: get_m_sediment_byLayer => get_m_sediment_byLayerEnvironment1
     end type
 
   contains
@@ -169,8 +170,10 @@ module classEnvironment1
         ! is reallocated on each timestep (to account for batch runs)
         allocate(me%C_np_water_t(0, C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%C_np_sediment_t(0, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%m_sediment_t_byLayer(0, C%nSedimentLayers, C%nSizeClassesSpm))
         me%C_np_water_t = 0.0_dp
         me%C_np_sediment_t = 0.0_dp
+        me%m_sediment_t_byLayer = 0.0_dp
         
         call r%addToTrace('Creating the Environment')           ! Add this procedure to the trace
         call LOGR%toFile(errors=.errors.r)
@@ -201,6 +204,7 @@ module classEnvironment1
         logical :: endSiteReached                               ! When doing the calibration loop, did we reach the end site?
         type(datetime) :: currentDate
         real(dp), allocatable :: tmp_C_np(:,:,:,:)              ! Temporary array
+        real(dp), allocatable :: tmp_m_sediment(:,:,:)          ! Temporary array
         
         ! Get the current date and log it
         currentDate = C%startDate + timedelta(t-1)
@@ -238,6 +242,11 @@ module classEnvironment1
         allocate(me%C_np_sediment_t(size(tmp_C_np, dim=1) + 1, size(tmp_C_np, dim=2), size(tmp_C_np, dim=3), size(tmp_C_np, dim=4)))
         me%C_np_sediment_t(:size(tmp_C_np, dim=1), :, :, :) = tmp_C_np
         me%C_np_sediment_t(size(tmp_C_np, dim=1) + 1, :, :, :) = me%get_C_np_sediment()
+        ! Sediment mass
+        call move_alloc(me%m_sediment_t_byLayer, tmp_m_sediment)
+        allocate(me%m_sediment_t_byLayer(size(tmp_m_sediment, dim=1) + 1, size(tmp_m_sediment, dim=2), size(tmp_m_sediment, dim=3)))
+        me%m_sediment_t_byLayer(:size(tmp_m_sediment, dim=1), :, :) = tmp_m_sediment
+        me%m_sediment_t_byLayer(size(tmp_m_sediment, dim=1) + 1, :, :) = me%get_m_sediment_byLayer()
     end function
     
     !> Update an individual reach, also updating the containng grid cell, if it hasn't
@@ -440,6 +449,36 @@ module classEnvironment1
             do x = 1, size(me%colGridCells, dim=1)
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
                     bedArea = bedArea + me%colGridCells(x,y)%item%getBedSedimentArea()
+                end if
+            end do
+        end do
+    end function
+
+    !> Get the mass of sediment [kg] in the environment, broken down by layer and sediment
+    !! size class.
+    function get_m_sediment_byLayerEnvironment1(me) result(m_sediment_byLayer)
+        class(Environment1)     :: me                           !! This Environment instance
+        real(dp), allocatable   :: m_sediment_byLayer(:,:)      !! Mass of sediment in the environment [kg]
+        integer                 :: x, y, i, j, k                ! Iterators
+        allocate(m_sediment_byLayer(C%nSedimentLayers, C%nSizeClassesSpm))
+        m_sediment_byLayer = 0.0_dp
+        ! Loop through cells and reaches and sum up the sediment mass. GFortran compiler
+        ! bugs meant I was struggling to encase the reach/sediment actions within their
+        ! own class, so as a work around they will be pulled directly from here
+        do y = 1, size(me%colGridCells, dim=2)
+            do x = 1, size(me%colGridCells, dim=1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    do i = 1, me%colGridCells(x,y)%item%nReaches
+                        associate (sediment => me%colGridCells(x,y)%item%colRiverReaches(i)%item%bedSediment)
+                            do j = 1, C%nSedimentLayers
+                                do k = 1, C%nSizeClassesSpm
+                                    m_sediment_byLayer(j,k) = m_sediment_byLayer(j,k) &
+                                        + sediment%colBedSedimentLayers(j)%item%colFineSediment(k)%M_f() &
+                                        * me%colGridCells(x,y)%item%colRiverReaches(i)%item%bedArea
+                                end do
+                            end do
+                        end associate
+                    end do
                 end if
             end do
         end do

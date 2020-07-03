@@ -63,9 +63,86 @@ module classBedSedimentLayer1
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             character(len=16), parameter :: ms = &
                                             "Allocation error"       ! LOCAL allocation error message
-            real(dp) :: fwr                                   f_comp_sc(Me%nfComp), stat = allst, &
-                                        !    errmsg = allms)           ! allocate the temporary array of fractional composition (note on this below)
+            real(dp) :: fwr
+            real(dp) :: V_m_layer_l                                  ! LOCAL copy of fines+water volume, avoids repeated property calls
+            integer :: S                                             ! LOCAL loop counter
+            integer :: allst                                         ! LOCAL array allocation status
+            character(len=256) :: allms                              ! LOCAL array allocation message
+            !
+            ! Notes
+            ! -------------------------------------------------------------------------------
+            ! This function fills all available space in the layer with fine sediment,
+            ! water and coarse material. There are two calling conventions:
+            ! 1.    Specify M_f(:) and porosity. Water volumes are computed from
+            !       porosity. Any remaining capacity is filled by coarse material.
+            ! 2.    Specify M_f(:) only. Space not occupied by fine sediment is
+            !       occupied by water.
+            ! -------------------------------------------------------------------------------
+            ! TODO remove local versions of me%nSizeClasses and nfComp to free up memory
+            Me%nSizeClasses = C%nSizeClassesSpm                      ! set number of size classes from global value
+            Me%nfComp = C%nFracCompsSpm                              ! set number of fractional compositions from global value
+            ! Me%name = trim(layerGroup%getName())                     ! This object's name = the netCDF group name (e.g., Layer_1)
+            me%l = l                                        ! Index for this layer
+            me%name = ref('Layer', me%l)                    ! Name for this layer
+
+            tr = trim(Me%name) // "%create"                          ! add name to trace string
+            if (len_trim(Me%name) == 0) then
+                call r%addError(ErrorInstance( &
+                            code = 1, &
+                            message = "An object name has not " &
+                                           // "been provided", &
+                            trace = [tr] &
+                                             ) &
+                               )                                     ! error if name is not provided
+                return                                               ! critical error, so exit here
+            end if
+            ! var = layerGroup%getVariable("capacity")                 ! Get the layer capacity [m3 m-2]
+            ! call var%getData(Me%C_total)                             ! retrieve into C_total variable
+            ! Get the layer capacity [m3/m2] from data for this layer
+            me%C_total = C%sedimentLayerDepth(me%l)
+            if (Me%C_total == 0) then                                ! CRITICAL ERROR HERE: C_total == 0
+                call r%addError(ErrorInstance( &
+                            code = 1, &
+                            message = "Layer capacity is zero", &
+                            trace = [tr] &
+                                            ) &
+                               )
+            end if
+            ! var = layerGroup%getVariable("initial_mass")             ! Get the sediment initial masses
+            allocate(M_f, source=DATASET%sedimentInitialMass)
+            ! M_f = DATASET%sedimentInitialMass                       ! Get the initial sediment mass from the dataset
+            if (size(M_f) /= Me%nSizeClasses) then                   ! array of fine sediment masses must have correct size
+                call r%AddError(ErrorInstance( &
+                            code = 1, &
+                            message = "Array of fine sediment " &
+                                       // "masses is the wrong size", &
+                            trace = [tr] &
+                                             ) &
+                               )                                     ! create error instance
+            end if
             
+            ! Code for old NetCDF data had a check whether there was a porosity variable.
+            ! Now we'll presume that there is a porosity variable. Auditing will be moved to classDatabase.
+            Porosity = DATASET%sedimentPorosity(me%l) 
+            ! if (layerGroup%hasVariable("porosity")) then             ! has a porosity value been supplied?
+            !     var = layerGroup%getVariable("porosity")             ! Get the porosity
+            !     call var%getData(Porosity)                           ! Put porosity into local variable
+            !     if (Porosity <= 0 .or. Porosity >= 1) then
+            !         call r%AddError(ErrorInstance( &
+            !                 code = 1, &
+            !                 message = "Porosity is out of range", &
+            !                 trace = [tr] &
+            !                              ) &
+            !                )                                         ! create error instance
+            !     end if
+            !     if (r%hasCriticalError()) return                     ! exit if a critical error has occurred
+            ! end if                                                   ! sediment:water ratio
+            ! grp = layerGroup%getGroup("fractional_compositions")     ! get fractional composition group
+                                                                     ! SH: The fractional comps could be stored as 2D arrays in the NetCDF/JSON file
+                                                                     ! to simplify this a bit
+            ! allocate(f_comp_sc(Me%nfComp), stat = allst, &
+                                        !    errmsg = allms)           ! allocate the temporary array of fractional composition (note on this below)
+
             ! Get the fractional composition distribution from data
             allocate(f_comp(Me%nSizeClasses, Me%nfComp))             ! allocate space for fractional compositions
             do s = 1, me%nSizeClasses

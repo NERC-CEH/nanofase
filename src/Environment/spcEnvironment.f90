@@ -28,6 +28,7 @@ module spcEnvironment
         ! Summary statistics
         real(dp), allocatable               :: C_np_water_t(:,:,:,:)    !! Water NM conc spatial mean on each timestep [kg/m3]
         real(dp), allocatable               :: C_np_sediment_t(:,:,:,:) !! Sediment NM conc spatial mean on each timestep [kg/kg]
+        real(dp), allocatable               :: m_sediment_t_byLayer(:,:,:)  !! Sediment mass in each layer on each timestep [kg]
       contains
         procedure(createEnvironment), deferred :: create
         procedure(destroyEnvironment), deferred :: destroy
@@ -41,6 +42,7 @@ module spcEnvironment
         procedure(get_C_np_waterEnvironment), deferred :: get_C_np_water
         procedure(get_C_np_sedimentEnvironment), deferred :: get_C_np_sediment
         procedure(getBedSedimentAreaEnvironment), deferred :: getBedSedimentArea
+        procedure(get_m_sediment_byLayerEnvironment), deferred :: get_m_sediment_byLayer
     end type
 
     abstract interface
@@ -133,5 +135,14 @@ module spcEnvironment
             class(Environment) :: me
             real(dp) :: bedArea
         end function
+
+        function get_m_sediment_byLayerEnvironment(me) result(m_sediment_byLayer)
+            use Globals, only: dp, C
+            import Environment
+            class(Environment)      :: me
+            real(dp), allocatable   :: m_sediment_byLayer(:,:)
+        end function
+
     end interface
+
 end module
