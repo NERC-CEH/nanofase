@@ -63,7 +63,7 @@ preserve_timestep = .false.                             ! Should the timestep fr
 /
 
 &steady_state
-run_to_steady_state = .true.
+run_to_steady_state = .false.
 mode = 'sediment_size_distribution'
 delta = 1e-5                                            ! Delta value to test whether at steady state
 /
