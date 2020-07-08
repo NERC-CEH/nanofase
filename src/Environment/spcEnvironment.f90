@@ -62,23 +62,19 @@ module spcEnvironment
         end function
         
         !> Interface to perform simulations in `Environment`
-        function updateEnvironment(me, t) result(r)
-            use ResultModule, only: Result
+        subroutine updateEnvironment(me, t)
             import Environment
             class(Environment), target :: me            !! This `Environment` instance
             integer :: t                                !! The current time step
-            type(Result) :: r                           !! `Result` object containing any errors
-        end function
+        end subroutine
 
-        function updateReachEnvironment(me, t, reach) result(rslt)
-            use ResultModule, only: Result
+        subroutine updateReachEnvironment(me, t, reach)
             use spcReach, only: ReachPointer
             import Environment
             class(Environment), target :: me        !! This Environment instance
             integer :: t                            !! The current timestep
             type(ReachPointer) :: reach             !! The reach to update
-            type(Result) :: rslt                    !! Result object to return errors in
-        end function
+        end subroutine
         
         !> Interface to import and parse input data for the `Environment` object
         function parseInputDataEnvironment(me) result(r)

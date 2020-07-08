@@ -128,7 +128,7 @@ program main
         end if
 
         do t = 1, C%nTimeSteps
-            r = env%update(t)
+            call env%update(t)
             call LOGR%toFile(errors=.errors.r)                              ! Output any errors to the log file
             call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
             call output%update(t + tPreviousBatch)

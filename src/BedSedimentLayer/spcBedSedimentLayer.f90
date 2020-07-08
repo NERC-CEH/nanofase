@@ -205,21 +205,11 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result                        <br>
         !! `r` returns critical error 103 if `A_f < 0`
-        function GetAf(Me, s) result(r)
+        function GetAf(Me, s) result(A_f)
             class(BedSedimentLayer), intent(in) :: Me                !! the BedSedimentLayer instance
             integer, intent(in) :: s                                 !! size class for which to retrieve available capacity
-            type(Result0D) :: r                                      !! return value
             real(dp) :: A_f                                          !  LOCAL internal storage
             A_f = Me%C_f_l(s) - Me%colFineSediment(s)%V_f()          ! compute capacity
-            r = Result(data = A_f)                                   ! add to Result
-            if (A_f < 0.0_dp) then                                        ! CRITICAL ERROR if A_f < 0
-                call r%addError(ErrorInstance(code = 103, &
-                            message = "Fine sediment unoccupied " // &
-                                      "capacity less than zero", &
-                            trace = ["spcBedSedimentLayer%GetAf"] &
-                                             ) &
-                               )                                     ! create if critical error thrown
-            end if
         end function
         !> **Function purpose**                                     <br>
         !! return the available capacity for water associated with a specified size class
@@ -230,21 +220,21 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)`: returns the result                       <br>
         !! `r` returns critical error 103 if `A_w < 0`
-        function GetAw(Me, s) result(r)
+        function GetAw(Me, s) result(A_w)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer, intent(in) :: s                                 !! Size class for which to retrieve available capacity
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: A_w                                          ! LOCAL internal storage
             A_w = Me%C_w_l(s) - Me%colFineSediment(s)%V_w()          ! compute capacity
-            r = Result(data = A_w)                                   ! add to Result
-            if (A_w < 0) then                                        ! CRITICAL ERROR if A_w < 0
-                call r%addError(ErrorInstance(code = 103, &
-                            message = "Water unoccupied " // &
-                                      "capacity less than zero", &
-                            trace = ["spcBedSedimentLayer%GetAw"] &
-                                             ) &
-                               )                                     ! create if critical error thrown
-            end if
+            ! r = Result(data = A_w)                                   ! add to Result
+            ! if (A_w < 0) then                                        ! CRITICAL ERROR if A_w < 0
+            !     call r%addError(ErrorInstance(code = 103, &
+            !                 message = "Water unoccupied " // &
+            !                           "capacity less than zero", &
+            !                 trace = ["spcBedSedimentLayer%GetAw"] &
+            !                                  ) &
+            !                    )                                     ! create if critical error thrown
+            ! end if
         end function
         !> **Function purpose**                                     <br>
         !! Return the total capacity for fine sediment of a specified size class
@@ -255,21 +245,21 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)`: returns the result                       <br>
         !! `r` returns critical error 103 if `C_f < 0`
-        function GetCf(Me, s) result(r)
+        function GetCf(Me, s) result(C_f)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer, intent(in) :: s                                 !! Size class for which to retrieve available capacity
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: C_f                                          ! LOCAL internal storage
             C_f = Me%C_f_l(s)                                        ! compute capacity
-            r = Result(data = C_f)                                   ! add to Result
-            if (C_f < 0) then                                        ! CRITICAL ERROR if C_f < 0
-                call r%addError(ErrorInstance(code = 103, &
-                            message = "Sediment total " // &
-                                      "capacity less than zero", &
-                            trace = ["spcBedSedimentLayer%GetCf"] &
-                                             ) &
-                               )                                     ! create if critical error thrown
-            end if
+            ! r = Result(data = C_f)                                   ! add to Result
+            ! if (C_f < 0) then                                        ! CRITICAL ERROR if C_f < 0
+            !     call r%addError(ErrorInstance(code = 103, &
+            !                 message = "Sediment total " // &
+            !                           "capacity less than zero", &
+            !                 trace = ["spcBedSedimentLayer%GetCf"] &
+            !                                  ) &
+            !                    )                                     ! create if critical error thrown
+            ! end if
         end function
         !> **Function purpose**                                     <br>
         !! Return the total capacity for water associated with fine sediment of a
@@ -281,21 +271,21 @@ module spcBedSedimentLayer
         !! Function outputs/outcomes                                <br>
         !! `r (Result0D)` returns the result                        <br>
         !! `r` returns critical error 103 if `C_w < 0`
-        function GetCw(Me, s) result(r)
+        function GetCw(Me, s) result(C_w)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer, intent(in) :: s                                 !! Size class for which to retrieve capacity
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: C_w                                          ! LOCAL internal storage
             C_w = Me%C_w_l(s)                                        ! compute capacity
-            r = Result(data = C_w)                                   ! add to Result
-            if (C_w < 0) then                                        ! CRITICAL ERROR if C_f < 0
-                call r%addError(ErrorInstance(code = 103, &
-                            message = "Sediment total " // &
-                                      "capacity less than zero", &
-                            trace = ["spcBedSedimentLayer%GetCf"] &
-                                             ) &
-                               )                                     ! create if critical error thrown
-            end if
+            ! r = Result(data = C_w)                                   ! add to Result
+            ! if (C_w < 0) then                                        ! CRITICAL ERROR if C_f < 0
+            !     call r%addError(ErrorInstance(code = 103, &
+            !                 message = "Sediment total " // &
+            !                           "capacity less than zero", &
+            !                 trace = ["spcBedSedimentLayer%GetCf"] &
+            !                                  ) &
+            !                    )                                     ! create if critical error thrown
+            ! end if
         end function
         !> **Function purpose**                                     <br>
         !! Return the volumetric solid:liquid ratio for the layer
@@ -306,22 +296,11 @@ module spcBedSedimentLayer
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result                        <br>
         !! `r` returns critical error if ratio cannot be computed
-        function GetvolSLR(Me, S) result(r)
+        function GetvolSLR(Me, S) result(volSLR)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
             integer :: S                                             !! size class for which volumetric SLR is to be computed
-            type(Result0D) :: r                                      !! Return value
             real(dp) :: volSLR                                       ! LOCAL internal storage
-            if (Me%C_f_l(S) > 0 .and. Me%C_w_l(S) > 0) then
-                volSLR = Me%C_f_l(S) / Me%C_w_l(S)                   ! compute ratio
-                r = Result(Data = volSLR)                            ! add to result object
-            else
-                call r%addError(ErrorInstance(code = 1, &
-                            message = "Error in computing solid-" // &
-                                      "liquid ratio", &
-                            trace = ["spcBedSedimentLayer%volSLR"] &
-                                             ) &
-                               )                                     ! create if critical error thrown
-            end if
+            volSLR = Me%C_f_l(S) / Me%C_w_l(S)                   ! compute ratio
         end function
         !> **Function purpose**                                     <br>
         !! Return the sediment mass in the layer across all size fractions
@@ -331,17 +310,14 @@ module spcBedSedimentLayer
         !!
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        function GetMflayer(Me) result (r)
-            class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
-            type(Result0D) :: r                                      !! Return value
-            real(dp) :: Mf_layer                                     ! LOCAL internal storage
-            integer :: S                                             ! LOCAL loop counter
+        function GetMflayer(me) result(Mf_layer)
+            class(BedSedimentLayer), intent(in) :: me                !! The `BedSedimentLayer` instance
+            real(dp) :: Mf_layer                                     !! Sediment mass in this layer
+            integer :: i                                             ! LOCAL loop counter
             Mf_layer = 0
-            do S = 1, Me%nSizeClasses
-                Mf_layer = Mf_layer + &
-                            Me%colFineSediment(S)%M_f()              ! sum across all size classes
+            do i = 1, me%nSizeClasses
+                Mf_layer = Mf_layer + Me%colFineSediment(i)%M_f()
             end do
-            r = Result(data = Mf_layer)
         end function
         !> **Function purpose**                                     <br>
         !! Return the sediment capacity in the layer across all size fractions
@@ -351,16 +327,16 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        function GetCflayer(Me) result (r)
+        function GetCflayer(Me) result(Cf_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Cf_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
             Cf_layer = 0
             do S = 1, Me%nSizeClasses
-                Cf_layer = Cf_layer + .dp. Me%C_f(S)                 ! sum across all size classes
+                Cf_layer = Cf_layer + Me%C_f(S)                 ! sum across all size classes
             end do
-            r = Result(data = Cf_layer)
+            ! r = Result(data = Cf_layer)
         end function
         !> **Function purpose**                                     <br>
         !! Return the sediment volume in the layer across all size fractions
@@ -370,17 +346,16 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        function GetVflayer(Me) result (r)
+        function GetVflayer(Me) result(Vf_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Vf_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
             Vf_layer = 0                                             ! initialise local variable 
             do S = 1, Me%nSizeClasses
-                Vf_layer = Vf_layer + &
-                            Me%colFineSediment(S)%V_f()              ! sum across all size classes
+                Vf_layer = Vf_layer + Me%colFineSediment(S)%V_f()              ! sum across all size classes
             end do
-            r = Result(data = Vf_layer)
+            ! r = Result(data = Vf_layer)
         end function
         !> **Function purpose**                                     <br>
         !! Return the water volume in the layer across all sediment size fractions
@@ -390,17 +365,16 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        function GetVwlayer(Me) result (r)
+        function GetVwlayer(Me) result(Vw_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Vw_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
             Vw_layer = 0
             do S = 1, Me%nSizeClasses
-                Vw_layer = Vw_layer + &
-                            Me%colFineSediment(S)%V_w()              ! sum across all size classes
+                Vw_layer = Vw_layer + Me%colFineSediment(S)%V_w()   ! sum across all size classes
             end do
-            r = Result(data = Vw_layer)
+            ! r = Result(data = Vw_layer)
         end function
         !> **Function purpose**                                     <br>
         !! Return the water capacity in the layer across all sediment size fractions
@@ -410,16 +384,16 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        function GetCwlayer(Me) result (r)
+        function GetCwlayer(Me) result(Cw_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Cw_layer                                     ! LOCAL internal storage
             integer :: S                                             ! loop counter
             Cw_layer = 0
             do S = 1, Me%nSizeClasses
                 Cw_layer = Cw_layer + Me%C_w_l(S)                    ! sum across all size classes
             end do
-            r = Result(data = Cw_layer)
+            ! r = Result(data = Cw_layer)
         end function
         !> **Function purpose**                                     <br>
         !! Return the fine sediment & water volume in the layer across all size fractions
@@ -429,9 +403,9 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! `r (Result0D)` returns the result
-        function GetVmlayer(Me) result (r)
+        function GetVmlayer(Me) result(Vm_layer)
             class(BedSedimentLayer), intent(in) :: Me                !! The `BedSedimentLayer` instance
-            type(Result0D) :: r                                      !! Return value
+            ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Vm_layer                                     ! LOCAL internal storage
             integer :: S                                             ! loop counter
             Vm_layer = 0                                             ! initialise local variable
@@ -440,7 +414,7 @@ module spcBedSedimentLayer
                            Me%colFineSediment(S)%V_f() + &
                            Me%colFineSediment(S)%V_w()                ! sum across all size classes
             end do
-             r = Result(data = Vm_layer)
+            !  r = Result(data = Vm_layer)
         end function
         !> **Function purpose**                                     <br>
         !! Return the total volume of the layer

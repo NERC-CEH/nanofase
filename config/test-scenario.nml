@@ -8,6 +8,7 @@ n_sediment_layers = 4                                   ! Number of sediment lay
 n_nm_size_classes = 5                                   ! Number of NM size classes
 n_spm_size_classes = 5                                  ! Number of SPM size classes
 n_fractional_compositions = 4                           ! Number of fractional compositions for sediment
+n_other_sites = 1                                       ! Number of other sampling sites
 /
 
 &nanomaterial
@@ -29,7 +30,7 @@ other_sites = ""                                        ! Which other sites shou
 &data
 input_file = "data.example/test-scenario.nc"            ! Path to NetCDF input data, which includes most of the spatial and temporally resolved data
 constants_file = "data.example/constants_test-scenario.nml" ! Path to constants namelist file, which includes most of the non-spatiotemporal input data 
-output_path = "data/output/"                            ! Path to store the output data
+output_path = "data/output_tmp/"                            ! Path to store the output data
 /
 
 &output
@@ -48,7 +49,7 @@ timestep = 86400                                        ! Length of each time st
 n_timesteps = 10                                        ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
 epsilon = 1e-50,                                        ! Precision for numerical simulations
-error_output = .false.                                  ! Should error handling be turned on? Be careful if not, things might go wrong!
+error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*

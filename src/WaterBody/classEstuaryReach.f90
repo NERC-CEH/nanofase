@@ -90,15 +90,15 @@ module classEstuaryReach
     end function
 
     !> Run the estuary reach simulation for this timestep
-    function updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff) result(rslt)
+    subroutine updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff)
         class(EstuaryReach) :: me
         integer :: t
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         real(dp), optional :: j_transformed_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
-        type(Result) :: rslt
         !--- Locals ---!
+        type(Result) :: rslt
         real(dp) :: Q_outflow
         real(dp) :: changeInVolume, previousVolume
         real(dp) :: j_spm_outflow(C%nSizeClassesSpm)
@@ -449,9 +449,11 @@ module classEstuaryReach
         ! Set the updated flag to true
         me%isUpdated = .true.
 
-        ! Add what we're doing here to the error trace
+        ! Add what we're doing here to the error trace and trigger any errors there are
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
-    end function
+        call LOGR%toFile(errors = .errors. rslt)
+        call ERROR_HANDLER%trigger(errors = .errors. rslt)
+    end subroutine
 
 
     !> Set the dimensions (width, depth, area, volume) of the reach

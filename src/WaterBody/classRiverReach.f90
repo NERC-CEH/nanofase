@@ -84,15 +84,15 @@ module classRiverReach
     end function
 
     !> Run the river reach simulation for this timestep
-    function updateRiverReach(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff) result(rslt)
+    subroutine updateRiverReach(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff)
         class(RiverReach) :: me                                 !! This `RiverReach` instance
         integer :: t                                            !! The current timestep
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded transformed NP runoff to this reach [kg/timestep]
-        type(Result) :: rslt
         !--- Locals ---!
+        type(Result) :: rslt
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
         real(dp) :: j_transformed_in_total                      ! Total inflow of transformed NM [kg/timestep]
@@ -174,7 +174,6 @@ module classRiverReach
             j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
             j_transformed_in_total = sum(me%j_transformed(2:,:,:,:))
             j_dissolved_in_total = sum(me%j_dissolved(2:))
-
 
             ! Set the reach dimensions and calculate the velocity
             call rslt%addErrors(.errors. me%setDimensions())
@@ -282,13 +281,13 @@ module classRiverReach
 
                     call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
                     if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
-                end if
 
-                call rslt%addErrors(.errors. me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea))    ! Fills bedSediment%delta_sed mass transfer matrix
-                ! ^ Must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
-                call rslt%addErrors(.errors. me%bedSediment%transferNM(dj_np_deposit_perArea))
-                ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices
-                dj_np(4+me%nInflows,:,:,:) = dj_np(4+me%nInflows,:,:,:) + me%bedSediment%M_np(2,:,:,:) * me%bedArea
+                    call me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea)    ! Fills bedSediment%delta_sed mass transfer matrix
+                    ! The above must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
+                    call me%bedSediment%transferNM(dj_np_deposit_perArea)
+                    ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices
+                    dj_np(4+me%nInflows,:,:,:) = dj_np(4+me%nInflows,:,:,:) + me%bedSediment%M_np(2,:,:,:) * me%bedArea
+                end if
                 
                 !-- MASS BALANCES --!
                 ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
@@ -425,9 +424,11 @@ module classRiverReach
         ! Set the updated flag to true
         me%isUpdated = .true.
 
-        ! Add what we're doing here to the error trace
+        ! Add what we're doing here to the error trace and trigger any errors there are
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
-    end function
+        call LOGR%toFile(errors = .errors. rslt)
+        call ERROR_HANDLER%trigger(errors = .errors. rslt)
+    end subroutine
 
     !> Set the dimensions (width, depth, area, volume) of the reach
     function setDimensions(me) result(rslt)
