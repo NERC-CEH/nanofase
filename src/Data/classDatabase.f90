@@ -558,7 +558,7 @@ module classDatabase
         character(len=*)        :: constantsFile        !! The constants file path
         integer                 :: nmlIOStat            ! IO status for NML file
         integer :: n_default_nm_size_distribution, n_default_spm_size_distribution, &
-            n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
+            n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
             n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
             n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
             n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
@@ -568,7 +568,7 @@ module classDatabase
         real :: estuary_mouth_coords(2)
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
-        real, allocatable :: spm_size_classes(:), stored_fraction(:), &
+        real, allocatable :: stored_fraction(:), &
             porosity(:), fractional_composition_distribution(:)
         real :: darcy_velocity, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
@@ -586,7 +586,7 @@ module classDatabase
 
         ! Define the namelists and their variables
         namelist /allocatable_array_sizes/ n_default_nm_size_distribution, &
-            n_default_spm_size_distribution, n_spm_size_classes, n_default_matrixembedded_distribution_to_spm, &
+            n_default_spm_size_distribution, n_default_matrixembedded_distribution_to_spm, &
             n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
             n_k_uptake_np, n_k_elim_np, n_k_uptake_transformed, n_k_elim_transformed, &
             n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, &
@@ -606,7 +606,7 @@ module classDatabase
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
             river_meandering_factor, water_temperature, river_attachment_efficiency, estuary_attachment_efficiency
         namelist /sediment/ porosity, initial_mass, fractional_composition_distribution, &
-            default_spm_size_distribution, spm_size_classes, default_matrixembedded_distribution_to_spm
+            default_spm_size_distribution, default_matrixembedded_distribution_to_spm
 
         ! Open and read the NML file
         open(ioUnitConstants, file=constantsFile, status="old")
@@ -616,7 +616,6 @@ module classDatabase
         ! Allocate the appropriate variable dimensions
         allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
             default_spm_size_distribution(n_default_spm_size_distribution), &
-            spm_size_classes(n_spm_size_classes), &
             default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
             vertical_distribution(n_vertical_distribution), &
             porosity(n_porosity), &
@@ -629,9 +628,6 @@ module classDatabase
         end if
         if (.not. allocated(me%defaultSpmSizeDistribution)) then
             allocate(me%defaultSpmSizeDistribution(n_default_spm_size_distribution))
-        end if
-        if (.not. allocated(me%spmSizeClasses)) then
-            allocate(me%spmSizeClasses(n_spm_size_classes))
         end if
         if (.not. allocated(me%defaultMatrixEmbeddedDistributionToSpm)) then
             allocate(me%defaultMatrixEmbeddedDistributionToSpm(n_default_matrixembedded_distribution_to_spm))
@@ -685,9 +681,7 @@ module classDatabase
         me%nmDensity = nm_density
         me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
         me%defaultSpmSizeDistribution = default_spm_size_distribution / 100.0
-        me%spmSizeClasses = spm_size_classes
         me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
-        me%nSizeClassesSpm = n_spm_size_classes
         me%soilDarcyVelocity = darcy_velocity       ! TODO maybe calculate from water flow, though it doesn't massively affect alpha_att calc
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant

@@ -153,7 +153,7 @@ module DataOutputModule
                         trim(str(sum(reach%bedSediment%get_C_np_l_byMass(l)))) // ",", l=1, C%nSedimentLayers)
                 end if
                 write(ioUnitOutputSediment, '(a)') trim(str(sum(reach%bedSediment%get_m_np_buried() * reach%bedArea))) // "," // &
-                    trim(str(reach%bedArea)) // "," // trim(str( .dp. reach%bedSediment%Mf_bed_all() * reach%bedArea))
+                    trim(str(reach%bedArea)) // "," // trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea))
             end associate
         end do
     end subroutine

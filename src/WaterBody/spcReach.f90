@@ -248,7 +248,7 @@ module spcReach
             do i = 1, C%nSizeClassesNM
                 me%W_settle_np(i) = me%calculateSettlingVelocity( &
                     C%d_nm(i), &
-                    4230.0, &       ! HACK: rho_np, change this to account for different NP materials
+                    DATASET%nmDensity, &
                     me%T_water &
                 )
             end do
@@ -279,14 +279,11 @@ module spcReach
             spmDep_perArea = spmDep/me%bedArea
         end if
         do n = 1, C%nSizeClassesSpm
-            ! print *, spmDep_perArea(n)
-            ! print *, DATASET%sedimentFractionalComposition
-            call rslt%addErrors(.errors. fineSediment(n)%create("FineSediment_class_" // trim(str(n)), 4))
-            !TODO: allow number of compositional fractions to be set 
-            call rslt%addErrors(.errors. fineSediment(n)%set( &
+            call fineSediment(n)%create("FS", C%nFracCompsSpm)
+            call fineSediment(n)%set( &
                 Mf_in=spmDep_perArea(n), &
-                f_comp_in=real(DATASET%sedimentFractionalComposition,8) &
-            ))
+                f_comp_in=DATASET%sedimentFractionalComposition &
+            )
         end do
         
         if (C%includeBedSediment) then
@@ -371,7 +368,7 @@ module spcReach
     !!      \Delta = \frac{\rho_{\text{spm}}}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
-    function calculateSettlingVelocity(Me, d, rho_particle, T) result(W)
+    function calculateSettlingVelocity(me, d, rho_particle, T) result(W)
         class(Reach), intent(in) :: me                          !! The `Reach` instance
         real, intent(in) :: d                                   !! Sediment particle diameter [m]
         real, intent(in) :: rho_particle                        !! Sediment particulate density [kg/m3]

@@ -158,15 +158,14 @@ module spcWaterBody
     end subroutine
 
     !> Update this `WaterBody` on given time step
-    function updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff) result(rslt)
+    subroutine updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff)
         class(WaterBody) :: me                                  !! This `WaterBody` instance
         integer :: t                                            !! What time step are we on?
         real(dp), optional :: q_runoff                          !! Runoff from the hydrological model [m/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this water body [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this water body [kg/timestep]
         real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded transformed NP runoff to this water body [kg/timestep]
-        type(Result) :: rslt                                    !! The `Result` object
-    end function
+    end subroutine
 
     !> Allocate memory for arrays generic to any water body. Individual water bodies
     !! may extend this routine to allocate their own body specific variables

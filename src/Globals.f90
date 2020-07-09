@@ -106,7 +106,7 @@ module Globals
     !> Initialise global variables, such as `ERROR_HANDLER`
     subroutine GLOBALS_INIT()
         integer :: n, i                                     ! Iterators
-        ! Water
+        integer :: nmlIOStat                                ! IO status for namelist reading
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
         character(len=256) :: configFilePath, batchRunFilePath
         integer :: configFilePathLength, batchRunFilePathLength
@@ -121,7 +121,7 @@ module Globals
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions, n_chunks
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_sediment_layers
-        real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
+        real(dp) :: epsilon, default_meandering_factor, default_alpha_hetero, &
             default_alpha_hetero_estuary
         real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
             sediment_particle_densities(:), sediment_layer_depth(:)
@@ -157,6 +157,8 @@ module Globals
         include_soil_state_breakdown = .false.
         soil_pec_units = 'kg/kg'
         sediment_pec_units = 'kg/kg'
+        calibration_run = .false.
+        n_other_sites = 0
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -198,23 +200,27 @@ module Globals
             close(ioUnitBatchConfig)
         end if
 
-        read(ioUnitConfig, nml=allocatable_array_sizes)
+        read(ioUnitConfig, nml=allocatable_array_sizes); rewind(ioUnitConfig)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
         allocate(soil_layer_depth(n_soil_layers))
         allocate(sediment_layer_depth(n_sediment_layers))
-        allocate(other_sites(n_other_sites))
         allocate(nm_size_classes(n_nm_size_classes))
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(sediment_particle_densities(n_fractional_compositions))
+        allocate(other_sites(n_other_sites))
         ! Carry on reading in the different config groups
-        read(ioUnitConfig, nml=nanomaterial); rewind(10)
-        read(ioUnitConfig, nml=calibrate); rewind(10)
-        read(ioUnitConfig, nml=data); rewind(10)
-        read(ioUnitConfig, nml=output); rewind(10)
-        read(ioUnitConfig, nml=run); rewind(10)
-        read(ioUnitConfig, nml=soil); rewind(10)
-        read(ioUnitConfig, nml=sediment); rewind(10)
+        read(ioUnitConfig, nml=nanomaterial); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=calibrate, iostat=nmlIOStat); rewind(ioUnitConfig)
+        if (nmlIOStat .ge. 0) then
+            read(ioUnitConfig, nml=calibrate); rewind(ioUnitConfig)
+        end if
+        ! read(ioUnitConfig, nml=calibrate); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=data); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=output); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=run); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=soil); rewind(ioUnitConfig)
+        read(ioUnitConfig, nml=sediment); rewind(ioUnitConfig)
         read(ioUnitConfig, nml=sources)
         close(ioUnitConfig)
         
