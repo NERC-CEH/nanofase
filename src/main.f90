@@ -106,6 +106,7 @@ program main
     i = 1
     do while (.not. steadyStateReached)
 
+        ! If we're running to steady state, log some info about it
         if (C%runToSteadyState) then
             call LOGR%toFile("Model iteration #" // trim(str(i)))
             call LOGR%toConsole("\x1B[94mModel iteration #" // trim(str(i)) // "\x1B[0m")
@@ -205,7 +206,7 @@ program main
                 ! end do
             end do
             ! Keep a tally of what actual timestep we're on across the batch run
-            tPreviousChunk = tPreviousChunk + t
+            tPreviousChunk = tPreviousChunk + t - 1
         end do
 
         ! If we're meant to be running to steady state, then we now need to check whether we've reached it

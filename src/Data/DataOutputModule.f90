@@ -103,7 +103,7 @@ module DataOutputModule
         real                :: easts, norths
 
         ! Get the date for this timestep
-        date = C%startDate + timedelta(t - 1)
+        date = C%batchStartDate + timedelta(t - 1)
         dateISO = date%isoformat()
         
         ! Loop through the grid cells and update each compartment
@@ -300,7 +300,7 @@ module DataOutputModule
             write(ioUnitOutputSummary, *) "\n## Steady state"
             write(ioUnitOutputSummary, *) "- Iterations until steady state: " // trim(str(iSteadyState))
             write(ioUnitOutputSummary, *) "- Time until steady state: " &
-                // trim(str(iSteadyState * C%timeStep * C%nTimeSteps)) // " s"
+                // trim(str(iSteadyState * C%timeStep * C%nTimestepsInBatch)) // " s"
         end if
         ! Close the files
         close(ioUnitOutputSummary); close(ioUnitOutputWater); close(ioUnitOutputSediment); close(ioUnitOutputSoil)
@@ -331,7 +331,7 @@ module DataOutputModule
         write(ioUnitOutputSummary, '(a)') " - Simulation datetime: " // simDatetime%isoformat()
         write(ioUnitOutputSummary, '(a)') " - Is batch run? " // trim(str(C%isBatchRun))
         write(ioUnitOutputSummary, '(a)') " - Number of batches: " // trim(str(C%nChunks))
-        write(ioUnitOutputSummary, '(a)', advance='no') " - Is steady state? " // trim(str(C%runToSteadyState))
+        write(ioUnitOutputSummary, '(a)', advance='no') " - Is steady state run? " // trim(str(C%runToSteadyState))
         if (C%runToSteadyState) then
             write(ioUnitOutputSummary, '(a)') " (" // trim(C%steadyStateMode) // " mode)"
         else
