@@ -16,10 +16,12 @@ log/
 cache/
 dll/
 x64/
+scratch/
 
 # Directory for personal code snippets and any output.txt data file
 snip/
 output*.*
+*.dat
 
 # Prerequisites
 *.d
