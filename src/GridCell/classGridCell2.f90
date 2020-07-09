@@ -228,10 +228,10 @@ module classGridCell2
     end function
 
     !> Perform the simulations required for an individual time step
-    function updateGridCell2(me, t) result(r)
+    subroutine updateGridCell2(me, t)
         class(GridCell2) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
-        type(Result) :: r                                       !! `Result` object to return errors in
+        type(Result) :: r                                       ! `Result` object
         integer :: i, b                                            ! Iterator
         real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
@@ -280,9 +280,8 @@ module classGridCell2
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
         call LOGR%toFile(errors = .errors. r)            ! Log any errors to the output file
         call ERROR_HANDLER%trigger(errors = .errors. r)
-        call r%clear()                  ! Clear the errors so we're not reporting twice
         call LOGR%toFile("Performing simulation for " // trim(me%ref) // " on time step #" // trim(str(t)) // ": success")
-    end function
+    end subroutine
 
     !> Set the outflow from the temporary outflow variables that were setting by the
     !! update procedure. This step is kept separate from the routing so that the
@@ -641,7 +640,7 @@ module classGridCell2
                 ! Get the NM PEC [kg/kg] for each sediment
                 C_np_sediment_b(i, :, :, :) = bedSediment%get_C_np_byMass()
                 ! Get the sediment mass from BedSediment [kg/m2] and multiple by bed area to give total mass
-                sedimentMasses(i) = .dp. bedSediment%Mf_bed_all() * me%colRiverReaches(i)%item%bedArea
+                sedimentMasses(i) = bedSediment%Mf_bed_all() * me%colRiverReaches(i)%item%bedArea
             end associate
         end do
         ! Get the weighted mean across the bed sediments, using bed area as the weight
@@ -679,7 +678,7 @@ module classGridCell2
         ! Loop over the reaches and sum the total masses of sediment in each reach
         do i = 1, me%nReaches
             sedimentMass = sedimentMass &
-                + .dp. me%colRiverReaches(i)%item%bedSediment%Mf_bed_all() &        ! Sediment mass in this reach, kg/m2
+                + me%colRiverReaches(i)%item%bedSediment%Mf_bed_all() &             ! Sediment mass in this reach, kg/m2
                 * me%colRiverReaches(i)%item%bedArea                                ! Mutiply by bed area to get total mass in this reach 
         end do
     end function

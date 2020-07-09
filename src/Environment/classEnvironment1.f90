@@ -190,36 +190,36 @@ module classEnvironment1
     end function
 
     !> Perform simulations for the `Environment`
-    function updateEnvironment1(me, t) result(r)
+    subroutine updateEnvironment1(me, t)
         use omp_lib
-        class(Environment1), target :: me                       !! This `Environment` instance
-        integer :: t                                            !! Current time step
-        type(Result) :: r                                       !! Return error(s) in `Result` object
-        type(ReachPointer) :: reach                             ! Pointer to the reach we're updating
-        integer :: streamOrder                                  ! Keep track of the order in which reach updates were performed
-        integer :: i, x, y
-        real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length in cell
-        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
-        logical :: goDownstream                                 ! Have all the inflow reaches been updated yet?
-        logical :: endSiteReached                               ! When doing the calibration loop, did we reach the end site?
-        type(datetime) :: currentDate
-        real(dp), allocatable :: tmp_C_np(:,:,:,:)              ! Temporary array
-        real(dp), allocatable :: tmp_m_sediment(:,:,:)          ! Temporary array
+        class(Environment1), target :: me                           !! This `Environment` instance
+        integer                     :: t                            !! Current time step
+        type(ReachPointer)          :: reach                        ! Pointer to the reach we're updating
+        integer                     :: streamOrder                  ! Keep track of the order in which reach updates were performed
+        integer                     :: i, x, y                      ! Iterators
+        real(dp)                    :: lengthRatio                  ! Reach length as a proportion of total river length in cell
+        real(dp)                    :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
+        logical                     :: goDownstream                 ! Have all the inflow reaches been updated yet?
+        logical                     :: endSiteReached               ! When doing the calibration loop, did we reach the end site?
+        type(datetime)              :: currentDate                  ! Current simulation date
+        real(dp), allocatable       :: tmp_C_np(:,:,:,:)            ! Temporary array
+        real(dp), allocatable       :: tmp_m_sediment(:,:,:)        ! Temporary array
         
         ! Get the current date and log it
         currentDate = C%startDate + timedelta(t-1)
         call LOGR%add("Performing simulation for " // trim(currentDate%strftime('%Y-%m-%d')) // "...")
         
-        !!$omp parallel do private(y)
+        !!$omp parallel do private(y,x)
         do y = 1, DATASET%gridShape(2)
             do x = 1, DATASET%gridShape(1)
-                call r%addErrors(.errors. me%colGridCells(x,y)%item%update(t))
+                call me%colGridCells(x,y)%item%update(t)
             end do
         end do
+        !!$omp end parallel do
         
         ! Loop through the routed reaches array (which is in the correct order) and update each reach
         do i = 1, me%nWaterbodies
-           call r%addErrors(.errors. me%updateReach(t, me%routedReaches(i))) 
+           call me%updateReach(t, me%routedReaches(i))
         end do
         
         ! Finalise the routing by setting outflows to temporary outflows that were stored
@@ -247,15 +247,14 @@ module classEnvironment1
         allocate(me%m_sediment_t_byLayer(size(tmp_m_sediment, dim=1) + 1, size(tmp_m_sediment, dim=2), size(tmp_m_sediment, dim=3)))
         me%m_sediment_t_byLayer(:size(tmp_m_sediment, dim=1), :, :) = tmp_m_sediment
         me%m_sediment_t_byLayer(size(tmp_m_sediment, dim=1) + 1, :, :) = me%get_m_sediment_byLayer()
-    end function
+    end subroutine
     
     !> Update an individual reach, also updating the containng grid cell, if it hasn't
     !! already been updated.
-    function updateReachEnvironment1(me, t, reach) result(rslt)
+    subroutine updateReachEnvironment1(me, t, reach)
         class(Environment1), target :: me                               !! This `Environment1` instance
         integer                     :: t                                !! Time step
         type(ReachPointer)          :: reach                            !! Pointer to the reach to update
-        type(Result)                :: rslt                             !! The Result object to return any errors in
         type(GridCellPointer)       :: cell                             ! Pointer to this reach's grid cell
         real(dp)                    :: lengthRatio                      ! Length ratio of this reach to the total reach length in cell
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))     ! Proportion of cell's NM runoff going to this reach
@@ -268,16 +267,14 @@ module classEnvironment1
         j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
         j_transformed_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_transformed_eroded    ! [kg/timestep]
         ! Update the reach for this timestep
-        call rslt%addErrors(.errors. &
-            reach%item%update( &
-                t = t, &
-                q_runoff = cell%item%q_runoff_timeSeries(t), &
-                j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
-                j_np_runoff = j_np_runoff, &
-                j_transformed_runoff = j_transformed_runoff &
-            ) &
+        call reach%item%update( &
+            t = t, &
+            q_runoff = cell%item%q_runoff_timeSeries(t), &
+            j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
+            j_np_runoff = j_np_runoff, &
+            j_transformed_runoff = j_transformed_runoff &
         )
-    end function
+    end subroutine
 
     subroutine determineStreamOrderEnvironment1(me)
         class(Environment1) :: me               !! This Environment instance
@@ -286,7 +283,6 @@ module classEnvironment1
         logical             :: goDownstream     ! Flag to determine whether to go to next downstream reach
         integer             :: i, j, rr, x, y   ! Iterators
         
-        !!$omp end parallel do
         streamOrder = 1
         ! Loop through the headwaters and route from these downstream. We don't need to do this separately
         ! for calibration runs, because each reach with a sample site has already been told its boundary

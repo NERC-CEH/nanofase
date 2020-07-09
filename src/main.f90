@@ -115,6 +115,7 @@ program main
             call LOGR%toConsole("\x1B[94mModel iteration #" // trim(str(i)) // "\x1B[0m")
         end if
 
+<<<<<<< HEAD
         ! Loop through each chunk in the batch run. There will only be one if this isn't a batch run
         do k = 1, C%nChunks
             ! If we're not on the first chunk, we need to update the data for this chunk, otherwise the
@@ -210,6 +211,86 @@ program main
             end do
             ! Keep a tally of what actual timestep we're on across the batch run
             tPreviousChunk = tPreviousChunk + t
+=======
+        do t = 1, C%nTimeSteps
+            call env%update(t)
+            call LOGR%toFile(errors=.errors.r)                              ! Output any errors to the log file
+            call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
+            call output%update(t + tPreviousBatch)
+
+            ! TODO: Do something with Result object
+            ! do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
+            !     do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
+            !         if (.not. env%colGridCells(x,y)%item%isEmpty) then
+
+            !            ! RiverReachs
+            !             do rr = 1, env%colGridCells(x,y)%item%nReaches
+
+            !                 associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
+            !                     ! What reach type is this?
+            !                     select type (reach)
+            !                         type is (RiverReach)
+            !                             reachType = 'riv'
+            !                         type is (EstuaryReach)
+            !                             reachType = 'est'
+            !                     end select
+                                ! Biota
+                                ! do b = 1, reach%nBiota
+                                !     write(9, *) t + tPreviousBatch, ",", x, ",", y, ",", &
+                                !         DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", b, ",", &
+                                !         trim(reach%biota(b)%name), ",", &
+                                !         reachType, ",", &
+                                !         reach%biota(b)%C_active, ",", &
+                                !         reach%biota(b)%C_stored
+                                ! end do
+
+                                ! if (C%calibrationRun) then
+                                !     if (reach%calibrationSiteRef == C%startSite) then
+                                !         write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", &
+                                !                     DATASET%x(x), ",", DATASET%y(y), ",", &
+                                !                     rr, ",", trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), &
+                                !                     ",", trim(str(reach%depth)), ",", trim(reachType), ",", &
+                                !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
+                                !     else if (reach%calibrationSiteRef == C%endSite) then
+                                !         write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", &
+                                !                     DATASET%x(x), ",", DATASET%y(y), ",", &
+                                !                     rr, ",", trim(str(reach%volume)), ",", &
+                                !                     trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                !                     trim(str(reach%depth)), ",", trim(reachType), ",", &
+                                !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
+                                !     else
+                                !         do i = 1, size(C%otherSites)
+                                !             if (reach%calibrationSiteRef &
+                                !                 == C%otherSites(i)) then
+                                !                 write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", &
+                                !                     DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", trim(str(reach%volume)), &
+                                !                     ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
+                                !                     trim(str(reach%depth)), ",", trim(reachType), ",", &
+                                !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
+                                !             end if
+                                !         end do
+                                !     end if
+                                ! end if
+                        !     end associate
+                        ! end do
+
+                        ! do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
+                        !     associate(profile => env%colGridCells(x,y)%item%colSoilProfiles(1)%item)
+                        !         write(8, *) t + tPreviousBatch, ",", x, ",", y, ",", &
+                        !             DATASET%x(x), ",", DATASET%y(y), ",", b, ",", &
+                        !             trim(profile%colSoilLayers(1)%item%biota(b)%name), ",", &
+                        !             profile%colSoilLayers(1)%item%biota(b)%C_active, ",", &
+                        !             profile%colSoilLayers(1)%item%biota(b)%C_stored, ",", &
+                        !             profile%colSoilLayers(2)%item%biota(b)%C_active, ",", &
+                        !             profile%colSoilLayers(2)%item%biota(b)%C_stored, ",", &
+                        !             profile%colSoilLayers(3)%item%biota(b)%C_active, ",", &
+                        !             profile%colSoilLayers(3)%item%biota(b)%C_stored
+                        !     end associate
+                        ! end do
+            !         end if
+            !     end do
+            ! end do
+>>>>>>> develop
         end do
 
         ! If we're meant to be running to steady state, then we now need to check whether we've reached it

@@ -133,13 +133,11 @@ module spcGridCell
         end function
         
         !> Run the `GridCell`'s simulation for this time step
-        function updateGridCell(me, t) result(r)
-            use ResultModule, only: Result
+        subroutine updateGridCell(me, t)
             import GridCell
             class(GridCell) :: me                                      !! The `GridCell` instance
             integer :: t                                               !! The current time step
-            type(Result) :: r                                          !! The `Result` object to return any errors in
-        end function
+        end subroutine
         
         !> Finalise the `GridCell`'s state variables for this time step
         subroutine finaliseUpdateGridCell(me)

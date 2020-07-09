@@ -103,7 +103,7 @@ $(EXEC_FILE): $(OBJECTS)
 %.o: %.f90
 	$(FC) -c $(FLAGS) $< $(NETCDF)
 release: FLAGS = ${RELEASE_FLAGS} ${COMMON_FLAGS}
-release: main
+release: $(EXEC_FILE)
 run:
 	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 profile:
