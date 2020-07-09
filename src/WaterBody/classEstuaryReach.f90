@@ -499,10 +499,11 @@ module classEstuaryReach
         me%meanDepth = DATASET%estuaryMeanDepthExpA * exp(-DATASET%estuaryMeanDepthExpB * me%distanceToMouth)
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
         me%slope = 0.0005
-        me%f_m = DATASET%riverMeanderingFactor                          ! TODO change this to estuary meandering factor
+        me%f_m = DATASET%estuaryMeanderingFactor
         me%alpha_hetero = DATASET%estuaryAttachmentEfficiency
         me%alpha_resus = DATASET%waterResuspensionAlphaEstuary
         me%beta_resus = DATASET%waterResuspensionBetaEstuary
+        me%T_water = DATASET%waterTemperature
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created
         call rslt%addErrors( &

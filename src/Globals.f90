@@ -121,7 +121,7 @@ module Globals
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions, n_chunks
         integer :: timestep, n_timesteps, max_river_reaches, n_soil_layers, n_other_sites, n_sediment_layers
-        real(dp) :: epsilon, default_meandering_factor, default_water_temperature, default_alpha_hetero, &
+        real(dp) :: epsilon, default_meandering_factor, default_alpha_hetero, &
             default_alpha_hetero_estuary
         real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
             sediment_particle_densities(:), sediment_layer_depth(:)
