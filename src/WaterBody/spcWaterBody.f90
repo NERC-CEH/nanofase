@@ -133,7 +133,6 @@ module spcWaterBody
         integer :: x, y, w                                      !! `GridCell` and `WaterBody` identifiers
         real(dp) :: gridCellArea                                !! Area of the containing `GridCell`
         type(Result) :: rslt                                    !! The Result object
-        integer :: i                                            ! Iterator
         ! Set reach indices and grid cell area
         me%x = x
         me%y = y

@@ -74,11 +74,6 @@ module classFineSediment1
             class(FineSediment1) :: Me                               !! Self-reference
             character(len=*) :: n                                    !! A name identifier for the object; identifies this object uniquely
             integer :: nfC                                           !! number of compositional fractions to be created 
-            type(Result) :: r                                        !! `Result` object
-            type(ErrorInstance) :: er                                ! LOCAL to store errors in
-            character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
-            integer :: allst                                         ! LOCAL array allocation status
-            character(len=256) :: allms                              ! LOCAL allocation message
             ! Realloate particle density a fractional compositions, set an object name and allocate memory
             if (allocated(me%pd_comp)) deallocate(me%pd_comp)
             if (allocated(me%f_comp)) deallocate(me%f_comp)
@@ -217,7 +212,6 @@ module classFineSediment1
         !! none
         subroutine setFSMassBackup1(Me)
             class(FineSediment1), intent(inout) :: Me                !! Self-reference
-            real(dp) :: Mf                                           !! The return value
                                                                      ! function to return the fine sediment mass [kg m-2]
             Me%M_f_l_backup = Me%M_f_l                               ! fine sediment mass backup
         end subroutine

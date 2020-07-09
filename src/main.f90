@@ -11,23 +11,19 @@ program main
     use classLogger, only: LOGR
     use DefaultsModule, only: ioUnitLog
     use datetime_module
-    use omp_lib
     implicit none
 
-    real :: start, finish           ! Simulation start and finish times
-    type(Environment1) :: env       ! Environment object
-    type(Result) :: r               ! Result object
-    type(DataOutput) :: output      ! Data output class
-    type(Checkpoint) :: checkpt     ! Checkpoint module
-    integer :: x, y, t, k           ! Loop iterators
-    integer :: tPreviousChunk = 0   ! Timestep at end of previous batch
-    integer :: i                    ! If running to steady state, this is the iterator
-    logical :: steadyStateReached = .false. ! Has steady state been reached?
-
-    integer :: j
-    real(dp) :: delta_max
-    character(len=10) :: iterationStr
-
+    real                :: start, finish                    ! Simulation start and finish times
+    type(Environment1)  :: env                              ! Environment object
+    type(Result)        :: r                                ! Result object
+    type(DataOutput)    :: output                           ! Data output class
+    type(Checkpoint)    :: checkpt                          ! Checkpoint module
+    integer             :: t, k                             ! Loop iterators
+    integer             :: tPreviousChunk = 0               ! Timestep at end of previous batch
+    integer             :: i                                ! If running to steady state, this is the iterator
+    logical             :: steadyStateReached = .false.     ! Has steady state been reached?
+    real(dp)            :: delta_max                        ! Maximum difference between the same size classes on separate runs
+    character(len=10)   :: iterationStr                     ! What steady state iteration are we on
 
     ! Get the CPU time at the start of the model run
     call cpu_time(start)
@@ -115,7 +111,6 @@ program main
             call LOGR%toConsole("\x1B[94mModel iteration #" // trim(str(i)) // "\x1B[0m")
         end if
 
-<<<<<<< HEAD
         ! Loop through each chunk in the batch run. There will only be one if this isn't a batch run
         do k = 1, C%nChunks
             ! If we're not on the first chunk, we need to update the data for this chunk, otherwise the
@@ -128,13 +123,13 @@ program main
             ! the fact we might be in a batch run and so the timestep within the batch, t, can be used
             do t = 1, C%nTimeSteps
                 ! Update the environment for this timestep, which in turn updates all compartments
-                r = env%update(t)
+                call env%update(t)
                 ! Check for any errors returned from updated, and log/trigger them
                 call LOGR%toFile(errors=.errors.r)
                 call ERROR_HANDLER%trigger(errors=.errors.r)
                 ! Update the output files. Passing the "correct" timestep, taking into account previous
                 ! chunks, is important otherwise timestep indices will be incorrect in the data
-                ! call output%update(t + tPreviousChunk)
+                call output%update(t + tPreviousChunk)
 
                 ! TODO: Do something with Result object
                 ! do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
@@ -211,86 +206,6 @@ program main
             end do
             ! Keep a tally of what actual timestep we're on across the batch run
             tPreviousChunk = tPreviousChunk + t
-=======
-        do t = 1, C%nTimeSteps
-            call env%update(t)
-            call LOGR%toFile(errors=.errors.r)                              ! Output any errors to the log file
-            call ERROR_HANDLER%trigger(errors=.errors.r)                    ! Then trigger them
-            call output%update(t + tPreviousBatch)
-
-            ! TODO: Do something with Result object
-            ! do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
-            !     do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
-            !         if (.not. env%colGridCells(x,y)%item%isEmpty) then
-
-            !            ! RiverReachs
-            !             do rr = 1, env%colGridCells(x,y)%item%nReaches
-
-            !                 associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
-            !                     ! What reach type is this?
-            !                     select type (reach)
-            !                         type is (RiverReach)
-            !                             reachType = 'riv'
-            !                         type is (EstuaryReach)
-            !                             reachType = 'est'
-            !                     end select
-                                ! Biota
-                                ! do b = 1, reach%nBiota
-                                !     write(9, *) t + tPreviousBatch, ",", x, ",", y, ",", &
-                                !         DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", b, ",", &
-                                !         trim(reach%biota(b)%name), ",", &
-                                !         reachType, ",", &
-                                !         reach%biota(b)%C_active, ",", &
-                                !         reach%biota(b)%C_stored
-                                ! end do
-
-                                ! if (C%calibrationRun) then
-                                !     if (reach%calibrationSiteRef == C%startSite) then
-                                !         write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", &
-                                !                     DATASET%x(x), ",", DATASET%y(y), ",", &
-                                !                     rr, ",", trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), &
-                                !                     ",", trim(str(reach%depth)), ",", trim(reachType), ",", &
-                                !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
-                                !     else if (reach%calibrationSiteRef == C%endSite) then
-                                !         write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", &
-                                !                     DATASET%x(x), ",", DATASET%y(y), ",", &
-                                !                     rr, ",", trim(str(reach%volume)), ",", &
-                                !                     trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                !                     trim(str(reach%depth)), ",", trim(reachType), ",", &
-                                !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
-                                !     else
-                                !         do i = 1, size(C%otherSites)
-                                !             if (reach%calibrationSiteRef &
-                                !                 == C%otherSites(i)) then
-                                !                 write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", &
-                                !                     DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", trim(str(reach%volume)), &
-                                !                     ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                !                     trim(str(reach%depth)), ",", trim(reachType), ",", &
-                                !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
-                                !             end if
-                                !         end do
-                                !     end if
-                                ! end if
-                        !     end associate
-                        ! end do
-
-                        ! do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
-                        !     associate(profile => env%colGridCells(x,y)%item%colSoilProfiles(1)%item)
-                        !         write(8, *) t + tPreviousBatch, ",", x, ",", y, ",", &
-                        !             DATASET%x(x), ",", DATASET%y(y), ",", b, ",", &
-                        !             trim(profile%colSoilLayers(1)%item%biota(b)%name), ",", &
-                        !             profile%colSoilLayers(1)%item%biota(b)%C_active, ",", &
-                        !             profile%colSoilLayers(1)%item%biota(b)%C_stored, ",", &
-                        !             profile%colSoilLayers(2)%item%biota(b)%C_active, ",", &
-                        !             profile%colSoilLayers(2)%item%biota(b)%C_stored, ",", &
-                        !             profile%colSoilLayers(3)%item%biota(b)%C_active, ",", &
-                        !             profile%colSoilLayers(3)%item%biota(b)%C_stored
-                        !     end associate
-                        ! end do
-            !         end if
-            !     end do
-            ! end do
->>>>>>> develop
         end do
 
         ! If we're meant to be running to steady state, then we now need to check whether we've reached it
@@ -326,8 +241,9 @@ program main
         call checkpt%save(tPreviousChunk)
     end if
 
-    ! Write the simulation summary to file and close output data files
-    call output%finalise(i)
+    ! Write the simulation summary to file and close output data files. Pass the steady state
+    ! iterator in to give number of iterations until steady state
+    call output%finalise(i-1)
     
     ! Timings
     call cpu_time(finish)

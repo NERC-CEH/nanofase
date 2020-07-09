@@ -223,7 +223,6 @@ module CheckpointModule
         logical, optional       :: preserve_timestep                    !! Should the restarted run preserve the model timestep at the end of saved run?
         integer                 :: i, j, k, l, m                        ! Iterators
         integer                 :: ioStat                               ! IO status, for checking the checkpoint file
-        type(Result)            :: rslt                                 ! Result object
         integer                 :: t                                    ! Timestep
         real                    :: gridRes(2), gridBounds(4)            ! Grid properties, for checking the checkpoint is compatible with this model run
         ! Soil profile
@@ -383,7 +382,7 @@ module CheckpointModule
                                 do l = 1, C%nSedimentLayers
                                     associate (layer => sediment%colBedSedimentLayers(l)%item)
                                         do m = 1, C%nSizeClassesSpm
-                                            rslt = layer%colFineSediment(m)%set( &
+                                            call layer%colFineSediment(m)%set( &
                                                 Mf_in = sedimentLayer_M_f(i,j,k,l,m), &
                                                 Vw_in = sedimentLayer_V_w(i,j,k,l,m) &
                                             )

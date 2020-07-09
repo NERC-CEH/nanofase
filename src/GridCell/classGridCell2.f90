@@ -18,7 +18,6 @@ module classGridCell2
         ! Create/destroy
         procedure :: create => createGridCell2
         procedure :: finaliseCreate => finaliseCreateGridCell2
-        procedure :: destroy => destroyGridCell2
         procedure, private :: createReaches
         procedure :: snapPointSourcesToReach => snapPointSourcesToReachGridCell2
         ! Simulators
@@ -54,7 +53,6 @@ module classGridCell2
         type(Result)          :: rslt               !! The `Result` object to return.
         integer               :: x, y               !! Spatial index of the grid cell
         logical, optional     :: isEmpty            !! Is anything to be simulated in this `GridCell`?
-        integer               :: s                  ! Iterator for `DiffuseSource`s
         type(SoilProfile1)    :: soilProfile        ! The soil profile contained in this GridCell
 
         ! Allocate the object properties that need to be and set up defaults
@@ -219,22 +217,12 @@ module classGridCell2
         end do
     end function
 
-    !> Destroy this `GridCell`
-    function destroyGridCell2(Me) result(r)
-        class(GridCell2) :: Me                              !! The `GridCell` instance.
-        type(Result) :: r                                   !! The `Result` object
-        integer :: x                                        ! Loop iterator
-        ! TODO:  Get rid
-    end function
-
     !> Perform the simulations required for an individual time step
     subroutine updateGridCell2(me, t)
         class(GridCell2) :: me                                  !! The `GridCell` instance
         integer :: t                                            !! The timestep we're on
         type(Result) :: r                                       ! `Result` object
-        integer :: i, b                                            ! Iterator
-        real(dp) :: lengthRatio                                 ! Reach length as a proportion of total river length
-        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
+        integer :: i                                            ! Iterator
         real(dp) :: j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: j_dissolved_diffuseSource
 
@@ -336,13 +324,11 @@ module classGridCell2
     function parseInputDataGridCell2(me) result(r)
         class(GridCell2)        :: me                   !! This `GridCell2` object
         type(Result)            :: r                    !! The `Result` object
-        integer, allocatable    :: xySize(:)            ! The size of the GridCell
-        integer                 :: i                    ! Iterator
         type(Result)            :: rslt                 ! Variable to store Result in
-        integer                 :: hasLargeCityInt      ! Integer representation of hasLargeCity logical
-        integer                 :: cropType             ! Temporary var to store crop type int in
-        real(dp)                :: cropArea             ! Temporary var to store crop area in
-        integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
+        ! integer                 :: hasLargeCityInt      ! Integer representation of hasLargeCity logical
+        ! integer                 :: cropType             ! Temporary var to store crop type int in
+        ! real(dp)                :: cropArea             ! Temporary var to store crop area in
+        ! integer                 :: cropPlantingMonth    ! Temporary var to store crop planting month in
 
 
         ! Allocate arrays to store flows in
@@ -466,7 +452,6 @@ module classGridCell2
         class(GridCell2) :: me                      !! This `GridCell2` instance
         integer, optional :: b                      !! Branch
         real(dp) :: Q_out
-        integer :: r
         Q_out = 0
         ! If branch is present, just get the outflow for that branch,
         ! else, sum the outflows from each branch
@@ -529,6 +514,7 @@ module classGridCell2
         integer, optional :: b                      !! Branch
         real(dp) :: m_np(C%nSizeClassesNM)
         m_np = 0
+        print *, "hello"
         ! TODO: Sum NP masses here
     end function
 
@@ -548,12 +534,11 @@ module classGridCell2
     !! for the reach with index i in this GridCell. From these line parameters,
     !! the distance to a point (source) can be calculated.
     function reachLineParamsFromInflowsOutflowGridCell2(me, i) result(lineParams)
-        class(GridCell2)    :: me
-        integer             :: i        !! The reach to calculate line equation for
-        real                :: lineParams(3)
-        integer             :: j
-        integer             :: x_in, y_in, x_out, y_out
-        real                :: x0, y0, x1, y1, a, b, c
+        class(GridCell2)    :: me                           !! This GridCell
+        integer             :: i                            !! The reach to calculate line equation for
+        real                :: lineParams(3)                !! Line parameters to return
+        integer             :: x_in, y_in, x_out, y_out     ! Inflow and outflow indices of this reach
+        real                :: x0, y0, x1, y1, a, b, c      ! Inflow and outflow coords and line params
         ! Calculate the point of the inflow and outflow of each reach
         if (me%colRiverReaches(i)%item%nInflows > 0) then
             x_in = me%colRiverReaches(i)%item%inflows(1)%item%x
@@ -591,7 +576,6 @@ module classGridCell2
     function get_C_np_soilGridCell2(me) result(C_np_soil)
         class(GridCell2)    :: me                                               !! This GridCell instance
         real(dp), allocatable :: C_np_soil(:,:,:)                               !! Mass concentration of NM in this GridCell [kg/kg soil]
-        real(dp)            :: tmp_C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp)            :: C_np_soil_p(me%nSoilProfiles, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per profile NM concentration [kg/kg soil]
         integer             :: i                                                ! Iterator 
         allocate(C_np_soil(C%npDim(1), C%npDim(2), C%npDim(3)))

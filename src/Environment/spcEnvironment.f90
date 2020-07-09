@@ -31,7 +31,6 @@ module spcEnvironment
         real(dp), allocatable               :: m_sediment_t_byLayer(:,:,:)  !! Sediment mass in each layer on each timestep [kg]
       contains
         procedure(createEnvironment), deferred :: create
-        procedure(destroyEnvironment), deferred :: destroy
         procedure(updateEnvironment), deferred :: update
         procedure(updateReachEnvironment), deferred :: updateReach
         procedure(determineStreamOrderEnvironment), deferred :: determineStreamOrder
@@ -52,14 +51,6 @@ module spcEnvironment
             use ResultModule, only: Result
             import Environment
             class(Environment), target :: me            !! This `Environment` instance
-            type(Result) :: r                           !! `Result` object containing any errors
-        end function
-        
-        !> Interface to destroy an `Environment` object
-        function destroyEnvironment(me) result(r)
-            use ResultModule, only: Result
-            import Environment
-            class(Environment) :: me                    !! This `Environment` instance
             type(Result) :: r                           !! `Result` object containing any errors
         end function
         

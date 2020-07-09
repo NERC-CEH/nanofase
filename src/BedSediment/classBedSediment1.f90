@@ -112,7 +112,6 @@ module classBedSediment1
         integer :: allst                                             ! LOCAL array allocation status
         character(len=256) :: tr                                     ! LOCAL error trace
         character(len=16), parameter :: ms = "Allocation error"      ! LOCAL allocation error message
-        integer :: M                                                 ! LOCAL loop counter for printing
 
         me%name = trim(ref('BedSediment', x, y, w))
         Me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
@@ -261,16 +260,10 @@ module classBedSediment1
         type(FineSediment1) :: F                        ! LOCAL FineSediment object representing material to be resuspended
         type(FineSediment1) :: G                        ! LOCAL FineSediment object representing material not (yet) resuspended
         real(dp), allocatable :: delta_l_r(:,:)                      ! LOCAL deltas for layers to resuspension [-]. L x S array.
-        type(ErrorInstance) :: er                                    ! LOCAL error instance
         integer :: S                                                 ! LOCAL loop counter for size classes
         integer :: L                                                 ! LOCAL counter for layers
         integer :: allst                                             ! LOCAL anrray allocation status
-        real(dp) :: d_temp                                           ! LOCAL to store the returned delta value from RemoveSediment
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
-        type(ResultFineSediment1D) :: r1D                            ! LOCAL temporary variable for storing Result returned from call BedSedimentLayer%remove
-        class(*), allocatable :: data1D(:)                           ! LOCAL temporary variable to store polymorphic data in to use in select type
-        character(len=250) :: tstring                                ! LOCAL temporary variable for constructing strings
-        character(len=250) :: ostring                                ! LOCAL output message string
         
         tr = trim(Me%name) // "%resuspendSediment1"                  ! error trace for this procedure
         ! Create fine sediment objects F and G
@@ -364,12 +357,10 @@ module classBedSediment1
         integer :: L                                                 ! LOCAL counter for layers
         integer :: LL                                                ! LOCAL second counter for layers
         integer :: A                                                 ! LOCAL second counter for layers
-        integer :: allst                                             ! LOCAL array allocation status
         real(dp) :: A_f_sed = 0.0_dp                                 ! LOCAL available fine sediment capacity for size class [m3 m-2]
         real(dp) :: V_f_burial = 0.0_dp                              ! LOCAL excess of deposting fine sediment over capacity [m3 m-2]  
         real(dp) :: tempV = 0.0_dp                                   ! LOCAL volume variable
         real(dp) :: V_w_tot = 0.0_dp                                 ! LOCAL water requirement from the water column [m3 m-2]
-        real(dp) :: V_f_b = 0.0_dp                                   ! LOCAL available fine sediment capacity in the receiving layer [m3 m-2]
         real(dp) :: V_w_b = 0.0_dp                                   ! LOCAL available water capacity in the receiving layer [m3 m-2]
         real(dp) :: dep_excess                                       ! LOCAL excess of deposition over available capacity [m3 m-2]
         real(dp), allocatable :: delta_d_b(:)                        ! LOCAL delta for deposition to burial [-]. S array.
@@ -379,8 +370,7 @@ module classBedSediment1
         real(dp) :: M_f_la                                           ! LOCAL to store the mass of fine sediment in a layer, for computation of delta_l-b and delta_d-l
         logical, allocatable :: IsEmpty(:)                           ! LOCAL .true. bed has been emptied completely to make space for depositing sediment
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
-        class(*), allocatable :: data0D                              ! LOCAL temporary polymorphic data variable
-        type(ErrorInstance) :: tmpError
+        integer :: allst
 
         ! -------------------------------------------------------------------------------
         !

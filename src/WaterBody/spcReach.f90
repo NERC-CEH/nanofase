@@ -306,17 +306,16 @@ module spcReach
     !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
     subroutine setResuspensionRateReach(me, Q)
         class(Reach) :: me                      !! This `Reach` instance
+        real(dp)        :: Q                    !! Flow rate to set resuspension rate based on [m/s]
         !--- Locals ---!
-        real(dp) :: Q                           ! Flow
         real(dp) :: d_max                       ! Maximum resuspendable particle size [m]
         integer :: i                            ! Iterator
         real(dp) :: M_prop(C%nSizeClassesSpm)   ! Proportion of size class that can be resuspended [-]
         real(dp) :: omega                       ! Stream power per unit bed area [W m-2]
         real(dp) :: f_fr                        ! Friction factor [-]
-        real(dp) :: mbed(C%nSizeClassesSpm)     ! mass of fine material in the sediment [kg]
 
         ! There must be flow for there to be resuspension
-        if (me%Q_in_total > 0) then
+        if (Q > 0) then
             ! Calculate maximum resuspendable particle size and proportion of each
             ! size class that can be resuspended. Changes on each timestep as dependent
             ! on river depth
@@ -334,7 +333,7 @@ module spcReach
                 end if
             end do
             ! Calculate the stream power per unit bed area
-            omega = C%rho_w(me%T_water)*C%g*(me%Q_in_total/C%timeStep)*me%slope/me%width
+            omega = C%rho_w(me%T_water)*C%g*(Q)*me%slope/me%width
             f_fr = 4*me%depth/(me%width+2*me%depth)
             ! Set k_resus using the above
             me%k_resus = me%calculateResuspension( &

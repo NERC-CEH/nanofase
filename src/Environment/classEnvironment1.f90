@@ -20,7 +20,6 @@ module classEnvironment1
 
       contains
         procedure :: create => createEnvironment1
-        procedure :: destroy => destroyEnvironment1
         procedure :: update => updateEnvironment1
         procedure :: updateReach => updateReachEnvironment1
         procedure :: determineStreamOrder => determineStreamOrderEnvironment1
@@ -44,11 +43,8 @@ module classEnvironment1
         class(Environment1), target :: me
             !! This `Environment` instace. Must be target so children can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
-        integer :: x, y, w, i, j, b, ix, iy, iw, rr             ! Iterators
-        character(len=100) :: gridCellRef                       ! To store GridCell name in, e.g. "GridCell_x_y"
-        integer :: gridCellType                                 ! Integer representing the GridCell type
+        integer :: x, y, w, i, j, ix, iy, iw                    ! Iterators
         type(ReachPointer), allocatable :: tmpHeadwaters(:)     ! Temporary headwaters array
-        type(ErrorInstance), allocatable :: errors(:)           ! Errors to return
 
         me%nGridCells = 0
         ! Allocate grid cells array to be the shape of the grid
@@ -182,25 +178,13 @@ module classEnvironment1
         call LOGR%toConsole('Creating the Environment: \x1B[32msuccess\x1B[0m')
     end function
 
-    !> Destroy the `Environment` instance
-    function destroyEnvironment1(me) result(r)
-        class(Environment1) :: me                               !! This `Environment` instance
-        type(Result) :: r                                       !! Return error(s) in `Result` object
-        ! Destroy logic here
-    end function
-
     !> Perform simulations for the `Environment`
     subroutine updateEnvironment1(me, t)
         use omp_lib
         class(Environment1), target :: me                           !! This `Environment` instance
         integer                     :: t                            !! Current time step
         type(ReachPointer)          :: reach                        ! Pointer to the reach we're updating
-        integer                     :: streamOrder                  ! Keep track of the order in which reach updates were performed
         integer                     :: i, x, y                      ! Iterators
-        real(dp)                    :: lengthRatio                  ! Reach length as a proportion of total river length in cell
-        real(dp)                    :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! NP runoff for this time step
-        logical                     :: goDownstream                 ! Have all the inflow reaches been updated yet?
-        logical                     :: endSiteReached               ! When doing the calibration loop, did we reach the end site?
         type(datetime)              :: currentDate                  ! Current simulation date
         real(dp), allocatable       :: tmp_C_np(:,:,:,:)            ! Temporary array
         real(dp), allocatable       :: tmp_m_sediment(:,:,:)        ! Temporary array

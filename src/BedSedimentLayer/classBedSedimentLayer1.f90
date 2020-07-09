@@ -49,16 +49,11 @@ module classBedSedimentLayer1
         function createBedSedimentLayer1(Me, Parent, l) result(r)
             class(BedSedimentLayer1) :: Me                           !! The `BedSedimentLayer` instance
             character(len=*) :: Parent                               !! Name of parent object
-            ! type(NcGroup) :: layerGroup                              !! NetCDF group referring to the inputs for this layer
             integer :: l                                             !! Index of this layer 
             type(Result) :: r                                        !! The `Result` object.
-            ! type(NcGroup) :: grp                                     ! LOCAL NetCDF group referring to the fractional compositions
             real(dp) :: Porosity                                     ! LOCAL layer porosity
             real(dp), allocatable :: M_f(:)                          ! LOCAL set of fine sediment masses, index = size class
             real, allocatable :: f_comp(:,:)                     ! LOCAL set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
-            ! real(dp), allocatable :: f_comp_sc(:)                    ! LOCAL fractional compositions for one size class, needed to retrieve data from NetCDF file
-            type(ErrorInstance) :: er                                ! LOCAL ErrorCriteria object for error handling.
-            type(Result) :: tmpResult                                ! LOCAL Temporary Result object
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             character(len=16), parameter :: ms = &
                                             "Allocation error"       ! LOCAL allocation error message
@@ -345,8 +340,6 @@ module classBedSedimentLayer1
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(inout) :: F                  !! `FineSediment` - holds material to be added
             type(ResultFineSediment0D) :: r                          !! The `Result` object. Return data type = `FineSediment1`
-            type(Result0D) :: r0D                                    ! Temporary `Result0D` object to hold return values in
-            real(dp) :: add_M_f                                      ! LOCAL mass of fine sediment being added
             real(dp) :: add_V_f                                      ! LOCAL volume of fine sediment to be added
             real(dp) :: add_V_w                                      ! LOCAL volume of water to be added
             real(dp) :: M_f_SC                                       ! LOCAL mass of fine sediment in receiving size class
@@ -475,8 +468,6 @@ module classBedSedimentLayer1
             integer, intent(in) :: S                                 !! The particle size class
             type(FineSediment1), intent(inout) :: F                  !! `FineSediment` - holds material to be added, returns material that could not be added
             type(Result) :: r                                        !! The `Result` object. Return data type = `FineSediment1`
-            type(Result0D) :: r0D                                    ! Temporary `Result0D` object to hold return values in
-            real(dp) :: add_M_f                                      ! LOCAL mass of fine sediment being added
             real(dp) :: add_V_f                                      ! LOCAL volume of fine sediment to be added
             real(dp) :: add_V_w                                      ! LOCAL volume of water to be added
             real(dp) :: M_f_SC                                       ! LOCAL mass of fine sediment in receiving size class

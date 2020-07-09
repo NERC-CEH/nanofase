@@ -147,8 +147,6 @@ module classSoilProfile1
         real(dp) :: j_transformed_diffuseSource(:,:,:)          !! Diffuse source of NM for this timestep [kg/m2/timestep]
         real(dp) :: j_dissolved_diffuseSource                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
-        integer :: i, j, k
-        ! real(dp) :: C_np_l(C%nSoilLayers, C%npDim(1), C%npDim(2), C%npDim(3))
 
         if (.not. me%isUrban) then
             ! Set the timestep-specific object properties
@@ -287,9 +285,6 @@ module classSoilProfile1
         real(dp)            :: erodedSedimentTotal
         type(datetime)      :: currentDate
         integer             :: julianDay
-        real(dp)            :: m_soil_l1
-        real(dp)            :: propEroded
-        real(dp)            :: erodedNP(C%nSizeClassesNM)
         integer             :: i
 
         ! TODO This function only works with daily timesteps
@@ -383,9 +378,7 @@ module classSoilProfile1
     function parseInputDataSoilProfile1(me) result(r)
         class(SoilProfile1)     :: me                       !! This `SoilProfile` instance
         type(Result)            :: r                        !! `Result` object to return
-        integer                 :: i                        ! Iterator
         integer                 :: landUse                  ! Index of max land use fraction in this profile
-        type(NcVariable)        :: var
 
         me%distributionSediment = DATASET%defaultSpmSizeDistribution
         me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)

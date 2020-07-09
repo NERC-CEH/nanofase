@@ -242,7 +242,7 @@ module classReactor1
         real :: rho_particle
         real :: d
         real(dp) :: C_particle
-        C_particle = C_mass / (rho_particle*(4/3)*C%pi*(d/2)**3)
+        C_particle = C_mass / (rho_particle*(4.0_dp/3.0_dp)*C%pi*(d/2)**3)
     end function
     
 end module

@@ -80,7 +80,6 @@ module spcGridCell
         ! Creation/destruction
         procedure(createGridCell), deferred :: create
         procedure(finaliseCreateGridCell), deferred :: finaliseCreate
-        procedure(destroyGridCell), deferred :: destroy
         procedure(snapPointSourcesToReachGridCell), deferred :: snapPointSourcesToReach
         ! Simulation
         procedure(updateGridCell), deferred :: update
@@ -122,14 +121,6 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me                                   !! This `GridCell` instance
             type(Result) :: r                                       !! The `Result` object to return any errors in
-        end function
-        
-        !> Destroy this `GridCell`
-        function destroyGridCell(me) result(r)
-            use ResultModule, only: Result
-            import GridCell
-            class(GridCell) :: me                                      !! The `GridCell` instance
-            type(Result) :: r                                          !! The `Result` object to return any errors in
         end function
         
         !> Run the `GridCell`'s simulation for this time step

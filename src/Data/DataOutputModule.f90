@@ -299,7 +299,8 @@ module DataOutputModule
         if (C%runToSteadyState) then
             write(ioUnitOutputSummary, *) "\n## Steady state"
             write(ioUnitOutputSummary, *) "- Iterations until steady state: " // trim(str(iSteadyState))
-            write(ioUnitOutputSummary, *) "- Time until steady state (s): " // trim(str(iSteadyState * C%timeStep))
+            write(ioUnitOutputSummary, *) "- Time until steady state: " &
+                // trim(str(iSteadyState * C%timeStep * C%nTimeSteps)) // " s"
         end if
         ! Close the files
         close(ioUnitOutputSummary); close(ioUnitOutputWater); close(ioUnitOutputSediment); close(ioUnitOutputSoil)
@@ -326,13 +327,16 @@ module DataOutputModule
 
         ! Summary file headers
         write(ioUnitOutputSummary, '(a)') "# NanoFASE model simulation summary"
-        write(ioUnitOutputSummary, *) "- Description: " // trim(C%runDescription)
-        write(ioUnitOutputSummary, *) "- Simulation datetime: " // simDatetime%isoformat()
-        write(ioUnitOutputSummary, *) "- Is batch run? " // trim(str(C%isBatchRun))
-        write(ioUnitOutputSummary, *) "- Number of batches: " // trim(str(C%nChunks))
-        write(ioUnitOutputSummary, *) "- Is steady state? " // trim(str(C%runToSteadyState)) // " (" // &
-            trim(C%steadyStateMode) // " mode"
-
+        write(ioUnitOutputSummary, '(a)') " - Description: " // trim(C%runDescription)
+        write(ioUnitOutputSummary, '(a)') " - Simulation datetime: " // simDatetime%isoformat()
+        write(ioUnitOutputSummary, '(a)') " - Is batch run? " // trim(str(C%isBatchRun))
+        write(ioUnitOutputSummary, '(a)') " - Number of batches: " // trim(str(C%nChunks))
+        write(ioUnitOutputSummary, '(a)', advance='no') " - Is steady state? " // trim(str(C%runToSteadyState))
+        if (C%runToSteadyState) then
+            write(ioUnitOutputSummary, '(a)') " (" // trim(C%steadyStateMode) // " mode)"
+        else
+            write(ioUnitOutputSummary, '(a)') ""
+        end if
         write(ioUnitOutputSummary, *) "\n## Temporal domain"
         write(ioUnitOutputSummary, *) "- Start date: " // C%batchStartDate%strftime('%Y-%m-%d')
         write(ioUnitOutputSummary, *) "- End date: " // C%batchEndDate%strftime('%Y-%m-%d')

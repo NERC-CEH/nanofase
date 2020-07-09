@@ -127,6 +127,10 @@ module classEstuaryReach
         real(dp) :: dj_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_dissolved_outflow
         integer :: f
+        real(dp) :: dj_spm_resus_perArea(C%nSizeClassesSpm)     ! Mass of each sediment size class resuspended on each displacement, per unit area [kg/m2/disp]
+        real(dp) :: dj_spm_deposit_perArea(C%nSizeClassesSpm)   ! Mass of each sediment size class deposited on each displacement, per unit area [kg/m2/disp]
+        real(dp) :: tmp_dj_spm_resus_perArea(C%nSizeClassesSpm) ! Temp dj_spm_resus_perArea, to get around bed sediment procedures modifying input params - TODO sort this out
+        real(dp) :: dj_np_deposit_perArea(C%npDim(1), C%npDim(2), C%npDim(3))
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -217,8 +221,8 @@ module classEstuaryReach
         ! (but don't acutally settle until we're looping through
         ! displacements). This can be done now as settling/resuspension rates
         ! don't depend on anything that changes on each displacement
-        call me%setResuspensionRate(me%Q_in_total)      ! Computes resuspension rate [s-1] over complete timestep
-        call me%setSettlingRate()                       ! Computes settling rate [s-1] over complete timestep
+        call me%setResuspensionRate(me%Q_in_total/C%timeStep)       ! Computes resuspension rate [s-1] over complete timestep
+        call me%setSettlingRate()                                   ! Computes settling rate [s-1] over complete timestep
 
         ! If Q_in for this timestep is bigger than the reach volume, then we need to
         ! split into a number of displacements. If Q_in is zero, just have 1 displacement.
@@ -236,7 +240,6 @@ module classEstuaryReach
         dj_dissolved = me%j_dissolved/nDisp                 ! Dissolved flow array for each displacement
 
         do i = 1, nDisp
-
             ! Calculate the timestep in hours from the displacement length, and pass to setDimensions
             ! to use to calculate tidal harmonics
             call me%setDimensions((t-1)*C%timeStep/3600 + i*(int(dt)/3600))
@@ -245,7 +248,7 @@ module classEstuaryReach
             ! Water mass balance (outflow = all the inflows + change in volume)
             dQ(1) = -sum(dQ(2:)) + changeInVolume
             ! As flow changes so much over displacement, set resuspension rate on each
-            call me%setResuspensionRate(abs(dQ(1)))
+            call me%setResuspensionRate(abs(dQ(1)) / dt)
 
             ! If this displacement's outflow is -ve, tidal flow must be downstream and
             ! outflowing SPM/NM is a function of this reach's SPM/NM conc, else if it is
@@ -376,14 +379,30 @@ module classEstuaryReach
             call me%set_j_transformed_deposit(me%j_transformed_deposit() + dj_transformed(4+me%nInflows,:,:,:))
             call me%set_j_dissolved_outflow(me%j_dissolved_outflow() + dj_dissolved_outflow)
 
+            ! Deposit SPM and NM to bed, and pull out resuspended NM mass
+            dj_spm_resus_perArea = divideCheckZero(dj_spm_resus, me%bedArea) 
+            dj_spm_deposit_perArea = divideCheckZero(dj_spm_deposit, me%bedArea)
+            tmp_dj_spm_resus_perArea = dj_spm_resus_perArea
+            dj_np_deposit_perArea = divideCheckZero(-dj_np(4+me%nInflows,:,:,:), me%bedArea)
             ! If we're including bed sediment, then deposit and resuspend to/from
             if (C%includeBedSediment) then
-                call rslt%addErrors(.errors. &
-                    me%bedSediment%resuspend(dj_spm_resus / me%bedArea))    ! remove resuspended SPM from BedSediment
-                if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
-
-                call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit)) ! add deposited SPM to BedSediment 
-                if (rslt%hasCriticalError()) return                         ! exit if a critical error has been thrown
+                ! Remove resuspended SPM from sediment
+                call rslt%addErrors(.errors. me%bedSediment%resuspend(tmp_dj_spm_resus_perArea))
+                ! bedSediment%resuspend modifies dj_spm_resus_perArea to be the amount of sediment passed in
+                ! that isn't resuspended, so the amount actually resuspended is input - output:
+                dj_spm_resus_perArea = dj_spm_resus_perArea - tmp_dj_spm_resus_perArea
+                ! Update the deposition element of SPM array based on this
+                dj_spm(4+me%nInflows,:) = dj_spm_resus_perArea * me%bedArea - dj_spm_deposit
+                ! Add deposited SPM to sediment
+                call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit))
+                if (rslt%hasCriticalError()) return
+                ! Fill bedSediment%delta_sed mass transfer matrix based on this passed deposition and resuspension
+                call me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea)
+                ! The above must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
+                ! Now actually transfer the NM between the layers
+                call me%bedSediment%transferNM(dj_np_deposit_perArea)
+                ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices
+                dj_np(4+me%nInflows,:,:,:) = dj_np(4+me%nInflows,:,:,:) + me%bedSediment%M_np(2,:,:,:) * me%bedArea
             end if
         end do
 
