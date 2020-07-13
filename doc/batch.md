@@ -2,7 +2,7 @@
 
 The model allows for multiple simulations ("chunks") to be chained together, such that the final temporal state of one model simulation provides the intial temporal state of the next. The main advantage of this is when doing model runs over long temporal periods: The model stores all input data in memory, and so long runs may use a significant amount of memory (depending on your geographical setup). Batching runs together means that only the input data for the current chunk is stored in memory at any time. 
 
-In addition to the normal config file (which for batch runs provides config options for the entire batch run), batch runs need a batch config namelist file, which specifies the location of the input data and temporal information of each chunk within the batch run. An example is given at [config/batch_config.example.nml](../config/batch_config.example.nml)
+In addition to the normal config file (which for batch runs provides config options for the entire batch run), batch runs need a batch config namelist file, which specifies the location of the input data and temporal information of each chunk within the batch run. An example is given at [config.example/batch_config.example.nml](../config.example/batch_config.example.nml)
 
 ## Running a batch simulation
 
@@ -16,7 +16,7 @@ where `./bin/main` is the path to the model executable.
 
 ### Initial (normal) config file
 
-The initial config file is just the same as a [normal model config file](../config/config.example.nml). Most of the config options are used for the entire batch run, with the exception of the input and constants data paths, start date and number of timesteps. 
+The initial config file is just the same as a [normal model config file](../config.example/config.example.nml). Most of the config options are used for the entire batch run, with the exception of the input and constants data paths, start date and number of timesteps. 
 
 ### Batch config file
 

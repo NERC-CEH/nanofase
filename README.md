@@ -57,7 +57,7 @@ If you're on Windows and not using Cygwin or MinGW, it's likely you will have to
 
 ## Running
 
-The model requires a config file to run. An example is placed at [config/config.example.nml](./config/config.example.nml). The example is commented and should be relatively self-explanatory. Copy this to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Edit the `CONFIG_PATH` and `CONFIG_FILE` variables in your Makefile to point to your config file. The model can then be run:
+The model requires a config file to run. An example is placed at [config.example/config.example.nml](./config.example/config.example.nml). The example is commented and should be relatively self-explanatory. Copy this to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Edit the `CONFIG_PATH` and `CONFIG_FILE` variables in your Makefile to point to your config file. The model can then be run:
 
 ```shell
 $ make run

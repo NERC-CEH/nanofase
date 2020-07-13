@@ -11,7 +11,7 @@ Data output is handled by the [`DataOutput`](../src/Data/DataOutputModule.f90) c
 
 ## Configuration
 
-The `&output` group in the [model config file](../config.example.nml) is responsible for configuring data output. The following options are available:
+The `&output` group in the [model config file](../config.example/config.example.nml) is responsible for configuring data output. The following options are available:
 
 - `write_metadata_as_comment`: Should metadata (largely column descriptions) be writen to the header of each CSV file as `#` delimited comments? Top tip: If you turn metadata on and are using Pandas to read the data, then make sure to use the `comment` argument when reading the CSV: `df = pd.read_csv('output_water.csv', comment='#')`. *Defaults to true.* 
 - `include_sediment_layer_breakdown`: Should data for each sediment layer be output, or only summaries of the whole sediment profile? *Defaults to true.*
