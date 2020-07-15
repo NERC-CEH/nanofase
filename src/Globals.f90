@@ -129,7 +129,7 @@ module Globals
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
-            startDateStr, site_data, description, checkpoint_file
+            startDateStr, site_data, description, checkpoint_file, batch_description
         character(len=50) :: mode
         character(len=256), allocatable :: input_files(:), constants_files(:), start_dates(:)
         character(len=6) :: start_site, end_site
@@ -164,7 +164,7 @@ module Globals
         namelist /sources/ include_point_sources
 
         ! Batch config namelists
-        namelist /batch_config/ n_chunks
+        namelist /batch_config/ n_chunks, batch_description
         namelist /chunks/ input_files, constants_files, start_dates, n_timesteps_per_chunk
 
         ! Defaults, which will be overwritten if present in config file
@@ -172,6 +172,7 @@ module Globals
         write_csv = .true.
         write_netcdf = .false.
         description = ""
+        batch_description = ""
         write_metadata_as_comment = .true.
         include_sediment_layer_breakdown = .true.
         include_soil_layer_breakdown = .true.
@@ -275,7 +276,11 @@ module Globals
         C%sedimentPECUnits = sediment_pec_units
         C%includeSoilStateBreakdown = include_soil_state_breakdown
         ! Run
-        C%runDescription = description
+        if (.not. C%isBatchRun) then
+            C%runDescription = description
+        else
+            C%runDescription = batch_description
+        end if
         C%logFilePath = log_file_path
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps

@@ -64,11 +64,12 @@ module DataOutputModule
         class(DataOutput)           :: me
         integer                     :: i, j
 
-        ! Sediment begins with equal distribution
-        allocate(me%previousSSD(C%nSizeClassesSpm), &
-            me%previousSSDByLayer(C%nSedimentLayers, C%nSizeClassesSpm))
-        me%previousSSD = 1.0_dp / C%nSizeClassesSpm
-        me%previousSSDByLayer = 1.0_dp / C%nSizeClassesSpm
+        ! Sediment begins with distribution given in the input data
+        allocate(me%previousSSD, source=DATASET%sedimentInitialMass)
+        allocate(me%previousSSDByLayer(C%nSedimentLayers, C%nSizeClassesSpm))
+        do i = 1, C%nSedimentLayers
+            me%previousSSDByLayer(i,:) = DATASET%sedimentInitialMass
+        end do
 
         ! Open the SSD file and write the headers
         open(ioUnitOutputSSD, file=trim(C%outputPath) // 'output_ssd.csv')
@@ -283,6 +284,7 @@ module DataOutputModule
     subroutine finaliseDataOutput(me, iSteadyState)
         class(DataOutput)   :: me
         integer             :: iSteadyState
+        real(dp)            :: timeUntilSteadyState
         ! Write the final model summary info to the simulation summary file
         if (.not. C%runToSteadyState) then
             write(ioUnitOutputSummary, *) "\n## PECs"
@@ -296,6 +298,8 @@ module DataOutputModule
         write(ioUnitOutputSummary, *) "- Sediment, spatiotemporal mean: " // &
             trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / size(me%env%item%C_np_sediment_t, dim=1))) // &
             " kg/kg sediment"
+       
+        timeUntilSteadyState = iSteadyState * C%timeStep * C%nTimestepsInBatch
         if (C%runToSteadyState) then
             write(ioUnitOutputSummary, *) "\n## Steady state"
             write(ioUnitOutputSummary, *) "- Iterations until steady state: " // trim(str(iSteadyState))
