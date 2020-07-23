@@ -116,12 +116,10 @@ module spcGridCell
         end function
         
         !> Finalise the creation of the `GridCell`, after river routing has been established
-        function finaliseCreateGridCell(me) result(r)
-            use ResultModule, only: Result    
+        subroutine finaliseCreateGridCell(me)
             import GridCell
             class(GridCell) :: me                                   !! This `GridCell` instance
-            type(Result) :: r                                       !! The `Result` object to return any errors in
-        end function
+        end subroutine
         
         !> Run the `GridCell`'s simulation for this time step
         subroutine updateGridCell(me, t)

@@ -50,8 +50,11 @@ module spcReach
         ! Boundary conditions for calibration
         logical :: isBoundary = .false.                             !! Is this a sampling site for calibrating?
         real(dp) :: boundary_C_spm                                  !! Boundary condition for C_spm
+        real(dp), allocatable :: boundary_C_spm_timeseries(:)
+        real(dp), allocatable :: boundary_Q_timeseries(:)
+        type(datetime), allocatable :: boundary_dates(:)
         real(dp) :: boundary_Q                                      !! Boundary condition for Q
-        character(len=6) :: calibrationSiteRef                      !! Reference of the calibration site
+        character(len=20) :: calibrationSiteRef                     !! Reference of the calibration site
 
       contains
         ! Data
@@ -390,7 +393,7 @@ module spcReach
         real(dp), intent(in) :: omega                           !! Stream power per unit bed area \( \omega \) [kg m-2]
         real(dp), intent(in) :: f_fr                            !! Friction factor \( f \) [-]
         real(dp) :: k_res(C%nSizeClassesSpm)                    !! Calculated resuspension flux \( j_{\text{res}} \) [s-1]
-        k_res = beta*L*W*M_prop*omega*f_fr
+        k_res = min(beta*L*W*M_prop*omega*f_fr, 1.0_dp)
     end function
 
     function parseInflowsAndOutflowReach(me) result(rslt)

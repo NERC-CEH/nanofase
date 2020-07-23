@@ -65,4 +65,5 @@
     river_attachment_efficiency = 0.01
     river_meandering_factor = 1.0
     water_temperature = 10.0
+    sediment_washload = 1.0e-2
 /

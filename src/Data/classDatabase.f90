@@ -76,6 +76,7 @@ module classDatabase
         real(dp) :: water_k_transform_pristine      ! Transformation rate constant for pristine NM [/s]
         real :: waterTemperature                    ! Average water temperature TODO use temporally varying water temp [deg C]
         real(dp) :: riverAttachmentEfficiency       ! Attachment efficiency for NM to SPM in rivers [-]
+        real(dp) :: sedimentWashload                ! Sediment washload to add to sediment load in each reach [kg/m2/timestep]
         ! Estuary
         real(dp) :: estuaryAttachmentEfficiency     ! Attachment efficiency for NM to SPM in estuaries [-]
         real :: estuaryTidalM2                      ! Estuary tidal harmonics parameter M2
@@ -101,6 +102,9 @@ module classDatabase
         real, allocatable :: y_u(:)                 ! Upper side of cell [m]
         integer, allocatable :: t(:)                ! Seconds since start date [s]
         integer :: nTimesteps                       ! Number of timesteps for the model run [-]
+        ! Simulation mask
+        logical, allocatable :: simulationMask(:,:) ! Boolean mask to apply to the simulation
+        integer :: nNonMaskedCells                  ! Number of non-masked grid cells
         ! Routing variables
         integer, allocatable :: outflow(:,:,:)
         integer, allocatable :: inflows(:,:,:,:)
@@ -163,6 +167,8 @@ module classDatabase
         procedure, private :: calculateNPointSources => calculateNPointSourcesDatabase
         procedure, public :: coordsToCellIndex => coordsToCellIndexDatabase
         procedure, public :: coordsToFractionalCellIndex => coordsToFractionalCellIndexDatabase
+        ! Auditing
+        procedure, private :: audit => auditDatabase
     end type
 
     type(Database) :: DATASET
@@ -171,12 +177,14 @@ module classDatabase
 
     subroutine initDatabase(me, inputFile, constantsFile)
         class(Database)     :: me
+        type(NcDataset)     :: nc_simulationMask
         type(NcVariable)    :: var
         character(len=*)    :: inputFile
         character(len=*)    :: constantsFile
         type(Result)        :: rslt
         integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
         integer, allocatable :: isEstuaryInt(:,:)
+        integer, allocatable :: simulationMask(:,:)
         
         ! Open the dataset and parse constants NML file
         me%nc = NcDataset(inputFile, 'r')
@@ -230,6 +238,22 @@ module classDatabase
 
         ! Close the dataset
         call me%nc%close()
+
+        ! Has a simulation mask been provided?
+        if (C%hasSimulationMask) then
+            nc_simulationMask = NcDataset(C%simulationMaskPath, 'r')
+            var = nc_simulationMask%getVariable('simulation_mask')
+            call var%getData(simulationMask)
+            me%simulationMask = ulgcl(simulationMask)
+            me%nNonMaskedCells = count(me%simulationMask)
+        else
+            allocate(me%simulationMask(me%gridShape(1), me%gridShape(2)))
+            me%simulationMask = .true.
+            me%nNonMaskedCells = count(.not. me%gridMask)
+        end if
+
+        ! Do the auditing
+        call rslt%addErrors(.errors. me%audit())
 
         call rslt%addToTrace('Initialising database')
         call ERROR_HANDLER%trigger(errors=.errors.rslt)
@@ -481,8 +505,14 @@ module classDatabase
         end if
 
         ! Emissions - point (all water)                     [kg/timestep]
-        p_dim = me%nc%getDimension('p')
-        me%maxPointSources = p_dim%getLength()
+        ! Check there's actually a p (number of point source) dimension first, in case the
+        ! data was provided without point sources
+        if (me%nc%hasDimension('p')) then
+            p_dim = me%nc%getDimension('p')
+            me%maxPointSources = p_dim%getLength()
+        else
+            me%maxPointSources = 0
+        end if
         ! Pristine
         if (me%nc%hasVariable('emissions_point_water_pristine')) then
             var = me%nc%getVariable('emissions_point_water_pristine')
@@ -577,7 +607,8 @@ module classDatabase
         real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
             resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
             k_transform_pristine, erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, &
-            river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency
+            river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency, &
+            sediment_washload
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
             k_elim_dissolved(:), initial_mass(:)
@@ -604,7 +635,8 @@ module classDatabase
         namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
-            river_meandering_factor, water_temperature, river_attachment_efficiency, estuary_attachment_efficiency
+            river_meandering_factor, water_temperature, river_attachment_efficiency, estuary_attachment_efficiency, &
+            sediment_washload
         namelist /sediment/ porosity, initial_mass, fractional_composition_distribution, &
             default_spm_size_distribution, default_matrixembedded_distribution_to_spm
 
@@ -656,6 +688,7 @@ module classDatabase
         estuary_meandering_factor = defaultEstuaryMeanderingFactor
         river_meandering_factor = defaultRiverMeanderingFactor
         porosity = 0.0
+        sediment_washload = defaultSedimentWashload
 
         ! Read in the namelists
         read(ioUnitConstants, nml=n_biota_grp, iostat=nmlIOStat); rewind(ioUnitConstants)
@@ -739,6 +772,7 @@ module classDatabase
         end if
         me%waterTemperature = water_temperature
         me%riverAttachmentEfficiency = river_attachment_efficiency
+        me%sedimentWashload = sediment_washload
         ! Estuary
         me%estuaryAttachmentEfficiency = estuary_attachment_efficiency
         me%estuaryTidalM2 = estuary_tidal_M2
@@ -832,6 +866,44 @@ module classDatabase
         indicies = me%coordsToCellIndex(easts, norths)
         fracIndicies(1) = indicies(1) + mod(easts, me%gridRes(1)) / me%gridRes(1) 
         fracIndicies(2) = indicies(2) + 1 - mod(norths, me%gridRes(2)) / me%gridRes(2)
+    end function
+
+    !> Audit the database
+    function auditDatabase(me) result(rslt)
+        class(Database) :: me           ! This Database
+        type(Result)    :: rslt         ! Result object to return errors in
+        integer         :: x, y, i      ! Iterators
+        integer         :: xy_in(2)     ! Inflow x and y
+        logical         :: simulationMaskError = .false.
+
+        ! Is the simulation mask self-contained (no inflows to area to simulate)?
+        if (C%hasSimulationMask) then
+            do y = 1, me%gridShape(2)
+                do x = 1, me%gridShape(1)
+                   if (me%simulationMask(x,y)) then
+                        ! We're in the area to simulate, so check if there are inflows from
+                        ! outside the area to simulation
+                        do i = 1, size(me%inflows, dim=2)
+                            ! Is the inflow actually an inflow or a fill value
+                            if (me%inflows(1,i,x,y) >= 0) then
+                                xy_in = me%inflows(:,i,x,y)
+                                if (.not. me%simulationMask(xy_in(1), xy_in(2))) then
+                                    simulationMaskError = .true.
+                                end if
+                            end if
+                        end do
+                   end if
+                end do
+            end do
+        end if
+
+        if (simulationMaskError) then
+            call rslt%addError(ErrorInstance( &
+                message="Simulation mask provided has inflows from outside " // &
+                    "the area to simulate. Please provide a simulation mask that " // &
+                    "is self-contained." &
+            ))
+        end if
     end function
 
 end module

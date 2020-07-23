@@ -36,6 +36,8 @@ module Globals
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
         integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
         logical             :: triggerWarnings                  !! Should error warnings be printed to the console?
+        logical             :: hasSimulationMask = .false.      !! Are we meant to mask the simulation (i.e. only use a subset of the input dataset)?
+        character(len=256)  :: simulationMaskPath = ""          !! Path to NetCDF simulation mask
 
         ! Checkpointing
         character(len=256)  :: checkpointFile                   !! Path to checkpoint file, to save to and/or read from
@@ -60,10 +62,11 @@ module Globals
         
         ! Calibration
         logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
+        character(len=7)    :: calibrationMode                  !! What mode to run the calibration in
         character(len=256)  :: siteData                         !! Where is the data about the sampling sites stored?
-        character(len=6)    :: startSite                        !! Where does the calibration start from?
-        character(len=6)    :: endSite                          !! Where does the calibration end?
-        character(len=6), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
+        character(len=20)   :: startSite                        !! Where does the calibration start from?
+        character(len=20)   :: endSite                          !! Where does the calibration end?
+        character(len=20), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
 
         ! Batch run
         integer                         :: nChunks = 1          !! Numbers of chunks to run
@@ -129,11 +132,12 @@ module Globals
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
-            startDateStr, site_data, description, checkpoint_file, batch_description
+            startDateStr, site_data, description, checkpoint_file, batch_description, simulation_mask
         character(len=50) :: mode
         character(len=256), allocatable :: input_files(:), constants_files(:), start_dates(:)
-        character(len=6) :: start_site, end_site
-        character(len=6), allocatable :: other_sites(:)
+        character(len=20) :: start_site, end_site
+        character(len=7) :: calibration_mode
+        character(len=20), allocatable :: other_sites(:)
         character(len=5) :: soil_pec_units, sediment_pec_units
         integer, allocatable :: n_timesteps_per_chunk(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
@@ -150,13 +154,13 @@ module Globals
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
             n_fractional_compositions, n_sediment_layers
-        namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites
+        namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites, calibration_mode
         namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description, trigger_warnings
+            description, trigger_warnings, simulation_mask
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
         namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
@@ -186,7 +190,9 @@ module Globals
         delta = configDefaults%steadyStateDelta
         mode = configDefaults%steadyStateMode
         calibration_run = .false.
+        calibration_mode = configDefaults%calibrationMode
         n_other_sites = 0
+        simulation_mask = ""
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -288,6 +294,10 @@ module Globals
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
         C%triggerWarnings = trigger_warnings
+        if (.not. trim(simulation_mask) == "") then
+            C%hasSimulationMask = .true.
+            C%simulationMaskPath = simulation_mask
+        end if
         ! Checkpointing
         C%checkpointFile = checkpoint_file
         C%saveCheckpoint = save_checkpoint
@@ -300,6 +310,7 @@ module Globals
         ! Calibration
         C%calibrationRun = calibration_run
         if (C%calibrationRun) then
+            C%calibrationMode = calibration_mode
             C%siteData = site_data
             C%startSite = start_site
             C%endSite = end_site

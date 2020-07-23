@@ -120,9 +120,8 @@ module classGridCell2
 
     !> Finalise creation should be done after routing is complete, and is meant for
     !! procedures that rely on waterbodies being linked to their inflows/outflow
-    function finaliseCreateGridCell2(me) result(rslt)
+    subroutine finaliseCreateGridCell2(me)
         class(GridCell2) :: me              !! This `GridCell2` instance
-        type(Result) :: rslt                !! The `Result` object to return
         integer :: i
         ! Snap point sources to the closest reach
         call me%snapPointSourcesToReach()
@@ -132,12 +131,7 @@ module classGridCell2
         do i = 1, me%nReaches
             call me%colRiverReaches(i)%item%finaliseCreate()
         end do
-        ! Trigger any errors
-        call rslt%addToTrace("Finalising creation of " // trim(me%ref))
-        call LOGR%toFile(errors = .errors. rslt)
-        call ERROR_HANDLER%trigger(errors = .errors. rslt)
-        call rslt%clear()           ! Clear errors from the Result object so they're not reported twice
-    end function
+    end subroutine
 
     subroutine snapPointSourcesToReachGridCell2(me)
         class(GridCell2) :: me

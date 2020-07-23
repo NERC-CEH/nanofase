@@ -525,8 +525,8 @@ module classBedSediment1
                                                                      ! from the top, compute for each layer the volume of fine sediment that must be
                                                                      ! removed to allow space for deposition, and the volume of water associated with the
                                                                      ! fine sediment
-                    L = C%nSedimentLayers                                   ! loop through layers, upwards from the bottom
-                    do while (T%V_f() > 0)                           ! use fine sediment volume in T as a counter. Through this loop, T holds the count of the  
+                    L = C%nSedimentLayers                            ! loop through layers, upwards from the bottom
+                    do while (L > 0 .and. T%V_f() > 0)               ! use fine sediment volume in T as a counter. Through this loop, T holds the count of the  
                                                                      ! requirement for sediment burial that has not yet been accounted for by higher layers
                         associate (O => &
                             Me%colBedSedimentLayers(L)%item)         ! association to layer L

@@ -11,6 +11,7 @@ module DefaultsModule
     integer, parameter :: ioUnitBatchConfig = 2
     ! Constants file IO units
     integer, parameter :: ioUnitConstants = 10
+    integer, parameter :: ioUnitCalibrationSites = 11
     ! Output file IO units
     integer, parameter :: ioUnitOutputSummary = 100
     integer, parameter :: ioUnitOutputWater = 101
@@ -26,6 +27,7 @@ module DefaultsModule
         logical             :: runToSteadyState = .false.
         character(len=50)   :: steadyStateMode = ''
         real(dp)            :: steadyStateDelta = 1e-5
+        character(len=7)    :: calibrationMode = 'mean'
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults
@@ -37,5 +39,6 @@ module DefaultsModule
     real, parameter :: default_k_transform_pristine = 0.0
     real, parameter :: defaultEstuaryMeanderingFactor = 1.0
     real, parameter :: defaultRiverMeanderingFactor = 1.0
+    real, parameter :: defaultSedimentWashload = 0.0
 
 end module

@@ -117,6 +117,10 @@ module classRiverReach
         real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)
         real(dp) :: dj_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
         real(dp) :: dj_dissolved_outflow
+        logical :: isDynamicObservationDate = .false.
+        integer :: observationDateIndex
+        logical :: useObservationData = .false.
+        type(datetime) :: currentDate
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -127,9 +131,20 @@ module classRiverReach
         me%j_transformed = 0
         me%j_dissolved = 0
         ! me%j_ionic = 0
+
+        currentDate = C%startDate + timedelta(t-1)
+        if (allocated(me%boundary_dates)) then
+            do i = 1, size(me%boundary_dates)
+                if (me%boundary_dates(i) == currentDate) then
+                    isDynamicObservationDate = .true.
+                    observationDateIndex = i
+                end if
+            end do
+        end if
+        useObservationData = me%isBoundary .and. ((C%calibrationMode == 'mean') .or. isDynamicObservationDate)
         
         ! Check if this is a boundary reach for calibrating with
-        if (.not. me%isBoundary) then
+        if (.not. useObservationData) then
             ! Inflows from water bodies, making sure to use their *final* flow arrays to ensure we're not
             ! getting their outflow on this timestep, rather than the last timestep
             do i = 1, me%nInflows
@@ -228,6 +243,15 @@ module classRiverReach
                 dj_spm_deposit = min(me%k_settle*dt*(me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1)), &
                     me%m_spm + sum(dj_spm(1:3+me%nInflows,:), dim=1))
                 dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
+                
+                do l = 1, C%nSizeClassesSpm
+                    if (isZero(dj_spm_deposit(l))) then
+                        dj_spm_deposit = 0.0_dp
+                    end if
+                    if (isZero(dj_spm_resus(l))) then
+                        dj_spm_resus = 0.0_dp
+                    end if
+                end do
 
                 ! Calculate the fraction of SPM from each size class that was deposited, for use in calculating mass of NM deposited
                 do j = 1, C%nSizeClassesSpm 
@@ -384,30 +408,56 @@ module classRiverReach
 
         ! Else, if this is a boundary reach, just set the SPM concentration from data
         else
-            ! Still do the hydrology
-            do i = 1, me%nInflows
-                call me%set_Q_inflow(-me%inflows(i)%item%Q(1), i)
-            end do
-            if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)
-            me%Q_in_total = sum(me%Q(2:))
-            ! Set the dimensions so we can calculate concentration from boundary C_spm
-            call rslt%addErrors(.errors. me%setDimensions())
-            me%Q(1) = -sum(me%Q(2:))
+            if (trim(C%calibrationMode) == 'mean') then
+                ! Still do the hydrology
+                do i = 1, me%nInflows
+                    call me%set_Q_inflow(-me%inflows(i)%item%Q(1), i)
+                end do
+                if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)
+                me%Q_in_total = sum(me%Q(2:))
+                ! Set the dimensions so we can calculate concentration from boundary C_spm
+                call rslt%addErrors(.errors. me%setDimensions())
+                me%Q(1) = -sum(me%Q(2:))
 
-            ! Set the SPM conc and apply default sediment size class distribution
-            me%C_spm = me%boundary_C_spm * DATASET%defaultSpmSizeDistribution
-            me%m_spm = me%C_spm / me%volume
-            me%j_spm(1,:) = me%C_spm * me%Q(1)
-            ! We're not modelling NM, so just set these to zero
-            me%m_np = 0.0_dp
-            me%C_np = 0.0_dp
-            me%j_np = 0.0_dp
-            me%m_transformed = 0.0_dp
-            me%C_transformed = 0.0_dp
-            me%j_transformed = 0.0_dp
-            me%m_dissolved = 0.0_dp
-            me%C_dissolved = 0.0_dp
-            me%j_dissolved = 0.0_dp
+                ! Set the SPM conc and apply default sediment size class distribution
+                me%C_spm = me%boundary_C_spm * DATASET%defaultSpmSizeDistribution
+                me%m_spm = me%C_spm / me%volume
+                me%j_spm(1,:) = me%C_spm * me%Q(1)
+                ! We're not modelling NM, so just set these to zero
+                me%m_np = 0.0_dp
+                me%C_np = 0.0_dp
+                me%j_np = 0.0_dp
+                me%m_transformed = 0.0_dp
+                me%C_transformed = 0.0_dp
+                me%j_transformed = 0.0_dp
+                me%m_dissolved = 0.0_dp
+                me%C_dissolved = 0.0_dp
+                me%j_dissolved = 0.0_dp
+            else if (trim(C%calibrationMode) == 'dynamic') then
+                ! Still do the hydrology but set inflow to the specified Q (which we'll
+                ! arbitrarily split across the inflows equally)
+                do i = 1, me%nInflows
+                    call me%set_Q_inflow(me%boundary_Q_timeseries(i) / me%nInflows, i)
+                end do
+                if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)
+                me%Q_in_total = sum(me%Q(2:))
+                ! Set the dimensions so we can calculate concentration from boundary C_spm
+                call rslt%addErrors(.errors. me%setDimensions())
+                me%Q(1) = -sum(me%Q(2:))
+                me%C_spm = me%boundary_C_spm_timeseries(i) * DATASET%defaultSpmSizeDistribution
+                me%m_spm = divideCheckZero(me%C_spm, me%volume)
+                me%j_spm(1,:) = me%C_spm * me%Q(1)
+                ! We're not modelling NM, so just set these to zero
+                me%m_np = 0.0_dp
+                me%C_np = 0.0_dp
+                me%j_np = 0.0_dp
+                me%m_transformed = 0.0_dp
+                me%C_transformed = 0.0_dp
+                me%j_transformed = 0.0_dp
+                me%m_dissolved = 0.0_dp
+                me%C_dissolved = 0.0_dp
+                me%j_dissolved = 0.0_dp
+            end if
         end if
 
         ! Update the biota

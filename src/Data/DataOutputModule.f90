@@ -110,12 +110,15 @@ module DataOutputModule
         ! Loop through the grid cells and update each compartment
         do y = 1, size(me%env%item%colGridCells, dim=2)
             do x = 1, size(me%env%item%colGridCells, dim=1)
-                easts = DATASET%x(x)
-                norths = DATASET%y(y)
-                if (C%writeCSV) then
-                    call me%updateWater(t, x, y, dateISO, easts, norths)
-                    call me%updateSediment(t, x, y, dateISO, easts, norths)
-                    call me%updateSoil(t, x, y, dateISO, easts, norths)
+                ! Only write data if cell isn't masked
+                if (DATASET%simulationMask(x,y)) then
+                    easts = DATASET%x(x)
+                    norths = DATASET%y(y)
+                    if (C%writeCSV) then
+                        call me%updateWater(t, x, y, dateISO, easts, norths)
+                        call me%updateSediment(t, x, y, dateISO, easts, norths)
+                        call me%updateSoil(t, x, y, dateISO, easts, norths)
+                    end if
                 end if
             end do
         end do
@@ -355,6 +358,8 @@ module DataOutputModule
             ", " // trim(str(DATASET%gridBounds(3))) // ", " // trim(str(DATASET%gridBounds(4))) // " m"
         write(ioUnitOutputSummary, *) "- Grid shape: " // trim(str(DATASET%gridShape(1))) // ", " // trim(str(DATASET%gridShape(2)))
         write(ioUnitOutputSummary, *) "- Number of non-empty grid cells: " // trim(str(me%env%item%nGridCells))
+        write(ioUnitOutputSummary, *) "- Is simulation masked? " // trim(str(C%hasSimulationMask))
+        write(ioUnitOutputSummary, *) "- Number of non-masked grid cells: " // trim(str(DATASET%nNonMaskedCells))
     end subroutine
 
     !> Write the headers for the water output file

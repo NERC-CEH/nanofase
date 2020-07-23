@@ -8,6 +8,7 @@ module classEnvironment1
     use classGridCell2
     use classDatabase, only: DATASET
     use classSampleSite, only: SampleSite
+    use DefaultsModule, only: ioUnitCalibrationSites
     use datetime_module
     use mod_datetime
     implicit none
@@ -24,6 +25,7 @@ module classEnvironment1
         procedure :: updateReach => updateReachEnvironment1
         procedure :: determineStreamOrder => determineStreamOrderEnvironment1
         procedure :: parseNewBatchData => parseNewBatchDataEnvironment1
+        procedure :: parseCalibrationData
         ! Getters
         procedure :: get_m_np => get_m_npEnvironment1
         procedure :: get_C_np_soil => get_C_np_soilEnvironment1
@@ -115,7 +117,7 @@ module classEnvironment1
 
             do y = 1, DATASET%gridShape(2)
                 do x = 1, DATASET%gridShape(1)
-                    call r%addErrors(.errors. me%colGridCells(x, y)%item%finaliseCreate())
+                    call me%colGridCells(x,y)%item%finaliseCreate()
                     me%nWaterbodies = me%nWaterbodies + me%colGridCells(x,y)%item%nReaches
                 end do
             end do
@@ -124,42 +126,8 @@ module classEnvironment1
             allocate(me%routedReaches(me%nWaterbodies))
             call me%determineStreamOrder()
 
-            ! Now parse the calibration data, if we're meant to be calibrating
-            if (C%calibrationRun) then
-                allocate(me%sites(18))         ! TODO get number of sites at runtime
-                allocate(me%otherSites(size(C%otherSites)))
-                ! TODO move all this data parsing stuff elsewhere and tidy up
-                open(unit=10, file=C%siteData)
-                read(10, *)
-                do i = 1, 18
-                    read(10, *) me%sites(i)%ref, me%sites(i)%x, me%sites(i)%y, me%sites(i)%r, me%sites(i)%easts, &
-                                me%sites(i)%norths, me%sites(i)%Q, me%sites(i)%C_spm, me%sites(i)%description
-                    me%sites(i)%Q = me%sites(i)%Q * C%timeStep
-                    me%sites(i)%C_spm = me%sites(i)%C_spm * 0.001
-                    me%sites(i)%reach%item => me%colGridCells(me%sites(i)%x,me%sites(i)%y)%item%colRiverReaches(me%sites(i)%r)%item
-                    if (trim(C%startSite) == trim(me%sites(i)%ref)) then
-                        me%startSite => me%sites(i)
-                        me%startSite%isStartSite = .true.
-                    end if
-                    if (trim(C%endSite) == trim(me%sites(i)%ref)) then
-                        me%endSite => me%sites(i)
-                        me%endSite%isEndSite = .true.
-                    end if
-                    do j = 1, size(C%otherSites)
-                        if (trim(C%otherSites(j)) == trim(me%sites(i)%ref)) then
-                            me%otherSites(j) = me%sites(i)
-                        end if
-                    end do
-                end do
-                ! Set all the sites (except the end site) as boundary sites and set their boundary conditions (C_spm)
-                do i = 1, size(me%sites)
-                    if (.not. me%sites(i)%isEndSite) then
-                        me%sites(i)%reach%item%isBoundary = .true.
-                        me%sites(i)%reach%item%boundary_C_spm = me%sites(i)%C_spm           ! [kg/m3]
-                    end if
-                    me%sites(i)%reach%item%calibrationSiteRef = me%sites(i)%ref
-                end do
-            end if
+            ! Parse calibration data, if there are any
+            call me%parseCalibrationData()
         end if
 
         ! Allocate the per timestep spatial mean water conc array. Being with 0 timesteps, as this array
@@ -177,6 +145,90 @@ module classEnvironment1
         call r%clear()                                          ! Remove any errors so we don't trigger them twice
         call LOGR%toConsole('Creating the Environment: \x1B[32msuccess\x1B[0m')
     end function
+
+    subroutine parseCalibrationData(me)
+        class(Environment1), target :: me
+        integer             :: nSites
+        integer             :: nObservations
+        integer             :: i, j             ! Iterators
+        character(len=19)   :: datetimeStr      ! Temp string to store datetime in
+        integer             :: year, month, day
+
+            ! Now parse the calibration data, if we're meant to be calibrating
+            if (C%calibrationRun) then
+                if (trim(C%calibrationMode) == 'mean') then
+                    allocate(me%sites(18))         ! TODO get number of sites at runtime
+                    allocate(me%otherSites(size(C%otherSites)))
+                    ! TODO move all this data parsing stuff elsewhere and tidy up
+                    open(unit=ioUnitCalibrationSites, file=C%siteData)
+                    read(ioUnitCalibrationSites, *)
+                    do i = 1, 18
+                        read(ioUnitCalibrationSites, *) me%sites(i)%ref, me%sites(i)%x, me%sites(i)%y, &
+                            me%sites(i)%r, me%sites(i)%easts, me%sites(i)%norths, me%sites(i)%Q, &
+                            me%sites(i)%C_spm, me%sites(i)%description
+                        me%sites(i)%Q = me%sites(i)%Q * C%timeStep
+                        me%sites(i)%C_spm = me%sites(i)%C_spm * 0.001
+                        me%sites(i)%reach%item => &
+                            me%colGridCells(me%sites(i)%x,me%sites(i)%y)%item%colRiverReaches(me%sites(i)%r)%item
+                        if (trim(C%startSite) == trim(me%sites(i)%ref)) then
+                            me%startSite => me%sites(i)
+                            me%startSite%isStartSite = .true.
+                        end if
+                        if (trim(C%endSite) == trim(me%sites(i)%ref)) then
+                            me%endSite => me%sites(i)
+                            me%endSite%isEndSite = .true.
+                        end if
+                        do j = 1, size(C%otherSites)
+                            if (trim(C%otherSites(j)) == trim(me%sites(i)%ref)) then
+                                me%otherSites(j) = me%sites(i)
+                            end if
+                        end do
+                    end do
+                    close(ioUnitCalibrationSites)
+                    ! Set all the sites (except the end site) as boundary sites and set their boundary conditions (C_spm)
+                    do i = 1, size(me%sites)
+                        if (.not. me%sites(i)%isEndSite) then
+                            me%sites(i)%reach%item%isBoundary = .true.
+                            me%sites(i)%reach%item%boundary_C_spm = me%sites(i)%C_spm           ! [kg/m3]
+                        end if
+                        me%sites(i)%reach%item%calibrationSiteRef = me%sites(i)%ref
+                    end do
+                else if (trim(C%calibrationMode) == 'dynamic') then
+                    open(ioUnitCalibrationSites, file=C%siteData)
+                    read(ioUnitCalibrationSites, *)             ! Skip the column names
+                    read(ioUnitCalibrationSites, *) nSites      ! Number of sites
+                    allocate(me%sites(nSites))
+                    do i = 1, nSites
+                        read(ioUnitCalibrationSites, *) nObservations
+                        allocate(me%sites(i)%dates(nObservations))
+                        allocate(me%sites(i)%C_spm_timeseries(nObservations))
+                        allocate(me%sites(i)%Q_timeseries(nObservations))
+                        do j = 1, nObservations
+                            read(ioUnitCalibrationSites, *) datetimeStr, me%sites(i)%ref, &
+                                me%sites(i)%x, me%sites(i)%y, me%sites(i)%r, me%sites(i)%easts, me%sites(i)%norths, &
+                                me%sites(i)%Q_timeseries(j), me%sites(i)%C_spm_timeseries(j)
+                            me%sites(i)%Q_timeseries(j) = me%sites(i)%Q_timeseries(j) * C%timeStep
+                            me%sites(i)%C_spm_timeseries(j) = me%sites(i)%C_spm_timeseries(j) * 0.001
+                            read(datetimeStr(1:4), *) year
+                            read(datetimeStr(6:7), *) month
+                            read(datetimeStr(9:10), *) day
+                            me%sites(i)%dates(j) = datetime(year, month, day)
+                        end do
+                        ! Only tell the reach about this site if it's not the end site
+                        if (trim(C%endSite) /= trim(me%sites(i)%ref)) then
+                            me%sites(i)%reach%item => &
+                                me%colGridCells(me%sites(i)%x, me%sites(i)%y)%item%colRiverReaches(me%sites(i)%r)%item
+                            me%sites(i)%reach%item%isBoundary = .true.
+                            me%sites(i)%reach%item%calibrationSiteRef = me%sites(i)%ref
+                            allocate(me%sites(i)%reach%item%boundary_C_spm_timeseries, source=me%sites(i)%C_spm_timeseries)
+                            allocate(me%sites(i)%reach%item%boundary_Q_timeseries, source=me%sites(i)%Q_timeseries)
+                            allocate(me%sites(i)%reach%item%boundary_dates, source=me%sites(i)%dates)
+                        end if
+                    end do
+                    close(ioUnitCalibrationSites)
+                end if
+            end if
+    end subroutine
 
     !> Perform simulations for the `Environment`
     subroutine updateEnvironment1(me, t)
@@ -196,7 +248,10 @@ module classEnvironment1
         !!$omp parallel do private(y,x)
         do y = 1, DATASET%gridShape(2)
             do x = 1, DATASET%gridShape(1)
-                call me%colGridCells(x,y)%item%update(t)
+                ! Only update if this cell isn't masked
+                if (DATASET%simulationMask(x,y)) then
+                    call me%colGridCells(x,y)%item%update(t)
+                end if
             end do
         end do
         !!$omp end parallel do
@@ -210,7 +265,10 @@ module classEnvironment1
         ! to avoid routing using the wrong timestep's outflow as an inflow.
         do y = 1, DATASET%gridShape(2)
             do x = 1, DATASET%gridShape(1)
-                call me%colGridCells(x,y)%item%finaliseUpdate()
+                ! Only finalise update if cell isn't masked
+                if (DATASET%simulationMask(x,y)) then
+                    call me%colGridCells(x,y)%item%finaliseUpdate()
+                end if
             end do
         end do
 
@@ -241,23 +299,32 @@ module classEnvironment1
         type(ReachPointer)          :: reach                            !! Pointer to the reach to update
         type(GridCellPointer)       :: cell                             ! Pointer to this reach's grid cell
         real(dp)                    :: lengthRatio                      ! Length ratio of this reach to the total reach length in cell
+        real(dp)                    :: j_spm_runoff(C%nSizeClassesSpm)  ! Sediment runoff [kg/timestep]
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))     ! Proportion of cell's NM runoff going to this reach
         real(dp) :: j_transformed_runoff(C%npDim(1), C%npDim(2), C%npDim(3)) ! Proportion of cell's transformed NM runoff going to this reach
         ! Get this reach's cell
         cell%item => me%colGridCells(reach%item%x, reach%item%y)%item
-        ! Determine the proportion of this reach's length to the the total
-        ! river length in this GridCell and use it to proportion NM runoff
-        lengthRatio = reach%item%length/cell%item%getTotalReachLength()
-        j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
-        j_transformed_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_transformed_eroded    ! [kg/timestep]
-        ! Update the reach for this timestep
-        call reach%item%update( &
-            t = t, &
-            q_runoff = cell%item%q_runoff_timeSeries(t), &
-            j_spm_runoff = cell%item%erodedSediment*lengthRatio, &
-            j_np_runoff = j_np_runoff, &
-            j_transformed_runoff = j_transformed_runoff &
-        )
+        ! Only update if this cell isn't masked
+        if (DATASET%simulationMask(cell%item%x, cell%item%y)) then
+            ! Add the sediment washload to the SPM runoff. Conceptually, washload comes
+            ! from a combination of bank erosion and point sources. Though bank erosion will be a function
+            ! of depth, we'll keep it simple and say it's only a function of length, with units kg/m
+            j_spm_runoff = cell%item%erodedSediment * lengthRatio + DATASET%defaultSpmSizeDistribution &
+                * (DATASET%sedimentWashload * reach%item%length)
+            ! Determine the proportion of this reach's length to the the total
+            ! river length in this GridCell and use it to proportion NM runoff
+            lengthRatio = reach%item%length/cell%item%getTotalReachLength()
+            j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
+            j_transformed_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_transformed_eroded    ! [kg/timestep]
+            ! Update the reach for this timestep
+            call reach%item%update( &
+                t = t, &
+                q_runoff = cell%item%q_runoff_timeSeries(t), &
+                j_spm_runoff = j_spm_runoff, &
+                j_np_runoff = j_np_runoff, &
+                j_transformed_runoff = j_transformed_runoff &
+            )
+        end if
     end subroutine
 
     subroutine determineStreamOrderEnvironment1(me)
