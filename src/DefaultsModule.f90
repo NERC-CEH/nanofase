@@ -22,12 +22,13 @@ module DefaultsModule
     integer, parameter :: ioUnitCheckpoint = 500
     integer, parameter :: ioUnitLog = 501
 
-    ! Defaults for config, encapsulation in a type
+    ! Defaults for config, encapsulated in a type
     type, public :: ConfigDefaultsType
         logical             :: runToSteadyState = .false.
         character(len=50)   :: steadyStateMode = ''
         real(dp)            :: steadyStateDelta = 1e-5
         character(len=7)    :: calibrationMode = 'mean'
+        real                :: minimumStreamSlope = 0.0001
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults

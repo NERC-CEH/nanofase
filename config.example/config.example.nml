@@ -82,6 +82,10 @@ include_bed_sediment = .true.                           ! Should bed sediment be
 sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
 /
 
+&water
+minimum_stream_slope = 0.0001                           ! Impose a minimum stream slope. Defaults to 0.0001, must be greater than 0.
+/
+
 &sources
 include_point_sources = .true.                          ! Should point sources be included?
 /

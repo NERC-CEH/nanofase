@@ -102,6 +102,7 @@ module classDatabase
         real, allocatable :: y_u(:)                 ! Upper side of cell [m]
         integer, allocatable :: t(:)                ! Seconds since start date [s]
         integer :: nTimesteps                       ! Number of timesteps for the model run [-]
+        integer, allocatable :: dem(:,:)            ! Digital elevation model [dm asl]
         ! Simulation mask
         logical, allocatable :: simulationMask(:,:) ! Boolean mask to apply to the simulation
         integer :: nNonMaskedCells                  ! Number of non-masked grid cells
@@ -129,6 +130,8 @@ module classDatabase
         real(dp), allocatable :: soilUsleCFactor(:,:)
         real(dp), allocatable :: soilUslePFactor(:,:)
         real(dp), allocatable :: soilUsleLSFactor(:,:)
+        real, allocatable :: resuspensionAlpha(:,:)
+        real, allocatable :: resuspensionBeta(:,:)
         ! Emissions - areal
         real(dp), allocatable :: emissionsArealSoilPristine(:,:)
         real(dp), allocatable :: emissionsArealSoilMatrixEmbedded(:,:)
@@ -307,11 +310,12 @@ module classDatabase
 
     !> Read variables in for the new chunk as part of a batch run
     subroutine readBatchVariablesDatabase(me)
-        class(Database)     :: me
-        type(NcVariable)    :: var
-        type(NcDimension)   :: p_dim
+        class(Database)     :: me           ! This Database instance
+        type(NcVariable)    :: var          ! NetCDF variable
+        type(NcDimension)   :: p_dim        ! NetCDF dimensions for point sources
+        integer             :: x, y         ! Grid cell iterators
 
-        ! Spatial data (grid setup, rivers etc) will stay the same between chunks,
+        ! Spatial extent (grid setup, rivers etc) will stay the same between chunks,
         ! but the number of timesteps might not, so let's change that
         var = me%nc%getVariable('t')
         call var%getData(me%t)
@@ -322,7 +326,11 @@ module classDatabase
         ! will take care of reallocating the variable to the correct length. But
         ! we need to be careful to reallocate variables we don't get by getData
         ! (i.e. ones that aren't present in the data file)
-        
+       
+        ! Digital elevation model [dm asl]
+        var = me%nc%getVariable('dem')
+        call var%getData(me%dem)
+
         ! Runoff        [m/timestep]
         var = me%nc%getVariable('runoff')
         call var%getData(me%runoff)
@@ -386,6 +394,41 @@ module classDatabase
             allocate(me%soilAttachmentEfficiency(me%gridShape(1), me%gridShape(2)))
             me%soilAttachmentEfficiency = me%soilConstantAttachmentEfficiency
         end if
+
+        ! Try and get resuspension parameters. Defaults to value given in constants
+        ! file if not present in NetCDF file
+        if (me%nc%hasVariable('resuspension_alpha')) then
+            var = me%nc%getVariable('resuspension_alpha')
+            call var%getData(me%resuspensionAlpha)
+        else
+            allocate(me%resuspensionAlpha(me%gridShape(1), me%gridShape(2)))
+            do y = 1, me%gridShape(2)
+                do x = 1, me%gridShape(1)
+                    if (me%isEstuary(x,y)) then
+                        me%resuspensionAlpha(x,y) = me%waterResuspensionAlphaEstuary
+                    else
+                        me%resuspensionAlpha(x,y) = me%waterResuspensionAlpha
+                    end if
+                end do
+            end do
+        end if
+        ! Resuspension beta
+        if (me%nc%hasVariable('resuspension_beta')) then
+            var = me%nc%getVariable('resuspension_beta')
+            call var%getData(me%resuspensionBeta)
+        else
+            allocate(me%resuspensionBeta(me%gridShape(1), me%gridShape(2)))
+            do y = 1, me%gridShape(2)
+                do x = 1, me%gridShape(1)
+                    if (me%isEstuary(x,y)) then
+                        me%resuspensionBeta(x,y) = me%waterResuspensionBetaEstuary
+                    else
+                        me%resuspensionBeta(x,y) = me%waterResuspensionBeta
+                    end if
+                end do
+            end do
+        end if
+
         ! Emissions - areal                         [kg/m2/timestep]
         ! Soil
         if (me%nc%hasVariable('emissions_areal_soil_pristine')) then

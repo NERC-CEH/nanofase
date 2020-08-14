@@ -521,8 +521,8 @@ module classEstuaryReach
         me%slope = 0.0005
         me%f_m = DATASET%estuaryMeanderingFactor
         me%alpha_hetero = DATASET%estuaryAttachmentEfficiency
-        me%alpha_resus = DATASET%waterResuspensionAlphaEstuary
-        me%beta_resus = DATASET%waterResuspensionBetaEstuary
+        me%alpha_resus = DATASET%resuspensionAlpha(me%x, me%y)
+        me%beta_resus = DATASET%resuspensionBeta(me%x, me%y)
         me%T_water = DATASET%waterTemperature
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created
@@ -531,7 +531,7 @@ module classEstuaryReach
         )
          ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
         call rslt%addErrors( &
-            .errors. me%setReachLength() &
+            .errors. me%setReachLengthAndSlope() &
         )
 
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace

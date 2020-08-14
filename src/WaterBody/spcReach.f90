@@ -4,7 +4,8 @@ module spcReach
     use ResultModule, only: Result
     use ErrorInstanceModule
     use spcWaterBody
-    use mo_netcdf               ! See below TODO re me%ncGroup
+    ! use mo_netcdf               ! See below TODO re me%ncGroup
+    use netcdf
     use classDatabase, only: DATASET
     implicit none
 
@@ -18,7 +19,6 @@ module spcReach
     !! (rivers, estuaries).
     type, abstract, public, extends(WaterBody) :: Reach
         ! Linking water bodies
-        type(WaterBodyRef), allocatable :: inflowRefs(:)            !! References to inflow reaches TODO deprecate
         integer, allocatable :: inflowsArr(:,:)
         integer :: outflowArr(3)
         type(ReachPointer), allocatable :: inflows(:)               !! Array of points to inflow reaches
@@ -46,7 +46,7 @@ module spcReach
         ! Transformation properties
         real(dp) :: alpha_hetero                                    !! Heteroaggregation attachment efficiency, 0-1 [-]
         ! TODO NetCDF group needed to pass to bed sediment. Need to deprecate this eventually to save memory
-        type(NcGroup) :: ncGroup
+        ! type(NcGroup) :: ncGroup
         ! Boundary conditions for calibration
         logical :: isBoundary = .false.                             !! Is this a sampling site for calibrating?
         real(dp) :: boundary_C_spm                                  !! Boundary condition for C_spm
@@ -60,7 +60,7 @@ module spcReach
         ! Data
         procedure :: allocateAndInitialise => allocateAndInitialiseReach
         procedure :: parseInflowsAndOutflow => parseInflowsAndOutflowReach
-        procedure :: setReachLength => setReachLengthReach
+        procedure :: setReachLengthAndSlope => setReachLengthAndSlopeReach
         procedure :: parseNewBatchData => parseNewBatchDataReach
         ! Simulators
         procedure :: setResuspensionRate => setResuspensionRateReach
@@ -187,6 +187,8 @@ module spcReach
         me%n = C%n_river
     end subroutine
 
+    !> Parse the input data for this reach. This function is called at the start of every
+    !! chunk for batch runs.
     subroutine parseNewBatchDataReach(me)
         class(Reach) :: me
         real(dp), allocatable :: tmp_j(:,:,:,:)
@@ -453,23 +455,34 @@ module spcReach
         end if
     end function
 
-    function setReachLengthReach(me) result(rslt)
+    !> Set the length and slope of this reach, based on inflows and outflow reach locations
+    function setReachLengthAndSlopeReach(me) result(rslt)
         class(Reach) :: me
         type(Result) :: rslt
-        real :: dx, dy
+        real(dp) :: dx, dy, dz
 
         if (me%isHeadwater) then
             ! If headwater, assume reach starts in centre of cell
             dx = (me%x - me%outflowArr(2)) * 0.5 * DATASET%gridRes(1)
             dy = (me%y - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2)
+            ! Difference in elevation from start of reach and outflow, converted from dm to m
+            dz = real(DATASET%dem(me%x, me%y) - DATASET%dem(me%outflowArr(2), me%outflowArr(3))) / 10.0
         else
             ! If not headwater, use distance between inflow and outflow to calculate length
             ! All inflows to this reach will be from same cell, so just use first in array
             dx = (me%inflowsArr(1,2) - me%outflowArr(2)) * 0.5 * DATASET%gridRes(1)
             dy = (me%inflowsArr(1,3) - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2)
+            ! Difference in elevation from inflow to outflow, converted from dm to m
+            dz = real(DATASET%dem(me%inflowsArr(1,2), me%inflowsArr(1,3)) &
+                - DATASET%dem(me%outflowArr(2), me%outflowArr(3))) / 10.0
         end if
-        ! A touch of trig to calculate reach length
+        ! A touch of trig to calculate reach length and slope
         me%length = sqrt(dx**2 + dy**2)
+        ! Rivers can't flow uphill, so if dz is negative, the gridding is causing too 
+        ! much loss of data to reasonably calculate slope. If this is the case, we assume
+        ! the slope must be small and set the minimum slope to that specified in config
+        ! (which defaults to 0.0001)
+        me%slope = max(divideCheckZero(dz, me%length), C%minimumStreamSlope)           ! [m/m]
 
         !TODO MEANDERING FACTOR
     end function

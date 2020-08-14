@@ -268,13 +268,22 @@ module classRiverReach
                     dj_transformed(4+me%nInflows,:,:,2+j) = &
                         -min(me%m_transformed(:,:,2+j)*fractionSpmDeposited(j), me%m_transformed(:,:,2+j))
                 end do
-                ! TODO check this out, I was getting FPEs because dj_np(3,...) was 1e-300, so this is a hacked fix:
+                ! TODO check this out, I was getting FPEs because dj_np(3,...) etc was 1e-300, so this is a hacked fix:
                 do l = 1, C%npDim(3)
                     do j = 1, C%npDim(2)
                         do k = 1, C%npDim(1)
+                            if (isZero(me%m_np(k,j,l))) then
+                                me%m_np(k,j,l) = 0.0_dp
+                            end if
+                            if (isZero(me%m_transformed(k,j,l))) then
+                                me%m_transformed(k,j,l) = 0.0_dp
+                            end if
                             do m = 1, size(dj_np, 1)
                                 if (isZero(dj_np(m,k,j,l))) then
                                     dj_np(m,k,j,l) = 0.0_dp
+                                end if
+                                if (isZero(dj_transformed(m,k,j,l))) then
+                                    dj_transformed(m,k,j,l) = 0.0_dp
                                 end if
                             end do
                         end do
@@ -503,9 +512,8 @@ module classRiverReach
         me%f_m = DATASET%riverMeanderingFactor
         me%alpha_hetero = DATASET%riverAttachmentEfficiency
         me%slope = 0.0005
-        ! TODO make alpha_resus and beta_resus spatially varying
-        me%alpha_resus = DATASET%waterResuspensionAlpha
-        me%beta_resus = DATASET%waterResuspensionBeta
+        me%alpha_resus = DATASET%resuspensionAlpha(me%x, me%y)
+        me%beta_resus = DATASET%resuspensionBeta(me%x, me%y)
         me%T_water = DATASET%waterTemperature
         
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
@@ -516,7 +524,7 @@ module classRiverReach
 
         ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
         call rslt%addErrors( &
-            .errors. me%setReachLength() &
+            .errors. me%setReachLengthAndSlope() &
         )
 
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
@@ -576,7 +584,7 @@ module classRiverReach
         iMax = 100000                                                           ! Allow 10000 iterations
         epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
         alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
-        f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based guessed D_i
+        f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based on guessed D_i
 
         ! Loop through and solve until f(D) is within e-9 of zero, or max iterations reached
         do while (abs(f) > epsilon .and. i <= iMax)
