@@ -483,8 +483,6 @@ module spcReach
         ! the slope must be small and set the minimum slope to that specified in config
         ! (which defaults to 0.0001)
         me%slope = max(divideCheckZero(dz, me%length), C%minimumStreamSlope)           ! [m/m]
-
-        !TODO MEANDERING FACTOR
     end function
 
 !-------------!

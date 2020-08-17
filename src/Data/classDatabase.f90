@@ -168,6 +168,7 @@ module classDatabase
         procedure, private :: mask => maskDatabase
         procedure, public :: inModelDomain => inModelDomainDatabase
         procedure, private :: calculateNPointSources => calculateNPointSourcesDatabase
+        procedure, private :: calculateMeanderingFactorFromCellSize => calculateMeanderingFactorFromCellSizeDatabase
         procedure, public :: coordsToCellIndex => coordsToCellIndexDatabase
         procedure, public :: coordsToFractionalCellIndex => coordsToFractionalCellIndexDatabase
         ! Auditing
@@ -728,10 +729,13 @@ module classDatabase
         k_diss_pristine = default_k_diss_pristine
         k_diss_transformed = default_k_diss_transformed
         k_transform_pristine = default_k_transform_pristine
-        estuary_meandering_factor = defaultEstuaryMeanderingFactor
-        river_meandering_factor = defaultRiverMeanderingFactor
+        estuary_meandering_factor = me%calculateMeanderingFactorFromCellSize()
+        river_meandering_factor = me%calculateMeanderingFactorFromCellSize()
         porosity = 0.0
         sediment_washload = defaultSedimentWashload
+
+        print *, river_meandering_factor
+        error stop
 
         ! Read in the namelists
         read(ioUnitConstants, nml=n_biota_grp, iostat=nmlIOStat); rewind(ioUnitConstants)
@@ -909,6 +913,15 @@ module classDatabase
         indicies = me%coordsToCellIndex(easts, norths)
         fracIndicies(1) = indicies(1) + mod(easts, me%gridRes(1)) / me%gridRes(1) 
         fracIndicies(2) = indicies(2) + 1 - mod(norths, me%gridRes(2)) / me%gridRes(2)
+    end function
+
+    !> Calculate the meandering factor from cell size, based on Fekete et al. 2001 (https://doi.org/10.1029/2001WR900024).
+    !! This method is empirical and was used in GWAVA. It assumes square cells, so how we'll average grid size to
+    !! account for that, in case the cells aren't square. This value is used if meandering factors aren't specified in data.
+    function calculateMeanderingFactorFromCellSizeDatabase(me) result(f_m)
+        class(Database) :: me
+        real            :: f_m
+        f_m = 1.024 - 0.077 * log(10 / ((me%gridRes(1) + me%gridRes(2)) / 2))
     end function
 
     !> Audit the database
