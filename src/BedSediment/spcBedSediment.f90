@@ -486,13 +486,11 @@ contains
         integer :: S                                                 ! LOCAL loop counter
         real(dp) :: Mf                                               ! LOCAL internal storage
         real(dp) :: Mf_size(Me%nSizeClasses)                         ! LOCAL 1D array to hold masses by size fraction
-        character(len=14) :: tr                                      ! LOCAL error trace
-        tr = trim(Me%name // "Get_Mf_bed_by_size")
         do S = 1, Me%nSizeClasses                                    ! for each size class
             Mf = 0                                                   ! initialise sumnation of mass
             do L = 1, C%nSedimentLayers                                     ! loop through each layer
-            Mf = Mf + &
-                Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
+                Mf = Mf + &
+                    Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
                                                                      ! sum masses across all layers. Not very elegant
             end do
             Mf_size(S) = Mf                                          ! assign to array for output

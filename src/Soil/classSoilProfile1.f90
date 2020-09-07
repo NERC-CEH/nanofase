@@ -43,7 +43,6 @@ module classSoilProfile1
                                 x, &
                                 y, &
                                 p, &
-                                slope, &
                                 n_river, &
                                 area, &
                                 q_precip_timeSeries, &
@@ -52,7 +51,6 @@ module classSoilProfile1
         integer             :: x                            !! Containing `GridCell` x index
         integer             :: y                            !! Containing `GridCell` y index
         integer             :: p                            !! `SoilProfile` reference (redundant for now as only one `SoilProfile` per `GridCell`)
-        real(dp)            :: slope                        !! Slope of the containing `GridCell` [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
         real(dp)            :: area                         !! The surface area of the `SoilProfile` [m3]
         real, allocatable :: q_precip_timeSeries(:)         !! Precipitation time series [m/timestep]
@@ -80,7 +78,6 @@ module classSoilProfile1
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
         me%p = p                                            ! SoilProfile index within the GridCell
-        me%slope = slope
         me%n_river = n_river
         me%area = area                                      ! Surface area
         allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)            ! [m/timestep]
@@ -148,6 +145,9 @@ module classSoilProfile1
         real(dp) :: j_dissolved_diffuseSource                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
 
+        ! Reset for this timestep
+        me%V_pool = 0.0_dp
+
         if (.not. me%isUrban) then
             ! Set the timestep-specific object properties
             me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
@@ -174,24 +174,8 @@ module classSoilProfile1
             ! TODO unify where me%m_np is updated (or deprecate, see me%erode())
             me%m_np = me%m_np - me%m_np_buried
 
-            ! Update mean concentration across the layers for this profile (used for output)
-            ! do i = 1, C%nSoilLayers
-            !     C_np_l(i, :, :, :) = me%colSoilLayers(i)%item%C_np
-            ! end do
-            ! do k = 1, C%npDim(3)
-            !     do j = 1, C%npDim(2)
-            !         do i = 1, C%npDim(1)
-            !             if (.not. isZero(me%C_np(i,j,k))) then
-            !                 me%C_np(i,j,k) = sum(C_np_l(:,i,j,k)) / C%nSoilLayers
-            !             else
-            !                 me%C_np(i,j,k) = 0.0_dp
-            !             end if
-            !         end do
-            !     end do
-            ! end do
-
         else
-            ! If this is an urban cell, presume nothing for the moment
+            ! If this is an urban cell, presume no erosion
             me%erodedSediment = 0
         end if
 
@@ -244,7 +228,7 @@ module classSoilProfile1
             ! for each SoilLayer above this
             do i = 1, l
                 ! Check if the layer beneath has pooled any water
-                if (me%colSoilLayers(l-i+1)%item%V_pool > 0) then
+                if (abs(me%colSoilLayers(l-i+1)%item%V_pool) > C%epsilon) then
                     if (l-i == 0) then                          ! If it's the top soil layer, track how much pooled above soil
                         me%V_pool = me%colSoilLayers(l-i+1)%item%V_pool
                     else                                        ! Else, add pooled volume to layer above
@@ -268,14 +252,14 @@ module classSoilProfile1
         call r%addToTrace("Percolating water on time step #" // trim(str(t)))
     end function
 
-    !> Calculate the soil erosion for this timestep and updates this `GridCell`'s
-    !! `erodedSediment` property accordingly. Soil erosion based on RUSLE, with
-    !! R-factor derived from kinetic energy calculated by Davison method:
-    !! [Davison et al. 2005](https://doi.org/10.1016/j.scitotenv.2005.02.002).
-    !! Europe specific parameterisation include in a_1, a_2, a_3, I30 and b
-    !! parameters (provided by input data). K factor based on [modified Morgan
-    !! Finney](https://doi.org/10.1002/esp.1530) and in g/J. Using these units, R-factor
-    !! is simply equal to kinetic energy (J/m2) and sediment yield is in g/m2.
+    !> Calculate the soil erosion for this timestep and updates this GridCell's `erodedSediment` property.
+    !! Soil erosion based on RUSLE, with R-factor derived from kinetic energy calculated by Davison method:
+    !! [Davison et al. 2005](https://doi.org/10.1016/j.scitotenv.2005.02.002). Europe specific parameterisation
+    !! include in a1, a2, a3 and b parameters (provided by input data). K factor based on [modified Morgan
+    !! Finney](https://doi.org/10.1002/esp.1530) and in g/J. Using these units, R-factor is simply equal to
+    !! kinetic energy (J/m2) and sediment yield is in g/m2.
+    !! Note that here we're just calculating the total sediment yield, *not* the amount this is transported to
+    !! the reaches, which is scaled by the sediment transport capacity, as calculated by reaches.
     function erodeSoilProfile1(me, t) result(rslt)
         class(SoilProfile1) :: me
         integer             :: t
@@ -293,7 +277,8 @@ module classSoilProfile1
         ! date2num converts to number of days since 0001-01-01, and 1721423 is the Julian day
         ! number of 0001-01-01.
         currentDate = C%startDate + timedelta(days=t-1)
-        julianDay = date2num(currentDate) + 1721423
+        julianDay = currentDate%yearday()
+        ! print *, me%q_precip_timeSeries(t) * 1.0e3
         ! Then calculate the kinetic energy [J/m2/day]. Precip needs converting to [mm/day] from [m/timestep].
         E_k = (me%erosivity_a1 + me%erosivity_a2 * cos(julianDay * (2*C%pi/365) + me%erosivity_a3)) &
                 * (me%q_precip_timeSeries(t)*1.0e3)**me%erosivity_b
@@ -303,7 +288,7 @@ module classSoilProfile1
         erodedSedimentTotal = E_k * K_MMF * me%usle_C * me%usle_P * me%usle_LS
         ! Split this into a size distribution and convert to [kg/m2/day]
         me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
-        
+
         ! The top soil layer deals with eroding NM
         call rslt%addErrors(.errors. me%colSoilLayers(1)%item%erode(me%erodedSediment, me%bulkDensity, me%area))
         ! Remove this eroded soil from the total m_np in the profile

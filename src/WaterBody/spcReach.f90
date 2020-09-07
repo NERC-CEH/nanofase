@@ -7,6 +7,7 @@ module spcReach
     ! use mo_netcdf               ! See below TODO re me%ncGroup
     use netcdf
     use classDatabase, only: DATASET
+    use DefaultsModule, only: defaultSlope
     implicit none
 
     !> `ReachPointer` used for `Reach` inflows array, so the elements within can
@@ -65,6 +66,7 @@ module spcReach
         ! Simulators
         procedure :: setResuspensionRate => setResuspensionRateReach
         procedure :: setSettlingRate => setSettlingRateReach
+        procedure :: setSedimentTransportCapacity => setSedimentTransportCapacityReach
         procedure :: depositToBed => depositToBedReach
         ! Calculators
         procedure :: calculateSettlingVelocity => calculateSettlingVelocity
@@ -243,7 +245,7 @@ module spcReach
                     me%T_water &
                 )
             end do
-            me%k_settle = me%W_settle_spm/me%depth
+            me%k_settle = me%W_settle_spm / me%depth
 
             ! NP: Calculate this to pass to Reactor
             do i = 1, C%nSizeClassesNM
@@ -260,6 +262,27 @@ module spcReach
         end if
     end subroutine
 
+    !> Set the sediment transport capacity to this reach, based on Lazar et al 2010
+    !! (https://10.1016/j.scitotenv.2010.02.030). This limits the amount of eroded sediment
+    !! from the soil profile that is available to the reach. It is set here, as opposed
+    !! to the soil profile, because it depends on the reach length.
+    subroutine setSedimentTransportCapacityReach(me, contributing_area, q_overland)
+        class(Reach)    :: me                   !! This SoilProfile instance
+        real(dp)        :: contributing_area    !! Area over which erosion occurs (e.g. soil profile area) [km2]
+        real(dp)        :: q_overland           !! Overland flow [m3/km2/s]
+        ! Using units from Lazar, which are a little strange:
+        !   a_stc (a4 in Lazar)     [kg/m2/km2]
+        !   b_stc (a5 in Lazar)     [m2/s]
+        !   c_stc (a6 in Lazar)     [-]
+        !   contributing_area       [km2]
+        !   q_overland              [m3/s/km2]
+        !   length                  [m]
+        !   sedimentTransportCapacity   [kg/m2/timestep]
+        ! The following also makes sure that b_stc isn't < 0, and that the resulting STC isn't < 0
+        me%sedimentTransportCapacity = max(C%timeStep &
+            * me%a_stc * max((contributing_area * q_overland / me%length - me%b_stc), 0.0_dp) ** me%c_stc, 0.0_dp)
+    end subroutine
+
 
     function depositToBedReach(me, spmDep) result(rslt)
         class(Reach)        :: me                           !! This Reach instance
@@ -273,7 +296,6 @@ module spcReach
         ! Create the FineSediment object and add deposited SPM to it
         ! (converting units of Mf_in to kg/m2), then give that object
         ! to the BedSediment
-        ! TODO: What f_comp should be input? SL: THAT OF THE DEPOSITING SEDIMENT
         if (isZero(me%bedArea)) then
             spmDep_perArea = 0.0_dp
         else
@@ -283,10 +305,10 @@ module spcReach
             call fineSediment(n)%create("FS", C%nFracCompsSpm)
             call fineSediment(n)%set( &
                 Mf_in=spmDep_perArea(n), &
-                f_comp_in=DATASET%sedimentFractionalComposition &
+                f_comp_in=real(DATASET%sedimentFractionalComposition, 8) &
             )
         end do
-        
+
         if (C%includeBedSediment) then
             ! Deposit the fine sediment to the bed sediment
             depositRslt = Me%bedSediment%deposit(fineSediment)
@@ -350,7 +372,7 @@ module spcReach
                 f_fr = f_fr &
             )
         else
-            me%k_resus = 0                                ! If there's no inflow
+            me%k_resus = 0.0_dp                                 ! If there's no inflow
         end if
     end subroutine
 
@@ -395,7 +417,7 @@ module spcReach
         real(dp), intent(in) :: omega                           !! Stream power per unit bed area \( \omega \) [kg m-2]
         real(dp), intent(in) :: f_fr                            !! Friction factor \( f \) [-]
         real(dp) :: k_res(C%nSizeClassesSpm)                    !! Calculated resuspension flux \( j_{\text{res}} \) [s-1]
-        k_res = min(beta*L*W*M_prop*omega*f_fr, 1.0_dp)
+        k_res = beta * L * W * M_prop * omega * f_fr
     end function
 
     function parseInflowsAndOutflowReach(me) result(rslt)
@@ -466,23 +488,33 @@ module spcReach
             dx = (me%x - me%outflowArr(2)) * 0.5 * DATASET%gridRes(1)
             dy = (me%y - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2)
             ! Difference in elevation from start of reach and outflow, converted from dm to m
-            dz = real(DATASET%dem(me%x, me%y) - DATASET%dem(me%outflowArr(2), me%outflowArr(3))) / 10.0
+            if (allocated(DATASET%dem)) then
+                dz = real(DATASET%dem(me%x, me%y) - DATASET%dem(me%outflowArr(2), me%outflowArr(3))) / 10.0
+            end if
         else
             ! If not headwater, use distance between inflow and outflow to calculate length
             ! All inflows to this reach will be from same cell, so just use first in array
             dx = (me%inflowsArr(1,2) - me%outflowArr(2)) * 0.5 * DATASET%gridRes(1)
             dy = (me%inflowsArr(1,3) - me%outflowArr(3)) * 0.5 * DATASET%gridRes(2)
             ! Difference in elevation from inflow to outflow, converted from dm to m
-            dz = real(DATASET%dem(me%inflowsArr(1,2), me%inflowsArr(1,3)) &
-                - DATASET%dem(me%outflowArr(2), me%outflowArr(3))) / 10.0
+            if (allocated(DATASET%dem)) then
+                dz = real(DATASET%dem(me%inflowsArr(1,2), me%inflowsArr(1,3)) &
+                    - DATASET%dem(me%outflowArr(2), me%outflowArr(3))) / 10.0
+            end if
         end if
         ! A touch of trig to calculate reach length and slope
         me%length = sqrt(dx**2 + dy**2)
-        ! Rivers can't flow uphill, so if dz is negative, the gridding is causing too 
-        ! much loss of data to reasonably calculate slope. If this is the case, we assume
-        ! the slope must be small and set the minimum slope to that specified in config
-        ! (which defaults to 0.0001)
-        me%slope = max(divideCheckZero(dz, me%length), C%minimumStreamSlope)           ! [m/m]
+        ! If a DEM was provided, then use the calculated dz to get the slope gradient. Otherwise,
+        ! default to what is provided in DefaultsModule
+        if (allocated(DATASET%dem)) then
+            ! Rivers can't flow uphill, so if dz is negative, the gridding is causing too 
+            ! much loss of data to reasonably calculate slope. If this is the case, we assume
+            ! the slope must be small and set the minimum slope to that specified in config
+            ! (which defaults to 0.0001)
+            me%slope = max(divideCheckZero(dz, me%length), C%minimumStreamSlope)           ! [m/m]
+        else
+            me%slope = defaultSlope     ! 0.0005 m/m
+        end if
     end function
 
 !-------------!

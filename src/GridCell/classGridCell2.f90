@@ -89,7 +89,6 @@ module classGridCell2
                     me%x, &
                     me%y, &
                     1, &
-                    me%slope, &
                     me%n_river, &
                     me%area, &
                     me%q_precip_timeSeries, &
@@ -348,72 +347,70 @@ module classGridCell2
         end if
 
         ! TODO get the following from data
-        me%slope = 0.0005
-        me%n_river = 0.035_dp
-        me%T_water_timeSeries = 10.0_dp
-        
-        me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
-        me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
-        me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
-
-        ! TODO demands data (see commented out bit below)
-        
-        ! Try and set the group to the demands group. It will produce an error if group
-        ! doesn't exist - use this to set me%hasDemands to .false.
-        ! rslt = DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands'])
-        ! if (.not. rslt%hasError()) then
-        !     me%hasDemands = .true.
-        !     ! Now get the data from the group. These should all default to zero.
-        !     ! TODO What should the default surface water to total water ratio be?
-        !     call r%addErrors([ &
-        !         .errors. DATA%get('total_population', me%totalPopulation, 0.0_dp), &
-        !         .errors. DATA%get('urban_population', me%urbanPopulation, 0.0_dp), &
-        !         .errors. DATA%get('cattle_population', me%cattlePopulation, 0.0_dp), &
-        !         .errors. DATA%get('sheep_goat_population', me%sheepGoatPopulation, 0.0_dp), &
-        !         .errors. DATA%get('urban_demand', me%urbanDemandPerCapita, 0.0_dp), &
-        !         .errors. DATA%get('rural_demand', me%ruralDemandPerCapita, 0.0_dp), &
-        !         .errors. DATA%get('industrial_demand', me%industrialDemand, 0.0_dp), &
-        !         .errors. DATA%get('sw_to_tw_ratio', me%surfaceWaterToTotalWaterRatio, 0.42_dp, warnIfDefaulting=.true.), &
-        !         .errors. DATA%get('has_large_city', hasLargeCityInt, 0) &
-        !     ])
-        !     me%hasLargeCity = lgcl(hasLargeCityInt)     ! Convert int to bool
+            me%n_river = 0.035_dp
+            me%T_water_timeSeries = 10.0_dp
             
-        !     ! Check if there are any crops to get. These will be retrieved iteratively
-        !     ! (i.e. crop_1, crop_2, crop_3). Then get the data for those crops and create
-        !     ! array of Crop objects in me%crops
-        !     i = 1
-        !     do while (DATA%grp%hasGroup("crop_" // trim(str(i))))
-        !         allocate(me%crops(i))
-        !         call r%addErrors(.errors. &
-        !             DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
-        !         call r%addErrors([ &
-        !             .errors. DATA%get('crop_area', cropArea), &
-        !             .errors. DATA%get('crop_type', cropType), &
-        !             .errors. DATA%get('planting_month', cropPlantingMonth) &
-        !         ])
-        !         me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
-        !         i = i+1
-        !     end do
-        ! end if  
+            me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
+            me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
+            me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
 
-    end function
+            ! TODO demands data (see commented out bit below)
+            
+            ! Try and set the group to the demands group. It will produce an error if group
+            ! doesn't exist - use this to set me%hasDemands to .false.
+            ! rslt = DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands'])
+            ! if (.not. rslt%hasError()) then
+            !     me%hasDemands = .true.
+            !     ! Now get the data from the group. These should all default to zero.
+            !     ! TODO What should the default surface water to total water ratio be?
+            !     call r%addErrors([ &
+            !         .errors. DATA%get('total_population', me%totalPopulation, 0.0_dp), &
+            !         .errors. DATA%get('urban_population', me%urbanPopulation, 0.0_dp), &
+            !         .errors. DATA%get('cattle_population', me%cattlePopulation, 0.0_dp), &
+            !         .errors. DATA%get('sheep_goat_population', me%sheepGoatPopulation, 0.0_dp), &
+            !         .errors. DATA%get('urban_demand', me%urbanDemandPerCapita, 0.0_dp), &
+            !         .errors. DATA%get('rural_demand', me%ruralDemandPerCapita, 0.0_dp), &
+            !         .errors. DATA%get('industrial_demand', me%industrialDemand, 0.0_dp), &
+            !         .errors. DATA%get('sw_to_tw_ratio', me%surfaceWaterToTotalWaterRatio, 0.42_dp, warnIfDefaulting=.true.), &
+            !         .errors. DATA%get('has_large_city', hasLargeCityInt, 0) &
+            !     ])
+            !     me%hasLargeCity = lgcl(hasLargeCityInt)     ! Convert int to bool
+                
+            !     ! Check if there are any crops to get. These will be retrieved iteratively
+            !     ! (i.e. crop_1, crop_2, crop_3). Then get the data for those crops and create
+            !     ! array of Crop objects in me%crops
+            !     i = 1
+            !     do while (DATA%grp%hasGroup("crop_" // trim(str(i))))
+            !         allocate(me%crops(i))
+            !         call r%addErrors(.errors. &
+            !             DATA%setGroup([character(len=100)::'Environment', me%ref, 'demands', 'crop_' // trim(str(i))]))
+            !         call r%addErrors([ &
+            !             .errors. DATA%get('crop_area', cropArea), &
+            !             .errors. DATA%get('crop_type', cropType), &
+            !             .errors. DATA%get('planting_month', cropPlantingMonth) &
+            !         ])
+            !         me%crops(i) = Crop(cropType, cropArea, cropPlantingMonth)
+            !         i = i+1
+            !     end do
+            ! end if  
 
-    subroutine parseNewBatchDataGridCell2(me)
-        class(GridCell2) :: me          !! This grid cell instance
-        integer :: i                    ! Iterators
+        end function
 
-        if (.not. me%isEmpty) then
-            ! Allocate arrays to store flows in
-            deallocate(me%q_runoff_timeSeries, &
-                me%q_evap_timeSeries, &
-                me%q_precip_timeSeries, &
-                me%T_water_timeSeries)
-            allocate(me%q_runoff_timeSeries(C%nTimeSteps))
-            allocate(me%q_evap_timeSeries(C%nTimeSteps))
-            allocate(me%q_precip_timeSeries(C%nTimeSteps))
-            allocate(me%T_water_timeSeries(C%nTimeSteps))
+        subroutine parseNewBatchDataGridCell2(me)
+            class(GridCell2) :: me          !! This grid cell instance
+            integer :: i                    ! Iterators
 
-            me%slope = 0.0005
+            if (.not. me%isEmpty) then
+                ! Allocate arrays to store flows in
+                deallocate(me%q_runoff_timeSeries, &
+                    me%q_evap_timeSeries, &
+                    me%q_precip_timeSeries, &
+                    me%T_water_timeSeries)
+                allocate(me%q_runoff_timeSeries(C%nTimeSteps))
+                allocate(me%q_evap_timeSeries(C%nTimeSteps))
+                allocate(me%q_precip_timeSeries(C%nTimeSteps))
+                allocate(me%T_water_timeSeries(C%nTimeSteps))
+
             me%n_river = 0.035_dp
             me%T_water_timeSeries = 10.0_dp
             me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)

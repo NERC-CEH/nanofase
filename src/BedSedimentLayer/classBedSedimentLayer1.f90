@@ -53,7 +53,7 @@ module classBedSedimentLayer1
             type(Result) :: r                                        !! The `Result` object.
             real(dp) :: Porosity                                     ! LOCAL layer porosity
             real(dp), allocatable :: M_f(:)                          ! LOCAL set of fine sediment masses, index = size class
-            real, allocatable :: f_comp(:,:)                     ! LOCAL set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
+            real(dp), allocatable :: f_comp(:,:)                     ! LOCAL set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             character(len=16), parameter :: ms = &
                                             "Allocation error"       ! LOCAL allocation error message
@@ -349,7 +349,7 @@ module classBedSedimentLayer1
             real(dp) :: A_w_SC                                       ! LOCAL capacity for water in receiving size class
             real(dp) :: V_f_added                                    ! LOCAL volume of water added
             real(dp) :: Mf                                           ! LOCAL temporary variable
-            real, allocatable :: t_comp(:)                       ! LOCAL temporary variable
+            real(dp), allocatable :: t_comp(:)                       ! LOCAL temporary variable
             integer :: x                                             ! LOCAL loop counter
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL allocation status
@@ -477,7 +477,7 @@ module classBedSedimentLayer1
             real(dp) :: A_w_SC                                       ! LOCAL capacity for water in receiving size class
             real(dp) :: V_f_added                                    ! LOCAL volume of water added
             real(dp) :: Mf                                           ! LOCAL temporary variable
-            real, allocatable :: t_comp(:)                       ! LOCAL temporary variable
+            real(dp), allocatable :: t_comp(:)                       ! LOCAL temporary variable
             integer :: x                                             ! LOCAL loop counter
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             integer :: allst                                         ! LOCAL allocation status
@@ -562,32 +562,33 @@ module classBedSedimentLayer1
                     ! print *, "FS volume", V_f_SC
                     ! print *, "volume that couldn't be added ", add_V_f
                     ! print *, "volume added", V_f_added
-                else                                                 ! added volume does not exceed the fine sediment capacity; can all be added
-                    V_f_SC = V_f_SC + add_V_f                        ! addition of fine sediment volume
-                    V_f_added = add_V_f                              ! volume added
-                    add_V_f = 0                                      ! return zero volume not added
+                else                                                    ! added volume does not exceed the fine sediment capacity; can all be added
+                    V_f_SC = V_f_SC + add_V_f                           ! addition of fine sediment volume
+                    V_f_added = add_V_f                                 ! volume added
+                    add_V_f = 0                                         ! return zero volume not added
                 end if
-                if (add_V_w > A_w_SC) then                           ! added volume exceeds the available capacity; cannot all be added
-                    V_w_SC = Me%C_w_l(S)                             ! set water volume to capacity
-                    add_V_w = add_V_w - A_w_SC                       ! volume that could not be added
-                else                                                 ! added volume does not exceed the fine sediment capacity; can all be added
-                    V_w_SC = V_w_SC + add_V_w                        ! addition of water volume
-                    add_V_w = 0                                      ! return zero volume not added
+                if (add_V_w > A_w_SC) then                              ! added volume exceeds the available capacity; cannot all be added
+                    V_w_SC = Me%C_w_l(S)                                ! set water volume to capacity
+                    add_V_w = add_V_w - A_w_SC                          ! volume that could not be added
+                else                                                    ! added volume does not exceed the fine sediment capacity; can all be added
+                    V_w_SC = V_w_SC + add_V_w                           ! addition of water volume
+                    add_V_w = 0                                         ! return zero volume not added
                 end if
-                Mf = V_f_added * F%rho_part()                        ! read in added mass - prevents multiple calls to object
-                do x = 1, Me%nfComp                                  ! in this subsequent loop
+                Mf = V_f_added * F%rho_part()                           ! read in added mass - prevents multiple calls to object
+                do x = 1, Me%nfComp                                     ! in this subsequent loop
                     t_comp(x) = M_f_SC * O%f_comp(x)
                     t_comp(x) = t_comp(x) + Mf * F%f_comp(x)
-                    t_comp(x) = t_comp(x) / (M_f_SC + Mf)            ! modified fraction of component no. x
+                    t_comp(x) = flushToZero(t_comp(x))
+                    M_f_SC = flushToZero(M_f_SC)
+                    Mf = flushToZero(Mf)
+                    t_comp(x) = divideCheckZero(t_comp(x), M_f_SC + Mf)               ! modified fraction of component no. x
                 end do
                 call O%set(Vf_in = V_f_SC, &
-                                               Vw_in = V_w_SC, &
-                                           f_comp_in = t_comp &
-                                )                                    ! copy modified properties to fine sediment, add any error to Result object
+                           Vw_in = V_w_SC, &
+                           f_comp_in = t_comp)                          ! copy modified properties to fine sediment, add any error to Result object
             end associate
             call F%set(Vf_in = add_V_f, &
-                                           Vw_in = add_V_w &
-                           )                                         ! return volumes of fine sediment and water not added, add any error to Result object
+                       Vw_in = add_V_w)                                 ! return volumes of fine sediment and water not added, add any error to Result object
         end function
         !> **Function purpose**                                     <br>
         !! Remove sediment of a specified size fraction, and associated water,

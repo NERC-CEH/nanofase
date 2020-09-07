@@ -18,7 +18,6 @@ module spcSoilProfile
         integer :: y                                                !! `GridCell` y reference
         integer :: p                                                !! `SoilProfile` reference
         type(SoilLayerElement), allocatable :: colSoilLayers(:)     !! Array of `SoilLayerElement` objects to hold the soil layers
-        real(dp) :: slope                                           !! The slope of the containing `GridCell`
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Nanomaterial
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
@@ -35,7 +34,7 @@ module spcSoilProfile
         ! real(dp), allocatable :: C_np(:,:,:)                        !! Concentration of NM currently in profile [kg/kg soil]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
-        real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
+        real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep [m3 m-2]
         real, allocatable :: q_precip_timeSeries(:)                 !! Time series of precipitation data [m3 m-2 s-1]
         real :: q_precip                                            !! Precipitation for this time step [m3 m-2 s-1]
         real, allocatable :: q_evap_timeSeries(:)                   !! Time series of evapotranspiration data [m3 m-2 s-1]
@@ -69,6 +68,7 @@ module spcSoilProfile
         real(dp) :: erosivity_I30                                   !! Maximum half-hour rainfall [mm/hr]
         real(dp) :: erosivity_b                                     !! Rainfall erosivity parameter
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
+        real(dp) :: sedimentTransportCapacity                       !! Maximum erodable sediment [kg/m2/timestep]
         real, allocatable :: distributionSediment(:)                !! Distribution to split sediment into
 
         ! TODO this will probably be modified when we start properly using land cover. Currently this is to account for urban soils
@@ -107,7 +107,6 @@ module spcSoilProfile
                                    x, &
                                    y, &
                                    p, &
-                                   slope, &
                                    n_river, &
                                    area, &
                                    q_precip_timeSeries, &
@@ -119,7 +118,6 @@ module spcSoilProfile
             integer             :: x                            !! Containing `GridCell` x position
             integer             :: y                            !! Containing `GridCell` y position
             integer             :: p                            !! `SoilProfile` reference
-            real(dp)            :: slope                        !! Slope of the containing `GridCell` [m m-1]
             real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
             real(dp)            :: area                         !! The area of the `SoilProfile`'s surface
             real, allocatable   :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]

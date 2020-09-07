@@ -7,28 +7,33 @@ module DefaultsModule
     integer, private, parameter :: dp = selected_real_kind(15, 307)
 
     ! Config file IO units
-    integer, parameter :: ioUnitConfig = 1
-    integer, parameter :: ioUnitBatchConfig = 2
+    integer, parameter :: iouConfig = 1
+    integer, parameter :: iouBatchConfig = 2
     ! Constants file IO units
-    integer, parameter :: ioUnitConstants = 10
-    integer, parameter :: ioUnitCalibrationSites = 11
+    integer, parameter :: iouConstants = 10
+    integer, parameter :: iouCalibrationSites = 11
     ! Output file IO units
-    integer, parameter :: ioUnitOutputSummary = 100
-    integer, parameter :: ioUnitOutputWater = 101
-    integer, parameter :: ioUnitOutputSediment = 102
-    integer, parameter :: ioUnitOutputSoil = 103
-    integer, parameter :: ioUnitOutputSSD = 104
+    integer, parameter :: iouOutputSummary = 100
+    integer, parameter :: iouOutputWater = 101
+    integer, parameter :: iouOutputSediment = 102
+    integer, parameter :: iouOutputSoil = 103
+    integer, parameter :: iouOutputSSD = 104
     ! Checkpoint and logging
-    integer, parameter :: ioUnitCheckpoint = 500
-    integer, parameter :: ioUnitLog = 501
+    integer, parameter :: iouCheckpoint = 500
+    integer, parameter :: iouLog = 501
 
     ! Defaults for config, encapsulated in a type
     type, public :: ConfigDefaultsType
+        ! Run
         logical             :: runToSteadyState = .false.
         character(len=50)   :: steadyStateMode = ''
         real(dp)            :: steadyStateDelta = 1e-5
         character(len=7)    :: calibrationMode = 'mean'
         real                :: minimumStreamSlope = 0.0001
+        logical             :: writeToLog = .true.
+        ! Output
+        logical             :: includeSedimentFluxes = .false.
+        logical             :: includeSoilErosion = .false.
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults
@@ -41,5 +46,9 @@ module DefaultsModule
     real, parameter :: defaultEstuaryMeanderingFactor = 1.0
     real, parameter :: defaultRiverMeanderingFactor = 1.0
     real, parameter :: defaultSedimentWashload = 0.0
+    real(dp), parameter :: defaultSedimentTransport_a = 5.0_dp
+    real(dp), parameter :: defaultSedimentTransport_b = 0.0_dp
+    real(dp), parameter :: defaultSedimentTransport_c = 0.8_dp
+    real(dp), parameter :: defaultSlope = 0.0005_dp
 
 end module

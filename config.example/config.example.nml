@@ -41,6 +41,8 @@ include_soil_layer_breakdown = .false.                  ! Include breaedown of d
 soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3?
 sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3?
 include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
+include_soil_erosion = .true.                           ! Should soil erosion yields be included in soil output?
+include_sediment_fluxes = .true.                        ! Should sediment fluxes to/from waterbodies be included?
 ! output_rate_constant_summary = .true.
 /
 
@@ -49,10 +51,11 @@ description = "Short description of model run"          ! Not used by model, but
 timestep = 86400                                        ! Length of each time step, in seconds
 n_timesteps = 365                                       ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
-epsilon = 1e-50,                                        ! Precision for numerical simulations
+epsilon = 1e-20,                                        ! Precision for numerical simulations
 error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
+write_to_log = .true.                                   ! Should we write logs to file?
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
 

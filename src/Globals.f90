@@ -2,7 +2,7 @@ module Globals
     use mo_netcdf
     use datetime_module
     use mod_strptime, only: f_strptime
-    use DefaultsModule, only: ioUnitConfig, ioUnitBatchConfig, configDefaults
+    use DefaultsModule, only: iouConfig, iouBatchConfig, configDefaults
     use ErrorCriteriaModule
     use ErrorInstanceModule
     use ResultModule, only: Result
@@ -26,9 +26,12 @@ module Globals
         character(len=5)    :: soilPECUnits                     !! What units to use for soil PEC - kg/m3 or kg/kg dw?
         character(len=5)    :: sedimentPECUnits                 !! What units to use for sediment PEC - kg/m4 or kg/kg dw?
         logical             :: includeSoilStateBreakdown        !! Should the breakdown of NM state (free vs attached) be included?
+        logical             :: includeSedimentFluxes            !! Should sediment fluxes to/from waterbodies be included?
+        logical             :: includeSoilErosion               !! Should sediment fluxes to/from waterbodies be included?
         ! Run
         character(len=256)  :: runDescription                   !! Short description of model run
         character(len=256)  :: logFilePath                      !! Log file path
+        logical             :: writeToLog                       !! Should a log file be used?
         character(len=256)  :: configFilePath                   !! Config file path
         type(datetime)      :: startDate                        !! Datetime object representing the start date
         integer             :: timeStep                         !! The timestep to run the model on [s]
@@ -151,7 +154,8 @@ module Globals
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
-            preserve_timestep, trigger_warnings, run_to_steady_state
+            preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
+            write_to_log
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
@@ -160,9 +164,10 @@ module Globals
         namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
-            soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv
+            soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv, include_sediment_fluxes, &
+            include_soil_erosion
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description, trigger_warnings, simulation_mask
+            description, trigger_warnings, simulation_mask, write_to_log
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
         namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
@@ -175,7 +180,8 @@ module Globals
         namelist /chunks/ input_files, constants_files, start_dates, n_timesteps_per_chunk
 
         ! Defaults, which will be overwritten if present in config file
-        ! TODO move defaults to DefaultsModule.f90
+        ! TODO move all defaults to DefaultsModule.f90
+        write_to_log = configDefaults%writeToLog                                ! True
         write_csv = .true.
         write_netcdf = .false.
         description = ""
@@ -184,12 +190,14 @@ module Globals
         include_sediment_layer_breakdown = .true.
         include_soil_layer_breakdown = .true.
         include_soil_state_breakdown = .false.
+        include_sediment_fluxes = configDefaults%includeSedimentFluxes          ! False
+        include_soil_erosion = configDefaults%includeSoilErosion                ! False
         soil_pec_units = 'kg/kg'
         sediment_pec_units = 'kg/kg'
         save_checkpoint = .false.
         reinstate_checkpoint = .false.
         preserve_timestep = .false.
-        run_to_steady_state = configDefaults%runToSteadyState
+        run_to_steady_state = configDefaults%runToSteadyState                   ! False
         delta = configDefaults%steadyStateDelta
         mode = configDefaults%steadyStateMode
         calibration_run = .false.
@@ -204,10 +212,10 @@ module Globals
 
         ! Open the config file, or try and find one at config/config.nml if it can't be found 
         if (configFilePathLength > 0) then
-            open(ioUnitConfig, file=trim(configFilePath), status="old")
+            open(iouConfig, file=trim(configFilePath), status="old")
             C%configFilePath = configFilePath
         else
-            open(ioUnitConfig, file="config/config.nml", status="old")
+            open(iouConfig, file="config/config.nml", status="old")
             C%configFilePath = "config/config.nml"
         end if
 
@@ -215,8 +223,8 @@ module Globals
         if (batchRunFilePathLength > 0) then
             C%isBatchRun = .true.
             ! Open and read the namelists
-            open(ioUnitBatchConfig, file=trim(batchRunFilePath), status="old")
-            read(ioUnitBatchConfig, nml=batch_config); rewind(ioUnitBatchConfig)
+            open(iouBatchConfig, file=trim(batchRunFilePath), status="old")
+            read(iouBatchConfig, nml=batch_config); rewind(iouBatchConfig)
             C%nChunks = n_chunks
             ! Allocate variables based on the number of batches
             allocate(input_files(C%nChunks), &
@@ -224,7 +232,7 @@ module Globals
                 start_dates(C%nChunks), &
                 n_timesteps_per_chunk(C%nChunks))
             ! Now we can read the other variables in
-            read(ioUnitBatchConfig, nml=chunks)
+            read(iouBatchConfig, nml=chunks)
             ! Store these in config variables
             allocate(C%batchInputFiles, source=input_files)
             allocate(C%batchConstantFiles, source=constants_files)
@@ -235,10 +243,10 @@ module Globals
                 C%batchStartDates(i) = f_strptime(start_dates(i))
             end do
             ! Close the file
-            close(ioUnitBatchConfig)
+            close(iouBatchConfig)
         end if
 
-        read(ioUnitConfig, nml=allocatable_array_sizes); rewind(ioUnitConfig)
+        read(iouConfig, nml=allocatable_array_sizes); rewind(iouConfig)
         ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
         ! must be allocated before being read in to)
         allocate(soil_layer_depth(n_soil_layers))
@@ -248,25 +256,25 @@ module Globals
         allocate(sediment_particle_densities(n_fractional_compositions))
         allocate(other_sites(n_other_sites))
         ! Carry on reading in the different config groups
-        read(ioUnitConfig, nml=nanomaterial); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=calibrate, iostat=nmlIOStat); rewind(ioUnitConfig)
+        read(iouConfig, nml=nanomaterial); rewind(iouConfig)
+        read(iouConfig, nml=calibrate, iostat=nmlIOStat); rewind(iouConfig)
         if (nmlIOStat .ge. 0) then
-            read(ioUnitConfig, nml=calibrate); rewind(ioUnitConfig)
+            read(iouConfig, nml=calibrate); rewind(iouConfig)
         end if
-        read(ioUnitConfig, nml=data); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=output); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=run); rewind(ioUnitConfig)
+        read(iouConfig, nml=data); rewind(iouConfig)
+        read(iouConfig, nml=output); rewind(iouConfig)
+        read(iouConfig, nml=run); rewind(iouConfig)
         ! Checkpoint and steady state - check if groups exist before reading
-        read(ioUnitConfig, nml=checkpoint, iostat=nmlIOStat); rewind(ioUnitConfig)
-        if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=checkpoint); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=steady_state, iostat=nmlIOStat); rewind(ioUnitConfig)
-        if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=steady_state); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=soil); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=sediment); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=water, iostat=nmlIOStat); rewind(ioUnitConfig)
-        if (nmlIOStat .ge. 0) read(ioUnitConfig, nml=water); rewind(ioUnitConfig)
-        read(ioUnitConfig, nml=sources)
-        close(ioUnitConfig)
+        read(iouConfig, nml=checkpoint, iostat=nmlIOStat); rewind(iouConfig)
+        if (nmlIOStat .ge. 0) read(iouConfig, nml=checkpoint); rewind(iouConfig)
+        read(iouConfig, nml=steady_state, iostat=nmlIOStat); rewind(iouConfig)
+        if (nmlIOStat .ge. 0) read(iouConfig, nml=steady_state); rewind(iouConfig)
+        read(iouConfig, nml=soil); rewind(iouConfig)
+        read(iouConfig, nml=sediment); rewind(iouConfig)
+        read(iouConfig, nml=water, iostat=nmlIOStat); rewind(iouConfig)
+        if (nmlIOStat .ge. 0) read(iouConfig, nml=water); rewind(iouConfig)
+        read(iouConfig, nml=sources)
+        close(iouConfig)
         
         ! Store this data in the Globals variable
         ! Nanomaterial
@@ -287,6 +295,8 @@ module Globals
         C%soilPECUnits = soil_pec_units
         C%sedimentPECUnits = sediment_pec_units
         C%includeSoilStateBreakdown = include_soil_state_breakdown
+        C%includeSedimentFluxes = include_sediment_fluxes
+        C%includeSoilErosion = include_soil_erosion
         ! Run
         if (.not. C%isBatchRun) then
             C%runDescription = description
@@ -294,6 +304,7 @@ module Globals
             C%runDescription = batch_description
         end if
         C%logFilePath = log_file_path
+        C%writeToLog = write_to_log
         C%timeStep = timestep
         C%nTimeSteps = n_timesteps
         C%epsilon = epsilon

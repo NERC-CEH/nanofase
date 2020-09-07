@@ -90,13 +90,15 @@ module classEstuaryReach
     end function
 
     !> Run the estuary reach simulation for this timestep
-    subroutine updateEstuaryReach(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff)
+    subroutine updateEstuaryReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributing_area)
         class(EstuaryReach) :: me
         integer :: t
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
+        real(dp), optional :: q_overland                        !! Overland flow [m3/m2/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
-        real(dp), optional :: j_transformed_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
+        real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded NP runoff to this reach [kg/timestep]
+        real(dp), optional :: contributing_area                 !! Area contributing to this reach (e.g. the soil profile) [m2]
         !--- Locals ---!
         type(Result) :: rslt
         real(dp) :: Q_outflow
@@ -135,6 +137,8 @@ module classEstuaryReach
         ! Initialise flows to zero
         fractionSpmDeposited = 0
         j_spm_deposit = 0
+        me%spmFluxDeposit = 0.0_dp
+        me%spmFluxResus = 0.0_dp
         me%Q = 0                    ! Final Q, j_spm etc still stored in Q_final, j_spm_final etc for other reaches to use
         me%j_spm = 0
         me%j_np = 0
@@ -158,6 +162,17 @@ module classEstuaryReach
             call me%set_j_transformed_inflow(-me%inflows(i)%item%j_transformed(1,:,:,:), i)
             call me%set_j_dissolved_inflow(-me%inflows(i)%item%j_dissolved(1), i)
         end do
+
+        ! We need to use the sediment transport capacity to scale eroded sediment. Sediment transport
+        ! capacity is stored in me%sedimentTransportCapacity and has units of kg/m2/timestep
+        call me%setSedimentTransportCapacity( &
+            contributing_area=contributing_area / 1e6, &        ! Convert m2 to km2
+            q_overland=q_overland * 1e6 / C%timeStep &          ! Convert m3/m2/timestep to m3/km2/s
+        )
+        ! Where sum of eroded sediment (over size classes) is > STC, scale it proportionally
+        if (sum(j_spm_runoff) > me%sedimentTransportCapacity * contributing_area) then
+            j_spm_runoff = (j_spm_runoff / sum(j_spm_runoff)) * me%sedimentTransportCapacity * contributing_area
+        end if
 
         ! Inflows from runoff
         if (present(q_runoff)) call me%set_Q_runoff(q_runoff * me%gridCellArea)   ! Convert [m/timestep] to [m3/timestep]
@@ -344,6 +359,11 @@ module classEstuaryReach
                 dj_transformed(4+me%nInflows,:,:,2+j) = &
                     -min(me%m_transformed(:,:,2+j)*fractionSpmDeposited(j), me%m_transformed(:,:,2+j))
             end do
+
+            ! Add deposition and resuspension fluxes to a separate array so they can be used in output data
+            ! (instead of lumped together in j_spm). TODO separate these in j_spm matrix.
+            me%spmFluxDeposit = me%spmFluxDeposit + dj_spm_deposit
+            me%spmFluxResus = me%spmFluxResus + dj_spm_resus
             
             !-- MASS BALANCES --!
             ! SPM and NM mass balance. As outflow was set before deposition etc fluxes, we need to check that masses aren't below zero again
@@ -518,11 +538,13 @@ module classEstuaryReach
         ! Mean depth as exponential function of distance from mouth
         me%meanDepth = DATASET%estuaryMeanDepthExpA * exp(-DATASET%estuaryMeanDepthExpB * me%distanceToMouth)
         ! if (allocated(me%domainOutflow)) me%isDomainOutflow = .true.    ! If we managed to set domainOutflow, then this reach is one
-        me%slope = 0.0005
         me%f_m = DATASET%estuaryMeanderingFactor
         me%alpha_hetero = DATASET%estuaryAttachmentEfficiency
         me%alpha_resus = DATASET%resuspensionAlpha(me%x, me%y)
         me%beta_resus = DATASET%resuspensionBeta(me%x, me%y)
+        me%a_stc = DATASET%sedimentTransport_a(me%x, me%y)
+        me%b_stc = DATASET%sedimentTransport_b(me%x, me%y)
+        me%c_stc = DATASET%sedimentTransport_c(me%x, me%y)
         me%T_water = DATASET%waterTemperature
         ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
         ! set until all reaches created

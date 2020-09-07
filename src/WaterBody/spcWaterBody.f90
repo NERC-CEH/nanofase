@@ -56,9 +56,6 @@ module spcWaterBody
         real(dp) :: C_dissolved                                     !! Dissolved NM concentration [kg/m3]
         real(dp) :: C_dissolved_final
         real(dp), allocatable :: C_ionic(:)                         !! Ionic metal concentration [kg/m3]
-        ! real(dp), allocatable :: m_ionic(:)                         !! Ionic metal mass [kg/m3]
-        ! real(dp), allocatable :: m_np_disp(:,:,:,:)                 !! Mass of nanomaterial on each displacement [kg]
-        ! real(dp), allocatable :: C_np_disp(:,:,:,:)                 !! Concentration of nanomaterial on each displacement [kg]
         ! Flows and fluxes
         integer, allocatable :: neighboursArray(:,:)                !! Neighbouring waterbodies, as array of indices
         type(WaterBodyPointer), allocatable :: neighbours(:)        !! Neighbouring waterbodies
@@ -73,6 +70,8 @@ module spcWaterBody
         real(dp), allocatable :: j_spm(:,:)
             !! Flow of SPM, same conventions as Q [kg/timestep]. 2nd dimension is the size class of the SPM
         real(dp), allocatable :: j_spm_final(:,:)                   !! Final SPM flux array - see Q_final [kg/timestep]
+        real(dp), allocatable :: spmFluxDeposit(:)                  !! Deposited SPM on this timestep [kg/timestep]
+        real(dp), allocatable :: spmFluxResus(:)                    !! Resuspended SPM on this timestep [kg/timestep]
         real(dp), allocatable :: j_np(:,:,:,:)
             !! Flow of NM, same conventions as Q [kg/timestep]. 2nd-4th dimensions are the NM size class,
             !! NM form and NM state, respectively.
@@ -88,6 +87,11 @@ module spcWaterBody
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
         real(dp), allocatable :: W_settle_np(:)                     !! NP settling velocity [m/s]
+        real(dp) :: sedimentTransportCapacity                       !! Sediment transport capacity, to limit erosion [kg/m2/timestep]
+        real(dp) :: a_stc                                           !! Sediment transport scaling factor[kg/m2/km2]
+        real(dp) :: b_stc                                           !! Sediment transport direct runoff (overland flow) threshold [m2/s]
+        real(dp) :: c_stc                                           !! Sediment transport non-linear coefficient [-]
+
         ! Contained objects
         class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
         class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
@@ -157,13 +161,15 @@ module spcWaterBody
     end subroutine
 
     !> Update this `WaterBody` on given time step
-    subroutine updateWaterBody(me, t, q_runoff, j_spm_runoff, j_np_runoff, j_transformed_runoff)
+    subroutine updateWaterBody(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributing_area)
         class(WaterBody) :: me                                  !! This `WaterBody` instance
         integer :: t                                            !! What time step are we on?
         real(dp), optional :: q_runoff                          !! Runoff from the hydrological model [m/timestep]
+        real(dp), optional :: q_overland                        !! Overland flow [m3/m2/timestep]
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this water body [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this water body [kg/timestep]
         real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded transformed NP runoff to this water body [kg/timestep]
+        real(dp), optional :: contributing_area                 !! Area contributing to this reach (e.g. the soil profile) [m2]
     end subroutine
 
     !> Allocate memory for arrays generic to any water body. Individual water bodies
@@ -173,6 +179,8 @@ module spcWaterBody
         allocate(me%C_spm(C%nSizeClassesSpm), &
             me%C_spm_final(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
+            me%spmFluxDeposit(C%nSizeClassesSpm), &
+            me%spmFluxResus(C%nSizeClassesSpm), &
             me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%C_np_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &

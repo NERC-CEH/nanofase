@@ -9,7 +9,7 @@ program main
     use CheckpointModule, only: Checkpoint
     use DataOutputModule
     use classLogger, only: LOGR
-    use DefaultsModule, only: ioUnitLog
+    use DefaultsModule, only: iouLog
     use datetime_module
     implicit none
 
@@ -32,10 +32,10 @@ program main
     call GLOBALS_INIT()
     ! Initialise the logger
     call LOGR%init( &
-        logToFile=.false., &
+        logToFile=C%writeToLog, &
         logToConsole=.true., &
         logFilePath=C%logFilePath, &
-        fileUnit=ioUnitLog &
+        fileUnit=iouLog &
     )
     call LOGR%toConsole("--------------------------------")
     call LOGR%toConsole(" Welcome to the NanoFASE model! ")

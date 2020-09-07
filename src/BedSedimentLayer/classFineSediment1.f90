@@ -11,7 +11,7 @@ module classFineSediment1
         real(dp), private :: M_f_l                                   !! LOCAL fine sediment mass [kg m-2]
         real(dp), private :: M_f_l_backup                            !! LOCAL backup copy of fine sediment mass [kg m-2]
         real(dp), private :: V_w_l = 0.0_dp                          !! LOCAL volume of water associated with fine sediment [m3 m-2]
-        real, allocatable :: f_comp(:)                           !! Fractional composition [-]
+        real(dp), allocatable :: f_comp(:)                           !! Fractional composition [-]
         real, allocatable :: pd_comp(:)                          !! LOCAL storage of fractional particle densities [kg m-3]
         integer :: nfComp                                            !! LOCAL number of fractional composition terms
         logical :: isCreated = .false.                               !! LOCAL has this object been created?
@@ -148,7 +148,7 @@ module classFineSediment1
             real(dp), intent(in), optional  :: Mf_in        !! The fine sediment mass
             real(dp), intent(in), optional  :: Vf_in        !! The fine sediment volume
             real(dp), intent(in), optional  :: Vw_in        !! The water volume. Optional; if not present, stored composition is used
-            real, intent(in), optional      :: f_comp_in(:) !! Input fractional composition. Optional; if not present, stored composition is used
+            real(dp), intent(in), optional      :: f_comp_in(:) !! Input fractional composition. Optional; if not present, stored composition is used
             ! SH 7/7/2020: Changed a lot of the below to optimise code. Error handling is
             ! costly and within the whole model, this function is called *a lot*, so we have
             ! to forgo some auditing to speed things up. The consequence is that checks for
@@ -336,7 +336,7 @@ module classFineSediment1
             integer :: x                                             ! LOCAL loop counter
             real(dp) :: M_f_mix                                      ! LOCAL mixed sediment mass
             real(dp) :: V_w_mix                                      ! LOCAL mixed water volume
-            real, allocatable :: f_comp_mix(:)                   ! LOCAL mixed fractional composition
+            real(dp), allocatable :: f_comp_mix(:)                   ! LOCAL mixed fractional composition
             integer :: allst                                         ! LOCAL allocation status
             !
             ! Notes

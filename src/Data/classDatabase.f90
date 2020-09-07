@@ -38,6 +38,9 @@ module classDatabase
         real(dp) :: soilErosivity_a3                            ! Erosivity a3 parameter [-]
         real(dp) :: soilErosivity_b                             ! Erosivity b parameter [-]
         real :: soilConstantAttachmentEfficiency                ! Attachment efficiency to soil matrix [-]
+        real(dp) :: sedimentTransport_aConstant                 ! Sediment transport capacity a parameter (scaling factor) [kg/m2/km2]
+        real(dp) :: sedimentTransport_bConstant                 ! Sediment transport capacity b parameter (overland flow threshold) [m2/s]
+        real(dp) :: sedimentTransport_cConstant                 ! Sediment transport capacity c parameter (non-linear coefficient) [-]
         ! Earthworms
         integer :: earthwormDensityArable                       ! Earthworm density arable [individuals/m2]
         integer :: earthwormDensityConiferous                   ! Earthworm density coniferous [individuals/m2]
@@ -76,7 +79,7 @@ module classDatabase
         real(dp) :: water_k_transform_pristine      ! Transformation rate constant for pristine NM [/s]
         real :: waterTemperature                    ! Average water temperature TODO use temporally varying water temp [deg C]
         real(dp) :: riverAttachmentEfficiency       ! Attachment efficiency for NM to SPM in rivers [-]
-        real(dp) :: sedimentWashload                ! Sediment washload to add to sediment load in each reach [kg/m2/timestep]
+        real(dp) :: sedimentWashloadConstant        ! Sediment washload to add to sediment in each reach, overwritten if spatial var present [kg/m2/timestep]
         ! Estuary
         real(dp) :: estuaryAttachmentEfficiency     ! Attachment efficiency for NM to SPM in estuaries [-]
         real :: estuaryTidalM2                      ! Estuary tidal harmonics parameter M2
@@ -91,6 +94,7 @@ module classDatabase
         real, allocatable :: sedimentPorosity(:)    ! Porosity of the bed sediment layers [-]
         real(dp), allocatable :: sedimentInitialMass(:) ! Initial mass of each sediment size class [kg/m2]
         real, allocatable :: sedimentFractionalComposition(:) ! Distribution of sediment amongst fractional compositions [-]
+        ! NETCDF VARIABLES
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)        ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)             ! Resolution of grid cells [m]
@@ -114,6 +118,7 @@ module classDatabase
         logical, allocatable :: isEstuary(:,:)
         ! Spatiotemporal variables
         real, allocatable :: runoff(:,:,:)
+        real, allocatable :: quickflow(:,:,:)
         real, allocatable :: precip(:,:,:)
         real, allocatable :: evap(:,:,:)
         ! Spatial variables
@@ -132,6 +137,10 @@ module classDatabase
         real(dp), allocatable :: soilUsleLSFactor(:,:)
         real, allocatable :: resuspensionAlpha(:,:)
         real, allocatable :: resuspensionBeta(:,:)
+        real, allocatable :: sedimentWashload(:,:)                              ! Sediment washload to add to each reach [kg/m2/timestep]
+        real(dp), allocatable :: sedimentTransport_a(:,:)                       ! Sediment transport capacity a parameter (scaling factor) [kg/m2/km2]
+        real(dp), allocatable :: sedimentTransport_b(:,:)                       ! Sediment transport capacity b parameter (overland flow threshold) [m2/s]
+        real(dp), allocatable :: sedimentTransport_c(:,:)                       ! Sediment transport capacity c parameter (non-linear coefficient) [-]
         ! Emissions - areal
         real(dp), allocatable :: emissionsArealSoilPristine(:,:)
         real(dp), allocatable :: emissionsArealSoilMatrixEmbedded(:,:)
@@ -161,16 +170,16 @@ module classDatabase
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
       contains
-        procedure, public :: init => initDatabase
-        procedure, public :: update => updateDatabase
-        procedure, public :: readBatchVariables => readBatchVariablesDatabase
-        procedure, private :: parseConstants => parseConstantsDatabase
-        procedure, private :: mask => maskDatabase
-        procedure, public :: inModelDomain => inModelDomainDatabase
-        procedure, private :: calculateNPointSources => calculateNPointSourcesDatabase
-        procedure, private :: calculateMeanderingFactorFromCellSize => calculateMeanderingFactorFromCellSizeDatabase
-        procedure, public :: coordsToCellIndex => coordsToCellIndexDatabase
-        procedure, public :: coordsToFractionalCellIndex => coordsToFractionalCellIndexDatabase
+        procedure, public   :: init => initDatabase
+        procedure, public   :: update => updateDatabase
+        procedure, public   :: readBatchVariables => readBatchVariablesDatabase
+        procedure, private  :: parseConstants => parseConstantsDatabase
+        procedure, private  :: mask => maskDatabase
+        procedure, public   :: inModelDomain => inModelDomainDatabase
+        procedure, private  :: calculateNPointSources => calculateNPointSourcesDatabase
+        procedure, private  :: calculateMeanderingFactorFromCellSize => calculateMeanderingFactorFromCellSizeDatabase
+        procedure, public   :: coordsToCellIndex => coordsToCellIndexDatabase
+        procedure, public   :: coordsToFractionalCellIndex => coordsToFractionalCellIndexDatabase
         ! Auditing
         procedure, private :: audit => auditDatabase
     end type
@@ -179,6 +188,8 @@ module classDatabase
 
   contains
 
+    !> Initialise the database, by opening the NetCDF and constants files, and parsing
+    !! their contents.
     subroutine initDatabase(me, inputFile, constantsFile)
         class(Database)     :: me
         type(NcDataset)     :: nc_simulationMask
@@ -237,6 +248,16 @@ module classDatabase
         allocate(me%gridMask(me%gridShape(1), me%gridShape(2)))
         me%gridMask = me%mask(me%nWaterbodies)
 
+        ! Meandering factors are set using grid resolution, if not present in constants,
+        ! so they must be set after grid resolution pulled for NetCDF file (here), as
+        ! opposed to in the constants parsing routine
+        if (isZero(me%riverMeanderingFactor)) then
+            me%riverMeanderingFactor = me%calculateMeanderingFactorFromCellSize()
+        end if
+        if (isZero(me%estuaryMeanderingFactor)) then
+            me%estuaryMeanderingFactor = me%calculateMeanderingFactorFromCellSize()
+        end if
+
         ! Read the variables that can be updated on each batch (i.e. not geographical)
         call me%readBatchVariables()
 
@@ -264,10 +285,11 @@ module classDatabase
         call LOGR%add("Initialising database: success")
     end subroutine
 
-    !> Update the database based on data for a new chunk
+    !> Update the database based on data for a new chunk (k), or for the only chunk if this
+    !! isn't a batch run.
     subroutine updateDatabase(me, k)
-        class(Database) :: me                           !! This Database instance
-        integer         :: k                            !! The index of this chunk, used to access correct config options
+        class(Database) :: me               !! This Database instance
+        integer         :: k                !! The index of this chunk, used to access correct config options
 
         ! Get the config options for this chunk
         C%inputFile = C%batchInputFiles(k)
@@ -280,6 +302,7 @@ module classDatabase
 
         ! Open the new dataset
         me%nc = NcDataset(C%inputFile, 'r')
+
         ! Deallocate the previous chunk's variables
         deallocate(me%soilAttachmentRate)
         deallocate(me%soilAttachmentEfficiency)
@@ -303,8 +326,16 @@ module classDatabase
         deallocate(me%emissionsPointWaterMatrixEmbedded)
         deallocate(me%emissionsPointWaterTransformed)
         deallocate(me%emissionsPointWaterDissolved)
+        deallocate(me%sedimentWashload)
+        deallocate(me%resuspensionAlpha)
+        deallocate(me%resuspensionBeta)
+        deallocate(me%sedimentTransport_a)
+        deallocate(me%sedimentTransport_b)
+        deallocate(me%sedimentTransport_c)
+
         ! Read this chunk's variables
         call me%readBatchVariables()
+        
         ! Close the dataset
         call me%nc%close()
     end subroutine
@@ -329,12 +360,22 @@ module classDatabase
         ! (i.e. ones that aren't present in the data file)
        
         ! Digital elevation model [dm asl]
-        var = me%nc%getVariable('dem')
-        call var%getData(me%dem)
+        if (me%nc%hasVariable('dem')) then
+            var = me%nc%getVariable('dem')
+            call var%getData(me%dem)
+        else
+            call LOGR%toFile(errors=[ &
+                ErrorInstance(message='Digital elevation model (dem) not found in input file. ' // &
+                    'Default slope of ' // trim(str(defaultSlope)) // ' m/m will be used.', iscritical=.false.) &
+            ])
+        end if
 
         ! Runoff        [m/timestep]
         var = me%nc%getVariable('runoff')
         call var%getData(me%runoff)
+        ! Quickflow     [m/timestep]
+        var = me%nc%getVariable('quickflow')
+        call var%getData(me%quickflow)
         ! Precip        [m/timestep]
         var = me%nc%getVariable('precip')
         call var%getData(me%precip)
@@ -396,8 +437,8 @@ module classDatabase
             me%soilAttachmentEfficiency = me%soilConstantAttachmentEfficiency
         end if
 
-        ! Try and get resuspension parameters. Defaults to value given in constants
-        ! file if not present in NetCDF file
+        ! Try and get resuspension, washload and sediment transport parameters
+        ! Defaults to value given in constants file if not present in NetCDF file
         if (me%nc%hasVariable('resuspension_alpha')) then
             var = me%nc%getVariable('resuspension_alpha')
             call var%getData(me%resuspensionAlpha)
@@ -428,6 +469,38 @@ module classDatabase
                     end if
                 end do
             end do
+        end if
+        ! Sediment washload
+        if (me%nc%hasVariable('sediment_washload')) then
+            var = me%nc%getVariable('sediment_washload')
+            call var%getData(me%sedimentWashload)
+        else
+            allocate(me%sedimentWashload(me%gridShape(1), me%gridShape(2)))
+            me%sedimentWashload = me%sedimentWashloadConstant
+        end if
+        ! Sediment transport param a
+        if (me%nc%hasVariable('sediment_transport_a')) then
+            var = me%nc%getVariable('sediment_transport_a')
+            call var%getData(me%sedimentTransport_a)
+        else
+            allocate(me%sedimentTransport_a(me%gridShape(1), me%gridShape(2)))
+            me%sedimentTransport_a = me%sedimentTransport_aConstant
+        end if
+        ! Sediment transport param b
+        if (me%nc%hasVariable('sediment_transport_b')) then
+            var = me%nc%getVariable('sediment_transport_b')
+            call var%getData(me%sedimentTransport_b)
+        else
+            allocate(me%sedimentTransport_b(me%gridShape(1), me%gridShape(2)))
+            me%sedimentTransport_b = me%sedimentTransport_bConstant
+        end if
+        ! Sediment transport param c
+        if (me%nc%hasVariable('sediment_transport_c')) then
+            var = me%nc%getVariable('sediment_transport_c')
+            call var%getData(me%sedimentTransport_c)
+        else
+            allocate(me%sedimentTransport_c(me%gridShape(1), me%gridShape(2)))
+            me%sedimentTransport_c = me%sedimentTransport_cConstant
         end if
 
         ! Emissions - areal                         [kg/m2/timestep]
@@ -627,6 +700,7 @@ module classDatabase
         call var%getData(me%landUse)
     end subroutine
 
+    !> Get the constants from the namelist file
     subroutine parseConstantsDatabase(me, constantsFile)
         class(Database)         :: me                   !! This Database instance
         character(len=*)        :: constantsFile        !! The constants file path
@@ -652,7 +726,7 @@ module classDatabase
             resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
             k_transform_pristine, erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, &
             river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency, &
-            sediment_washload
+            sediment_washload, sediment_transport_a, sediment_transport_b, sediment_transport_c 
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
             k_elim_dissolved(:), initial_mass(:)
@@ -675,7 +749,8 @@ module classDatabase
         namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, &
             urban_parks, vertical_distribution
         namelist /soil/ darcy_velocity, default_porosity, hamaker_constant, particle_density, &
-            erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, soil_attachment_efficiency
+            erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, soil_attachment_efficiency, sediment_transport_a, &
+            sediment_transport_b, sediment_transport_c
         namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
@@ -685,9 +760,9 @@ module classDatabase
             default_spm_size_distribution, default_matrixembedded_distribution_to_spm
 
         ! Open and read the NML file
-        open(ioUnitConstants, file=constantsFile, status="old")
-        read(ioUnitConstants, nml=allocatable_array_sizes)
-        rewind(ioUnitConstants)
+        open(iouConstants, file=constantsFile, status="old")
+        read(iouConstants, nml=allocatable_array_sizes)
+        rewind(iouConstants)
 
         ! Allocate the appropriate variable dimensions
         allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
@@ -722,23 +797,22 @@ module classDatabase
         end if
 
         ! Defaults, if the variable doesn't exist in namelist
-        ! TODO move to separate defaults.nml file, or similar
         resuspension_alpha_estuary = 0.0_dp
         resuspension_beta_estuary = 0.0_dp
         soil_attachment_efficiency = defaultSoilAttachmentEfficiency
         k_diss_pristine = default_k_diss_pristine
         k_diss_transformed = default_k_diss_transformed
         k_transform_pristine = default_k_transform_pristine
-        estuary_meandering_factor = me%calculateMeanderingFactorFromCellSize()
-        river_meandering_factor = me%calculateMeanderingFactorFromCellSize()
+        estuary_meandering_factor = 0.0
+        river_meandering_factor = 0.0
         porosity = 0.0
         sediment_washload = defaultSedimentWashload
-
-        print *, river_meandering_factor
-        error stop
+        sediment_transport_a = defaultSedimentTransport_a
+        sediment_transport_b = defaultSedimentTransport_b
+        sediment_transport_c = defaultSedimentTransport_c
 
         ! Read in the namelists
-        read(ioUnitConstants, nml=n_biota_grp, iostat=nmlIOStat); rewind(ioUnitConstants)
+        read(iouConstants, nml=n_biota_grp, iostat=nmlIOStat); rewind(iouConstants)
         ! Only read in the biota group if there is one
         if (nmlIOStat .ge. 0) then
             allocate(initial_C_org(n_biota), k_death(n_biota), k_elim_np(n_biota), &
@@ -747,22 +821,22 @@ module classDatabase
                 k_elim_transformed(n_biota), compartment(n_biota), &
                 k_uptake_dissolved(n_biota), k_elim_dissolved(n_biota), &
                 uptake_from_form(n_biota), harvest_in_month(n_biota))
-            read(ioUnitConstants, nml=biota); rewind(ioUnitConstants)
+            read(iouConstants, nml=biota); rewind(iouConstants)
             me%hasBiota = .true.
         end if
-        read(ioUnitConstants, nml=nanomaterial); rewind(ioUnitConstants)
-        read(ioUnitConstants, nml=earthworm_densities); rewind(ioUnitConstants)
-        read(ioUnitConstants, nml=soil); rewind(ioUnitConstants)
-        read(ioUnitConstants, nml=water); rewind(ioUnitConstants)
-        read(ioUnitConstants, nml=sediment); rewind(ioUnitConstants)
-        close(ioUnitConstants)
+        read(iouConstants, nml=nanomaterial); rewind(iouConstants)
+        read(iouConstants, nml=earthworm_densities); rewind(iouConstants)
+        read(iouConstants, nml=soil); rewind(iouConstants)
+        read(iouConstants, nml=water); rewind(iouConstants)
+        read(iouConstants, nml=sediment); rewind(iouConstants)
+        close(iouConstants)
 
         ! Save these to class variables
         me%nmDensity = nm_density
         me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
         me%defaultSpmSizeDistribution = default_spm_size_distribution / 100.0
         me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
-        me%soilDarcyVelocity = darcy_velocity       ! TODO maybe calculate from water flow, though it doesn't massively affect alpha_att calc
+        me%soilDarcyVelocity = darcy_velocity
         me%soilDefaultPorosity = default_porosity
         me%soilHamakerConstant = hamaker_constant
         me%soilParticleDensity = particle_density
@@ -771,6 +845,9 @@ module classDatabase
         me%soilErosivity_a2 = erosivity_a2
         me%soilErosivity_a3 = erosivity_a3
         me%soilErosivity_b = erosivity_b
+        me%sedimentTransport_aConstant = sediment_transport_a
+        me%sedimentTransport_bConstant = sediment_transport_b
+        me%sedimentTransport_cConstant = sediment_transport_c
         ! Earthworm densities
         me%earthwormDensityArable = arable
         me%earthwormDensityConiferous = coniferous
@@ -819,7 +896,7 @@ module classDatabase
         end if
         me%waterTemperature = water_temperature
         me%riverAttachmentEfficiency = river_attachment_efficiency
-        me%sedimentWashload = sediment_washload
+        me%sedimentWashloadConstant = sediment_washload
         ! Estuary
         me%estuaryAttachmentEfficiency = estuary_attachment_efficiency
         me%estuaryTidalM2 = estuary_tidal_M2
@@ -836,6 +913,8 @@ module classDatabase
         me%sedimentFractionalComposition = fractional_composition_distribution
     end subroutine
 
+    !> Elemental function for getting a mask from an int2 array, where the NetCDF
+    !! fill value nf90_fill_int2 is used to mask values
     elemental function maskDatabase(me, int) result(mask)
         class(Database), intent(in) :: me
         integer, intent(in) :: int
@@ -921,7 +1000,7 @@ module classDatabase
     function calculateMeanderingFactorFromCellSizeDatabase(me) result(f_m)
         class(Database) :: me
         real            :: f_m
-        f_m = 1.024 - 0.077 * log(10 / ((me%gridRes(1) + me%gridRes(2)) / 2))
+        f_m = 1.024 - 0.077 * log(100 / ((me%gridRes(1) + me%gridRes(2)) / 2))
     end function
 
     !> Audit the database

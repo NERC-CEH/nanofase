@@ -8,7 +8,7 @@ module classEnvironment1
     use classGridCell2
     use classDatabase, only: DATASET
     use classSampleSite, only: SampleSite
-    use DefaultsModule, only: ioUnitCalibrationSites
+    use DefaultsModule, only: iouCalibrationSites
     use datetime_module
     use mod_datetime
     implicit none
@@ -160,10 +160,10 @@ module classEnvironment1
                     allocate(me%sites(18))         ! TODO get number of sites at runtime
                     allocate(me%otherSites(size(C%otherSites)))
                     ! TODO move all this data parsing stuff elsewhere and tidy up
-                    open(unit=ioUnitCalibrationSites, file=C%siteData)
-                    read(ioUnitCalibrationSites, *)
+                    open(unit=iouCalibrationSites, file=C%siteData)
+                    read(iouCalibrationSites, *)
                     do i = 1, 18
-                        read(ioUnitCalibrationSites, *) me%sites(i)%ref, me%sites(i)%x, me%sites(i)%y, &
+                        read(iouCalibrationSites, *) me%sites(i)%ref, me%sites(i)%x, me%sites(i)%y, &
                             me%sites(i)%r, me%sites(i)%easts, me%sites(i)%norths, me%sites(i)%Q, &
                             me%sites(i)%C_spm, me%sites(i)%description
                         me%sites(i)%Q = me%sites(i)%Q * C%timeStep
@@ -184,7 +184,7 @@ module classEnvironment1
                             end if
                         end do
                     end do
-                    close(ioUnitCalibrationSites)
+                    close(iouCalibrationSites)
                     ! Set all the sites (except the end site) as boundary sites and set their boundary conditions (C_spm)
                     do i = 1, size(me%sites)
                         if (.not. me%sites(i)%isEndSite) then
@@ -194,17 +194,17 @@ module classEnvironment1
                         me%sites(i)%reach%item%calibrationSiteRef = me%sites(i)%ref
                     end do
                 else if (trim(C%calibrationMode) == 'dynamic') then
-                    open(ioUnitCalibrationSites, file=C%siteData)
-                    read(ioUnitCalibrationSites, *)             ! Skip the column names
-                    read(ioUnitCalibrationSites, *) nSites      ! Number of sites
+                    open(iouCalibrationSites, file=C%siteData)
+                    read(iouCalibrationSites, *)             ! Skip the column names
+                    read(iouCalibrationSites, *) nSites      ! Number of sites
                     allocate(me%sites(nSites))
                     do i = 1, nSites
-                        read(ioUnitCalibrationSites, *) nObservations
+                        read(iouCalibrationSites, *) nObservations
                         allocate(me%sites(i)%dates(nObservations))
                         allocate(me%sites(i)%C_spm_timeseries(nObservations))
                         allocate(me%sites(i)%Q_timeseries(nObservations))
                         do j = 1, nObservations
-                            read(ioUnitCalibrationSites, *) datetimeStr, me%sites(i)%ref, &
+                            read(iouCalibrationSites, *) datetimeStr, me%sites(i)%ref, &
                                 me%sites(i)%x, me%sites(i)%y, me%sites(i)%r, me%sites(i)%easts, me%sites(i)%norths, &
                                 me%sites(i)%Q_timeseries(j), me%sites(i)%C_spm_timeseries(j)
                             me%sites(i)%Q_timeseries(j) = me%sites(i)%Q_timeseries(j) * C%timeStep
@@ -225,7 +225,7 @@ module classEnvironment1
                             allocate(me%sites(i)%reach%item%boundary_dates, source=me%sites(i)%dates)
                         end if
                     end do
-                    close(ioUnitCalibrationSites)
+                    close(iouCalibrationSites)
                 end if
             end if
     end subroutine
@@ -306,23 +306,28 @@ module classEnvironment1
         cell%item => me%colGridCells(reach%item%x, reach%item%y)%item
         ! Only update if this cell isn't masked
         if (DATASET%simulationMask(cell%item%x, cell%item%y)) then
-            ! Add the sediment washload to the SPM runoff. Conceptually, washload comes
-            ! from a combination of bank erosion and point sources. Though bank erosion will be a function
-            ! of depth, we'll keep it simple and say it's only a function of length, with units kg/m
-            j_spm_runoff = cell%item%erodedSediment * lengthRatio + DATASET%defaultSpmSizeDistribution &
-                * (DATASET%sedimentWashload * reach%item%length)
             ! Determine the proportion of this reach's length to the the total
             ! river length in this GridCell and use it to proportion NM runoff
             lengthRatio = reach%item%length/cell%item%getTotalReachLength()
-            j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded    ! [kg/timestep]
-            j_transformed_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_transformed_eroded    ! [kg/timestep]
+            ! Add the sediment washload to the SPM runoff and convert eroded sediment from kg/m2/day to kg/reach/day.
+            ! Conceptually, washload comes from a combination of bank erosion and point sources.
+            ! Though bank erosion will be a function of depth, we'll keep it simple and say it's only a function of length, with units kg/m
+            ! j_spm_runoff = cell%item%erodedSediment * lengthRatio * cell%item%area &
+            !     + DATASET%defaultSpmSizeDistribution &
+            !     * DATASET%sedimentWashload(cell%item%x, cell%item%y) * reach%item%length
+            j_spm_runoff = cell%item%erodedSediment * cell%item%area * lengthRatio                      ! [kg/timestep]
+            j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded                     ! [kg/timestep]
+            j_transformed_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_transformed_eroded   ! [kg/timestep]
+
             ! Update the reach for this timestep
             call reach%item%update( &
                 t = t, &
                 q_runoff = cell%item%q_runoff_timeSeries(t), &
+                q_overland = real(DATASET%quickflow(cell%item%x, cell%item%y, t), 8), &
                 j_spm_runoff = j_spm_runoff, &
                 j_np_runoff = j_np_runoff, &
-                j_transformed_runoff = j_transformed_runoff &
+                j_transformed_runoff = j_transformed_runoff, &
+                contributing_area = cell%item%area * lengthRatio &
             )
         end if
     end subroutine
