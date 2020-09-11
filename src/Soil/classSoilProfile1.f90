@@ -24,6 +24,7 @@ module classSoilProfile1
         procedure :: bioturbation => bioturbationSoilProfile1       ! Bioturbate soil on a given time step
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
         procedure :: calculateAverageGrainSize => calculateAverageGrainSizeSoilProfile1 ! Calculate the average grain diameter from soil texture
+        procedure :: calculateSizeDistribution => calculateSizeDistributionSoilProfile1 ! Re-bin the grain size distribution from clay/sand/silt to sediment size classes
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
         procedure :: parseNewBatchData => parseNewBatchDataSoilProfile1
         ! Getters
@@ -343,8 +344,20 @@ module classSoilProfile1
         real(dp)            :: distribution(C%nSizeClassesSpm)  !! The resulting distribution
         integer             :: s                                ! Loop iterator for size classes
         do s = 1, C%nSizeClassesSpm
-            distribution(s) = mass*me%distributionSediment(s)
+            distribution(s) = mass * me%distributionSediment(s)
         end do
+    end function
+
+    !> Re-bin the clay-silt-sand content into the binned sediment size classes used in the model
+    function calculateSizeDistributionSoilProfile1(me, clay, silt, sand) result(ssd)
+        class(SoilProfile1) :: me           ! This soil profile
+        real :: clay, silt, sand            ! Percentage clay, silt and sand
+        real :: ssd(C%nSizeClassesSpm)
+        real :: texture_bins(3,2)
+        ! Bins for texture content, based on definition of clay, silt and sand. First bin
+        ! has non-zero lower bound to avoid numerical errors when logging
+        texture_bins = reshape([1e-9, 0.002, 0.002, 0.06, 0.06, 2.0], [3,2])
+        print *, texture_bins
     end function
 
     !> Calculate the average grain size from soil texture properties, using RUSLE handbook
@@ -388,6 +401,8 @@ module classSoilProfile1
         end if
         ! Calculate the average grain diameter from soil texture
         me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+        me%distributionSediment = me%calculateSizeDistribution(me%clayContent, me%siltContent, me%sandContent)
+        error stop
         me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
 
         ! USLE params

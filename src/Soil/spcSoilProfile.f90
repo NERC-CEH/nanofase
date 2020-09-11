@@ -81,7 +81,8 @@ module spcSoilProfile
         procedure(erodeSoilProfile), deferred :: erode                      ! Erode soil for given time step
         procedure(bioturbationSoilProfile), deferred :: bioturbation        ! Bioturbate soil for a given time step
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
-        procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
+        procedure(calculateSizeDistributionSoilProfile), deferred :: calculateSizeDistribution      ! Re-bin the soil texture (sand/silt/clay) into sediment size classes
+        procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize      ! Calculate the average grain size from sand/silt/clay content
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
         procedure(get_m_np_SoilProfile), deferred :: get_m_np
@@ -185,11 +186,19 @@ module spcSoilProfile
             real(dp) :: distribution(C%nSizeClassesSpm)
         end function
 
+        function calculateSizeDistributionSoilProfile(me, clay, silt, sand) result(ssd)
+            use Globals, only: C
+            import SoilProfile
+            class(SoilProfile) :: me            !! This SoilProfile instance
+            real :: clay, silt, sand            !! Percentage clay, silt and sand
+            real :: ssd(C%nSizeClassesSpm)      !! Calculated sediment size distribution
+        end function
+
         function calculateAverageGrainSizeSoilProfile(me, clay, silt, sand) result(d_grain)
             import SoilProfile
-            class(SoilProfile) :: me            ! This soil profile
-            real :: clay, silt, sand            ! Percentage clay, silt and sand
-            real :: d_grain                     ! The average grain size
+            class(SoilProfile) :: me            !! This soil profile
+            real :: clay, silt, sand            !! Percentage clay, silt and sand
+            real :: d_grain                     !! The average grain size
         end function
 
         !> Parses the input data for the `SoilProfile` from the data file
