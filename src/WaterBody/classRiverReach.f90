@@ -33,7 +33,7 @@ module classRiverReach
         integer :: x                            !! Grid cell x-position index
         integer :: y                            !! Grid cell y-position index
         integer :: w                            !! Water body index within the cell
-        real(dp) :: gridCellArea                !! Containing grid cell area [m2]
+        real(dp) :: gridCellArea                !! Containing grid cell area [m2] TODO is this needed by contributing area is passed to update?
         type(Result) :: rslt                    !! Result object to return errors in
         integer :: i, j                         ! Iterator
 
@@ -84,7 +84,7 @@ module classRiverReach
     end function
 
     !> Run the river reach simulation for this timestep
-    subroutine updateRiverReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributing_area)
+    subroutine updateRiverReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributingArea)
         class(RiverReach) :: me                                 !! This `RiverReach` instance
         integer :: t                                            !! The current timestep
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
@@ -92,9 +92,10 @@ module classRiverReach
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded transformed NP runoff to this reach [kg/timestep]
-        real(dp), optional :: contributing_area                 !! Area contributing to this reach (e.g. the soil profile) [m2]
+        real(dp), optional :: contributingArea                 !! Area contributing to this reach (e.g. the soil profile) [m2]
         !--- Locals ---!
         type(Result) :: rslt
+        real(dp) :: j_spm_bank                                  ! Bank erosion [kg/timestep]
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)           ! Total inflow of SPM [kg/timestep]
         real(dp) :: j_np_in_total(C%npDim(1), C%npDim(2), C%npDim(3))   ! Total inflow of NP [kg/timestep]
         real(dp) :: j_transformed_in_total                      ! Total inflow of transformed NM [kg/timestep]
@@ -163,17 +164,43 @@ module classRiverReach
             ! We need to use the sediment transport capacity to scale eroded sediment. Sediment transport
             ! capacity is stored in me%sedimentTransportCapacity and has units of kg/m2/timestep
             call me%setSedimentTransportCapacity( &
-                contributing_area=contributing_area / 1e6, &        ! Convert m2 to km2
+                contributingArea=contributingArea / 1e6, &        ! Convert m2 to km2
                 q_overland=q_overland * 1e6 / C%timeStep &          ! Convert m3/m2/timestep to m3/km2/s
             )
             ! Where sum of eroded sediment (over size classes) is > STC, scale it proportionally
-            if (sum(j_spm_runoff) > me%sedimentTransportCapacity * contributing_area) then
-                j_spm_runoff = (j_spm_runoff / sum(j_spm_runoff)) * me%sedimentTransportCapacity * contributing_area
+            if (sum(j_spm_runoff) > me%sedimentTransportCapacity * contributingArea) then
+                j_spm_runoff = (j_spm_runoff / sum(j_spm_runoff)) * me%sedimentTransportCapacity * contributingArea
             end if
 
-            ! Inflows from runoff
-            if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)   ! Convert [m/timestep to m3/timestep], TODO this should be scaled to reach length as proportion in GC
-            if (present(j_spm_runoff)) call me%set_j_spm_runoff(j_spm_runoff)
+            ! Water inflows from runoff
+            if (present(q_runoff)) call me%set_Q_runoff(q_runoff * contributingArea)
+            ! Set reach dimensions and calculate dimension, which must be done before bank erosion
+            me%Q_in_total = sum(me%Q(2:))
+            call rslt%addErrors(.errors. me%setDimensions())
+            me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
+
+            ! Add bank erosion to the SPM runoff (yes, I know it's not runoff, but I didn't create a seperate mass flow
+            ! matrix element for bank erosion). This is distributed across sediment SCs in the same proportion as
+            ! soil erosion (as that will be calculated based on soil properties)
+            j_spm_bank = me%calculateBankErosionRate( &
+                abs(me%Q_in_total), &
+                DATASET%bankErosionAlpha(me%x, me%y), &
+                DATASET%bankErosionBeta(me%x, me%y), &
+                me%length, &
+                me%depth &
+            )
+            if (present(j_spm_runoff) .and. .not. isZero(sum(j_spm_runoff))) then
+                me%spmFluxBankErosion = (j_spm_runoff / sum(j_spm_runoff)) * j_spm_bank
+                j_spm_runoff = j_spm_runoff + me%spmFluxBankErosion 
+            else
+                ! If there is no runoff to use to distribute bank erosion across sediment SCs, then just do it equally
+                ! TODO split this based on parent soil instead
+                me%spmFluxBankErosion = j_spm_bank / C%nSizeClassesSpm 
+                j_spm_runoff = me%spmFluxBankErosion 
+            end if
+
+            ! SPM and NM inflows from runoff
+            call me%set_j_spm_runoff(j_spm_runoff)
             if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
             if (present(j_transformed_runoff)) call me%set_j_transformed_runoff(j_transformed_runoff)
 
@@ -197,21 +224,16 @@ module classRiverReach
                 call me%set_j_dissolved_pointsource(me%pointSources(i)%j_dissolved_pointSource, i)
             end do
 
-            ! Total inflows = inflow water bodies + runoff + transfers (+ sources for NM)
-            me%Q_in_total = sum(me%Q(2:))
+            ! Total inflows = inflow water bodies + runoff + transfers (+ sources for NM). Water was already done above
             j_spm_in_total = sum(me%j_spm(2:,:), dim=1)
             j_np_in_total = sum(me%j_np(2:,:,:,:), dim=1)
             j_transformed_in_total = sum(me%j_transformed(2:,:,:,:))
             j_dissolved_in_total = sum(me%j_dissolved(2:))
 
-            ! Set the reach dimensions and calculate the velocity
-            call rslt%addErrors(.errors. me%setDimensions())
-            me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
-
             ! HACK
-            if (me%volume < 10.0_dp) then
-                me%volume = 0.0_dp
-            end if
+            ! if (me%volume < 10.0_dp) then
+            !     me%volume = 0.0_dp
+            ! end if
 
             ! Set the resuspension rate me%k_resus and settling rate me%k_settle
             ! (but don't acutally settle until we're looping through
@@ -352,6 +374,9 @@ module classRiverReach
                 me%m_transformed = max(me%m_transformed + sum(dj_transformed, dim=1), 0.0_dp)
                 me%m_dissolved = max(me%m_dissolved + sum(dj_dissolved), 0.0_dp)
 
+                ! print *, me%m_spm
+                ! if (t == 2) stop
+
                 ! Flush to zero, to make sure no really small values which will cause FPEs
                 me%m_spm = flushToZero(me%m_spm)
                 me%m_np = flushToZero(me%m_np)
@@ -447,7 +472,7 @@ module classRiverReach
                 do i = 1, me%nInflows
                     call me%set_Q_inflow(-me%inflows(i)%item%Q(1), i)
                 end do
-                if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)
+                if (present(q_runoff)) call me%set_Q_runoff(q_runoff * contributingArea)
                 me%Q_in_total = sum(me%Q(2:))
                 ! Set the dimensions so we can calculate concentration from boundary C_spm
                 call rslt%addErrors(.errors. me%setDimensions())
@@ -473,7 +498,7 @@ module classRiverReach
                 do i = 1, me%nInflows
                     call me%set_Q_inflow(me%boundary_Q_timeseries(i) / me%nInflows, i)
                 end do
-                if (present(q_runoff)) call me%set_Q_runoff(q_runoff*me%gridCellArea)
+                if (present(q_runoff)) call me%set_Q_runoff(q_runoff * contributingArea)
                 me%Q_in_total = sum(me%Q(2:))
                 ! Set the dimensions so we can calculate concentration from boundary C_spm
                 call rslt%addErrors(.errors. me%setDimensions())

@@ -131,7 +131,7 @@ module DataOutputModule
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
         real                :: easts, norths    !! Eastings and northings of this grid cell
-        integer             :: w                ! Waterbody iterator
+        integer             :: i, w             ! Iterators
         character(len=3)    :: reachType        ! Is this a river of estuary?
         
         ! Loop through the waterbodies in this cell
@@ -158,10 +158,15 @@ module DataOutputModule
                     trim(str(reach%j_dissolved_outflow())) // "," // &
                     trim(str(sum(reach%m_spm))) // "," // &
                     trim(str(sum(reach%C_spm))) // ","
+                if (C%includeSpmSizeClassBreakdown) then
+                    write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
+                        trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                end if
                 if (C%includeSedimentFluxes) then
                     write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%j_spm_runoff()))) // "," // &
                         trim(str(sum(reach%spmFluxDeposit))) // "," // trim(str(sum(reach%spmFluxResus))) // "," // &
-                        trim(str(sum(reach%j_spm_inflows()))) // "," // trim(str(sum(reach%j_spm_outflow()))) // ","
+                        trim(str(sum(reach%j_spm_inflows()))) // "," // trim(str(sum(reach%j_spm_outflow()))) // "," // &
+                        trim(str(sum(reach%spmFluxBankErosion))) // ","
                 end if
                 write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
                     trim(str(reach%Q(1)/C%timeStep))
@@ -374,6 +379,7 @@ module DataOutputModule
     !> Write the headers for the water output file
     subroutine writeHeadersWaterDataOutput(me)
         class(DataOutput)   :: me           !! This DataOutput instance
+        integer             :: i            ! Size class iterator
         
         ! Write metadata, if we're meant to 
         if (C%writeMetadataAsComment) then
@@ -390,10 +396,14 @@ module DataOutputModule
                 "downstream outflow NM masses (kg)"
             write(iouOutputWater, '(a)') "#\tm_np_deposited(kg), m_transformed_deposited(kg): mass of NM deposited (kg)"
             write(iouOutputWater, '(a)') "#\tm_spm(kg), C_spm(kg/m3): mass and concentration of SPM (kg, kg/m3)"
+            if (C%includeSpmSizeClassBreakdown) then
+                write(iouOutputWater, '(a)') "#\tm_spm_sci(kg), C_spm_sci(kg/m3): mass aond concentration of SPM in " // &
+                    "size class i (kg, kg/m3)"
+            end if
             if (C%includeSedimentFluxes) then
                 write(iouOutputWater, '(a)') "#\tm_spm_erosion(kg), m_spm_dep(kg), m_spm_res(kg), m_spm_inflow(kg), " // &
-                    "m_spm_outflow(kg): SPM fluxes from erosion, deposition, resuspension, inflows and outflow, " // &
-                    "on this timestep (kg)"
+                    "m_spm_outflow(kg), m_spm_bank_erosion(kg): SPM fluxes from erosion, deposition, resuspension, " // &
+                    "inflows, outflow and bank erosion on this timestep (kg)"
             end if
             write(iouOutputWater, '(a)') "#\tvolume(m3), depth(m), flow(m3/s): volume (m3), " // &
                 "depth (m) and flow rate (m3/s) of this waterbody"
@@ -403,9 +413,13 @@ module DataOutputModule
             "m_transformed(kg),C_transformed(kg/m3),m_dissolved(kg),C_dissolved(kg/m3)," // &
             "m_np_deposited(kg),m_transformed_deposited(kg),m_np_outflow(kg),m_transformed_outflow(kg)," // &
             "m_dissolved_outflow(kg),m_spm(kg),C_spm(kg/m3),"
+        if (C%includeSpmSizeClassBreakdown) then
+            write(iouOutputWater, '(*(a))', advance="no") &
+                ("m_spm_sc" // trim(str(i)) // "(kg),C_spm_sc" // trim(str(i)) // "(kg/m3),", i=1, C%nSizeClassesSpm) 
+        end if
         if (C%includeSedimentFluxes) then
             write(iouOutputWater, '(a)', advance='no') "m_spm_erosion(kg),m_spm_dep(kg),m_spm_res(kg)," // &
-                "m_spm_inflow(kg),m_spm_outflow(kg),"
+                "m_spm_inflow(kg),m_spm_outflow(kg),m_spm_bank_erosion(kg),"
         end if
         write(iouOutputWater, '(a)') "volume(m3),depth(m),flow(m3/s)"
     end subroutine

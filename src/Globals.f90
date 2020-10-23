@@ -27,6 +27,7 @@ module Globals
         character(len=5)    :: sedimentPECUnits                 !! What units to use for sediment PEC - kg/m4 or kg/kg dw?
         logical             :: includeSoilStateBreakdown        !! Should the breakdown of NM state (free vs attached) be included?
         logical             :: includeSedimentFluxes            !! Should sediment fluxes to/from waterbodies be included?
+        logical             :: includeSpmSizeClassBreakdown     !! Should the breakdown of SPM size classes be included?
         logical             :: includeSoilErosion               !! Should sediment fluxes to/from waterbodies be included?
         ! Run
         character(len=256)  :: runDescription                   !! Short description of model run
@@ -60,6 +61,7 @@ module Globals
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
+        logical             :: includeClayEnrichment            !! Should clay enrichment be included?
         integer             :: nSoilLayers                      !! Number of soil layers to be modelled
         integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
         real                :: minimumStreamSlope               !! Minimum stream slope, imposed where calculated stream slope is less than this value [m/m]
@@ -155,7 +157,7 @@ module Globals
             calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
             preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
-            write_to_log
+            write_to_log, include_spm_size_class_breakdown, include_clay_enrichment
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
@@ -165,12 +167,12 @@ module Globals
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv, include_sediment_fluxes, &
-            include_soil_erosion
+            include_soil_erosion, include_spm_size_class_breakdown
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
             description, trigger_warnings, simulation_mask, write_to_log
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
         namelist /steady_state/ run_to_steady_state, mode, delta
-        namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment
+        namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
         namelist /water/ minimum_stream_slope
         namelist /sources/ include_point_sources
@@ -191,7 +193,9 @@ module Globals
         include_soil_layer_breakdown = .true.
         include_soil_state_breakdown = .false.
         include_sediment_fluxes = configDefaults%includeSedimentFluxes          ! False
+        include_spm_size_class_breakdown = configDefaults%includeSpmSizeClassBreakdown  ! False
         include_soil_erosion = configDefaults%includeSoilErosion                ! False
+        include_clay_enrichment = configDefaults%includeClayEnrichment
         soil_pec_units = 'kg/kg'
         sediment_pec_units = 'kg/kg'
         save_checkpoint = .false.
@@ -297,6 +301,7 @@ module Globals
         C%includeSoilStateBreakdown = include_soil_state_breakdown
         C%includeSedimentFluxes = include_sediment_fluxes
         C%includeSoilErosion = include_soil_erosion
+        C%includeSpmSizeClassBreakdown = include_spm_size_class_breakdown
         ! Run
         if (.not. C%isBatchRun) then
             C%runDescription = description
@@ -347,6 +352,7 @@ module Globals
         C%warmUpPeriod = warm_up_period
         C%includeBioturbation = include_bioturbation
         C%includeAttachment = include_attachment
+        C%includeClayEnrichment = include_clay_enrichment
         ! Water
         C%minimumStreamSlope = minimum_stream_slope
         ! Sources

@@ -71,6 +71,7 @@ module spcReach
         ! Calculators
         procedure :: calculateSettlingVelocity => calculateSettlingVelocity
         procedure :: calculateResuspension => calculateResuspension
+        procedure :: calculateBankErosionRate => calculateBankErosionRateReach
         ! Getters
         procedure :: Q_outflow_final => Q_outflow_finalReach
         procedure :: j_spm_outflow_final => j_spm_outflow_finalReach
@@ -241,8 +242,10 @@ module spcReach
             do i = 1, C%nSizeClassesSpm
                 me%W_settle_spm(i) = me%calculateSettlingVelocity( &
                     C%d_spm(i), &
-                    sum(C%sedimentParticleDensities)/C%nFracCompsSpm, &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
-                    me%T_water &
+                    DATASET%spmDensityBySizeClass(i), &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
+                    me%T_water, &
+                    alphaDep=DATASET%depositionAlpha(me%x, me%y), &
+                    betaDep=DATASET%depositionBeta(me%x, me%y) &
                 )
             end do
             me%k_settle = me%W_settle_spm / me%depth
@@ -252,7 +255,9 @@ module spcReach
                 me%W_settle_np(i) = me%calculateSettlingVelocity( &
                     C%d_nm(i), &
                     DATASET%nmDensity, &
-                    me%T_water &
+                    me%T_water, &
+                    alphaDep=DATASET%depositionAlpha(me%x, me%y), &
+                    betaDep=DATASET%depositionBeta(me%x, me%y) &
                 )
             end do
         else
@@ -263,26 +268,25 @@ module spcReach
     end subroutine
 
     !> Set the sediment transport capacity to this reach, based on Lazar et al 2010
-    !! (https://10.1016/j.scitotenv.2010.02.030). This limits the amount of eroded sediment
+    !! (https://doi.org/10.1016/j.scitotenv.2010.02.030). This limits the amount of eroded sediment
     !! from the soil profile that is available to the reach. It is set here, as opposed
     !! to the soil profile, because it depends on the reach length.
-    subroutine setSedimentTransportCapacityReach(me, contributing_area, q_overland)
+    subroutine setSedimentTransportCapacityReach(me, contributingArea, q_overland)
         class(Reach)    :: me                   !! This SoilProfile instance
-        real(dp)        :: contributing_area    !! Area over which erosion occurs (e.g. soil profile area) [km2]
+        real(dp)        :: contributingArea     !! Area over which erosion occurs (e.g. soil profile area) [km2]
         real(dp)        :: q_overland           !! Overland flow [m3/km2/s]
         ! Using units from Lazar, which are a little strange:
         !   a_stc (a4 in Lazar)     [kg/m2/km2]
         !   b_stc (a5 in Lazar)     [m2/s]
         !   c_stc (a6 in Lazar)     [-]
-        !   contributing_area       [km2]
+        !   contributingArea       [km2]
         !   q_overland              [m3/s/km2]
         !   length                  [m]
         !   sedimentTransportCapacity   [kg/m2/timestep]
         ! The following also makes sure that b_stc isn't < 0, and that the resulting STC isn't < 0
         me%sedimentTransportCapacity = max(C%timeStep &
-            * me%a_stc * max((contributing_area * q_overland / me%length - me%b_stc), 0.0_dp) ** me%c_stc, 0.0_dp)
+            * me%a_stc * max((contributingArea * q_overland / me%length - me%b_stc), 0.0_dp) ** me%c_stc, 0.0_dp)
     end subroutine
-
 
     function depositToBedReach(me, spmDep) result(rslt)
         class(Reach)        :: me                           !! This Reach instance
@@ -390,18 +394,29 @@ module spcReach
     !!      \Delta = \frac{\rho_{\text{spm}}}{\rho} - 1
     !! $$
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
-    function calculateSettlingVelocity(me, d, rho_particle, T) result(W)
+    function calculateSettlingVelocity(me, d, rho_particle, T, alphaDep, betaDep) result(W)
         class(Reach), intent(in) :: me                          !! The `Reach` instance
         real, intent(in) :: d                                   !! Sediment particle diameter [m]
         real, intent(in) :: rho_particle                        !! Sediment particulate density [kg/m3]
         real, intent(in) :: T                                   !! Temperature [C]
+        real, intent(in) :: alphaDep                            !! Alpha calibration parameter
+        real, intent(in) :: betaDep                             !! Beta calibration parameter
         real(dp) :: W                                           !! Calculated settling velocity [m/s]
         real(dp) :: dStar                                       ! Dimensionless particle diameter.
+        real(dp) :: dStarTerm                                   ! Local storage for d* term, to check if it's < 0
         ! Settling only occurs if SPM particle density is greater than density of water
-        if (rho_particle > C%rho_w(T)) then
-            dStar = ((rho_particle/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d   ! Calculate the dimensional particle diameter
-            W = (C%nu_w(T)/d) * dStar**3 * (38.1_dp + 0.93_dp &                             ! Calculate the settling velocity
-                * dStar**(12.0_dp/7.0_dp))**(-7.0_dp/8.0_dp)
+        if ((rho_particle > C%rho_w(T))) then
+            dStar = ((rho_particle/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d   ! Calculate the dimensionless particle diameter
+            dStarTerm = alphaDep + betaDep * dStar ** (1.714285714_dp)
+            if (dStarTerm > 0.0) then
+                W = max( &
+                    (C%nu_w(T)/d) * dStar**3 * (alphaDep + betaDep &                          ! Calculate the settling velocity
+                        * dStar**(1.714285714_dp))**(-0.875_dp), &
+                    0.0_dp &
+                )
+            else
+                W = 0.0_dp
+            end if
         else
             W = 0.0_dp
         end if
@@ -418,6 +433,23 @@ module spcReach
         real(dp), intent(in) :: f_fr                            !! Friction factor \( f \) [-]
         real(dp) :: k_res(C%nSizeClassesSpm)                    !! Calculated resuspension flux \( j_{\text{res}} \) [s-1]
         k_res = beta * L * W * M_prop * omega * f_fr
+    end function
+
+    !> Calculate the bank erosion rate, based on Lazar et al 2010 (https://doi.org/10.1016/j.scitotenv.2010.02.030).
+    !! $$
+    !!  m_\text{bank} = \alpha_\text{bank} Q^{\beta_\text{bank}}
+    !! $$
+    !! where $m_\text{bank}$ is in kg/m2/s. To convert to kg/timestep, it is multiplied by the bank area
+    !! (assuming a rectangular channel) and the timestep length.
+    function calculateBankErosionRateReach(me, Q, alpha_bank, beta_bank, length, depth) result(j_spm_bank)
+        class(Reach)        :: me           !! This reach
+        real(dp)            :: Q            !! Flow [m3/s]
+        real(dp)            :: alpha_bank   !! Bank erosion alpha calibration param [kg/m5]
+        real(dp)            :: beta_bank    !! Bank erosion beta calibration param [-]
+        real(dp)            :: length       !! Reach length [m]
+        real(dp)            :: depth        !! Reach depth [m]
+        real(dp)            :: j_spm_bank   !! Bank erosion rate [kg/timestep]
+        j_spm_bank = C%timeStep * length * depth * alpha_bank * Q ** beta_bank
     end function
 
     function parseInflowsAndOutflowReach(me) result(rslt)

@@ -43,9 +43,13 @@ program main
 
     ! Pull in the input data, create the output and set up the output data files
     call DATASET%init(C%inputFile, C%constantsFile)
+
+    ! Create the Environment object and deal with any errors that arise
     r = env%create()
     call LOGR%toFile(errors=.errors.r)
     call ERROR_HANDLER%trigger(errors=.errors.r)
+
+    ! Initialise the data output module
     call output%init(env)
     if (C%runToSteadyState .and. trim(C%steadyStateMode) == 'sediment_size_distribution') then
         call output%initSedimentSizeDistribution()

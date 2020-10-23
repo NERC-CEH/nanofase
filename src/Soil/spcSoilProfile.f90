@@ -83,6 +83,7 @@ module spcSoilProfile
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
         procedure(calculateSizeDistributionSoilProfile), deferred :: calculateSizeDistribution      ! Re-bin the soil texture (sand/silt/clay) into sediment size classes
         procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize      ! Calculate the average grain size from sand/silt/clay content
+        procedure(calculateClayEnrichmentSoilProfile), deferred :: calculateClayEnrichment          ! Enrich a sediment size distribution to include a higher clay content
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
         procedure(get_m_np_SoilProfile), deferred :: get_m_np
@@ -186,12 +187,13 @@ module spcSoilProfile
             real(dp) :: distribution(C%nSizeClassesSpm)
         end function
 
-        function calculateSizeDistributionSoilProfile(me, clay, silt, sand) result(ssd)
+        function calculateSizeDistributionSoilProfile(me, clay, silt, sand, enrichClay) result(ssd)
             use Globals, only: C
             import SoilProfile
-            class(SoilProfile) :: me            !! This SoilProfile instance
-            real :: clay, silt, sand            !! Percentage clay, silt and sand
-            real :: ssd(C%nSizeClassesSpm)      !! Calculated sediment size distribution
+            class(SoilProfile)  :: me                       !! This SoilProfile instance
+            real                :: clay, silt, sand         !! Percentage clay, silt and sand
+            logical             :: enrichClay               !! Should we enrich the clay content?
+            real                :: ssd(C%nSizeClassesSpm)   !! Calculated sediment size distribution
         end function
 
         function calculateAverageGrainSizeSoilProfile(me, clay, silt, sand) result(d_grain)
@@ -199,6 +201,16 @@ module spcSoilProfile
             class(SoilProfile) :: me            !! This soil profile
             real :: clay, silt, sand            !! Percentage clay, silt and sand
             real :: d_grain                     !! The average grain size
+        end function
+
+        function calculateClayEnrichmentSoilProfile(me, ssd, k_dist, a) result(ssdEnriched)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile)  :: me                               !! This SoilProfile instance
+            real(dp)            :: ssd(C%nSizeClassesSpm)           !! Original sediment size distribution
+            real(dp)            :: k_dist                           !! Enrichment scaling factor
+            real(dp)            :: a                                !! Enrichment skew factor
+            real(dp)            :: ssdEnriched(C%nSizeClassesSpm)   !! Enriched sediment size distribution
         end function
 
         !> Parses the input data for the `SoilProfile` from the data file

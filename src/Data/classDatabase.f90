@@ -25,9 +25,12 @@ module classDatabase
         integer :: nSizeClassesNM                               ! Number of NM size classes
         ! Sediment
         real, allocatable :: defaultSpmSizeDistribution(:)      ! Default distribution to split SPM across size classes
+        real, allocatable :: spmDensityBySizeClass(:)           ! Density of sediment in each size class [kg/m3]
         real, allocatable :: spmSizeClasses(:)                  ! Diameter of each SPM size class [m]
         real, allocatable :: defaultMatrixEmbeddedDistributionToSpm(:)  ! Default distribution to proportion matrix-embedded releases to SPM size classes
         integer :: nSizeClassesSpm                              ! Number of SPM size classes
+        real(dp) :: sedimentEnrichment_k                        ! Clay enrichment scaling factor
+        real(dp) :: sedimentEnrichment_a                        ! Clay enrichment skew factor
         ! Soil
         real(dp) :: soilDarcyVelocity                           ! Darcy velocity in soil [m/s]
         real(dp) :: soilDefaultPorosity                         ! Default porosity [-]  ! TODO deprecate this in favour of spatially resolved porosity
@@ -74,6 +77,10 @@ module classDatabase
         real(dp) :: waterResuspensionBeta           ! Resuspension parameter beta
         real(dp) :: waterResuspensionAlphaEstuary   ! Resuspension parameter alpha for estuary
         real(dp) :: waterResuspensionBetaEstuary    ! Resuspension parameter beta for estuary
+        real(dp) :: depositionAlphaConstant         ! Deposition parameter alpha - constant if spatial variable not supplied
+        real(dp) :: depositionBetaConstant          ! Deposition parameter beta - constant if spatial variable not supplied
+        real(dp) :: bankErosionAlphaConstant        ! Bank erosion parameter alpha - constant if spatial variable not supplied
+        real(dp) :: bankErosionBetaConstant         ! Bank erosion parameter beta - constant if spatial variable not supplied
         real(dp) :: water_k_diss_pristine           ! Dissolution rate constant for pristine NM [/s]
         real(dp) :: water_k_diss_transformed        ! Dissolution rate constant for transformed NM [/s]
         real(dp) :: water_k_transform_pristine      ! Transformation rate constant for pristine NM [/s]
@@ -137,6 +144,10 @@ module classDatabase
         real(dp), allocatable :: soilUsleLSFactor(:,:)
         real, allocatable :: resuspensionAlpha(:,:)
         real, allocatable :: resuspensionBeta(:,:)
+        real, allocatable :: depositionAlpha(:,:)
+        real, allocatable :: depositionBeta(:,:)
+        real(dp), allocatable :: bankErosionAlpha(:,:)
+        real(dp), allocatable :: bankErosionBeta(:,:)
         real, allocatable :: sedimentWashload(:,:)                              ! Sediment washload to add to each reach [kg/m2/timestep]
         real(dp), allocatable :: sedimentTransport_a(:,:)                       ! Sediment transport capacity a parameter (scaling factor) [kg/m2/km2]
         real(dp), allocatable :: sedimentTransport_b(:,:)                       ! Sediment transport capacity b parameter (overland flow threshold) [m2/s]
@@ -189,7 +200,7 @@ module classDatabase
   contains
 
     !> Initialise the database, by opening the NetCDF and constants files, and parsing
-    !! their contents.
+    !! their deposition
     subroutine initDatabase(me, inputFile, constantsFile)
         class(Database)     :: me
         type(NcDataset)     :: nc_simulationMask
@@ -329,6 +340,10 @@ module classDatabase
         deallocate(me%sedimentWashload)
         deallocate(me%resuspensionAlpha)
         deallocate(me%resuspensionBeta)
+        deallocate(me%depositionAlpha)
+        deallocate(me%depositionBeta)
+        deallocate(me%bankErosionAlpha)
+        deallocate(me%bankErosionBeta)
         deallocate(me%sedimentTransport_a)
         deallocate(me%sedimentTransport_b)
         deallocate(me%sedimentTransport_c)
@@ -469,6 +484,38 @@ module classDatabase
                     end if
                 end do
             end do
+        end if
+        ! Deposition alpha
+        if (me%nc%hasVariable('deposition_alpha')) then
+            var = me%nc%getVariable('deposition_alpha')
+            call var%getData(me%depositionAlpha)
+        else
+            allocate(me%depositionAlpha(me%gridShape(1), me%gridShape(2)))
+            me%depositionAlpha = me%depositionAlphaConstant
+        end if
+        ! Deposition beta
+        if (me%nc%hasVariable('deposition_beta')) then
+            var = me%nc%getVariable('deposition_beta')
+            call var%getData(me%depositionBeta)
+        else
+            allocate(me%depositionBeta(me%gridShape(1), me%gridShape(2)))
+            me%depositionBeta = me%depositionBetaConstant
+        end if
+        ! Bank erosion alpha
+        if (me%nc%hasVariable('bank_erosion_alpha')) then
+            var = me%nc%getVariable('bank_erosion_alpha')
+            call var%getData(me%bankErosionAlpha)
+        else
+            allocate(me%bankErosionAlpha(me%gridShape(1), me%gridShape(2)))
+            me%bankErosionAlpha = me%bankErosionAlphaConstant
+        end if
+        ! Bank erosion beta
+        if (me%nc%hasVariable('bank_erosion_beta')) then
+            var = me%nc%getVariable('bank_erosion_beta')
+            call var%getData(me%bankErosionBeta)
+        else
+            allocate(me%bankErosionBeta(me%gridShape(1), me%gridShape(2)))
+            me%bankErosionBeta = me%bankErosionBetaConstant
         end if
         ! Sediment washload
         if (me%nc%hasVariable('sediment_washload')) then
@@ -710,23 +757,24 @@ module classDatabase
             n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
             n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
             n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
-            n_porosity, n_initial_mass, &
+            n_porosity, n_initial_mass, n_spm_density_by_size_class, &
             n_fractional_composition_distribution, n_estuary_mouth_coords, &
             arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
         real :: estuary_mouth_coords(2)
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
         real, allocatable :: stored_fraction(:), &
-            porosity(:), fractional_composition_distribution(:)
+            porosity(:), fractional_composition_distribution(:), spm_density_by_size_class(:)
         real :: darcy_velocity, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
             estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, nm_density, river_meandering_factor, &
-            water_temperature
+            water_temperature, deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta
         real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
             resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
             k_transform_pristine, erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, &
             river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency, &
-            sediment_washload, sediment_transport_a, sediment_transport_b, sediment_transport_c 
+            sediment_washload, sediment_transport_a, sediment_transport_b, sediment_transport_c, &
+            sediment_enrichment_k, sediment_enrichment_a
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
             k_elim_dissolved(:), initial_mass(:)
@@ -739,7 +787,7 @@ module classDatabase
             n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
             n_k_uptake_np, n_k_elim_np, n_k_uptake_transformed, n_k_elim_transformed, &
             n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, &
-            n_uptake_from_form, n_harvest_in_month, n_porosity, &
+            n_uptake_from_form, n_harvest_in_month, n_porosity, n_spm_density_by_size_class, &
             n_initial_mass, n_fractional_composition_distribution, n_estuary_mouth_coords
         namelist /nanomaterial/ nm_density, default_nm_size_distribution
         namelist /n_biota_grp/ n_biota
@@ -755,9 +803,10 @@ module classDatabase
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
             river_meandering_factor, water_temperature, river_attachment_efficiency, estuary_attachment_efficiency, &
-            sediment_washload
+            sediment_washload, deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta
         namelist /sediment/ porosity, initial_mass, fractional_composition_distribution, &
-            default_spm_size_distribution, default_matrixembedded_distribution_to_spm
+            default_spm_size_distribution, default_matrixembedded_distribution_to_spm, sediment_enrichment_a, &
+            sediment_enrichment_k, spm_density_by_size_class
 
         ! Open and read the NML file
         open(iouConstants, file=constantsFile, status="old")
@@ -771,7 +820,8 @@ module classDatabase
             vertical_distribution(n_vertical_distribution), &
             porosity(n_porosity), &
             initial_mass(n_initial_mass), &
-            fractional_composition_distribution(n_fractional_composition_distribution) &
+            fractional_composition_distribution(n_fractional_composition_distribution), &
+            spm_density_by_size_class(n_spm_density_by_size_class) &
         )
         ! Allocate the class variables, first checking they're not already allocated (e.g. from a previous batch)
         if (.not. allocated(me%defaultNMSizeDistribution)) then
@@ -810,6 +860,12 @@ module classDatabase
         sediment_transport_a = defaultSedimentTransport_a
         sediment_transport_b = defaultSedimentTransport_b
         sediment_transport_c = defaultSedimentTransport_c
+        sediment_enrichment_k = defaultSedimentEnrichment_k
+        sediment_enrichment_a = defaultSedimentEnrichment_a
+        deposition_alpha = defaultDepositionAlpha
+        deposition_beta = defaultDepositionBeta
+        bank_erosion_alpha = defaultBankErosionAlpha
+        bank_erosion_beta = defaultBankErosionBeta
 
         ! Read in the namelists
         read(iouConstants, nml=n_biota_grp, iostat=nmlIOStat); rewind(iouConstants)
@@ -880,6 +936,10 @@ module classDatabase
         me%riverMeanderingFactor = river_meandering_factor
         me%waterResuspensionAlpha = resuspension_alpha
         me%waterResuspensionBeta = resuspension_beta
+        me%depositionAlphaConstant = deposition_alpha
+        me%depositionBetaConstant = deposition_beta
+        me%bankErosionAlphaConstant = bank_erosion_alpha
+        me%bankErosionBetaConstant = bank_erosion_beta
         me%water_k_diss_pristine = k_diss_pristine
         me%water_k_diss_transformed = k_diss_transformed
         me%water_k_transform_pristine = k_transform_pristine
@@ -911,6 +971,9 @@ module classDatabase
         me%sedimentInitialMass = initial_mass
         me%sedimentPorosity = porosity
         me%sedimentFractionalComposition = fractional_composition_distribution
+        me%sedimentEnrichment_k = sediment_enrichment_k
+        me%sedimentEnrichment_a = sediment_enrichment_a
+        me%spmDensityBySizeClass = spm_density_by_size_class
     end subroutine
 
     !> Elemental function for getting a mask from an int2 array, where the NetCDF
@@ -1037,6 +1100,26 @@ module classDatabase
                 message="Simulation mask provided has inflows from outside " // &
                     "the area to simulate. Please provide a simulation mask that " // &
                     "is self-contained." &
+            ))
+        end if
+
+        ! Bounds checks for sediment calibration parameters
+        if (any(me%depositionAlpha < 0.0_dp)) then
+            call rslt%addError(ErrorInstance( &
+                message="Value provided for deposition_alpha must be greater than or equal to zero. " // &
+                    "At least one value provided is less than zero." &
+            ))
+        end if
+        if (any(me%resuspensionAlpha < 0.0_dp)) then
+            call rslt%addError(ErrorInstance( &
+                message="Value provided from resuspension_alpha must be greater than or equal to zero. " // &
+                    "At least one value provided is less than zero." &
+            ))
+        end if
+        if (any(me%resuspensionBeta < 0.0_dp)) then
+            call rslt%addError(ErrorInstance( &
+                message="Value provided from resuspension_beta must be greater than or equal to zero. " // &
+                    "At least one value provided is less than zero." &
             ))
         end if
     end function

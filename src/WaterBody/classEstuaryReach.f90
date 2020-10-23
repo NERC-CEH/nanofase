@@ -90,7 +90,7 @@ module classEstuaryReach
     end function
 
     !> Run the estuary reach simulation for this timestep
-    subroutine updateEstuaryReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributing_area)
+    subroutine updateEstuaryReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributingArea)
         class(EstuaryReach) :: me
         integer :: t
         real(dp), optional :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
@@ -98,7 +98,7 @@ module classEstuaryReach
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this reach [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded NP runoff to this reach [kg/timestep]
-        real(dp), optional :: contributing_area                 !! Area contributing to this reach (e.g. the soil profile) [m2]
+        real(dp), optional :: contributingArea                  !! Area contributing to this reach (e.g. the soil profile) [m2]
         !--- Locals ---!
         type(Result) :: rslt
         real(dp) :: Q_outflow
@@ -166,16 +166,16 @@ module classEstuaryReach
         ! We need to use the sediment transport capacity to scale eroded sediment. Sediment transport
         ! capacity is stored in me%sedimentTransportCapacity and has units of kg/m2/timestep
         call me%setSedimentTransportCapacity( &
-            contributing_area=contributing_area / 1e6, &        ! Convert m2 to km2
+            contributingArea=contributingArea / 1e6, &        ! Convert m2 to km2
             q_overland=q_overland * 1e6 / C%timeStep &          ! Convert m3/m2/timestep to m3/km2/s
         )
         ! Where sum of eroded sediment (over size classes) is > STC, scale it proportionally
-        if (sum(j_spm_runoff) > me%sedimentTransportCapacity * contributing_area) then
-            j_spm_runoff = (j_spm_runoff / sum(j_spm_runoff)) * me%sedimentTransportCapacity * contributing_area
+        if (sum(j_spm_runoff) > me%sedimentTransportCapacity * contributingArea) then
+            j_spm_runoff = (j_spm_runoff / sum(j_spm_runoff)) * me%sedimentTransportCapacity * contributingArea
         end if
 
         ! Inflows from runoff
-        if (present(q_runoff)) call me%set_Q_runoff(q_runoff * me%gridCellArea)   ! Convert [m/timestep] to [m3/timestep]
+        if (present(q_runoff)) call me%set_Q_runoff(q_runoff * contributingArea)   ! Convert [m/timestep] to [m3/timestep]
         if (present(j_spm_runoff)) call me%set_j_spm_runoff(j_spm_runoff)
         if (present(j_np_runoff)) call me%set_j_np_runoff(j_np_runoff)
         if (present(j_transformed_runoff)) call me%set_j_transformed_runoff(j_transformed_runoff)

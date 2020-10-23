@@ -310,7 +310,7 @@ module classEnvironment1
             ! river length in this GridCell and use it to proportion NM runoff
             lengthRatio = reach%item%length/cell%item%getTotalReachLength()
             ! Add the sediment washload to the SPM runoff and convert eroded sediment from kg/m2/day to kg/reach/day.
-            ! Conceptually, washload comes from a combination of bank erosion and point sources.
+            ! Conceptually, washload comes from k erosion and point sources.
             ! Though bank erosion will be a function of depth, we'll keep it simple and say it's only a function of length, with units kg/m
             ! j_spm_runoff = cell%item%erodedSediment * lengthRatio * cell%item%area &
             !     + DATASET%defaultSpmSizeDistribution &
@@ -327,7 +327,7 @@ module classEnvironment1
                 j_spm_runoff = j_spm_runoff, &
                 j_np_runoff = j_np_runoff, &
                 j_transformed_runoff = j_transformed_runoff, &
-                contributing_area = cell%item%area * lengthRatio &
+                contributingArea = cell%item%area * lengthRatio &
             )
         end if
     end subroutine

@@ -72,6 +72,7 @@ module spcWaterBody
         real(dp), allocatable :: j_spm_final(:,:)                   !! Final SPM flux array - see Q_final [kg/timestep]
         real(dp), allocatable :: spmFluxDeposit(:)                  !! Deposited SPM on this timestep [kg/timestep]
         real(dp), allocatable :: spmFluxResus(:)                    !! Resuspended SPM on this timestep [kg/timestep]
+        real(dp), allocatable :: spmFluxBankErosion(:)              !! Bank erosion on this timestep [kg/timestep]
         real(dp), allocatable :: j_np(:,:,:,:)
             !! Flow of NM, same conventions as Q [kg/timestep]. 2nd-4th dimensions are the NM size class,
             !! NM form and NM state, respectively.
@@ -161,7 +162,7 @@ module spcWaterBody
     end subroutine
 
     !> Update this `WaterBody` on given time step
-    subroutine updateWaterBody(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributing_area)
+    subroutine updateWaterBody(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributingArea)
         class(WaterBody) :: me                                  !! This `WaterBody` instance
         integer :: t                                            !! What time step are we on?
         real(dp), optional :: q_runoff                          !! Runoff from the hydrological model [m/timestep]
@@ -169,7 +170,7 @@ module spcWaterBody
         real(dp), optional :: j_spm_runoff(:)                   !! Eroded sediment runoff to this water body [kg/timestep]
         real(dp), optional :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this water body [kg/timestep]
         real(dp), optional :: j_transformed_runoff(:,:,:)       !! Eroded transformed NP runoff to this water body [kg/timestep]
-        real(dp), optional :: contributing_area                 !! Area contributing to this reach (e.g. the soil profile) [m2]
+        real(dp), optional :: contributingArea                  !! Area contributing to this reach (e.g. the soil profile) [m2]
     end subroutine
 
     !> Allocate memory for arrays generic to any water body. Individual water bodies
@@ -181,6 +182,7 @@ module spcWaterBody
             me%m_spm(C%nSizeClassesSpm), &
             me%spmFluxDeposit(C%nSizeClassesSpm), &
             me%spmFluxResus(C%nSizeClassesSpm), &
+            me%spmFluxBankErosion(C%nSizeClassesSpm), &
             me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%C_np_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -210,6 +212,7 @@ module spcWaterBody
         ! me%T_water = 10             ! TODO set this from data or empirical relationship
         me%bedArea = 0.0_dp
         me%volume = 0.0_dp
+        me%spmFluxBankErosion = 0.0_dp
     end subroutine
 
     subroutine addPointSourceWaterBody(me, index)
