@@ -53,10 +53,9 @@ module spcGridCell
         real(dp) :: tmp_Q_out                                           !! Temporary storage for Q_out until all `GridCell`s have been processed
         real(dp) :: j_spm_out                                           !! SPM discharge from this GridCell on a given timestep [kg/timestep]
         real(dp) :: tmp_j_spm_out                                       !! Temporary storage for Q_out until all `GridCell`s have been processed
-        real(dp) :: slope                                               !! The slope of the `GridCell`
         real(dp) :: n_river                                             !! Manning's roughness coefficient for the river
         real(dp), allocatable :: T_water_timeSeries(:)                  !! Water temperature [C]
-        real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/timestep], simulated by `SoilProfile`(s)
+        real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/m2/day], simulated by `SoilProfile`(s)
         real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! Input NPs from diffuse sources on this timestep [(kg/m2)/timestep]
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
         logical :: isHeadwater = .false.                                !! Is this `GridCell` a headwater?
@@ -116,12 +115,10 @@ module spcGridCell
         end function
         
         !> Finalise the creation of the `GridCell`, after river routing has been established
-        function finaliseCreateGridCell(me) result(r)
-            use ResultModule, only: Result    
+        subroutine finaliseCreateGridCell(me)
             import GridCell
             class(GridCell) :: me                                   !! This `GridCell` instance
-            type(Result) :: r                                       !! The `Result` object to return any errors in
-        end function
+        end subroutine
         
         !> Run the `GridCell`'s simulation for this time step
         subroutine updateGridCell(me, t)

@@ -1,7 +1,7 @@
 module CheckpointModule
     use spcEnvironment, only: EnvironmentPointer
     use classEnvironment1
-    use DefaultsModule, only: ioUnitCheckpoint
+    use DefaultsModule, only: iouCheckpoint
     use Globals, only: dp, C, ERROR_HANDLER
     use classDatabase, only: DATASET
     use classLogger, only: LOGR
@@ -113,7 +113,7 @@ module CheckpointModule
         water_m_dissolved = 0.0_dp
 
         ! Open the binary checkpoint file, opting to replace any existing contents
-        open(ioUnitCheckpoint, &
+        open(iouCheckpoint, &
              file=trim(me%checkpointFile), &
              form='unformatted', &
              status='replace')
@@ -197,19 +197,19 @@ module CheckpointModule
         end do
 
         ! Grid properties, used to check this checkpoint is compatible with the model run we want to reinstate it to
-        write(ioUnitCheckpoint) DATASET%gridBounds, DATASET%gridRes
+        write(iouCheckpoint) DATASET%gridBounds, DATASET%gridRes
         ! Write the timestep first, in case we want to use that to resume the model run from
-        write(ioUnitCheckpoint) t
+        write(iouCheckpoint) t
         ! Now the compartment specific stuff we obtained above
-        write(ioUnitCheckpoint) soilProfile_m_np, soilProfile_m_transformed, soilProfile_m_dissolved
-        write(ioUnitCheckpoint) soilLayer_m_np, soilLayer_m_transformed, soilLayer_m_dissolved, soilLayer_V_w
-        write(ioUnitCheckpoint) water_volume, water_bedArea, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
+        write(iouCheckpoint) soilProfile_m_np, soilProfile_m_transformed, soilProfile_m_dissolved
+        write(iouCheckpoint) soilLayer_m_np, soilLayer_m_transformed, soilLayer_m_dissolved, soilLayer_V_w
+        write(iouCheckpoint) water_volume, water_bedArea, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
             water_j_np, water_j_np_final, water_j_transformed, water_j_transformed_final, water_j_dissolved, &
             water_j_dissolved_final, water_m_spm, water_m_np, water_m_transformed, water_m_dissolved
-        write(ioUnitCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
+        write(iouCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
             sedimentLayer_f_comp, sedimentLayer_pd_comp
         ! Close the file
-        close(ioUnitCheckpoint)
+        close(iouCheckpoint)
         
         ! Log that we've successfully created a checkpoint
         call LOGR%toConsole('Saving checkpoint to '//trim(me%checkpointFile)//': \x1B[32msuccess\x1B[0m')
@@ -281,8 +281,8 @@ module CheckpointModule
 
         ! Open the checkpoint file, read in the grid properties and use these to check if the checkpoint file
         ! is compatible with the current grid setup
-        open(ioUnitCheckpoint, file=trim(me%checkpointFile), form='unformatted', status='old')
-        read(ioUnitCheckpoint) gridBounds, gridRes
+        open(iouCheckpoint, file=trim(me%checkpointFile), form='unformatted', status='old')
+        read(iouCheckpoint) gridBounds, gridRes
 
         if (any(abs(gridBounds - DATASET%gridBounds) > C%epsilon)) then
             call ERROR_HANDLER%trigger( &
@@ -298,8 +298,8 @@ module CheckpointModule
             )
         end if
 
-        read(ioUnitCheckpoint) t
-        read(ioUnitCheckpoint, iostat=ioStat) soilProfile_m_np, soilProfile_m_transformed, soilProfile_m_dissolved
+        read(iouCheckpoint) t
+        read(iouCheckpoint, iostat=ioStat) soilProfile_m_np, soilProfile_m_transformed, soilProfile_m_dissolved
         ! If there is a read error, it's likely the geographical scenario is different
         if (ioStat /= 0) then
             print *, ioStat
@@ -308,13 +308,13 @@ module CheckpointModule
                     "are trying to reinstate is the same geographical scenario as this model run?") &
             )
         end if
-        read(ioUnitCheckpoint) soilLayer_m_np, soilLayer_m_transformed, soilLayer_m_dissolved, soilLayer_V_w
-        read(ioUnitCheckpoint) water_volume, water_bedArea, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
+        read(iouCheckpoint) soilLayer_m_np, soilLayer_m_transformed, soilLayer_m_dissolved, soilLayer_V_w
+        read(iouCheckpoint) water_volume, water_bedArea, water_Q, water_Q_final, water_j_spm, water_j_spm_final, &
             water_j_np, water_j_np_final, water_j_transformed, water_j_transformed_final, water_j_dissolved, &
             water_j_dissolved_final, water_m_spm, water_m_np, water_m_transformed, water_m_dissolved
-        read(ioUnitCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
+        read(iouCheckpoint) sediment_m_np, sedimentLayer_M_f, sedimentLayer_M_f_backup, sedimentLayer_V_w, &
             sedimentLayer_f_comp, sedimentLayer_pd_comp
-        close(ioUnitCheckpoint)
+        close(iouCheckpoint)
 
         ! Now we've read in those variables, we need to reinstate them.
         ! First, should we reinstate the model timestep from the checkpoint?

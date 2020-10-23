@@ -18,7 +18,6 @@ module spcSoilProfile
         integer :: y                                                !! `GridCell` y reference
         integer :: p                                                !! `SoilProfile` reference
         type(SoilLayerElement), allocatable :: colSoilLayers(:)     !! Array of `SoilLayerElement` objects to hold the soil layers
-        real(dp) :: slope                                           !! The slope of the containing `GridCell`
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Nanomaterial
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
@@ -35,7 +34,7 @@ module spcSoilProfile
         ! real(dp), allocatable :: C_np(:,:,:)                        !! Concentration of NM currently in profile [kg/kg soil]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
-        real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
+        real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep [m3 m-2]
         real, allocatable :: q_precip_timeSeries(:)                 !! Time series of precipitation data [m3 m-2 s-1]
         real :: q_precip                                            !! Precipitation for this time step [m3 m-2 s-1]
         real, allocatable :: q_evap_timeSeries(:)                   !! Time series of evapotranspiration data [m3 m-2 s-1]
@@ -69,6 +68,7 @@ module spcSoilProfile
         real(dp) :: erosivity_I30                                   !! Maximum half-hour rainfall [mm/hr]
         real(dp) :: erosivity_b                                     !! Rainfall erosivity parameter
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
+        real(dp) :: sedimentTransportCapacity                       !! Maximum erodable sediment [kg/m2/timestep]
         real, allocatable :: distributionSediment(:)                !! Distribution to split sediment into
 
         ! TODO this will probably be modified when we start properly using land cover. Currently this is to account for urban soils
@@ -81,7 +81,9 @@ module spcSoilProfile
         procedure(erodeSoilProfile), deferred :: erode                      ! Erode soil for given time step
         procedure(bioturbationSoilProfile), deferred :: bioturbation        ! Bioturbate soil for a given time step
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
-        procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
+        procedure(calculateSizeDistributionSoilProfile), deferred :: calculateSizeDistribution      ! Re-bin the soil texture (sand/silt/clay) into sediment size classes
+        procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize      ! Calculate the average grain size from sand/silt/clay content
+        procedure(calculateClayEnrichmentSoilProfile), deferred :: calculateClayEnrichment          ! Enrich a sediment size distribution to include a higher clay content
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
         procedure(get_m_np_SoilProfile), deferred :: get_m_np
@@ -107,7 +109,6 @@ module spcSoilProfile
                                    x, &
                                    y, &
                                    p, &
-                                   slope, &
                                    n_river, &
                                    area, &
                                    q_precip_timeSeries, &
@@ -119,7 +120,6 @@ module spcSoilProfile
             integer             :: x                            !! Containing `GridCell` x position
             integer             :: y                            !! Containing `GridCell` y position
             integer             :: p                            !! `SoilProfile` reference
-            real(dp)            :: slope                        !! Slope of the containing `GridCell` [m m-1]
             real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
             real(dp)            :: area                         !! The area of the `SoilProfile`'s surface
             real, allocatable   :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
@@ -187,11 +187,30 @@ module spcSoilProfile
             real(dp) :: distribution(C%nSizeClassesSpm)
         end function
 
+        function calculateSizeDistributionSoilProfile(me, clay, silt, sand, enrichClay) result(ssd)
+            use Globals, only: C
+            import SoilProfile
+            class(SoilProfile)  :: me                       !! This SoilProfile instance
+            real                :: clay, silt, sand         !! Percentage clay, silt and sand
+            logical             :: enrichClay               !! Should we enrich the clay content?
+            real                :: ssd(C%nSizeClassesSpm)   !! Calculated sediment size distribution
+        end function
+
         function calculateAverageGrainSizeSoilProfile(me, clay, silt, sand) result(d_grain)
             import SoilProfile
-            class(SoilProfile) :: me            ! This soil profile
-            real :: clay, silt, sand            ! Percentage clay, silt and sand
-            real :: d_grain                     ! The average grain size
+            class(SoilProfile) :: me            !! This soil profile
+            real :: clay, silt, sand            !! Percentage clay, silt and sand
+            real :: d_grain                     !! The average grain size
+        end function
+
+        function calculateClayEnrichmentSoilProfile(me, ssd, k_dist, a) result(ssdEnriched)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile)  :: me                               !! This SoilProfile instance
+            real(dp)            :: ssd(C%nSizeClassesSpm)           !! Original sediment size distribution
+            real(dp)            :: k_dist                           !! Enrichment scaling factor
+            real(dp)            :: a                                !! Enrichment skew factor
+            real(dp)            :: ssdEnriched(C%nSizeClassesSpm)   !! Enriched sediment size distribution
         end function
 
         !> Parses the input data for the `SoilProfile` from the data file

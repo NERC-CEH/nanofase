@@ -9,7 +9,7 @@ program main
     use CheckpointModule, only: Checkpoint
     use DataOutputModule
     use classLogger, only: LOGR
-    use DefaultsModule, only: ioUnitLog
+    use DefaultsModule, only: iouLog
     use datetime_module
     implicit none
 
@@ -32,10 +32,10 @@ program main
     call GLOBALS_INIT()
     ! Initialise the logger
     call LOGR%init( &
-        logToFile=.false., &
+        logToFile=C%writeToLog, &
         logToConsole=.true., &
         logFilePath=C%logFilePath, &
-        fileUnit=ioUnitLog &
+        fileUnit=iouLog &
     )
     call LOGR%toConsole("--------------------------------")
     call LOGR%toConsole(" Welcome to the NanoFASE model! ")
@@ -43,9 +43,13 @@ program main
 
     ! Pull in the input data, create the output and set up the output data files
     call DATASET%init(C%inputFile, C%constantsFile)
+
+    ! Create the Environment object and deal with any errors that arise
     r = env%create()
     call LOGR%toFile(errors=.errors.r)
     call ERROR_HANDLER%trigger(errors=.errors.r)
+
+    ! Initialise the data output module
     call output%init(env)
     if (C%runToSteadyState .and. trim(C%steadyStateMode) == 'sediment_size_distribution') then
         call output%initSedimentSizeDistribution()

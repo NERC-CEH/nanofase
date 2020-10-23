@@ -40,6 +40,11 @@ module UtilModule
         module procedure divideCheckZeroDpNumeratorIntegerDenominator
     end interface
 
+    interface flushToZero
+        module procedure flushToZeroReal
+        module procedure flushToZeroDp
+    end interface
+
     interface weightedAverage
         module procedure weightedAverageDp
         module procedure weightedAverageDp1D
@@ -214,7 +219,7 @@ module UtilModule
             else
                 e = epsilon
             end if
-            if (abs(value) < epsilon) isZeroReal = .true.
+            if (abs(value) < e) isZeroReal = .true.
         end function
 
         !> Check whether a real(dp) value is within epsilon of zero
@@ -333,6 +338,26 @@ module UtilModule
                 divideCheckZeroDpNumeratorIntegerDenominator = 0.0_dp
             else
                 divideCheckZeroDpNumeratorIntegerDenominator = numerator / denominator
+            end if
+        end function
+
+        pure elemental function flushToZeroReal(x) result(y)
+            real, intent(in)    :: x
+            real                :: y
+            if (abs(x) < C%epsilon) then
+                y = 0.0
+            else
+                y = x
+            end if
+        end function
+
+        pure elemental function flushToZeroDp(x) result(y)
+            real(dp), intent(in)    :: x
+            real(dp)                :: y
+            if (abs(x) < C%epsilon) then
+                y = 0.0_dp
+            else
+                y = x
             end if
         end function
 

@@ -17,7 +17,8 @@ cache/
 dll/
 x64/
 
-# Directory for personal code snippets and data files
+# Config, directory for personal code snippets and data files
+config/
 snip/
 data/
 scratch/
