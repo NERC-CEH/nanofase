@@ -64,7 +64,8 @@ module Globals
         logical             :: includeClayEnrichment            !! Should clay enrichment be included?
         integer             :: nSoilLayers                      !! Number of soil layers to be modelled
         integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
-        real                :: minimumStreamSlope               !! Minimum stream slope, imposed where calculated stream slope is less than this value [m/m]
+        real                :: minStreamSlope                   !! Minimum stream slope, imposed where calculated stream slope is less than this value [m/m]
+        integer             :: minEstuaryTimestep               !! Minimum timestep (displacement) length for modelling estuarine dynamics [s]
         
         ! Calibration
         logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
@@ -148,8 +149,8 @@ module Globals
         integer, allocatable :: n_timesteps_per_chunk(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions, n_chunks
-        integer :: timestep, n_timesteps, n_soil_layers, n_other_sites, n_sediment_layers
-        real :: minimum_stream_slope
+        integer :: timestep, n_timesteps, n_soil_layers, n_other_sites, n_sediment_layers, min_estuary_timestep
+        real :: min_stream_slope
         real(dp) :: epsilon, delta
         real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
             sediment_particle_densities(:), sediment_layer_depth(:)
@@ -174,7 +175,7 @@ module Globals
         namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
-        namelist /water/ minimum_stream_slope
+        namelist /water/ min_stream_slope, min_estuary_timestep
         namelist /sources/ include_point_sources
 
         ! Batch config namelists
@@ -208,7 +209,8 @@ module Globals
         calibration_mode = configDefaults%calibrationMode
         n_other_sites = 0
         simulation_mask = ""
-        minimum_stream_slope = configDefaults%minimumStreamSlope
+        min_stream_slope = configDefaults%minStreamSlope
+        min_estuary_timestep = configDefaults%minEstuaryTimestep
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -354,7 +356,8 @@ module Globals
         C%includeAttachment = include_attachment
         C%includeClayEnrichment = include_clay_enrichment
         ! Water
-        C%minimumStreamSlope = minimum_stream_slope
+        C%minStreamSlope = min_stream_slope
+        C%minEstuaryTimestep = min_estuary_timestep
         ! Sources
         C%includePointSources = include_point_sources
 

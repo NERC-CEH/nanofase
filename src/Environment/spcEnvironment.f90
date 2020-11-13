@@ -62,7 +62,7 @@ module spcEnvironment
         end subroutine
 
         subroutine updateReachEnvironment(me, t, reach)
-            use spcReach, only: ReachPointer
+            use ReachModule, only: ReachPointer
             import Environment
             class(Environment), target :: me        !! This Environment instance
             integer :: t                            !! The current timestep

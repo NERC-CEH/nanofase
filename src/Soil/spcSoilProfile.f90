@@ -83,7 +83,6 @@ module spcSoilProfile
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
         procedure(calculateSizeDistributionSoilProfile), deferred :: calculateSizeDistribution      ! Re-bin the soil texture (sand/silt/clay) into sediment size classes
         procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize      ! Calculate the average grain size from sand/silt/clay content
-        procedure(calculateClayEnrichmentSoilProfile), deferred :: calculateClayEnrichment          ! Enrich a sediment size distribution to include a higher clay content
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
         procedure(get_m_np_SoilProfile), deferred :: get_m_np

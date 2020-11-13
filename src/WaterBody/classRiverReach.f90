@@ -14,7 +14,6 @@ module classRiverReach
       contains
         ! Create/destroy
         procedure :: create => createRiverReach
-        procedure :: destroy => destroyRiverReach
         ! Simulators
         procedure :: update => updateRiverReach
         procedure :: setDimensions
@@ -28,18 +27,18 @@ module classRiverReach
 
   contains
 
-    function createRiverReach(me, x, y, w, gridCellArea) result(rslt)
+    function createRiverReach(me, x, y, w, distributionSediment) result(rslt)
         class(RiverReach) :: me                 !! This `RiverReach` instance
         integer :: x                            !! Grid cell x-position index
         integer :: y                            !! Grid cell y-position index
         integer :: w                            !! Water body index within the cell
-        real(dp) :: gridCellArea                !! Containing grid cell area [m2] TODO is this needed by contributing area is passed to update?
+        real(dp) :: distributionSediment(C%nSizeClassesSPM)     !! Distribution to split sediment across size classes
         type(Result) :: rslt                    !! Result object to return errors in
         integer :: i, j                         ! Iterator
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area.
         ! Diffuse and point sources are created in WaterBody%create
-        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, gridCellArea))
+        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, distributionSediment))
         me%ref = trim(ref("RiverReach", x, y, w))
 
         ! Parse input data and allocate/initialise variables. The order here is important:
@@ -74,13 +73,6 @@ module classRiverReach
 
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOGR%toFile("Creating " // trim(me%ref) // ": success")
-    end function
-
-    !> Destroy this `RiverReach`
-    function destroyRiverReach(me) result(rslt)
-        class(RiverReach) :: me                             !! This `RiverReach` instance
-        type(Result) :: rslt                                !! The `Result` object
-        ! TODO: Write some destroy logic
     end function
 
     !> Run the river reach simulation for this timestep
@@ -124,6 +116,7 @@ module classRiverReach
         integer :: observationDateIndex
         logical :: useObservationData = .false.
         type(datetime) :: currentDate
+        real :: T_water_t
 
         ! Initialise flows to zero
         fractionSpmDeposited = 0
@@ -138,6 +131,8 @@ module classRiverReach
         ! me%j_ionic = 0
 
         currentDate = C%startDate + timedelta(t-1)
+        T_water_t = me%T_water(currentDate%yearday())
+
         if (allocated(me%boundary_dates)) then
             do i = 1, size(me%boundary_dates)
                 if (me%boundary_dates(i) == currentDate) then
@@ -164,7 +159,7 @@ module classRiverReach
             ! We need to use the sediment transport capacity to scale eroded sediment. Sediment transport
             ! capacity is stored in me%sedimentTransportCapacity and has units of kg/m2/timestep
             call me%setSedimentTransportCapacity( &
-                contributingArea=contributingArea / 1e6, &        ! Convert m2 to km2
+                contributingArea=contributingArea / 1e6, &          ! Convert m2 to km2
                 q_overland=q_overland * 1e6 / C%timeStep &          ! Convert m3/m2/timestep to m3/km2/s
             )
             ! Where sum of eroded sediment (over size classes) is > STC, scale it proportionally
@@ -239,8 +234,8 @@ module classRiverReach
             ! (but don't acutally settle until we're looping through
             ! displacements). This can be done now as settling/resuspension rates
             ! don't depend on anything that changes on each displacement
-            call me%setResuspensionRate(me%Q_in_total / C%timeStep)     ! Computes resuspension rate [s-1] over complete timestep
-            call me%setSettlingRate()                                   ! Computes settling rate [s-1] over complete timestep
+            call me%setResuspensionRate(me%Q_in_total / C%timeStep, T_water_t)  ! Computes resuspension rate [s-1] over complete timestep
+            call me%setSettlingRate(T_water_t)                                  ! Computes settling rate [s-1] over complete timestep
 
             ! If Q_in for this timestep is bigger than the reach volume, then we need to
             ! split into a number of displacements. If Q_in is zero, just have 1 displacement.
@@ -443,10 +438,10 @@ module classRiverReach
                         me%m_transformed, &
                         me%m_dissolved, &
                         me%C_spm, &
-                        me%T_water, &
+                        T_water_t, &
                         me%W_settle_np, &
                         me%W_settle_spm, &
-                        10.0_dp, &                      ! HACK: Where is the shear rate from?
+                        DATASET%shearRate, &
                         me%volume &
                     ) &
                 ])

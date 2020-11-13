@@ -39,10 +39,6 @@ module classBedSediment1
     !! containing the mass transfers coefficients for deposition, 
     !! resuspension, layers and burial
     !! objects
-    !! TODO: SH 27/09/19 this seems to modify the absolute mass transfer matrix to
-    !! get the mass transfer coefficient matrix, which makes me a bit nervous. Need to
-    !! check delta_sed is being properly re-set to absolute masses on each timestep, or
-    !! just get this to create new matrix
     subroutine getMTCMatrix1(Me, djdep, djres)
         class(BedSediment1) :: Me                                    !! Self-reference
         real(dp) :: djdep(:)                                         !! deposition fluxes by size class [kg/m2]
@@ -197,7 +193,9 @@ module classBedSediment1
         real(dp)            :: j_np_dep(:,:,:)                  !! Mass of NM deposited to bed sediment on this time step [kg/m2]
         integer             :: i, j, k, l                       ! Iterator
         real(dp)            :: M_f_byLayer(C%nSedimentLayers)   ! Mass of fine sediment by layer
-        
+
+        ! call print_matrix(me%delta_sed)
+
         ! Assumes me%delta_sed has already been set
         ! Add new deposited NM to matrix, reset resus and buried to zero
         me%M_np(1,:,:,:) = j_np_dep                     ! Deposited     [kg/m2]
@@ -218,21 +216,6 @@ module classBedSediment1
                 end do
             end do
         end do
-
-        ! Mass balance check
-        ! M_np_mass_balance = sum(me%M_np(3:6,:,:,:), dim=1) - &
-        !     sum(old_M_np(3:6,:,:,:), dim=1) - old_M_np(1,:,:,:) + me%M_np(2,:,:,:) + me%M_np(7,:,:,:)
-        ! if (.not. isZero(M_np_mass_balance)) then
-        !     print *, "Woah!"
-        !     call print_matrix(me%delta_sed)
-        !     print *, "old mass in sediment", sum(old_M_np(3:6,1,1,3:7), dim=1)
-        !     print *, "new mass in sediment", sum(me%M_np(3:6,1,1,3:7), dim=1)
-        !     print *, "mass dep", old_M_np(1,1,1,3:7)
-        !     print *, "mass res", me%M_np(2,1,1,3:7)
-        !     print *, "mass buried", me%M_np(7,1,1,3:7)
-        !     print *, M_np_mass_balance(1,1,3:7)
-        !     error stop
-        ! end if
 
         ! Reset delta_sed. It seems delta_sed is used interchangeably as absolute masses
         ! and mass coefficients, so resetting is playing it safe to avoid numerical errors
@@ -703,12 +686,9 @@ module classBedSediment1
     subroutine ReportBedMassToConsole1(Me)
         class(BedSediment1) :: Me                                    !! The `BedSediment` instance
         integer :: n                                                 !! LOCAL loop counter 
-        ! print *, trim(Me%name)                                       !! the name of this layer
         do n=1, C%nSedimentLayers
-            ! print *, "Layer ", n
             call Me%colBedSedimentLayers(n)%item%repMass()           !! print out mass of FS in each layer, by size class [kg/m2]
         end do
-        ! print *, "Total: ", .real. r                                 ! print out mass of FS in bed [kg/m2]
     end subroutine
 
 end module

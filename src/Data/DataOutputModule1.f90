@@ -1,5 +1,5 @@
 !> Module container for the DataOutput class
-module DataOutputModule
+module DataOutputModule1
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
         iouOutputSediment, iouOutputSoil, iouOutputSSD
     use Globals, only: C, dp
@@ -7,16 +7,16 @@ module DataOutputModule
     use spcEnvironment
     use classEnvironment1
     use spcGridCell
-    use classRiverReach
-    ! use RiverReachModule
-    use classEstuaryReach
-    ! use EstuaryReachModule
+    ! use classRiverReach
+    use RiverReachModule
+    use EstuaryReachModule
+    ! use classEstuaryReach
     use UtilModule
     use datetime_module
     implicit none
 
     !> The DataOutput class is responsible for writing output data to disk
-    type, public :: DataOutput
+    type, public :: DataOutput1
         character(len=256) :: outputPath                    !! Path to the output directory
         type(EnvironmentPointer) :: env                     !! Pointer to the environment, to retrieve state variables
         ! Storing variables across timesteps for dynamics calculations
@@ -41,7 +41,7 @@ module DataOutputModule
   contains
     
     subroutine initDataOutput(me, env)
-        class(DataOutput)           :: me
+        class(DataOutput1)           :: me
         type(Environment1), target  :: env
         
         ! Point the Environment object to that passed in
@@ -63,7 +63,7 @@ module DataOutputModule
     end subroutine
 
     subroutine initSedimentSizeDistributionDataOutput(me)
-        class(DataOutput)           :: me
+        class(DataOutput1)           :: me
         integer                     :: i, j
 
         ! Sediment begins with distribution given in the input data
@@ -98,7 +98,7 @@ module DataOutputModule
 
     !> Save the output from the current timestep to the output files
     subroutine updateDataOutput(me, t)
-        class(DataOutput)   :: me       !! The DataOutput instance
+        class(DataOutput1)   :: me       !! The DataOutput instance
         integer             :: t        !! The current timestep
         integer             :: x, y     ! Iterators
         type(datetime)      :: date
@@ -128,7 +128,7 @@ module DataOutputModule
 
     !> Update the water output file for the current timestep
     subroutine updateWaterDataOutput(me, t, x, y, date, easts, norths)
-        class(DataOutput)   :: me               !! The DataOutput instance
+        class(DataOutput1)   :: me               !! The DataOutput instance
         integer             :: t                !! The current timestep
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
@@ -153,11 +153,11 @@ module DataOutputModule
                     trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
                     trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
                     trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
-                    trim(str(sum(reach%j_np_deposit()))) // "," // &
-                    trim(str(sum(reach%j_transformed_deposit()))) // "," // &
-                    trim(str(sum(reach%j_np_outflow()))) // "," // &
-                    trim(str(sum(reach%j_transformed_outflow()))) // "," // &
-                    trim(str(reach%j_dissolved_outflow())) // "," // &
+                    trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
+                    trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
+                    trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
+                    trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
+                    trim(str(reach%obj_j_dissolved%outflow)) // "," // &
                     trim(str(sum(reach%m_spm))) // "," // &
                     trim(str(sum(reach%C_spm))) // ","
                 if (C%includeSpmSizeClassBreakdown) then
@@ -165,20 +165,21 @@ module DataOutputModule
                         trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
                 end if
                 if (C%includeSedimentFluxes) then
-                    write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%j_spm_runoff()))) // "," // &
-                        trim(str(sum(reach%spmFluxDeposit))) // "," // trim(str(sum(reach%spmFluxResus))) // "," // &
-                        trim(str(sum(reach%j_spm_inflows()))) // "," // trim(str(sum(reach%j_spm_outflow()))) // "," // &
-                        trim(str(sum(reach%spmFluxBankErosion))) // ","
+                    write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
+                        trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
+                        trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
+                        trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
+                        trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
                 end if
                 write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
-                    trim(str(reach%Q(1)/C%timeStep))
+                    trim(str(reach%obj_Q%outflow / C%timeStep))
             end associate
         end do
     end subroutine
 
     !> Update the current sediment output file on the current timestep
     subroutine updateSedimentDataOutput(me, t, x, y, date, easts, norths)
-        class(DataOutput)   :: me               !! The DataOutput instance
+        class(DataOutput1)   :: me               !! The DataOutput1 instance
         integer             :: t                !! The current timestep
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
@@ -216,7 +217,7 @@ module DataOutputModule
 
     !> Update the sediment output file on the current timestep
     subroutine updateSoilDataOutput(me, t, x, y, date, easts, norths)
-        class(DataOutput)   :: me               !! This DataOutput instance
+        class(DataOutput1)   :: me               !! This DataOutput1 instance
         integer             :: t                !! The current timestep
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
@@ -268,7 +269,7 @@ module DataOutputModule
     end subroutine
 
     function updateSedimentSizeDistributionDataOutput(me, i_model) result(delta_max)
-        class(DataOutput)   :: me                           !! This DataOutput instance
+        class(DataOutput1)   :: me                           !! This DataOutput instance
         integer             :: i_model                      !! Current model iteration
         real(dp)            :: m_sediment_byLayer(C%nSedimentLayers, C%nSizeClassesSpm)
         real(dp)            :: sedimentSizeDistributionByLayer(C%nSedimentLayers, C%nSizeClassesSpm)
@@ -301,7 +302,7 @@ module DataOutputModule
 
     ! Finalise the data output by adding PECs to the simulation summary file and closing output files
     subroutine finaliseDataOutput(me, iSteadyState)
-        class(DataOutput)   :: me
+        class(DataOutput1)   :: me
         integer             :: iSteadyState
         real(dp)            :: timeUntilSteadyState
         ! Write the final model summary info to the simulation summary file
@@ -331,7 +332,7 @@ module DataOutputModule
 
     ! Write the headers for the output files
     subroutine writeHeadersDataOutput(me)
-        class(DataOutput)   :: me                   !! This DataOutput instance
+        class(DataOutput1)   :: me                   !! This DataOutput instance
         ! Write headers all of the output files
         call me%writeHeadersSimulationSummary()
         call me%writeHeadersWater()
@@ -342,7 +343,7 @@ module DataOutputModule
     !> Write headers for the simulation summary file, including basic info about the model run
     !! TODO currently doesn't work with batch runs
     subroutine writeHeadersSimulationSummaryDataOutput(me)
-        class(DataOutput)   :: me                   !! This DataOutput instance
+        class(DataOutput1)   :: me                   !! This DataOutput instance
         type(datetime)      :: simDatetime          ! Datetime the simulation was run 
 
         ! Parse some datetimes
@@ -380,7 +381,7 @@ module DataOutputModule
 
     !> Write the headers for the water output file
     subroutine writeHeadersWaterDataOutput(me)
-        class(DataOutput)   :: me           !! This DataOutput instance
+        class(DataOutput1)   :: me           !! This DataOutput instance
         integer             :: i            ! Size class iterator
         
         ! Write metadata, if we're meant to 
@@ -428,7 +429,7 @@ module DataOutputModule
 
     !> Write the headers for the sediment output file
     subroutine writeHeadersSedimentDataOutput(me)
-        class(DataOutput)   :: me           !! This DataOutput instance
+        class(DataOutput1)   :: me           !! This DataOutput instance
         integer             :: i            ! Iterator
 
         ! Write metadata, if we're meant to
@@ -462,7 +463,7 @@ module DataOutputModule
 
     !> Write the headers for the soil output file
     subroutine writeHeadersSoilDataOutput(me)
-        class(DataOutput)   :: me           !! This DataOutput instance
+        class(DataOutput1)   :: me           !! This DataOutput instance
         integer             :: i            ! Iterator
 
         if (C%writeMetadataAsComment) then

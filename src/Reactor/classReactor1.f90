@@ -80,7 +80,7 @@ module classReactor1
         real            :: T_water                                  !! The current water temperature [C]
         real(dp)        :: W_settle_np(C%nSizeClassesNM)            !! NM settling velocity [m/s]
         real(dp)        :: W_settle_spm(C%nSizeClassesSpm)          !! SPM settling velocity [m/s]
-        real(dp)        :: G                                        !! Shear rate [s-1]
+        real            :: G                                        !! Shear rate [s-1]
         real(dp)        :: volume                                   !! Volume of the reach on this time step [m3]
         type(Result)    :: r                                        !! The `Result` object to return
         integer         :: s                                        ! Iterator for SPM size classes
@@ -215,13 +215,13 @@ module classReactor1
     !> Calculate the collision rate between NPs and SPM.
     !! Reference: [Praetorious et al, 2012](http://dx.doi.org/10.1021/es204530n)
     function calculateCollisionRateReactor1(me, T_water, G, W_settle_np, W_settle_spm) result(k_coll)
-        class(Reactor1) :: me           !! This `Reactor1` instance
-        real     :: T_water             !! Temperature of the water [C]
-        real(dp) :: G                   !! Shear rate [s-1]
-        real(dp) :: W_settle_np(:)      !! NP settling velocity [m/s]
-        real(dp) :: W_settle_spm(:)     !! SPM settling velocity [m/s]
-        real(dp) :: k_coll(C%nSizeClassesNM,C%nSizeClassesSpm)
-        integer :: n, s                 ! Iterators for SPM and NP size classes
+        class(Reactor1) :: me                       !! This `Reactor1` instance
+        real            :: T_water                  !! Temperature of the water [deg C]
+        real            :: G                        !! Shear rate [/s]
+        real(dp)        :: W_settle_np(:)           !! NP settling velocity [m/s]
+        real(dp)        :: W_settle_spm(:)          !! SPM settling velocity [m/s]
+        real(dp)        :: k_coll(C%nSizeClassesNM, C%nSizeClassesSpm)      !! The collision frequency to return [/s]
+        integer         :: n, s                     ! Iterators for SPM and NP size classes
         
         do s = 1, C%nSizeClassesSpm
             do n = 1, C%nSizeClassesNM

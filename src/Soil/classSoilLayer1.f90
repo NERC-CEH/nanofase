@@ -5,6 +5,7 @@ module classSoilLayer1
     use spcSoilLayer
     use classDatabase, only: DATASET
     use classBiotaSoil
+    use datetime_module
     implicit none
 
     !> `SoilLayer1` is responsible for routing percolated water through
@@ -86,12 +87,6 @@ module classSoilLayer1
         me%V_FC = WC_FC*me%depth
         me%K_s = K_s                                    ! Hydraulic conductivity [m/s]
 
-        ! Has attachment rate been set by input data? If not, then calculate it from
-        ! attachment efficiency. Attachment efficiency will be either spatial (if
-        ! provided), or set by default value in constants file
-        if (me%k_att(1) == nf90_fill_real) then
-            me%k_att = me%calculateAttachmentRate()
-        end if
 
         ! Allocate and create the Biota object
         ! TODO move all this to database
@@ -124,9 +119,14 @@ module classSoilLayer1
         real(dp) :: m_transformed_in(:,:,:)             !! Transformed NM into the layer on this time step [kg/timestep]
         real(dp) :: m_dissolved_in                      !! Dissolved species into the layer on this time step [kg/timestep]
         type(Result) :: r                               !! The Result object to return any errors in
-        real(dp) :: initial_V_w                         !! Initial V_w used for checking whether all water removed
-        integer :: i, j, k
-            !! The `Result` object to return. Contains warning if all water on this time step removed.
+        real(dp) :: initial_V_w                         ! Initial V_w used for checking whether all water removed
+        integer :: i, j, k                              ! Iterators
+        type(datetime)      :: currentDate              ! Current date
+        real                :: T_water_t                ! Water temperature on the current timestep [deg C]
+
+        ! Get the current date to use to get the water temperature
+        currentDate = C%startDate + timedelta(t-1)
+        T_water_t = DATASET%waterTemperature(currentDate%yearday())
 
         ! Set the inflow to this SoilLayer and store initial water in layer
         me%q_in = q_in
@@ -138,7 +138,7 @@ module classSoilLayer1
         me%m_dissolved = me%m_dissolved + m_dissolved_in        ! [kg]
 
         ! Attachment
-        call me%attachment()                                    ! Transfers free -> attached
+        call me%attachment(T_water_t)                           ! Transfers free -> attached
 
         ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
@@ -204,12 +204,21 @@ module classSoilLayer1
     end function
 
     !> TODO move this to a Reactor of some sort
-    subroutine attachmentSoilLayer1(me)
+    subroutine attachmentSoilLayer1(me, T_water_t)
         class(SoilLayer1)   :: me
+        real                :: T_water_t
         integer             :: i
         real(dp)            :: dm_att
+
         if (C%includeAttachment) then
             do i = 1, C%nSizeClassesNM
+                ! Has attachment rate been set by input data? If not, then calculate it from
+                ! attachment efficiency. Attachment efficiency will be either spatial (if
+                ! provided), or set by default value in constants file. If it is calculated here,
+                ! it is temporal as it depends on water temperature
+                if (me%k_att(1) == nf90_fill_real) then
+                    me%k_att = me%calculateAttachmentRate(T_water_t)
+                end if
                 ! Pristine NM
                 dm_att = min(me%k_att(i)*C%timeStep*me%m_np(i,1,1), me%m_np(i,1,1))     ! Mass to move from free -> attached, max of the current mass
                 me%m_np(i,1,1) = me%m_np(i,1,1) - dm_att                                ! Remove from free
@@ -261,24 +270,25 @@ module classSoilLayer1
     !! coloid filtration theory. References:
     !!  - Meesters et al. 2014 (SI): https://doi.org/10.1021/es500548h
     !!  - Tufenkji et al. 2004: https://doi.org/10.1021/es034049r
-    function calculateAttachmentRateSoilLayer1(me) result(k_att)
-        class(SoilLayer1) :: me
-        real :: k_att(C%nSizeClassesNM)
-        integer :: i
+    function calculateAttachmentRateSoilLayer1(me, T_water_t) result(k_att)
+        class(SoilLayer1)   :: me
+        real                :: T_water_t
+        real                :: k_att(C%nSizeClassesNM)
+        integer             :: i
         real(dp) :: gamma, r_i, kBT, N_G, N_VDW, N_Pe, N_R, A_s, eta_grav, eta_intercept, &
             eta_0, lambda_filter, D_i, eta_Brownian
 
         gamma = (1 - me%porosity) ** 0.333
-        kBT = C%k_B * (DATASET%waterTemperature + 273.15)
+        kBT = C%k_B * (T_water_t + 273.15)
         N_VDW = DATASET%soilHamakerConstant / kBT                                       ! Van der Waals number
         A_s = 2 * (1 - gamma**5) / (2 - 3 * gamma + 3 * gamma**5 - 2 * gamma**6)        ! Porosity dependent param
         ! Loop through NM size classes for the parameters that are dependent on NM size
         do i = 1, C%nSizeClassesNM
             r_i = C%d_nm(i) * 0.5                                                       ! NM radius
-            D_i = kBT / (6 * C%pi * C%mu_w(DATASET%waterTemperature) * r_i)             ! Diffusivity of NM particle
+            D_i = kBT / (6 * C%pi * C%mu_w(T_water_t) * r_i)             ! Diffusivity of NM particle
             N_Pe = DATASET%soilDarcyVelocity * me%d_grain / D_i                         ! Peclet number
-            N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(DATASET%waterTemperature)) * C%g &
-                / (9 * C%mu_w(DATASET%waterTemperature) * DATASET%soilDarcyVelocity)    ! Gravity number
+            N_G = 2 * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(T_water_t)) * C%g &
+                / (9 * C%mu_w(T_water_t) * DATASET%soilDarcyVelocity)    ! Gravity number
             N_R = r_i / (me%d_grain * 0.5)                                              ! Aspect ratio number
             eta_grav = 2.22 * N_R**(-0.024) * N_G**1.11 * N_VDW**0.053                  ! Gravitational collection efficiency
             eta_intercept = 0.55 * N_R**1.55 * N_Pe**(-0.125) * N_VDW**0.125            ! Interception collection efficiency

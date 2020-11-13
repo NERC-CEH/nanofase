@@ -84,9 +84,9 @@ module classDatabase
         real(dp) :: water_k_diss_pristine           ! Dissolution rate constant for pristine NM [/s]
         real(dp) :: water_k_diss_transformed        ! Dissolution rate constant for transformed NM [/s]
         real(dp) :: water_k_transform_pristine      ! Transformation rate constant for pristine NM [/s]
-        real :: waterTemperature                    ! Average water temperature TODO use temporally varying water temp [deg C]
         real(dp) :: riverAttachmentEfficiency       ! Attachment efficiency for NM to SPM in rivers [-]
-        real(dp) :: sedimentWashloadConstant        ! Sediment washload to add to sediment in each reach, overwritten if spatial var present [kg/m2/timestep]
+        real :: shearRate                           ! Shear rate [/s]
+        real :: waterTemperature(366)               ! Temporally varying water temperature [deg C]
         ! Estuary
         real(dp) :: estuaryAttachmentEfficiency     ! Attachment efficiency for NM to SPM in estuaries [-]
         real :: estuaryTidalM2                      ! Estuary tidal harmonics parameter M2
@@ -148,7 +148,6 @@ module classDatabase
         real, allocatable :: depositionBeta(:,:)
         real(dp), allocatable :: bankErosionAlpha(:,:)
         real(dp), allocatable :: bankErosionBeta(:,:)
-        real, allocatable :: sedimentWashload(:,:)                              ! Sediment washload to add to each reach [kg/m2/timestep]
         real(dp), allocatable :: sedimentTransport_a(:,:)                       ! Sediment transport capacity a parameter (scaling factor) [kg/m2/km2]
         real(dp), allocatable :: sedimentTransport_b(:,:)                       ! Sediment transport capacity b parameter (overland flow threshold) [m2/s]
         real(dp), allocatable :: sedimentTransport_c(:,:)                       ! Sediment transport capacity c parameter (non-linear coefficient) [-]
@@ -191,6 +190,7 @@ module classDatabase
         procedure, private  :: calculateMeanderingFactorFromCellSize => calculateMeanderingFactorFromCellSizeDatabase
         procedure, public   :: coordsToCellIndex => coordsToCellIndexDatabase
         procedure, public   :: coordsToFractionalCellIndex => coordsToFractionalCellIndexDatabase
+        procedure, private  :: calculateWaterTemperatureTimeSeries => calculateWaterTemperatureTimeSeriesWaterBody
         ! Auditing
         procedure, private :: audit => auditDatabase
     end type
@@ -337,7 +337,6 @@ module classDatabase
         deallocate(me%emissionsPointWaterMatrixEmbedded)
         deallocate(me%emissionsPointWaterTransformed)
         deallocate(me%emissionsPointWaterDissolved)
-        deallocate(me%sedimentWashload)
         deallocate(me%resuspensionAlpha)
         deallocate(me%resuspensionBeta)
         deallocate(me%depositionAlpha)
@@ -452,7 +451,7 @@ module classDatabase
             me%soilAttachmentEfficiency = me%soilConstantAttachmentEfficiency
         end if
 
-        ! Try and get resuspension, washload and sediment transport parameters
+        ! Try and get resuspension and sediment transport parameters
         ! Defaults to value given in constants file if not present in NetCDF file
         if (me%nc%hasVariable('resuspension_alpha')) then
             var = me%nc%getVariable('resuspension_alpha')
@@ -516,14 +515,6 @@ module classDatabase
         else
             allocate(me%bankErosionBeta(me%gridShape(1), me%gridShape(2)))
             me%bankErosionBeta = me%bankErosionBetaConstant
-        end if
-        ! Sediment washload
-        if (me%nc%hasVariable('sediment_washload')) then
-            var = me%nc%getVariable('sediment_washload')
-            call var%getData(me%sedimentWashload)
-        else
-            allocate(me%sedimentWashload(me%gridShape(1), me%gridShape(2)))
-            me%sedimentWashload = me%sedimentWashloadConstant
         end if
         ! Sediment transport param a
         if (me%nc%hasVariable('sediment_transport_a')) then
@@ -759,7 +750,8 @@ module classDatabase
             n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
             n_porosity, n_initial_mass, n_spm_density_by_size_class, &
             n_fractional_composition_distribution, n_estuary_mouth_coords, &
-            arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks
+            arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks, &
+            min_water_temperature_day_of_year
         real :: estuary_mouth_coords(2)
         integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
             default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
@@ -768,12 +760,13 @@ module classDatabase
         real :: darcy_velocity, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
             estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, nm_density, river_meandering_factor, &
-            water_temperature, deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta
+            water_temperature, deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta, shear_rate, &
+            min_water_temperature, max_water_temperature
         real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
             resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
             k_transform_pristine, erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, &
             river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency, &
-            sediment_washload, sediment_transport_a, sediment_transport_b, sediment_transport_c, &
+            sediment_transport_a, sediment_transport_b, sediment_transport_c, &
             sediment_enrichment_k, sediment_enrichment_a
         real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
             k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
@@ -803,7 +796,8 @@ module classDatabase
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
             river_meandering_factor, water_temperature, river_attachment_efficiency, estuary_attachment_efficiency, &
-            sediment_washload, deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta
+            deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta, shear_rate, min_water_temperature, &
+            max_water_temperature, min_water_temperature_day_of_year
         namelist /sediment/ porosity, initial_mass, fractional_composition_distribution, &
             default_spm_size_distribution, default_matrixembedded_distribution_to_spm, sediment_enrichment_a, &
             sediment_enrichment_k, spm_density_by_size_class
@@ -856,7 +850,10 @@ module classDatabase
         estuary_meandering_factor = 0.0
         river_meandering_factor = 0.0
         porosity = 0.0
-        sediment_washload = defaultSedimentWashload
+        shear_rate = defaultShearRate
+        min_water_temperature = defaultMinWaterTemperature
+        max_water_temperature = defaultMaxWaterTemperature
+        min_water_temperature_day_of_year = defaultMinWaterTemperatureDayOfYear
         sediment_transport_a = defaultSedimentTransport_a
         sediment_transport_b = defaultSedimentTransport_b
         sediment_transport_c = defaultSedimentTransport_c
@@ -954,9 +951,11 @@ module classDatabase
         else
             me%waterResuspensionBetaEstuary = me%waterResuspensionBeta
         end if
-        me%waterTemperature = water_temperature
         me%riverAttachmentEfficiency = river_attachment_efficiency
-        me%sedimentWashloadConstant = sediment_washload
+        me%shearRate = shear_rate
+        me%waterTemperature = me%calculateWaterTemperatureTimeSeries(min_water_temperature, &
+                                                                     max_water_temperature, &
+                                                                     min_water_temperature_day_of_year)
         ! Estuary
         me%estuaryAttachmentEfficiency = estuary_attachment_efficiency
         me%estuaryTidalM2 = estuary_tidal_M2
@@ -1064,6 +1063,27 @@ module classDatabase
         class(Database) :: me
         real            :: f_m
         f_m = 1.024 - 0.077 * log(100 / ((me%gridRes(1) + me%gridRes(2)) / 2))
+    end function
+
+    !> Calculate the water temperature timeseries using min and max water temperatures, and the Julian day
+    !! (day of year) on which the min water temperature occurs. This function using those parameters to construct
+    !! a cosine function representing the time series:
+    !! $$
+    !!  T_t = 0.5 (T_\text{max} - T_\text{min}) \cos\( \frac{2 D_t \pi}{366} - D_\text{min} \) + 0.5 (T_\text{max} + T_\text{min}) 
+    !! $$
+    function calculateWaterTemperatureTimeSeriesWaterBody(me, minTemp, maxTemp, minTempDay) result(waterTemperature)
+        class(Database) :: me
+        real            :: minTemp
+        real            :: maxTemp
+        integer         :: minTempDay
+        real            :: waterTemperature(366)
+        integer         :: i
+        integer         :: days(366)
+        ! Integer range of days in year
+        days = [(i, i = 1, 366, 1)]
+        ! Calculate the water temperature timeseries using cos function
+        waterTemperature = - 0.5 * (maxTemp - minTemp) * cos(days * 2 * C%pi / 366 - minTempDay) &
+                           + (maxTemp + minTemp) / 2
     end function
 
     !> Audit the database

@@ -6,8 +6,10 @@ module classGridCell2
     use ResultModule
     use spcGridCell
     use classSoilProfile1
-    use classRiverReach
-    use classEstuaryReach
+    ! use classRiverReach
+    use RiverReachModule
+    ! use classEstuaryReach
+    use EstuaryReachModule
     use classCrop
     implicit none
 
@@ -96,6 +98,7 @@ module classGridCell2
                 ) &
             )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
+            me%distributionSediment = me%colSoilProfiles(1)%item%distributionSediment
 
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. rslt%hasCriticalError()) then
@@ -188,24 +191,23 @@ module classGridCell2
     function createReaches(me) result(rslt)
         class(GridCell2), target :: me          !! This `GridCell2` instance
         type(Result) :: rslt                    !! The `Result` object to return any errors in
-        integer :: i, w
-        integer, allocatable :: neighbours(:,:,:,:)
+        integer :: i
 
         ! Loop through waterbodies and create them
-        do w = 1, me%nReaches
+        do i = 1, me%nReaches
             ! What type of waterbody is this?
-            if (me%reachTypes(w) == 'riv') then
-                allocate(RiverReach::me%colRiverReaches(w)%item)
-            else if (me%reachTypes(w) == 'est') then
-                allocate(EstuaryReach::me%colRiverReaches(w)%item)
+            if (me%reachTypes(i) == 'riv') then
+                allocate(RiverReach::me%colRiverReaches(i)%item)
+            else if (me%reachTypes(i) == 'est') then
+                allocate(EstuaryReach::me%colRiverReaches(i)%item)
             else
                 call rslt%addError(ErrorInstance( &
-                    message="Trying to create waterbody of unknown type " // trim(me%reachTypes(w)) // "." &
+                    message="Trying to create waterbody of unknown type " // trim(me%reachTypes(i)) // "." &
                 ))
             end if
             ! Call creation method
             call rslt%addErrors(.errors. &
-                me%colRiverReaches(w)%item%create(me%x, me%y, w, me%area) &
+                me%colRiverReaches(i)%item%create(me%x, me%y, i, me%distributionSediment) &
             )
         end do
     end function
@@ -242,6 +244,7 @@ module classGridCell2
 
             ! Loop through all SoilProfiles (only one for the moment), run their
             ! simulations and store the eroded sediment in this object
+            ! TODO extend to multiple soil profiles
             call r%addErrors( &
                 .errors. me%colSoilProfiles(1)%item%update( &
                     t, &
@@ -417,7 +420,7 @@ module classGridCell2
             me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
             me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
 
-            ! Parse this batches soil data
+            ! Parse this batch's soil data
             call me%colSoilProfiles(1)%item%parseNewBatchData()
 
             ! Number of point sources per grid cell might have changed, so we
@@ -447,10 +450,10 @@ module classGridCell2
         ! If branch is present, just get the outflow for that branch,
         ! else, sum the outflows from each branch
         if (present(b)) then
-            Q_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q(1)
+            Q_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_Q%outflow
         else
             do b = 1, me%nBranches
-                Q_out = Q_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%Q(1)
+                Q_out = Q_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_Q%outflow
             end do
         end if
     end function
@@ -463,10 +466,10 @@ module classGridCell2
         ! If branch is present, just get the outflow for that branch,
         ! else, sum the outflows from each branch
         if (present(b)) then
-            j_spm_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm(1,:)
+            j_spm_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_j_spm%outflow
         else
             do b = 1, me%nBranches
-                j_spm_out = j_spm_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%j_spm(1,:)
+                j_spm_out = j_spm_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_j_spm%outflow
             end do
         end if
     end function
@@ -505,7 +508,6 @@ module classGridCell2
         integer, optional :: b                      !! Branch
         real(dp) :: m_np(C%nSizeClassesNM)
         m_np = 0
-        print *, "hello"
         ! TODO: Sum NP masses here
     end function
 

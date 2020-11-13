@@ -18,7 +18,7 @@ module spcReactor
         real :: T_water                         !! Temperature of the water [C]
         real(dp), allocatable :: W_settle_np(:) !! NP settling velocity [m/s]
         real(dp), allocatable :: W_settle_spm(:)!! SPM settling velocity [m/s]
-        real(dp) :: G                           !! Shear rate of the water [s-1]
+        real :: G                           !! Shear rate of the water [s-1]
         real(dp) :: alpha_hetero                !! Attachment efficiency, 0-1 [-]
         real(dp), allocatable :: k_hetero(:,:)
             !! Heteroaggregation rate constant [s-1]. 1st dimension: NP size class.
@@ -82,8 +82,8 @@ module spcReactor
             real            :: T_water                          !! The current water temperature [deg C]
             real(dp)        :: W_settle_np(C%nSizeClassesNM)    !! NP settling velocity [m/s]
             real(dp)        :: W_settle_spm(C%nSizeClassesSpm)  !! SPM settling velocity [m/s]
-            real(dp)        :: G                                !! Shear rate [s-1]
-            real(dp)        :: volume                           !! `RiverReach` volume on this timestep [s-1]
+            real            :: G                                !! Shear rate [/s]
+            real(dp)        :: volume                           !! `RiverReach` volume on this timestep [m3]
             type(Result)    :: r
         end function
         
@@ -129,12 +129,12 @@ module spcReactor
             use Globals
             use ResultModule, only: Result
             import Reactor
-            class(Reactor) :: me
-            real :: T_water                 !! Temperature of the water [C]
-            real(dp) :: G                   !! Shear rate [s-1]
-            real(dp) :: W_settle_np(:)      !! NP settling velocity [m/s]
-            real(dp) :: W_settle_spm(:)     !! SPM settling velocity [m/s]
-            real(dp) :: k_coll(C%nSizeClassesNM,C%nSizeClassesSpm)
+            class(Reactor)  :: me
+            real            :: T_water             !! Temperature of the water [deg C]
+            real            :: G                   !! Shear rate [/s]
+            real(dp)        :: W_settle_np(:)      !! NP settling velocity [m/s]
+            real(dp)        :: W_settle_spm(:)     !! SPM settling velocity [m/s]
+            real(dp)        :: k_coll(C%nSizeClassesNM,C%nSizeClassesSpm)   !! The collision frequency to return [/s]
         end function
 
         !> Calculate a particle concentration from a mass concentration

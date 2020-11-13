@@ -4,7 +4,8 @@ module spcGridCell
     use mo_netcdf
     use ResultModule
     use ErrorInstanceModule
-    use spcReach
+    ! use spcReach
+    use ReachModule
     use spcSoilProfile
     use classDiffuseSource2
     use classCrop
@@ -56,6 +57,7 @@ module spcGridCell
         real(dp) :: n_river                                             !! Manning's roughness coefficient for the river
         real(dp), allocatable :: T_water_timeSeries(:)                  !! Water temperature [C]
         real(dp), allocatable :: erodedSediment(:)                      !! Sediment yield eroded on this timestep [kg/m2/day], simulated by `SoilProfile`(s)
+        real(dp), allocatable :: distributionSediment(:)                !! Distribution used to split sediment yields across size classes
         real(dp), allocatable :: j_np_diffuseSource(:,:,:)              !! Input NPs from diffuse sources on this timestep [(kg/m2)/timestep]
         logical :: isEmpty = .false.                                    !! Is there anything going on in the `GridCell` or should we skip over when simulating?
         logical :: isHeadwater = .false.                                !! Is this `GridCell` a headwater?

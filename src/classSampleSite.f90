@@ -1,6 +1,6 @@
 module classSampleSite
     use Globals
-    use spcReach
+    use ReachModule
     implicit none
 
     !> The SampleSite user-defined type is use to describe a sample site,

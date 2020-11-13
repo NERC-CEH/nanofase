@@ -1,29 +1,47 @@
+!---------------------------------------------------------------!
+!> NanoFASE model                                               !
+!> --------------                                               !
+!> Nanomaterial Fate And Speciation in the Environment          !
+!>                                                              !
+!> Authors: Sam Harrison (sharrison@ceh.ac.uk)                  !
+!>          Stephen Lofts                                       !
+!>          Virginie Keller                                     !
+!>          Michael Hutchins                                    !
+!>          Richard Williams                                    !
+!> Institute: UK Centre for Ecology & Hydrology                 !
+!> Repository: https://github.com/nerc-ceh/nanofase             !
+!> Documentation: *                                             !
+!> Changelog: *                                                 !
+!---------------------------------------------------------------!
 program main
     use Globals
     use UtilModule
     use ResultModule
-    use classRiverReach
-    use classEstuaryReach
+    ! use classRiverReach
+    use RiverReachModule
+    ! use classEstuaryReach
+    use EstuaryReachModule
     use classEnvironment1
     use classDatabase, only: DATASET
     use CheckpointModule, only: Checkpoint
-    use DataOutputModule
+    ! use DataOutputModule
+    use DataOutputModule1
     use classLogger, only: LOGR
     use DefaultsModule, only: iouLog
     use datetime_module
     implicit none
 
-    real                :: start, finish                    ! Simulation start and finish times
-    type(Environment1)  :: env                              ! Environment object
-    type(Result)        :: r                                ! Result object
-    type(DataOutput)    :: output                           ! Data output class
-    type(Checkpoint)    :: checkpt                          ! Checkpoint module
-    integer             :: t, k                             ! Loop iterators
-    integer             :: tPreviousChunk = 0               ! Timestep at end of previous batch
-    integer             :: i                                ! If running to steady state, this is the iterator
-    logical             :: steadyStateReached = .false.     ! Has steady state been reached?
-    real(dp)            :: delta_max                        ! Maximum difference between the same size classes on separate runs
-    character(len=10)   :: iterationStr                     ! What steady state iteration are we on
+    real                :: start, finish                    !! Simulation start and finish times
+    type(Environment1)  :: env                              !! Environment object
+    type(Result)        :: r                                !! Result object
+    type(DataOutput1)    :: output                           !! Data output class
+    type(Checkpoint)    :: checkpt                          !! Checkpoint module
+    integer             :: t, k                             !! Loop iterators
+    integer             :: tPreviousChunk = 0               !! Timestep at end of previous batch
+    integer             :: i                                !! If running to steady state, this is the iterator
+    logical             :: steadyStateReached = .false.     !! Has steady state been reached?
+    real(dp)            :: delta_max                        !! Maximum difference between the same size classes on separate runs
+    character(len=10)   :: iterationStr                     !! What steady state iteration are we on
 
     ! Get the CPU time at the start of the model run
     call cpu_time(start)
@@ -63,48 +81,6 @@ program main
         call checkpt%reinstate(preserve_timestep=C%preserveTimestep)
     end if
 
-    ! TODO move all this to a data output module
-    ! Open the output files to print to
-    ! open(unit=8, file=trim(C%outputPath) // 'output_soil_biota.csv')
-    ! open(unit=9, file=trim(C%outputPath) // 'output_water_biota.csv')
-    ! if (C%calibrationRun) then
-    !     open(unit=7, file=trim(C%outputPath) // 'output_calibration.csv')
-    !     write(7, *) "t,site_code,site_type,x,y,easts,norths,r,reach_volume(m3),reach_flow(m3/s),reach_depth(m),", &
-    !                 "reach_type,total_m_spm(kg),total_C_spm(g/l)"
-    ! end if
-    ! write(8, *) "t,x,y,easts,norths,b,name,C_active_l1,C_stored_l1,C_active_l2,C_stored_l2,C_active_l3,C_stored_l3"
-    ! write(9, *) "t,x,y,easts,norths,rr,b,name,compartment,C_active,C_stored"
-
-
-    ! Loop through grid cell and pull out static data to save to output.
-    ! TODO potentially create "geographical scenario" dataset for this
-    ! do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
-    !     do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
-    !         if (.not. env%colGridCells(x,y)%item%isEmpty) then
-    !             do rr = 1, env%colGridCells(x,y)%item%nReaches
-    !                 associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
-    !                     select type (reach)
-    !                         type is (EstuaryReach)
-    !                             reachType = 'est'
-    !                             meanDepth = reach%meanDepth
-    !                         type is (RiverReach)
-    !                             reachType = 'riv'
-    !                     end select
-    !                     if (trim(reachType) == 'est') then
-    !                         print *, "yep"
-    !                         write(12, *) x, ",", y, ",", int(DATASET%x(x)), ",", int(DATASET%y(y)), ",", rr, ",", &
-    !                             reach%width, ",", &
-    !                             meanDepth, ",", &
-    !                             reach%streamOrder, ",", reach%f_m
-    !                     end if
-    !                 end associate
-    !             end do
-    !         end if
-    !     end do
-    ! end do
-
-    ! error stop
-
     ! Loop until steady state is reached, if we're in run to steady state mode. Otherwise, we'll
     ! trip out of this loop after the first iteration
     i = 1
@@ -135,79 +111,6 @@ program main
                 ! Update the output files. Passing the "correct" timestep, taking into account previous
                 ! chunks, is important otherwise timestep indices will be incorrect in the data
                 call output%update(t + tPreviousChunk)
-
-                ! TODO: Do something with Result object
-                ! do y = 1, size(env%colGridCells, 2)                             ! Loop through the rows
-                !     do x = 1, size(env%colGridCells, 1)                         ! Loop through the columns
-                !         if (.not. env%colGridCells(x,y)%item%isEmpty) then
-
-                !            ! RiverReachs
-                !             do rr = 1, env%colGridCells(x,y)%item%nReaches
-
-                !                 associate(reach => env%colGridCells(x,y)%item%colRiverReaches(rr)%item)
-                !                     ! What reach type is this?
-                !                     select type (reach)
-                !                         type is (RiverReach)
-                !                             reachType = 'riv'
-                !                         type is (EstuaryReach)
-                !                             reachType = 'est'
-                !                     end select
-                                    ! Biota
-                                    ! do b = 1, reach%nBiota
-                                    !     write(9, *) t + tPreviousChunk, ",", x, ",", y, ",", &
-                                    !         DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", b, ",", &
-                                    !         trim(reach%biota(b)%name), ",", &
-                                    !         reachType, ",", &
-                                    !         reach%biota(b)%C_active, ",", &
-                                    !         reach%biota(b)%C_stored
-                                    ! end do
-
-                                    ! if (C%calibrationRun) then
-                                    !     if (reach%calibrationSiteRef == C%startSite) then
-                                    !         write(7, *) t, ",", C%startSite, ",", "start_site,", x, ",", y, ",", &
-                                    !                     DATASET%x(x), ",", DATASET%y(y), ",", &
-                                    !                     rr, ",", trim(str(reach%volume)), ",", trim(str(reach%Q(1)/C%timeStep)), &
-                                    !                     ",", trim(str(reach%depth)), ",", trim(reachType), ",", &
-                                    !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
-                                    !     else if (reach%calibrationSiteRef == C%endSite) then
-                                    !         write(7, *) t, ",", C%endSite, ",", "end_site,", x, ",", y, ",", &
-                                    !                     DATASET%x(x), ",", DATASET%y(y), ",", &
-                                    !                     rr, ",", trim(str(reach%volume)), ",", &
-                                    !                     trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                    !                     trim(str(reach%depth)), ",", trim(reachType), ",", &
-                                    !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
-                                    !     else
-                                    !         do i = 1, size(C%otherSites)
-                                    !             if (reach%calibrationSiteRef &
-                                    !                 == C%otherSites(i)) then
-                                    !                 write(7, *) t, ",", C%otherSites(i), ",", "other_site,", x, ",", y, ",", &
-                                    !                     DATASET%x(x), ",", DATASET%y(y), ",", rr, ",", trim(str(reach%volume)), &
-                                    !                     ",", trim(str(reach%Q(1)/C%timeStep)), ",", &
-                                    !                     trim(str(reach%depth)), ",", trim(reachType), ",", &
-                                    !                     trim(str(sum(reach%m_spm))), ",", trim(str(sum(reach%C_spm)))
-                                    !             end if
-                                    !         end do
-                                    !     end if
-                                    ! end if
-                            !     end associate
-                            ! end do
-
-                            ! do b = 1, env%colGridCells(x,y)%item%colSoilProfiles(1)%item%colSoilLayers(1)%item%nBiota
-                            !     associate(profile => env%colGridCells(x,y)%item%colSoilProfiles(1)%item)
-                            !         write(8, *) t + tPreviousChunk, ",", x, ",", y, ",", &
-                            !             DATASET%x(x), ",", DATASET%y(y), ",", b, ",", &
-                            !             trim(profile%colSoilLayers(1)%item%biota(b)%name), ",", &
-                            !             profile%colSoilLayers(1)%item%biota(b)%C_active, ",", &
-                            !             profile%colSoilLayers(1)%item%biota(b)%C_stored, ",", &
-                            !             profile%colSoilLayers(2)%item%biota(b)%C_active, ",", &
-                            !             profile%colSoilLayers(2)%item%biota(b)%C_stored, ",", &
-                            !             profile%colSoilLayers(3)%item%biota(b)%C_active, ",", &
-                            !             profile%colSoilLayers(3)%item%biota(b)%C_stored
-                            !     end associate
-                            ! end do
-                !         end if
-                !     end do
-                ! end do
             end do
             ! Keep a tally of what actual timestep we're on across the batch run
             tPreviousChunk = tPreviousChunk + t - 1

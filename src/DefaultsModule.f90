@@ -29,7 +29,8 @@ module DefaultsModule
         character(len=50)   :: steadyStateMode = ''
         real(dp)            :: steadyStateDelta = 1e-5
         character(len=7)    :: calibrationMode = 'mean'
-        real                :: minimumStreamSlope = 0.0001
+        real                :: minStreamSlope = 0.0001              ! [m/m]
+        integer             :: minEstuaryTimestep = 3600            ! 1 hour [s] 
         logical             :: writeToLog = .true.
         ! Output
         logical             :: includeSedimentFluxes = .false.
@@ -47,7 +48,10 @@ module DefaultsModule
     real, parameter :: default_k_transform_pristine = 0.0
     real, parameter :: defaultEstuaryMeanderingFactor = 1.0
     real, parameter :: defaultRiverMeanderingFactor = 1.0
-    real, parameter :: defaultSedimentWashload = 0.0
+    real, parameter :: defaultShearRate = 10.0                      ! Arvidsson et al, 2009: https://doi.org/10.1080/10807039.2011.538639
+    real, parameter :: defaultMinWaterTemperature = 4.0             ! Thames River
+    real, parameter :: defaultMaxWaterTemperature = 21.0            ! Thames River
+    integer, parameter :: defaultMinWaterTemperatureDayOfYear = 32  ! Thames Rive
     real(dp), parameter :: defaultSedimentTransport_a = 2.0e-9_dp
     real(dp), parameter :: defaultSedimentTransport_b = 0.0_dp
     real(dp), parameter :: defaultSedimentTransport_c = 0.2_dp

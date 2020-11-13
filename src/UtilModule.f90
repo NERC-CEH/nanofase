@@ -54,6 +54,7 @@ module UtilModule
 
     contains
         !> print a set of r x c matrices to the console
+        ! TODO tidy and polymorphisise
         subroutine print_matrix(m)
             real(dp), allocatable :: m(:,:,:)                        !! the passed matrix as a 2D array
             real(dp), allocatable :: mm(:)                           ! LOCAL 1D temproary array
@@ -289,52 +290,52 @@ module UtilModule
             if (value <= -e) isLessThanZeroDp = .true.
         end function
 
-        !> Divide a number by another, check if the numerator is zero
+        !> Divide a number by another, check if the numerator or denominator is zero
         !! first, and if so, setting the result to zero
         elemental function divideCheckZeroReal(numerator, denominator)
             real, intent(in) :: numerator
             real, intent(in) :: denominator
             real :: divideCheckZeroReal
-            if (isZero(numerator)) then
+            if (isZero(numerator) .or. isZero(denominator)) then
                 divideCheckZeroReal = 0.0
             else
                 divideCheckZeroReal = numerator / denominator
             end if
         end function
 
-        !> Divide a number by another, check if the numerator is zero
+        !> Divide a number by another, check if the numerator or denominator is zero
         !! first, and if so, setting the result to zero
         elemental function divideCheckZeroDp(numerator, denominator)
             real(dp), intent(in) :: numerator
             real(dp), intent(in) :: denominator
             real(dp) :: divideCheckZeroDp
-            if (isZero(numerator)) then
+            if (isZero(numerator) .or. isZero(denominator)) then
                 divideCheckZeroDp = 0.0_dp
             else
                 divideCheckZeroDp = numerator / denominator
             end if
         end function
 
-        !> Divide a number by another, check if the numerator is zero
+        !> Divide a number by another, check if the numerator or denominator is zero
         !! first, and if so, setting the result to zero
         elemental function divideCheckZeroRealNumeratorIntegerDenominator(numerator, denominator)
             real, intent(in) :: numerator
             integer, intent(in) :: denominator
             real :: divideCheckZeroRealNumeratorIntegerDenominator
-            if (isZero(numerator)) then
+            if (isZero(numerator) .or. denominator == 0) then
                 divideCheckZeroRealNumeratorIntegerDenominator = 0.0_dp
             else
                 divideCheckZeroRealNumeratorIntegerDenominator = numerator / denominator
             end if
         end function
 
-        !> Divide a number by another, check if the numerator is zero
+        !> Divide a number by another, check if the numerator or denominator is zero
         !! first, and if so, setting the result to zero
         elemental function divideCheckZeroDpNumeratorIntegerDenominator(numerator, denominator)
             real(dp), intent(in) :: numerator
             integer, intent(in) :: denominator
             real(dp) :: divideCheckZeroDpNumeratorIntegerDenominator
-            if (isZero(numerator)) then
+            if (isZero(numerator) .or. denominator == 0) then
                 divideCheckZeroDpNumeratorIntegerDenominator = 0.0_dp
             else
                 divideCheckZeroDpNumeratorIntegerDenominator = numerator / denominator

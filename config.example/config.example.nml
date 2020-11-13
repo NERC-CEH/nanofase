@@ -86,7 +86,8 @@ sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment pa
 /
 
 &water
-minimum_stream_slope = 0.0001                           ! Impose a minimum stream slope. Defaults to 0.0001, must be greater than 0.
+min_stream_slope = 0.0001                               ! Impose a minimum stream slope. Defaults to 0.0001, must be greater than 0
+min_estuary_timestep = 3600                             ! Minimum timestep length to use when modelling estuarine dynamics [s]. Defaults to 1 hour
 /
 
 &sources

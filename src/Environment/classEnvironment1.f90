@@ -45,7 +45,7 @@ module classEnvironment1
         class(Environment1), target :: me
             !! This `Environment` instace. Must be target so children can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
-        integer :: x, y, w, i, j, ix, iy, iw                    ! Iterators
+        integer :: x, y, w, i, ix, iy, iw                       ! Iterators
         type(ReachPointer), allocatable :: tmpHeadwaters(:)     ! Temporary headwaters array
 
         me%nGridCells = 0
@@ -235,7 +235,6 @@ module classEnvironment1
         use omp_lib
         class(Environment1), target :: me                           !! This `Environment` instance
         integer                     :: t                            !! Current time step
-        type(ReachPointer)          :: reach                        ! Pointer to the reach we're updating
         integer                     :: i, x, y                      ! Iterators
         type(datetime)              :: currentDate                  ! Current simulation date
         real(dp), allocatable       :: tmp_C_np(:,:,:,:)            ! Temporary array
@@ -309,12 +308,7 @@ module classEnvironment1
             ! Determine the proportion of this reach's length to the the total
             ! river length in this GridCell and use it to proportion NM runoff
             lengthRatio = reach%item%length/cell%item%getTotalReachLength()
-            ! Add the sediment washload to the SPM runoff and convert eroded sediment from kg/m2/day to kg/reach/day.
-            ! Conceptually, washload comes from k erosion and point sources.
-            ! Though bank erosion will be a function of depth, we'll keep it simple and say it's only a function of length, with units kg/m
-            ! j_spm_runoff = cell%item%erodedSediment * lengthRatio * cell%item%area &
-            !     + DATASET%defaultSpmSizeDistribution &
-            !     * DATASET%sedimentWashload(cell%item%x, cell%item%y) * reach%item%length
+            ! Convert eroded sediment from kg/m2/day to kg/reach/day.
             j_spm_runoff = cell%item%erodedSediment * cell%item%area * lengthRatio                      ! [kg/timestep]
             j_np_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_np_eroded                     ! [kg/timestep]
             j_transformed_runoff = lengthRatio*cell%item%colSoilProfiles(1)%item%m_transformed_eroded   ! [kg/timestep]

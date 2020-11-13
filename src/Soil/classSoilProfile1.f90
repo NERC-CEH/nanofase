@@ -25,7 +25,6 @@ module classSoilProfile1
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
         procedure :: calculateAverageGrainSize => calculateAverageGrainSizeSoilProfile1 ! Calculate the average grain diameter from soil texture
         procedure :: calculateSizeDistribution => calculateSizeDistributionSoilProfile1 ! Re-bin the grain size distribution from clay/sand/silt to sediment size classes
-        procedure :: calculateClayEnrichment => calculateClayEnrichmentSoilProfile1     ! Adjust sediment size distribution to account for clay enrichment
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
         procedure :: parseNewBatchData => parseNewBatchDataSoilProfile1
         ! Getters
@@ -344,11 +343,6 @@ module classSoilProfile1
         real(dp)            :: mass                             !! The mass to split into size classes
         real(dp)            :: distribution(C%nSizeClassesSpm)  !! The resulting distribution
         distribution = mass * me%distributionSediment
-        ! distribution = me%calculateClayEnrichment( &
-        !     ssd=mass * me%distributionSediment, &
-        !     k_dist=3.0_dp, &
-        !     a=DATASET%sedimentEnrichment_a &
-        ! )
     end function
 
     !> Re-bin the clay-silt-sand content into the binned sediment size classes used in the model
@@ -427,25 +421,6 @@ module classSoilProfile1
         d_grain = 1e-3 * exp(0.01 * (clay * log(0.001) + silt * log(0.026) + sand * log(1.025)))
     end function
 
-    !> Enrich a sediment size distribution to increase the proportion of clay, based on the fact
-    !! that eroded soils are generally clay enriched compared to the parent soils
-    !! (see Stefano and Ferro, 2002: https://doi.org/10.1006/bioe.2001.0034).
-    !! $$
-    !!  m_x = a + \exp( -k_dist n_x )
-    !! $$
-    !! where $m_x$ is the adjusted bin, $x$, $n_x$ is the old bin, $a$ is a scew factor
-    !! and $k_dist$ is the enrichment scaling factor (higher = more enrichment)
-    function calculateClayEnrichmentSoilProfile1(me, ssd, k_dist, a) result(ssdEnriched)
-        class(SoilProfile1) :: me                               !! This SoilProfile1 instance
-        real(dp)            :: ssd(C%nSizeClassesSpm)           !! Original sediment size distribution
-        real(dp)            :: k_dist                           !! Enrichment scaling factor
-        real(dp)            :: a                                !! Enrichment skew factor
-        real(dp)            :: ssdEnriched(C%nSizeClassesSpm)   !! Enriched sediment size distribution
-        real(dp)            :: enrichedBins(C%nSizeClassesSpm)  !! New enriched bin proportions
-        enrichedBins = a + exp(-k_dist * C%d_spm)
-        ssdEnriched = ssd * (enrichedBins / sum(enrichedBins) * C%nSizeClassesSpm)
-    end function
-
     !> Get the data from the input file and set object properties
     !! accordingly, including the allocation of arrays that depend on
     !! this input data
@@ -454,7 +429,7 @@ module classSoilProfile1
         type(Result)            :: r                        !! `Result` object to return
         integer                 :: landUse                  ! Index of max land use fraction in this profile
 
-        me%distributionSediment = DATASET%defaultSpmSizeDistribution
+        me%distributionSediment = DATASET%defaultSpmSizeDistribution ! TODO we can probably get rid of this, but check
         me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
         me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
         me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
