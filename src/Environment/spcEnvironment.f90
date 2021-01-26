@@ -55,10 +55,11 @@ module spcEnvironment
         end function
         
         !> Interface to perform simulations in `Environment`
-        subroutine updateEnvironment(me, t)
+        subroutine updateEnvironment(me, t, tInBatch)
             import Environment
             class(Environment), target :: me            !! This `Environment` instance
             integer :: t                                !! The current time step
+            integer :: tInBatch                         !! The current time step in the batch run
         end subroutine
 
         subroutine updateReachEnvironment(me, t, reach)

@@ -12,19 +12,17 @@
 !> Repository: https://github.com/nerc-ceh/nanofase             !
 !> Documentation: *                                             !
 !> Changelog: *                                                 !
+!> License: *                                                   !
 !---------------------------------------------------------------!
 program main
     use Globals
     use UtilModule
     use ResultModule
-    ! use classRiverReach
     use RiverReachModule
-    ! use classEstuaryReach
     use EstuaryReachModule
     use classEnvironment1
     use classDatabase, only: DATASET
     use CheckpointModule, only: Checkpoint
-    ! use DataOutputModule
     use DataOutputModule1
     use classLogger, only: LOGR
     use DefaultsModule, only: iouLog
@@ -41,7 +39,6 @@ program main
     integer             :: i                                !! If running to steady state, this is the iterator
     logical             :: steadyStateReached = .false.     !! Has steady state been reached?
     real(dp)            :: delta_max                        !! Maximum difference between the same size classes on separate runs
-    character(len=10)   :: iterationStr                     !! What steady state iteration are we on
 
     ! Get the CPU time at the start of the model run
     call cpu_time(start)
@@ -55,11 +52,11 @@ program main
         logFilePath=C%logFilePath, &
         fileUnit=iouLog &
     )
-    call LOGR%toConsole("--------------------------------")
-    call LOGR%toConsole(" Welcome to the NanoFASE model! ")
-    call LOGR%toConsole("--------------------------------\n")
+    ! Welcome!
+    ! call LOGR%toConsole("Welcome to the NanoFASE model!")
+    call printWelcome()
 
-    ! Pull in the input data, create the output and set up the output data files
+    ! Pull in the input data
     call DATASET%init(C%inputFile, C%constantsFile)
 
     ! Create the Environment object and deal with any errors that arise
@@ -67,7 +64,7 @@ program main
     call LOGR%toFile(errors=.errors.r)
     call ERROR_HANDLER%trigger(errors=.errors.r)
 
-    ! Initialise the data output module
+    ! Initialise the data output module, check if we're running to steady state
     call output%init(env)
     if (C%runToSteadyState .and. trim(C%steadyStateMode) == 'sediment_size_distribution') then
         call output%initSedimentSizeDistribution()
@@ -101,10 +98,10 @@ program main
                 call env%parseNewBatchData()
             end if
             ! Loop through the timestep in this batch. The model itself is intentionally agnostic to
-            ! the fact we might be in a batch run and so the timestep within the batch, t, can be used
+            ! the fact we might be in a batch run and so the timestep within the chunk, t, can be used
             do t = 1, C%nTimeSteps
                 ! Update the environment for this timestep, which in turn updates all compartments
-                call env%update(t)
+                call env%update(t, t + tPreviousChunk)
                 ! Check for any errors returned from updated, and log/trigger them
                 call LOGR%toFile(errors=.errors.r)
                 call ERROR_HANDLER%trigger(errors=.errors.r)
@@ -126,13 +123,9 @@ program main
                 ! Check if we've met the criteria set in config to have reached steady state
                 if (delta_max <= C%steadyStateDelta) then
                     steadyStateReached = .true.
-                    if (i == 1) then
-                        iterationStr = "iteration"
-                    else
-                        iterationStr = "iterations"
-                    end if
-                    call LOGR%toFile("Steady state reached after " // trim(str(i)) // " " // iterationStr)
-                    call LOGR%toConsole("\x1B[94mSteady state reached after " // trim(str(i)) // " " // iterationStr // "\x1B[0m")
+                    call LOGR%toFile("Steady state reached after " // trim(str(i)) // " " // trim(pluralize("iteration", i)))
+                    call LOGR%toConsole("\x1B[94mSteady state reached after " // trim(str(i)) // &
+                                        " " // trim(pluralize("iteration", i)) // "\x1B[0m")
                 end if
                 ! Increment the iterator to the next model run
                 i = i + 1
@@ -155,6 +148,6 @@ program main
     
     ! Timings
     call cpu_time(finish)
-    print *, 'CPU time taken to run simulation (s): ', finish - start
+    call LOGR%add("CPU time taken to run simulation (s): " // str(finish - start))
 
 end program

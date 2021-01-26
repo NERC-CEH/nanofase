@@ -293,7 +293,8 @@ module classDatabase
 
         call rslt%addToTrace('Initialising database')
         call ERROR_HANDLER%trigger(errors=.errors.rslt)
-        call LOGR%add("Initialising database: success")
+        call LOGR%toFile("Initialising database: success")
+        call LOGR%toConsole("Initialising database: \x1B[32msuccess\x1B[0m")
     end subroutine
 
     !> Update the database based on data for a new chunk (k), or for the only chunk if this

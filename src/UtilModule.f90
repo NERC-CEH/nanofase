@@ -53,28 +53,46 @@ module UtilModule
     end interface
 
     contains
-        !> print a set of r x c matrices to the console
-        ! TODO tidy and polymorphisise
-        subroutine print_matrix(m)
-            real(dp), allocatable :: m(:,:,:)                        !! the passed matrix as a 2D array
-            real(dp), allocatable :: mm(:)                           ! LOCAL 1D temproary array
-            integer :: r                                             ! LOCAL number of rows in array
-            integer :: c                                             ! LOCAL number of columns in array
-            integer :: s                                             ! LOCAL third array dimension
-            integer :: n                                             ! LOCAL loop counter 
-            integer :: p                                             ! LOCAL loop counter 
-            r = size(m, 1)                                           ! number of rows
-            c = size(m, 2)                                           ! number of columns
-            s = size(m, 3)                                           ! third dimension
-            allocate(mm(c))             
-            do p = 1, s
-                do n = 1, r
-                    mm = m(n, 1:c, p)
+
+        !> Print a welcome to the model message to the console.
+        subroutine printWelcome()
+            write(*,'(A)') "_____________________________________________________________________"
+            write(*,'(A)') "                _   _                   _____ _    ____  _____ "
+            write(*,'(A)') "               | \ | | __ _ _ __   ___ |  ___/ \  / ___|| ____|"
+            write(*,'(A)') "               |  \| |/ _` | '_ \ / _ \| |_ / _ \ \___ \|  _|  "
+            write(*,'(A)') "               | |\  | (_| | | | | (_) |  _/ ___ \ ___) | |___ "
+            write(*,'(A)') "Welcome to the |_| \_|\__,_|_| |_|\___/|_|/_/   \_\____/|_____| model"
+            write(*,'(A)') "...version: " // C%modelVersion
+            write(*,'(A)') "_____________________________________________________________________"
+            write(*,'(A)') ""
+        end subroutine
+
+        !> Print a 3D array as a set of 2D matrices to the console
+        subroutine printMatrix(m)
+            real(dp), allocatable :: m(:,:,:)                        !! The 3D array to print
+            real(dp), allocatable :: mm(:)                           ! 1D temproary array
+            integer :: i, j                                          ! Iterators 
+            allocate(mm(size(m, 2)))             
+            do j = 1, size(m, 3)
+                do i = 1, size(m, 1)
+                    mm = m(i, 1:size(m, 2), j)
                     print '(25f20.15)', mm
                 end do
                 print *, ""
             end do
         end subroutine
+
+        !> Convert a singular to a plural, if i is greater than 1
+        function pluralize(singular, i)
+            character(len=*)    :: singular
+            integer             :: i
+            character(len=256)  :: pluralize
+            if (i == 1) then
+                pluralize = singular
+            else
+                pluralize = trim(singular) // "s"
+            end if
+        end function
 
         !> Convert a signed integer to a logical value
         elemental function lgcl(i)

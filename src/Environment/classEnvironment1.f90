@@ -231,10 +231,11 @@ module classEnvironment1
     end subroutine
 
     !> Perform simulations for the `Environment`
-    subroutine updateEnvironment1(me, t)
+    subroutine updateEnvironment1(me, t, tInBatch)
         use omp_lib
         class(Environment1), target :: me                           !! This `Environment` instance
         integer                     :: t                            !! Current time step
+        integer                     :: tInBatch                     !! Current time step in full batch run
         integer                     :: i, x, y                      ! Iterators
         type(datetime)              :: currentDate                  ! Current simulation date
         real(dp), allocatable       :: tmp_C_np(:,:,:,:)            ! Temporary array
@@ -242,7 +243,8 @@ module classEnvironment1
         
         ! Get the current date and log it
         currentDate = C%startDate + timedelta(t-1)
-        call LOGR%add("Performing simulation for " // trim(currentDate%strftime('%Y-%m-%d')) // "...")
+        call LOGR%add("Performing simulation for " // trim(currentDate%strftime('%Y-%m-%d')) // &
+                      " (time step #" // trim(str(tInBatch)) // ")...")
         
         !!$omp parallel do private(y,x)
         do y = 1, DATASET%gridShape(2)

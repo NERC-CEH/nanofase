@@ -13,6 +13,8 @@ module Globals
     integer, parameter :: qp = selected_real_kind(33, 4931)
 
     type, public :: GlobalsType
+        ! Model info
+        character(len=5)    :: modelVersion = '1.0.0'
         ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
