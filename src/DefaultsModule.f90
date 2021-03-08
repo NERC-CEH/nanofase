@@ -36,7 +36,7 @@ module DefaultsModule
         logical             :: includeSedimentFluxes = .false.
         logical             :: includeSoilErosion = .false.
         logical             :: includeSpmSizeClassBreakdown = .false.
-        logical             :: includeClayEnrichment = .true.
+        logical             :: includeClayEnrichment = .false.
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults

@@ -8,7 +8,6 @@ n_sediment_layers = 4                                   ! Number of sediment lay
 n_nm_size_classes = 5                                   ! Number of NM size classes
 n_spm_size_classes = 5                                  ! Number of SPM size classes
 n_fractional_compositions = 4                           ! Number of fractional compositions for sediment
-n_other_sites = 1                                       ! Number of other sampling sites
 /
 
 &nanomaterial
@@ -20,10 +19,6 @@ n_nm_extra_states = 2                                   ! Number of extra NM sta
 ! Run the model in calibration mode? Documentation here: [doc/calibration.md](../doc/calibration.md)
 &calibrate
 calibration_run = .false.                               ! Run in calibration mode or not? Following variables only required if this is true
-site_data = ""                                          ! Path to CSV of sampling sites
-start_site = ""                                         ! Code of start site (most upstream) in sampling sites CSV
-end_site = ""                                           ! Code of end site (most downstream) in sampling sites CSV
-other_sites = ""                                        ! Which other sites should be used from sampling sites CSV? Array of length &allocatable_array_sizes > n_other_sites
 /
 
 ! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
@@ -38,16 +33,16 @@ write_csv = .true.                                      ! Should we write output
 write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
 include_sediment_layer_breakdown = .false.              ! Include breakdown of data over sediment layers?
 include_soil_layer_breakdown = .false.                  ! Include breaedown of data over soil layers?
+include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
 soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3?
 sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3?
-include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
 include_soil_erosion = .true.                           ! Should soil erosion yields be included in soil output?
 include_sediment_fluxes = .true.                        ! Should sediment fluxes to/from waterbodies be included?
-! output_rate_constant_summary = .true.
 /
 
 &run
-description = "Short description of model run"          ! Not used by model, but included in output data
+description = "Thames catchment, nano-TiO2, 2015"       ! Not used by model, but included in output data
+write_to_log = .false.                                  ! Should we write logs to file?
 timestep = 86400                                        ! Length of each time step, in seconds
 n_timesteps = 365                                       ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
@@ -55,7 +50,6 @@ epsilon = 1e-20,                                        ! Precision for numerica
 error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
-write_to_log = .true.                                   ! Should we write logs to file?
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
 
@@ -80,7 +74,7 @@ include_attachment = .true.                             ! Should attachment be m
 
 &sediment
 sediment_layer_depth = 0.01, 0.01, 0.01, 0.01           ! Depth of each sediment layer. Array of length &allocatable_array_sizes > n_sediment_layers
-spm_size_classes = 1e-6, 3e-6, 10e-6, 30e-6, 100e-6     ! Diameter of SPM in each binned size class [m]
+spm_size_classes = 0.002e-3, 0.06e-3, 0.2e-3, 0.6e-3, 2.0e-3    ! Upper bound of SPM diameter in each binned size class [m]
 include_bed_sediment = .true.                           ! Should bed sediment be modelled?
 sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
 /

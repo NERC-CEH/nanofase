@@ -6,6 +6,7 @@
     n_fractional_composition_distribution = 4
     n_initial_mass = 5
     n_porosity = 4
+    n_spm_density_by_size_class = 5
     n_vertical_distribution = 3
 /
 &earthworm_densities
@@ -29,8 +30,9 @@
     default_matrixembedded_distribution_to_spm = 20, 20, 20, 20, 20
     default_spm_size_distribution = 50, 30, 10, 7, 3
     fractional_composition_distribution = 0.3, 0.3, 0.3, 0.1
-    initial_mass = 0.02, 0.02, 0.32, 0.32, 0.32
+    initial_mass = 0.00863, 0.019537, 0.323944, 0.323944, 0.323944
     porosity = 0.8, 0.6, 0.4, 0.2
+    spm_density_by_size_class = 1700, 2600, 2600, 1700, 1300
 /
 
 &soil
@@ -58,14 +60,6 @@
     k_diss_pristine = 0
     k_diss_transformed = 0
     k_transform_pristine = 0
-    resuspension_alpha = 0.003
-    resuspension_alpha_estuary = 0.01
-    resuspension_beta = 0.007
-    resuspension_beta_estuary = 0.001
     river_attachment_efficiency = 0.01
-    river_meandering_factor = 1.17
-    min_water_temperature = 10.0
-    max_water_temperature = 10.0
-    min_water_temperature_day_of_year = 32
-    shear_rate = 10.0
+    water_temperature = 10.0
 /

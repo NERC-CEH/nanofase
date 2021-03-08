@@ -103,7 +103,7 @@ module classLogger
     subroutine toConsoleLogger(me, message)
         class(Logger) :: me
         character(*)        :: message
-        if (me%logToConsole) write(*, '(A)'), message
+        if (me%logToConsole) write(*, '(A)') message
     end subroutine
 
     function timestamp()
