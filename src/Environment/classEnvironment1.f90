@@ -90,6 +90,11 @@ module classEnvironment1
                                     reach%inflows(i)%item => me%colGridCells(ix,iy)%item%colRiverReaches(iw)%item
                                     ! Set the outflow of this reach's inflow to this reach
                                     reach%inflows(i)%item%outflow%item => reach
+                                    ! Check if this reach is a grid cell inflow (and thus the inflow reach is a grid cell outflow)
+                                    if (ix /= x .or. iy /= y) then
+                                        reach%inflows(i)%item%isGridCellOutflow = .true.
+                                        reach%isGridCellInflow = .true.
+                                    end if
                                     ! If the inflow is a river and this reach is an estuary, set the estuary to
                                     ! be the tidal limit
                                     if (reach%ref(1:3) == 'Est' .and. reach%inflows(i)%item%ref(1:3) == 'Riv') then
@@ -114,7 +119,6 @@ module classEnvironment1
 
             ! Finally, perform any creation operations that required proper cell linking (e.g. snapping point sources
             ! to the correct cells)
-
             do y = 1, DATASET%gridShape(2)
                 do x = 1, DATASET%gridShape(1)
                     call me%colGridCells(x,y)%item%finaliseCreate()

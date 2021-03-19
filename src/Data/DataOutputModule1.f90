@@ -135,46 +135,89 @@ module DataOutputModule1
         real                :: easts, norths    !! Eastings and northings of this grid cell
         integer             :: i, w             ! Iterators
         character(len=3)    :: reachType        ! Is this a river of estuary?
-        
-        ! Loop through the waterbodies in this cell
-        do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
-            associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                ! Is it a reach or an estuary?
-                select type (reach)
-                    type is (RiverReach)
-                        reachType = 'riv'
-                    type is (EstuaryReach)
-                        reachType = 'est'
-                end select
+        real(dp)            :: m_spm(C%nSizeClassesSpm) ! SPM masses
+        real(dp)            :: C_spm(C%nSizeClassesSpm) ! SPM concs
+       
+        if (C%includeWaterbodyBreakdown) then
+            ! Loop through the waterbodies in this cell
+            do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
+                associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                    ! Is it a reach or an estuary?
+                    select type (reach)
+                        type is (RiverReach)
+                            reachType = 'riv'
+                        type is (EstuaryReach)
+                            reachType = 'est'
+                    end select
+                    ! Write the data
+                    write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                        trim(str(x)) // "," // trim(str(y)) // "," // &
+                        trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
+                        trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
+                        trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
+                        trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
+                        trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
+                        trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
+                        trim(str(sum(reach%obj_j_nm%resuspension))) // "," // &
+                        trim(str(sum(reach%obj_j_nm_transformed%resuspension))) // "," // &
+                        trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
+                        trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
+                        trim(str(reach%obj_j_dissolved%outflow)) // "," // &
+                        trim(str(sum(reach%m_spm))) // "," // &
+                        trim(str(sum(reach%C_spm))) // ","
+                    if (C%includeSpmSizeClassBreakdown) then
+                        write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
+                            trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                    end if
+                    if (C%includeSedimentFluxes) then
+                        write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
+                            trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
+                            trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
+                            trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
+                            trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
+                    end if
+                    write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
+                        trim(str(reach%obj_Q%outflow / C%timeStep))
+                end associate
+            end do
+        else
+            ! We're not including waterbody breakdown, so just output the grid cell aggregated values
+            associate (cell => me%env%item%colGridCells(x,y)%item)
                 ! Write the data
                 write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                     trim(str(x)) // "," // trim(str(y)) // "," // &
-                    trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                    trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
-                    trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
-                    trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
-                    trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
-                    trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
-                    trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
-                    trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
-                    trim(str(reach%obj_j_dissolved%outflow)) // "," // &
-                    trim(str(sum(reach%m_spm))) // "," // &
-                    trim(str(sum(reach%C_spm))) // ","
+                    trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
+                    trim(str(sum(cell%get_m_np_water()))) // "," // trim(str(sum(cell%get_C_np_water()))) // "," // &
+                    trim(str(sum(cell%get_m_transformed_water()))) // "," // &
+                    trim(str(sum(cell%get_C_transformed_water()))) // "," // &
+                    trim(str(cell%get_m_dissolved_water())) // "," // &
+                    trim(str(cell%get_C_dissolved_water())) // "," // &
+                    trim(str(sum(cell%get_j_nm_deposition()))) // "," // &
+                    trim(str(sum(cell%get_j_transformed_deposition()))) // "," // &
+                    trim(str(sum(cell%get_j_nm_resuspension()))) // "," // &
+                    trim(str(sum(cell%get_j_transformed_resuspension()))) // "," // &
+                    trim(str(sum(cell%get_j_nm_outflow()))) // "," // &
+                    trim(str(sum(cell%get_j_transformed_outflow()))) // "," // &
+                    trim(str(cell%get_j_dissolved_outflow())) // ","
+                m_spm = cell%get_m_spm()
+                C_spm = cell%get_C_spm()
+                write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_spm))) // "," // &
+                    trim(str(sum(C_spm))) // ","
                 if (C%includeSpmSizeClassBreakdown) then
-                    write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
-                        trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                    write(iouOutputWater, '(*(a))', advance='no') (trim(str(m_spm(i))) // "," // &
+                        trim(str(C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
                 end if
                 if (C%includeSedimentFluxes) then
-                    write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
-                        trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
-                        trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
-                        trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
-                        trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
+                    write(iouOutputWater, '(a)', advance='no') trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
+                        trim(str(sum(cell%get_j_spm_deposition()))) // "," // &
+                        trim(str(sum(cell%get_j_spm_resuspension()))) // "," // &
+                        trim(str(sum(cell%get_j_spm_inflow()))) // "," // trim(str(sum(cell%get_j_spm_outflow()))) // "," // &
+                        trim(str(sum(cell%get_j_spm_bankErosion()))) // ","
                 end if
-                write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
-                    trim(str(reach%obj_Q%outflow / C%timeStep))
+                write(iouOutputWater, '(a)') trim(str(cell%getWaterVolume())) // "," // trim(str(cell%getWaterDepth())) // "," // &
+                    trim(str(cell%get_Q_outflow() / C%timeStep))
             end associate
-        end do
+        end if
     end subroutine
 
     !> Update the current sediment output file on the current timestep
@@ -390,7 +433,7 @@ module DataOutputModule1
             write(iouOutputWater, '(a)') "# Columns:\n#\tt: timestep index\n#\tdatetime: datetime of this timestep"
             write(iouOutputWater, '(a)') "#\tx, y: grid cell (eastings and northings) index"
             write(iouOutputWater, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
-            write(iouOutputWater, '(a)') "#\tw: waterbody index within this grid cell"
+            if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)') "#\tw: waterbody index within this grid cell"
             write(iouOutputWater, '(a)') "#\twaterbody_type: what type (river, estuary etc) is this waterbody?"
             write(iouOutputWater, '(a)') "#\tm_np(kg), m_transformed(kg), m_dissolved(kg): " // &
                 "NM mass (untransformed, transformed and dissolved, kg)"
@@ -398,6 +441,7 @@ module DataOutputModule1
             write(iouOutputWater, '(a)') "#\tm_np_outflow(kg), m_transformed_outflow(kg), m_dissolved_outflow(kg): " // &
                 "downstream outflow NM masses (kg)"
             write(iouOutputWater, '(a)') "#\tm_np_deposited(kg), m_transformed_deposited(kg): mass of NM deposited (kg)"
+            write(iouOutputWater, '(a)') "#\tm_np_resuspended(kg), m_transformed_resuspended(kg): mass of NM resuspended (kg)"
             write(iouOutputWater, '(a)') "#\tm_spm(kg), C_spm(kg/m3): mass and concentration of SPM (kg, kg/m3)"
             if (C%includeSpmSizeClassBreakdown) then
                 write(iouOutputWater, '(a)') "#\tm_spm_sci(kg), C_spm_sci(kg/m3): mass aond concentration of SPM in " // &
@@ -412,9 +456,12 @@ module DataOutputModule1
                 "depth (m) and flow rate (m3/s) of this waterbody"
         end if
         ! Write the actual headers
-        write(iouOutputWater, '(a)', advance='no') "t,datetime,x,y,easts,norths,w,waterbody_type,m_np(kg),C_np(kg/m3)," // &
+        write(iouOutputWater, '(a)', advance='no') "t,datetime,x,y,easts,norths,"
+        if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)', advance='no') "w,"
+        write(iouOutputWater, '(a)', advance='no') "waterbody_type,m_np(kg),C_np(kg/m3)," // &
             "m_transformed(kg),C_transformed(kg/m3),m_dissolved(kg),C_dissolved(kg/m3)," // &
-            "m_np_deposited(kg),m_transformed_deposited(kg),m_np_outflow(kg),m_transformed_outflow(kg)," // &
+            "m_np_deposited(kg),m_transformed_deposited(kg)," // &
+            "m_np_resuspended(kg),m_transformed_resuspended(kg),m_np_outflow(kg),m_transformed_outflow(kg)," // &
             "m_dissolved_outflow(kg),m_spm(kg),C_spm(kg/m3),"
         if (C%includeSpmSizeClassBreakdown) then
             write(iouOutputWater, '(*(a))', advance="no") &

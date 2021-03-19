@@ -14,7 +14,7 @@ module Globals
 
     type, public :: GlobalsType
         ! Model info
-        character(len=5)    :: modelVersion = '1.0.0'
+        character(len=5)    :: modelVersion = '0.1.0'
         ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
@@ -23,6 +23,7 @@ module Globals
         logical             :: writeCSV                         !! Should output data be written as CSV file?
         logical             :: writeNetCDF                      !! Should output data be written as NetCDF file?
         logical             :: writeMetadataAsComment           !! Should CSV files be prepended with metadata as a #-delimited comment?
+        logical             :: includeWaterbodyBreakdown        !! Should the surface water output include breakdown of waterbodies?
         logical             :: includeSedimentLayerBreakdown    !! Include breakdown of data over sediment layers?
         logical             :: includeSoilLayerBreakdown        !! Include breakdown of data over soil layers?
         character(len=5)    :: soilPECUnits                     !! What units to use for soil PEC - kg/m3 or kg/kg dw?
@@ -160,7 +161,7 @@ module Globals
             calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
             preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
-            write_to_log, include_spm_size_class_breakdown, include_clay_enrichment
+            write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
@@ -170,7 +171,7 @@ module Globals
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv, include_sediment_fluxes, &
-            include_soil_erosion, include_spm_size_class_breakdown
+            include_soil_erosion, include_spm_size_class_breakdown, include_waterbody_breakdown
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
             description, trigger_warnings, simulation_mask, write_to_log
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
@@ -213,6 +214,7 @@ module Globals
         simulation_mask = ""
         min_stream_slope = configDefaults%minStreamSlope
         min_estuary_timestep = configDefaults%minEstuaryTimestep
+        include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -298,6 +300,7 @@ module Globals
         C%writeCSV = write_csv
         C%writeNetCDF = write_netcdf
         C%writeMetadataAsComment = write_metadata_as_comment
+        C%includeWaterbodyBreakdown = include_waterbody_breakdown
         C%includeSedimentLayerBreakdown = include_sediment_layer_breakdown
         C%includeSoilLayerBreakdown = include_soil_layer_breakdown
         C%soilPECUnits = soil_pec_units

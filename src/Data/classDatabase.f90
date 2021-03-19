@@ -454,6 +454,7 @@ module classDatabase
 
         ! Try and get resuspension and sediment transport parameters
         ! Defaults to value given in constants file if not present in NetCDF file
+        ! TODO add check that at least one of the variables exists, or put a default in there
         if (me%nc%hasVariable('resuspension_alpha')) then
             var = me%nc%getVariable('resuspension_alpha')
             call var%getData(me%resuspensionAlpha)

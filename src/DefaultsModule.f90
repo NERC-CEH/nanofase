@@ -33,6 +33,7 @@ module DefaultsModule
         integer             :: minEstuaryTimestep = 3600            ! 1 hour [s] 
         logical             :: writeToLog = .true.
         ! Output
+        logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included
         logical             :: includeSedimentFluxes = .false.
         logical             :: includeSoilErosion = .false.
         logical             :: includeSpmSizeClassBreakdown = .false.

@@ -57,28 +57,7 @@ module WaterBodyModule
         ! Flows and fluxes
         integer, allocatable :: neighboursArray(:,:)                !! Neighbouring waterbodies, as array of indices
         type(WaterBodyPointer1), allocatable :: neighbours(:)        !! Neighbouring waterbodies
-        ! real(dp), allocatable :: Q(:)
-            !! Flow of water to neighbouring compartments. Size of array corresponds to the number
-            !! of possible flow directions (including transfers). +ve denotes flow *from* the neighbouring
-            !! compartment, -ve denotes flow *to*. [m3/timestep]
-        ! real(dp), allocatable :: Q_final(:)
-            !! Flow array updated at the end of the timestep. This is to enusre reaches don't use
-            !! the wrong timestep's Q from another reach, in particular as their inflow. [m3/timestep]
         real(dp) :: Q_in_total                                      !! Total inflow of water [m3/timestep]
-        ! real(dp), allocatable :: j_spm(:,:)
-            !! Flow of SPM, same conventions as Q [kg/timestep]. 2nd dimension is the size class of the SPM
-        ! real(dp), allocatable :: j_spm_final(:,:)                   !! Final SPM flux array - see Q_final [kg/timestep]
-        ! real(dp), allocatable :: spmFluxDeposit(:)                  !! Deposited SPM on this timestep [kg/timestep]
-        ! real(dp), allocatable :: spmFluxResus(:)                    !! Resuspended SPM on this timestep [kg/timestep]
-        ! real(dp), allocatable :: spmFluxBankErosion(:)              !! Bank erosion on this timestep [kg/timestep]
-        ! real(dp), allocatable :: j_np(:,:,:,:)
-            !! Flow of NM, same conventions as Q [kg/timestep]. 2nd-4th dimensions are the NM size class,
-            !! NM form and NM state, respectively.
-        ! real(dp), allocatable :: j_np_final(:,:,:,:)                !! Final NM flux array - see Q_final [kg/timestep]
-        ! real(dp), allocatable :: j_transformed(:,:,:,:)             !! Transformed NM flux array [kg/timestep]
-        ! real(dp), allocatable :: j_transformed_final(:,:,:,:)       !! Final transformed flux array [kg/timestep]
-        ! real(dp), allocatable :: j_dissolved(:)                     !! Dissolved species flux array [kg/timestep]
-        ! real(dp), allocatable :: j_dissolved_final(:)               !! Final dissolved flux array [kg/timestep]
         real(dp), allocatable :: k_resus(:)                         !! Resuspension rate for a given timestep [s-1]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
         real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
@@ -104,8 +83,7 @@ module WaterBodyModule
         type(BiotaWater), allocatable :: biota(:)                  !! Contained `Biota` object
         integer :: nBiota = 0
         integer, allocatable :: biotaIndices(:)
-
-        ! NEW flow objects
+        ! Flow objects
         type(WaterFlows) :: obj_Q
         type(SPMFlows) :: obj_j_spm
         type(NMFlows) :: obj_j_nm
@@ -176,7 +154,7 @@ module WaterBodyModule
     !! to reaches to be done.
     subroutine finaliseCreateWaterBody(me)
         class(WaterBody1) :: me
-        ! We can't allocate j_np until we know the number of point sources, which
+        ! We can't allocate j_nm until we know the number of point sources, which
         ! is calculated during GridCell%finaliseCreate. Hence this is done here
         call me%allocateAndInitialise()
     end subroutine
@@ -211,9 +189,6 @@ module WaterBodyModule
         allocate(me%C_spm(C%nSizeClassesSpm), &
             me%C_spm_final(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
-            ! me%spmFluxDeposit(C%nSizeClassesSpm), &
-            ! me%spmFluxResus(C%nSizeClassesSpm), &
-            ! me%spmFluxBankErosion(C%nSizeClassesSpm), &
             me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%C_np_final(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -239,7 +214,6 @@ module WaterBodyModule
         me%m_dissolved = 0.0_dp
         me%bedArea = 0.0_dp
         me%volume = 0.0_dp
-        ! me%spmFluxBankErosion = 0.0_dp
     end subroutine
 
     subroutine addPointSourceWaterBody(me, index)

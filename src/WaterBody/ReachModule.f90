@@ -102,49 +102,6 @@ module ReachModule
         procedure :: j_dissolved_outflow
         procedure :: j_dissolved_diffusesource
         procedure :: j_dissolved_pointsource
-        ! Setters
-        ! procedure :: set_Q_outflow
-        ! procedure :: set_Q_inflow
-        ! procedure :: set_Q_inflows
-        ! procedure :: set_Q_runoff
-        ! procedure :: set_Q_transfers
-        ! procedure :: set_j_spm_outflow
-        ! procedure :: set_j_spm_inflow
-        ! procedure :: set_j_spm_inflows
-        ! procedure :: set_j_spm_runoff
-        ! procedure :: set_j_spm_transfers
-        ! procedure :: set_j_spm_deposit
-        ! procedure :: set_j_np_outflow
-        ! procedure :: set_j_np_inflow
-        ! procedure :: set_j_np_inflows
-        ! procedure :: set_j_np_runoff
-        ! procedure :: set_j_np_transfers
-        ! procedure :: set_j_np_deposit
-        ! procedure :: set_j_np_diffusesource
-        ! procedure :: set_j_np_pointsource
-        ! procedure :: set_j_transformed_outflow
-        ! procedure :: set_j_transformed_runoff
-        ! procedure :: set_j_transformed_inflow
-        ! procedure :: set_j_transformed_deposit
-        ! procedure :: set_j_transformed_diffusesource
-        ! procedure :: set_j_transformed_pointsource
-        ! procedure :: set_j_dissolved_outflow
-        ! procedure :: set_j_dissolved_inflow
-        ! procedure :: set_j_dissolved_diffusesource
-        ! procedure :: set_j_dissolved_pointsource
-        ! ! Static methods
-        ! procedure, nopass :: Q_outflowStatic
-        ! procedure, nopass :: j_spm_outflowStatic
-        ! procedure, nopass :: j_np_outflowStatic
-        ! generic, public :: out => Q_outflowStatic, j_spm_outflowStatic, j_np_outflowStatic
-        ! procedure, nopass :: Q_inflowsStatic
-        ! procedure, nopass :: j_spm_inflowsStatic
-        ! procedure, nopass :: j_np_inflowsStatic
-        ! generic, public :: in => Q_inflowsStatic, j_spm_inflowsStatic, j_np_inflowsStatic
-        ! procedure, nopass :: Q_runoffStatic
-        ! procedure, nopass :: j_spm_runoffStatic
-        ! procedure, nopass :: j_np_runoffStatic
-        ! generic, public :: run => Q_runoffStatic, j_spm_runoffStatic, j_np_runoffStatic
     end type
 
     !> Container type for `class(Reach)`, the actual type of the `Reach` class.

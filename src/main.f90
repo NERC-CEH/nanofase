@@ -53,7 +53,6 @@ program main
         fileUnit=iouLog &
     )
     ! Welcome!
-    ! call LOGR%toConsole("Welcome to the NanoFASE model!")
     call printWelcome()
 
     ! Pull in the input data

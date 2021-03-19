@@ -31,15 +31,32 @@ module classGridCell2
         procedure :: parseInputData => parseInputDataGridCell2
         procedure :: parseNewBatchData => parseNewBatchDataGridCell2
         ! Getters
-        procedure :: get_Q_out => get_Q_outGridCell2
-        procedure :: get_j_spm_out => get_j_spm_outGridCell2
-        procedure :: get_j_np_out => get_j_np_outGridCell2
+        procedure :: get_Q_outflow => get_Q_outflowGridCell2
+        procedure :: get_j_spm_outflow => get_j_spm_outflowGridCell2
         procedure :: get_m_spm => get_m_spmGridCell2
-        procedure :: get_m_np => get_m_npGridCell2
+        procedure :: get_j_spm_inflow => get_j_spm_inflowGridCell2
+        procedure :: get_j_spm_soilErosion => get_j_spm_soilErosionGridCell2
+        procedure :: get_j_spm_bankErosion => get_j_spm_bankErosionGridCell2
+        procedure :: get_j_spm_deposition => get_j_spm_depositionGridCell2
+        procedure :: get_j_spm_resuspension => get_j_spm_resuspensionGridCell2
+        procedure :: get_m_np_water => get_m_np_waterGridCell2
+        procedure :: get_m_transformed_water => get_m_transformed_waterGridCell2
+        procedure :: get_m_dissolved_water => get_m_dissolved_waterGridCell2
+        procedure :: get_C_spm => get_C_spmGridCell2
         procedure :: get_C_np_soil => get_C_np_soilGridCell2
         procedure :: get_C_np_water => get_C_np_waterGridCell2
         procedure :: get_C_np_sediment => get_C_np_sedimentGridCell2
+        procedure :: get_C_transformed_water => get_C_transformed_waterGridCell2
+        procedure :: get_C_dissolved_water => get_C_dissolved_waterGridCell2
+        procedure :: get_j_nm_deposition => get_j_nm_depositionGridCell2
+        procedure :: get_j_transformed_deposition => get_j_transformed_depositionGridCell2
+        procedure :: get_j_nm_resuspension => get_j_nm_resuspensionGridCell2
+        procedure :: get_j_transformed_resuspension => get_j_transformed_resuspensionGridCell2
+        procedure :: get_j_nm_outflow => get_j_nm_outflowGridCell2
+        procedure :: get_j_transformed_outflow => get_j_transformed_outflowGridCell2
+        procedure :: get_j_dissolved_outflow => get_j_dissolved_outflowGridCell2
         procedure :: getWaterVolume => getWaterVolumeGridCell2
+        procedure :: getWaterDepth => getWaterDepthGridCell2
         procedure :: getBedSedimentArea => getBedSedimentAreaGridCell2
         procedure :: getBedSedimentMass => getBedSedimentMassGridCell2
         procedure :: getTotalReachLength => getTotalReachLengthGridCell2
@@ -59,7 +76,6 @@ module classGridCell2
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%colSoilProfiles(1))
-        allocate(me%routedRiverReaches(0,0))            ! No routed RiverReach pointers to begin with
         allocate(me%j_np_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
         me%q_runoff = 0
 
@@ -188,11 +204,11 @@ module classGridCell2
         end if
     end subroutine
 
+    !> Create the reaches within this grid cell
     function createReaches(me) result(rslt)
         class(GridCell2), target :: me          !! This `GridCell2` instance
         type(Result) :: rslt                    !! The `Result` object to return any errors in
         integer :: i
-
         ! Loop through waterbodies and create them
         do i = 1, me%nReaches
             ! What type of waterbody is this?
@@ -343,10 +359,14 @@ module classGridCell2
         allocate(me%colRiverReaches(me%nReaches))
         allocate(me%reachTypes(me%nReaches))
         ! What are the types of those waterbodies?
+        ! Currently, all reach types in a cell must be the same, but the functionality to have
+        ! different reach types exists (hence the averageReachType variable)
         if (DATASET%isEstuary(me%x, me%y)) then
             me%reachTypes = 'est'
+            me%aggregatedReachType = 'est'
         else
             me%reachTypes = 'riv'
+            me%aggregatedReachType = 'riv'
         end if
 
         ! TODO get the following from data
@@ -442,85 +462,160 @@ module classGridCell2
 !--- GETTERS ---!
 !---------------!
 
-    function get_Q_outGridCell2(me, b) result(Q_out)
-        class(GridCell2) :: me                      !! This `GridCell2` instance
-        integer, optional :: b                      !! Branch
-        real(dp) :: Q_out
-        Q_out = 0
-        ! If branch is present, just get the outflow for that branch,
-        ! else, sum the outflows from each branch
-        if (present(b)) then
-            Q_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_Q%outflow
-        else
-            do b = 1, me%nBranches
-                Q_out = Q_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_Q%outflow
-            end do
-        end if
+    !> Get the ouflow from this grid cell, which is the sum of the branch outflows
+    function get_Q_outflowGridCell2(me) result(Q_outflow)
+        class(GridCell2)    :: me               !! This `GridCell2` instance
+        real(dp)            :: Q_outflow        !! Outflow from this grid cell [m3/timestep]
+        integer             :: i                ! Iterator
+        Q_outflow = 0
+        ! Loop through the reaches and sum up the outflow from those that are a grid cell outflow
+        do i = 1, me%nReaches
+            if (me%colRiverReaches(i)%item%isGridCellOutflow) then
+                Q_outflow = Q_outflow + me%colRiverReaches(i)%item%obj_Q%outflow
+            end if
+        end do
     end function
 
-    function get_j_spm_outGridCell2(me, b) result(j_spm_out)
-        class(GridCell2) :: me                      !! This `GridCell2` instance
-        integer, optional :: b                      !! Branch
-        real(dp) :: j_spm_out(C%nSizeClassesSpm)
-        j_spm_out = 0
-        ! If branch is present, just get the outflow for that branch,
-        ! else, sum the outflows from each branch
-        if (present(b)) then
-            j_spm_out = me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_j_spm%outflow
-        else
-            do b = 1, me%nBranches
-                j_spm_out = j_spm_out + me%routedRiverReaches(b,me%nReachesInBranch(b))%item%obj_j_spm%outflow
-            end do
-        end if
-    end function
-
-    function get_j_np_outGridCell2(me, b) result(j_np_out)
-        class(GridCell2) :: me                      !! This `GridCell2` instance
-        integer, optional :: b                      !! Branch
-        real(dp) :: j_np_out(C%nSizeClassesNM)
-        j_np_out = 0
-        ! TODO: Sum NP outflows here
+    !> Get the outflow of SPM from this grid cell
+    function get_j_spm_outflowGridCell2(me) result(j_spm_outflow)
+        class(GridCell2)    :: me                      !! This `GridCell2` instance
+        real(dp)            :: j_spm_outflow(C%nSizeClassesSpm) !! Outflow from this grid cell [kg/timestep]
+        integer             :: i                        ! Iterator
+        j_spm_outflow = 0
+        ! Loop through reaches and sum the SPM outflow for the grid cell outflows
+        do i = 1, me%nReaches
+            if (me%colRiverReaches(i)%item%isGridCellOutflow) then
+                j_spm_outflow = j_spm_outflow + me%colRiverReaches(i)%item%obj_Q%outflow
+            end if
+        end do
     end function
 
     !> Get the total mass of SPM currently in the GridCell
-    function get_m_spmGridCell2(me, b) result(m_spm)
-        class(GridCell2) :: me                      !! This `GridCell2` instance
-        integer, optional :: b                      !! Branch
-        real(dp) :: m_spm(C%nSizeClassesSpm)
-        integer :: rr
+    function get_m_spmGridCell2(me) result(m_spm)
+        class(GridCell2)    :: me                       !! This `GridCell2` instance
+        real(dp)            :: m_spm(C%nSizeClassesSpm) !! SPM mass in this reach
+        integer             :: i                        ! Iterator
         m_spm = 0
-        if (present(b)) then
-            ! Loop through the reaches in the branch and sum the SPM masses
-            do rr = 1, me%nReachesInBranch(b)
-                m_spm = m_spm + me%routedRiverReaches(b,rr)%item%m_spm
-            end do
-        else
-            ! Loop through the reaches and sum the SPM masses
-            do rr = 1, me%nReaches
-                m_spm = m_spm + me%colRiverReaches(rr)%item%m_spm
-            end do
-        end if
-    end function
-
-    !> Get the total mass of NPs currently in the GridCell
-    function get_m_npGridCell2(me, b) result(m_np)
-        class(GridCell2) :: me                      !! This `GridCell2` instance
-        integer, optional :: b                      !! Branch
-        real(dp) :: m_np(C%nSizeClassesNM)
-        m_np = 0
-        ! TODO: Sum NP masses here
-    end function
-
-    !> Get the total length of all reaches in the cell
-    function getTotalReachLengthGridCell2(me) result(totalReachLength)
-        class(GridCell2)    :: me
-        real(dp)            :: totalReachLength
-        integer             :: r
-        totalReachLength = 0
-        ! Loop through reaches to get total length
-        do r = 1, me%nReaches
-            totalReachLength = totalReachLength + me%colRiverReaches(r)%item%length
+        ! Loop through the reaches and sum the SPM masses
+        do i = 1, me%nReaches
+            m_spm = m_spm + me%colRiverReaches(i)%item%m_spm
         end do
+    end function
+
+    !> Get the mass of SPM inflowing to this grid cell
+    function get_j_spm_inflowGridCell2(me) result(j_spm_inflow)
+        class(GridCell2)    :: me               !! This grid cell instance
+        real(dp)            :: j_spm_inflow(C%nSizeClassesSpm) ! Total mass of SPM inflowing [kg/timestep]
+        integer             :: i                ! Iterator
+        j_spm_inflow = 0.0_dp
+        ! Loop through the inflows and sum the inflowing SPM
+        do i = 1, me%nReaches
+            if (me%colRiverReaches(i)%item%isGridCellInflow) then
+                j_spm_inflow = j_spm_inflow + me%colRiverReaches(i)%item%obj_Q%inflow
+            end if
+        end do
+    end function
+
+    !> Get the total mass of eroded soil that reaches water bodies in this cell.
+    !! Note this may be different to eroded yields from the soil profile due to the
+    !! sediment transport capacity limited inputs to water bodies
+    function get_j_spm_soilErosionGridCell2(me) result(j_spm_soilErosion)
+        class(GridCell2)    :: me               !! This grid cell instance
+        real(dp)            :: j_spm_soilErosion(C%nSizeClassesSpm) ! Total mass of soil erosion [kg/timestep]
+        integer             :: i                ! Iterator
+        j_spm_soilErosion = 0.0_dp
+        ! Loop through water bodies and sum the eroded soil
+        do i = 1, me%nReaches
+            j_spm_soilErosion = j_spm_soilErosion + me%colRiverReaches(i)%item%obj_j_spm%soilErosion
+        end do
+    end function
+
+    !> Get the total mass of bank erosion into water bodies in this grid cell
+    function get_j_spm_bankErosionGridCell2(me) result(j_spm_bankErosion)
+        class(GridCell2)    :: me               !! This grid cell instance
+        real(dp)            :: j_spm_bankErosion(C%nSizeClassesSpm) ! Total mass of bank erosion [kg/timestep]
+        integer             :: i                ! Iterator
+        j_spm_bankErosion = 0.0_dp
+        ! Loop through water bodies and sum the bank erosion
+        do i = 1, me%nReaches
+            j_spm_bankErosion = j_spm_bankErosion + me%colRiverReaches(i)%item%obj_j_spm%bankErosion
+        end do
+    end function
+
+    !> Get the total mass of deposited SPM in this cell
+    function get_j_spm_depositionGridCell2(me) result(j_spm_deposition)
+        class(GridCell2)    :: me               !! This grid cell instance
+        real(dp)            :: j_spm_deposition(C%nSizeClassesSpm) ! Total mass of deposited SPM [kg/timestep]
+        integer             :: i                ! Iterator
+        j_spm_deposition = 0.0_dp
+        ! Loop through water bodies and sum the deposited SPM 
+        do i = 1, me%nReaches
+            j_spm_deposition = j_spm_deposition + me%colRiverReaches(i)%item%obj_j_spm%deposition
+        end do
+    end function
+
+    !> Get the total mass of resuspended SPM in this cell
+    function get_j_spm_resuspensionGridCell2(me) result(j_spm_resuspension)
+        class(GridCell2)    :: me               !! This grid cell instance
+        real(dp)            :: j_spm_resuspension(C%nSizeClassesSpm) ! Total mass of resuspended SPM [kg/timestep]
+        integer             :: i                ! Iterator
+        j_spm_resuspension = 0.0_dp
+        ! Loop through water bodies and sum the resuspended SPM 
+        do i = 1, me%nReaches
+            j_spm_resuspension = j_spm_resuspension + me%colRiverReaches(i)%item%obj_j_spm%resuspension
+        end do
+    end function
+
+    !> Get the total mass of NM currently in the GridCell, by looping over waterbodies
+    function get_m_np_waterGridCell2(me) result(m_np)
+        class(GridCell2)    :: me                      !! This `GridCell2` instance
+        real(dp)            :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer             :: w
+        m_np = 0
+        do w = 1, me%nReaches
+            m_np = m_np + me%colRiverReaches(w)%item%m_np
+        end do
+    end function
+
+    !> Get the total mass of transformed NM currently in the GridCell, by looping over waterbodies
+    function get_m_transformed_waterGridCell2(me) result(m_transformed)
+        class(GridCell2)    :: me                      !! This `GridCell2` instance
+        real(dp)            :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
+        integer             :: w
+        m_transformed = 0
+        do w = 1, me%nReaches
+            m_transformed = m_transformed + me%colRiverReaches(w)%item%m_transformed
+        end do
+    end function
+
+    !> Get the total mass of dissolved species currently in the GridCell, by looping over waterbodies
+    function get_m_dissolved_waterGridCell2(me) result(m_dissolved)
+        class(GridCell2)    :: me                      !! This `GridCell2` instance
+        real(dp)            :: m_dissolved
+        integer             :: w
+        m_dissolved = 0
+        do w = 1, me%nReaches
+            m_dissolved = m_dissolved + me%colRiverReaches(w)%item%m_dissolved
+        end do
+    end function
+
+    !> Get the average SPM concentration in the grid cell, weighted by water volume in 
+    !! each of the water bodies
+    function get_C_spmGridCell2(me) result(C_spm)
+        class(GridCell2)    :: me                       !! This grid cell
+        real(dp)            :: C_spm(C%nSizeClassesSpm) !! Average SPM concentration in grid cell
+        real(dp)            :: C_spm_w(me%nReaches,C%nSizeClassesSpm)
+        real(dp)            :: volumes(me%nReaches)
+        integer             :: i                        !! Iterator for water bodies
+        ! Loop over the water bodies in this cell and get SPM and volume
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                C_spm_w(i, :) = reach%C_spm
+                volumes(i) = reach%volume
+            end associate
+        end do
+        ! Get the weighted average across the reaches, using the volumes as the weight
+        C_spm = weightedAverage(C_spm_w, volumes)
     end function
 
     !> Get the a, b and c parameters of the straight line ax + bx + c = 0,
@@ -542,7 +637,7 @@ module classGridCell2
             x0 = me%x + 0.5
             y0 = me%y + 0.5
         end if
-        ! Get the outflow x,y coords, whether it's in the model domain or not
+        ! Get the outflow i coords, whether it's in the model domain or not
         if (.not. me%colRiverReaches(i)%item%isDomainOutflow) then
             x_out = me%colRiverReaches(i)%item%outflow%item%x
             y_out = me%colRiverReaches(i)%item%outflow%item%y
@@ -624,6 +719,159 @@ module classGridCell2
         C_np_sediment = weightedAverage(C_np_sediment_b, sedimentMasses)
     end function
 
+    !> Get the current weighted mean of transformed NM conc in the water bodies in this grid cell,
+    !! weighted by the current water volume in the cell
+    function get_C_transformed_waterGridCell2(me) result(C_transformed_water)
+        class(GridCell2)        :: me                                               !! This GridCell instance
+        real(dp), allocatable   :: C_transformed_water(:,:,:)                       !! Mass concentration of NM in this GridCell [kg/m3]
+        real(dp)                :: C_transformed_water_w(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per waterbody NM concentration [kg/m3]
+        real(dp)                :: volumes(me%nReaches)                             ! Volumes [m3] of each reach, used for weighting
+        integer                 :: i                                                ! Iterator 
+        allocate(C_transformed_water(C%npDim(1), C%npDim(2), C%npDim(3)))
+        ! Loop over the water bodies in this cell and get water PEC and volume
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                C_transformed_water_w(i, :, :, :) = reach%C_transformed
+                volumes(i) = reach%volume
+            end associate
+        end do
+        ! Get the weighted average across the reaches, using the volumes as the weight
+        C_transformed_water = weightedAverage(C_transformed_water_w, volumes)
+    end function
+
+    !> Get the current weighted mean of dissolved species conc in the water bodies in this grid cell,
+    !! weighted by the current water volume in the cell
+    function get_C_dissolved_waterGridCell2(me) result(C_dissolved_water)
+        class(GridCell2)        :: me                                   !! This GridCell instance
+        real(dp)                :: C_dissolved_water                    !! Mass concentration of NM in this GridCell [kg/m3]
+        real(dp)                :: C_dissolved_water_w(me%nReaches)     ! Per waterbody NM concentration [kg/m3]
+        real(dp)                :: volumes(me%nReaches)                 ! Volumes [m3] of each reach, used for weighting
+        integer                 :: i                                    ! Iterator 
+        ! Loop over the water bodies in this cell and get water PEC and volume
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                C_dissolved_water_w(i) = reach%C_dissolved
+                volumes(i) = reach%volume
+            end associate
+        end do
+        ! Get the weighted average across the reaches, using the volumes as the weight
+        C_dissolved_water = weightedAverage(C_dissolved_water_w, volumes)
+    end function
+
+    !> Get the sum of MN deposition for this grid cell 
+    function get_j_nm_depositionGridCell2(me) result(j_nm_deposition)
+        class(GridCell2)        :: me                       !! This GridCell instance
+        real(dp), allocatable   :: j_nm_deposition(:,:,:)   !! The NM deposited
+        integer                 :: i                        ! Iterator
+        allocate(j_nm_deposition(C%npDim(1), C%npDim(2), C%npDim(3)))
+        j_nm_deposition = 0.0_dp
+        ! Loop over the water bodies and sum up the deposited NM 
+        do i = 1, me%nReaches
+            j_nm_deposition = j_nm_deposition + me%colRiverReaches(i)%item%obj_j_nm%deposition
+        end do
+    end function
+
+    !> Get the sum of MN deposition for this grid cell 
+    function get_j_transformed_depositionGridCell2(me) result(j_transformed_deposition)
+        class(GridCell2)        :: me                       !! This GridCell instance
+        real(dp), allocatable   :: j_transformed_deposition(:,:,:)   !! The transformed NM deposited
+        integer                 :: i                        ! Iterator
+        allocate(j_transformed_deposition(C%npDim(1), C%npDim(2), C%npDim(3)))
+        j_transformed_deposition = 0.0_dp
+        ! Loop over the water bodies and sum up the deposited transformed NM 
+        do i = 1, me%nReaches
+            j_transformed_deposition = j_transformed_deposition + me%colRiverReaches(i)%item%obj_j_nm_transformed%deposition
+        end do
+    end function
+
+    !> Get the sum of NM resuspended for this grid cell 
+    function get_j_nm_resuspensionGridCell2(me) result(j_nm_resuspension)
+        class(GridCell2)        :: me                       !! This GridCell instance
+        real(dp), allocatable   :: j_nm_resuspension(:,:,:) !! The NM resuspended
+        integer                 :: i                        ! Iterator
+        allocate(j_nm_resuspension(C%npDim(1), C%npDim(2), C%npDim(3)))
+        j_nm_resuspension = 0.0_dp
+        ! Loop over the water bodies in this cell sum the resuspended NM 
+        do i = 1, me%nReaches
+            j_nm_resuspension = j_nm_resuspension + me%colRiverReaches(i)%item%obj_j_nm%resuspension
+        end do
+    end function
+
+    !> Get the sum of transformed NM resuspended for this grid cell 
+    function get_j_transformed_resuspensionGridCell2(me) result(j_transformed_resuspension)
+        class(GridCell2)        :: me                       !! This GridCell instance
+        real(dp), allocatable   :: j_transformed_resuspension(:,:,:) !! The NM resuspended
+        integer                 :: i                        ! Iterator
+        allocate(j_transformed_resuspension(C%npDim(1), C%npDim(2), C%npDim(3)))
+        j_transformed_resuspension = 0.0_dp
+        ! Loop over the water bodies in this cell sum the resuspended transformed NM 
+        do i = 1, me%nReaches
+            j_transformed_resuspension = j_transformed_resuspension + me%colRiverReaches(i)%item%obj_j_nm_transformed%resuspension
+        end do
+    end function
+
+    !> Get the sum of NM outflowing from this grid cell 
+    function get_j_nm_outflowGridCell2(me) result(j_nm_outflow)
+        class(GridCell2)        :: me                       !! This GridCell instance
+        real(dp), allocatable   :: j_nm_outflow(:,:,:)      !! The NM outflowing
+        integer                 :: i                        ! Iterator
+        allocate(j_nm_outflow(C%npDim(1), C%npDim(2), C%npDim(3)))
+        j_nm_outflow = 0.0_dp
+        ! Loop over the water bodies in this cell and sum outflows if they are grid cell outflows 
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                if (reach%isGridCellOutflow) then
+                    j_nm_outflow = j_nm_outflow + reach%obj_j_nm%outflow
+                end if
+            end associate
+        end do
+    end function
+
+    !> Get the sum of transformed NM outflowing from this grid cell 
+    function get_j_transformed_outflowGridCell2(me) result(j_transformed_outflow)
+        class(GridCell2)        :: me                       !! This GridCell instance
+        real(dp), allocatable   :: j_transformed_outflow(:,:,:) !! The transformed NM outflowing
+        integer                 :: i                        ! Iterator
+        allocate(j_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3)))
+        j_transformed_outflow = 0.0_dp
+        ! Loop over the water bodies in this cell and sum outflows if they are grid cell outflows 
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                if (reach%isGridCellOutflow) then
+                    j_transformed_outflow = j_transformed_outflow + reach%obj_j_nm_transformed%outflow
+                end if
+            end associate
+        end do
+    end function
+
+    !> Get the sum of dissolved species outflowing from this grid cell 
+    function get_j_dissolved_outflowGridCell2(me) result(j_dissolved_outflow)
+        class(GridCell2)    :: me                       !! This GridCell instance
+        real(dp)            :: j_dissolved_outflow      !! The dissolved species outflowing
+        integer             :: i                        ! Iterator
+        j_dissolved_outflow = 0.0_dp
+        ! Loop over the water bodies in this cell and sum outflows if they are grid cell outflows 
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                if (reach%isGridCellOutflow) then
+                    j_dissolved_outflow = j_dissolved_outflow + reach%obj_j_dissolved%outflow
+                end if
+            end associate
+        end do
+    end function
+
+    !> Get the total length of all reaches in the cell
+    function getTotalReachLengthGridCell2(me) result(totalReachLength)
+        class(GridCell2)    :: me
+        real(dp)            :: totalReachLength
+        integer             :: r
+        totalReachLength = 0
+        ! Loop through reaches to get total length
+        do r = 1, me%nReaches
+            totalReachLength = totalReachLength + me%colRiverReaches(r)%item%length
+        end do
+    end function
+
     !> Get the total volume of water [m3] in this grid cell
     function getWaterVolumeGridCell2(me) result(waterVolume)
         class(GridCell2)    :: me               !! This GridCell instance
@@ -633,6 +881,21 @@ module classGridCell2
         do i = 1, me%nReaches
             waterVolume = waterVolume + me%colRiverReaches(i)%item%volume
         end do
+    end function
+
+    !> Get the average depth of water [m] in this grid cell, weighted by reach lengths
+    function getWaterDepthGridCell2(me) result(waterDepth)
+        class(GridCell2)    :: me
+        real(dp)            :: waterDepth
+        real(dp)            :: waterDepth_i(me%nReaches)
+        real(dp)            :: lengths(me%nReaches)
+        integer             :: i
+        ! Loop over reaches and get their depths and lengths
+        do i = 1, me%nReaches
+            waterDepth_i(i) = me%colRiverReaches(i)%item%depth
+            lengths(i) = me%colRiverReaches(i)%item%length
+        end do
+        waterDepth = weightedAverage(waterDepth_i, lengths)
     end function
 
     !> Get the total bed sediment area [m2] in this grid cell
