@@ -28,9 +28,11 @@ constants_file = "data.example/constants_tio2.nml"      ! Path to constants name
 output_path = "data/output/"                            ! Path to store the output data
 /
 
+! Various options related to what data to output. Generally speaking, the more of the include_ flags that are set to true,
+! the more data that is output and the larger the output data file sizes
 &output
 write_csv = .true.                                      ! Should we write output data to CSV files (n.b. turning this off currently suppresses all output, except for runs to steady state)
-write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
+write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comments at top of CSV files?
 include_waterbody_breakdown = .true.                    ! For surface water output, include breakdown over waterbodies or aggregate at grid cell level?
 include_sediment_layer_breakdown = .false.              ! Include breakdown of data over sediment layers?
 include_soil_layer_breakdown = .false.                  ! Include breaedown of data over soil layers?
@@ -54,6 +56,9 @@ log_file_path = "log/"                                  ! Where to place model l
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
 
+! Checkpointing is the ability to save a model run so that it can be reinstated from file. This is useful if, for example,
+! you want to have a standard "warm-up" period for the model which you don't want to run every time you run the model.
+! The checkpoint file is a binary file and this may cause issues transferring to different architectures
 &checkpoint
 checkpoint_file = "./checkpoint.dat"                    ! Location of checkpoint file to read from and/or save to
 save_checkpoint = .false.                               ! Save a checkpoint file when the run is finished? Defaults to false

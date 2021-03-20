@@ -7,14 +7,14 @@ module Globals
     use ErrorInstanceModule
     use ResultModule, only: Result
     implicit none
-
+    
     type(ErrorCriteria) :: ERROR_HANDLER
     integer, parameter :: dp = selected_real_kind(15, 307)
     integer, parameter :: qp = selected_real_kind(33, 4931)
 
     type, public :: GlobalsType
         ! Model info
-        character(len=5)    :: modelVersion = '0.1.0'
+        character(len=5)    :: modelVersion = '0.0.1'
         ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
