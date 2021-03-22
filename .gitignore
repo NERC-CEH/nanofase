@@ -24,7 +24,6 @@ snip/
 data/
 scratch/
 *.dat
-config/
 
 # Prerequisites
 *.d
