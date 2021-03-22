@@ -29,8 +29,8 @@ module DefaultsModule
         character(len=50)   :: steadyStateMode = ''
         real(dp)            :: steadyStateDelta = 1e-5
         character(len=7)    :: calibrationMode = 'mean'
-        real                :: minStreamSlope = 0.0001              ! [m/m]
-        integer             :: minEstuaryTimestep = 3600            ! 1 hour [s] 
+        real                :: minStreamSlope = 0.0001                  ! [m/m]
+        integer             :: minEstuaryTimestep = 3600                ! 1 hour [s] 
         logical             :: writeToLog = .true.
         ! Output
         logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included
@@ -38,6 +38,8 @@ module DefaultsModule
         logical             :: includeSoilErosion = .false.
         logical             :: includeSpmSizeClassBreakdown = .false.
         logical             :: includeClayEnrichment = .false.
+        character(len=5)    :: soilPECUnits = 'kg/kg'                   ! Should soil PECS be kg/kg or kg/m3?
+        character(len=5)    :: sedimentPECUnits = 'kg/kg'               ! Should sediment PECs be kg/kg or kg/m3?
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults
@@ -52,7 +54,7 @@ module DefaultsModule
     real, parameter :: defaultShearRate = 10.0                      ! Arvidsson et al, 2009: https://doi.org/10.1080/10807039.2011.538639
     real, parameter :: defaultMinWaterTemperature = 4.0             ! Thames River
     real, parameter :: defaultMaxWaterTemperature = 21.0            ! Thames River
-    integer, parameter :: defaultMinWaterTemperatureDayOfYear = 32  ! Thames Rive
+    integer, parameter :: defaultMinWaterTemperatureDayOfYear = 32  ! Thames River
     real(dp), parameter :: defaultSedimentTransport_a = 2.0e-9_dp
     real(dp), parameter :: defaultSedimentTransport_b = 0.0_dp
     real(dp), parameter :: defaultSedimentTransport_c = 0.2_dp
