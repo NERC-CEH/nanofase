@@ -200,8 +200,8 @@ module Globals
         include_spm_size_class_breakdown = configDefaults%includeSpmSizeClassBreakdown  ! False
         include_soil_erosion = configDefaults%includeSoilErosion                ! False
         include_clay_enrichment = configDefaults%includeClayEnrichment
-        soil_pec_units = 'kg/kg'
-        sediment_pec_units = 'kg/kg'
+        soil_pec_units = configDefaults%soilPECUnits                            ! kg/kg
+        sediment_pec_units = configDefaults%sedimentPECUnits                    ! kg/kg
         save_checkpoint = .false.
         reinstate_checkpoint = .false.
         preserve_timestep = .false.
