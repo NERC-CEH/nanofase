@@ -15,10 +15,10 @@ module spcReactor
         real(dp), allocatable :: m_transformed(:,:,:)
         real(dp) :: m_dissolved
         real(dp), allocatable :: C_np_free_particle(:)      !! Particle concentration of free NPs
-        real(dp) :: T_water                     !! Temperature of the water [C]
+        real :: T_water                         !! Temperature of the water [C]
         real(dp), allocatable :: W_settle_np(:) !! NP settling velocity [m/s]
         real(dp), allocatable :: W_settle_spm(:)!! SPM settling velocity [m/s]
-        real(dp) :: G                           !! Shear rate of the water [s-1]
+        real :: G                           !! Shear rate of the water [s-1]
         real(dp) :: alpha_hetero                !! Attachment efficiency, 0-1 [-]
         real(dp), allocatable :: k_hetero(:,:)
             !! Heteroaggregation rate constant [s-1]. 1st dimension: NP size class.
@@ -73,18 +73,18 @@ module spcReactor
             use Globals
             use ResultModule, only: Result
             import Reactor
-            class(Reactor) :: me                        !! This `Reactor1` object
-            integer :: t                                !! The current time step
-            real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)            !! Mass of NP for this timestep [kg]
-            real(dp) :: m_transformed(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm)   !! Mass of transformed NM for this timestep [kg]
-            real(dp) :: m_dissolved
-            real(dp) :: C_spm(C%nSizeClassesSpm)        !! The current mass concentration of SPM [kg/m3]
-            real(dp) :: T_water                         !! The current water temperature [C]
-            real(dp) :: W_settle_np(C%nSizeClassesNP)   !! NP settling velocity [m/s]
-            real(dp) :: W_settle_spm(C%nSizeClassesSpm) !! SPM settling velocity [m/s]
-            real(dp) :: G                               !! Shear rate [s-1]
-            real(dp) :: volume                          !! `RiverReach` volume on this timestep [s-1]
-            type(Result) :: r
+            class(Reactor)  :: me                               !! This `Reactor1` object
+            integer         :: t                                !! The current time step
+            real(dp)        :: m_np(C%npDim(1), C%npDim(2), C%npDim(3)) !! Mass of NP for this timestep [kg]
+            real(dp)        :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) !! Mass of transformed NM for this timestep [kg]
+            real(dp)        :: m_dissolved                      !! Mass of dissolved species for this timestep [kg]
+            real(dp)        :: C_spm(C%nSizeClassesSpm)         !! The current mass concentration of SPM [kg/m3]
+            real            :: T_water                          !! The current water temperature [deg C]
+            real(dp)        :: W_settle_np(C%nSizeClassesNM)    !! NP settling velocity [m/s]
+            real(dp)        :: W_settle_spm(C%nSizeClassesSpm)  !! SPM settling velocity [m/s]
+            real            :: G                                !! Shear rate [/s]
+            real(dp)        :: volume                           !! `RiverReach` volume on this timestep [m3]
+            type(Result)    :: r
         end function
         
         function finaliseUpdateReactor(me) result(r)
@@ -129,12 +129,12 @@ module spcReactor
             use Globals
             use ResultModule, only: Result
             import Reactor
-            class(Reactor) :: me
-            real(dp) :: T_water             !! Temperature of the water [C]
-            real(dp) :: G                   !! Shear rate [s-1]
-            real(dp) :: W_settle_np(:)      !! NP settling velocity [m/s]
-            real(dp) :: W_settle_spm(:)     !! SPM settling velocity [m/s]
-            real(dp) :: k_coll(C%nSizeClassesNp,C%nSizeClassesSpm)
+            class(Reactor)  :: me
+            real            :: T_water             !! Temperature of the water [deg C]
+            real            :: G                   !! Shear rate [/s]
+            real(dp)        :: W_settle_np(:)      !! NP settling velocity [m/s]
+            real(dp)        :: W_settle_spm(:)     !! SPM settling velocity [m/s]
+            real(dp)        :: k_coll(C%nSizeClassesNM,C%nSizeClassesSpm)   !! The collision frequency to return [/s]
         end function
 
         !> Calculate a particle concentration from a mass concentration

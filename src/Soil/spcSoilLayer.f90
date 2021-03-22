@@ -20,10 +20,10 @@ module spcSoilLayer
         real(dp) :: depth                                           !! Layer depth [m]
         real(dp) :: area                                            !! Area of the containing SoilProfile [m2]
         real(dp) :: volume                                          !! Volume of the soil layer [m3]
-        type(NcGroup) :: ncGroup                                    !! NetCDF group for this object
+        ! type(NcGroup) :: ncGroup                                    !! NetCDF group for this object
         ! Soil properties
-        real(dp) :: pH                                              !! Porewater pH
-        real(dp) :: SOM                                             !! Soil organic matter content [% w/w]
+        ! real(dp) :: pH                                              !! Porewater pH
+        ! real(dp) :: SOM                                             !! Soil organic matter content [% w/w]
         ! Nanomaterials
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in layer [kg]
         real(dp), allocatable :: m_np_perc(:,:,:)                   !! Mass of NM percolating to layer below on given timestep [kg]
@@ -38,7 +38,7 @@ module spcSoilLayer
         real(dp), allocatable :: m_dissolved_eroded
         real(dp), allocatable :: C_dissolved
         ! Hydrology
-        real(dp) :: Q_in                                            !! Inflow to this `SoilLayer` [m3 m-2 s-1]
+        real(dp) :: q_in                                            !! Inflow to this `SoilLayer` [m3 m-2 s-1]
         real(dp) :: V_w                                             !! Volume of water currently in layer [m3 m-2]
         real(dp) :: V_pool                                          !! Volume of water above `V_sat` to be pooled into layer above [m3 m-2]
         real(dp) :: V_excess                                        !! Volume of water above `V_FC` that can percolate to the next layer [m3 m-2]

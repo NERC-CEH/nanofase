@@ -8,7 +8,6 @@ module classSoilProfile1
     use ResultModule, only: Result                              ! Error handling classes
     use spcSoilProfile                                          ! Parent class
     use classSoilLayer1                                         ! SoilLayers will be contained in the SoilProfile
-    ! use classDataInterfacer, only: DATA
     use classDatabase, only: DATASET
     implicit none
 
@@ -25,8 +24,16 @@ module classSoilProfile1
         procedure :: bioturbation => bioturbationSoilProfile1       ! Bioturbate soil on a given time step
         procedure :: imposeSizeDistribution => imposeSizeDistributionSoilProfile1 ! Impose size distribution on mass of sediment
         procedure :: calculateAverageGrainSize => calculateAverageGrainSizeSoilProfile1 ! Calculate the average grain diameter from soil texture
+        procedure :: calculateSizeDistribution => calculateSizeDistributionSoilProfile1 ! Re-bin the grain size distribution from clay/sand/silt to sediment size classes
         procedure :: parseInputData => parseInputDataSoilProfile1   ! Parse the data from the input file and store in object properties
         procedure :: parseNewBatchData => parseNewBatchDataSoilProfile1
+        ! Getters
+        procedure :: get_m_np => get_m_np_SoilProfile1
+        procedure :: get_m_transformed => get_m_transformed_SoilProfile1
+        procedure :: get_m_dissolved => get_m_dissolved_SoilProfile1
+        procedure :: get_C_np => get_C_np_SoilProfile1
+        procedure :: get_C_transformed => get_C_transformed_SoilProfile1
+        procedure :: get_C_dissolved => get_C_dissolved_SoilProfile1
     end type
 
   contains
@@ -37,7 +44,6 @@ module classSoilProfile1
                                 x, &
                                 y, &
                                 p, &
-                                slope, &
                                 n_river, &
                                 area, &
                                 q_precip_timeSeries, &
@@ -46,11 +52,10 @@ module classSoilProfile1
         integer             :: x                            !! Containing `GridCell` x index
         integer             :: y                            !! Containing `GridCell` y index
         integer             :: p                            !! `SoilProfile` reference (redundant for now as only one `SoilProfile` per `GridCell`)
-        real(dp)            :: slope                        !! Slope of the containing `GridCell` [m/m]
         real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
         real(dp)            :: area                         !! The surface area of the `SoilProfile` [m3]
-        real(dp), allocatable :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
-        real(dp), allocatable :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
+        real, allocatable :: q_precip_timeSeries(:)         !! Precipitation time series [m/timestep]
+        real, allocatable :: q_evap_timeSeries(:)           !! Evaporation time series [m/timestep]
         type(Result)        :: r                            !! The `Result` object
         integer             :: l                            ! Soil layer iterator
         type(SoilLayer1), allocatable :: sl                 ! Temporary SoilLayer1 variable
@@ -58,9 +63,7 @@ module classSoilProfile1
         me%ref = ref("SoilProfile", x, y, p)                ! Generate the reference name for the SoilProfile
 
         ! Allocate the object properties that need to be
-        allocate(me%usle_C(C%nTimeSteps), &
-            me%usle_alpha_half(C%nTimeSteps), &
-            me%erodedSediment(C%nSizeClassesSpm), &
+        allocate(me%erodedSediment(C%nSizeClassesSpm), &
             me%distributionSediment(C%nSizeClassesSpm), &
             me%m_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
@@ -70,12 +73,12 @@ module classSoilProfile1
             me%m_transformed_buried(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed_eroded(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%m_transformed_in(C%npDim(1), C%npDim(2), C%npDim(3)), &
+            ! me%C_np(C%npDim(1), C%npDim(2), C%npDim(3)), &
             me%colSoilLayers(C%nSoilLayers))
         ! Initialise variables
         me%x = x                                            ! GridCell x index
         me%y = y                                            ! GridCell y index
         me%p = p                                            ! SoilProfile index within the GridCell
-        me%slope = slope
         me%n_river = n_river
         me%area = area                                      ! Surface area
         allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)            ! [m/timestep]
@@ -92,6 +95,7 @@ module classSoilProfile1
         me%m_dissolved = 0.0_dp
         me%m_dissolved_in = 0.0_dp
         me%m_dissolved_buried = 0.0_dp
+        ! me%C_np = 0.0_dp
         
         ! Parse and store input data in this object's properties
         call r%addErrors(.errors. me%parseInputData())
@@ -142,6 +146,9 @@ module classSoilProfile1
         real(dp) :: j_dissolved_diffuseSource                   !! Diffuse source of NM for this timestep [kg/m2/timestep]
         type(Result) :: r                                       !! Result object to return
 
+        ! Reset for this timestep
+        me%V_pool = 0.0_dp
+
         if (.not. me%isUrban) then
             ! Set the timestep-specific object properties
             me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
@@ -169,7 +176,7 @@ module classSoilProfile1
             me%m_np = me%m_np - me%m_np_buried
 
         else
-            ! If this is an urban cell, presume nothing for the moment
+            ! If this is an urban cell, presume no erosion
             me%erodedSediment = 0
         end if
 
@@ -222,7 +229,7 @@ module classSoilProfile1
             ! for each SoilLayer above this
             do i = 1, l
                 ! Check if the layer beneath has pooled any water
-                if (me%colSoilLayers(l-i+1)%item%V_pool > 0) then
+                if (abs(me%colSoilLayers(l-i+1)%item%V_pool) > C%epsilon) then
                     if (l-i == 0) then                          ! If it's the top soil layer, track how much pooled above soil
                         me%V_pool = me%colSoilLayers(l-i+1)%item%V_pool
                     else                                        ! Else, add pooled volume to layer above
@@ -246,14 +253,14 @@ module classSoilProfile1
         call r%addToTrace("Percolating water on time step #" // trim(str(t)))
     end function
 
-    !> Calculate the soil erosion for this timestep and updates this `GridCell`'s
-    !! `erodedSediment` property accordingly. Soil erosion based on RUSLE, with
-    !! R-factor derived from kinetic energy calculated by Davison method:
-    !! [Davison et al. 2005](https://doi.org/10.1016/j.scitotenv.2005.02.002).
-    !! Europe specific parameterisation include in a_1, a_2, a_3, I30 and b
-    !! parameters (provided by input data). K factor based on [modified Morgan
-    !! Finney](https://doi.org/10.1002/esp.1530) and in g/J. Using these units, R-factor
-    !! is simply equal to kinetic energy (J/m2) and sediment yield is in g/m2.
+    !> Calculate the soil erosion for this timestep and updates this GridCell's `erodedSediment` property.
+    !! Soil erosion based on RUSLE, with R-factor derived from kinetic energy calculated by Davison method:
+    !! [Davison et al. 2005](https://doi.org/10.1016/j.scitotenv.2005.02.002). Europe specific parameterisation
+    !! include in a1, a2, a3 and b parameters (provided by input data). K factor based on [modified Morgan
+    !! Finney](https://doi.org/10.1002/esp.1530) and in g/J. Using these units, R-factor is simply equal to
+    !! kinetic energy (J/m2) and sediment yield is in g/m2.
+    !! Note that here we're just calculating the total sediment yield, *not* the amount this is transported to
+    !! the reaches, which is scaled by the sediment transport capacity, as calculated by reaches.
     function erodeSoilProfile1(me, t) result(rslt)
         class(SoilProfile1) :: me
         integer             :: t
@@ -263,9 +270,6 @@ module classSoilProfile1
         real(dp)            :: erodedSedimentTotal
         type(datetime)      :: currentDate
         integer             :: julianDay
-        real(dp)            :: m_soil_l1
-        real(dp)            :: propEroded
-        real(dp)            :: erodedNP(C%nSizeClassesNp)
         integer             :: i
 
         ! TODO This function only works with daily timesteps
@@ -274,24 +278,21 @@ module classSoilProfile1
         ! date2num converts to number of days since 0001-01-01, and 1721423 is the Julian day
         ! number of 0001-01-01.
         currentDate = C%startDate + timedelta(days=t-1)
-        julianDay = date2num(currentDate) + 1721423
+        julianDay = currentDate%yearday()
         ! Then calculate the kinetic energy [J/m2/day]. Precip needs converting to [mm/day] from [m/timestep].
         E_k = (me%erosivity_a1 + me%erosivity_a2 * cos(julianDay * (2*C%pi/365) + me%erosivity_a3)) &
                 * (me%q_precip_timeSeries(t)*1.0e3)**me%erosivity_b
         ! Now the modified MMF version of K, dependent on sand, silt and clay content [g/J]
         K_MMF = 0.1*(me%clayContent/100.0_dp) + 0.3*(me%sandContent/100.0_dp) + 0.5*(me%siltContent/100.0_dp)
         ! Total eroded sediment [g/m2/day]
-        erodedSedimentTotal = E_k * K_MMF * me%usle_C(t) * me%usle_P * me%usle_LS
+        erodedSedimentTotal = E_k * K_MMF * me%usle_C * me%usle_P * me%usle_LS
         ! Split this into a size distribution and convert to [kg/m2/day]
         me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
-        
+
         ! The top soil layer deals with eroding NM
         call rslt%addErrors(.errors. me%colSoilLayers(1)%item%erode(me%erodedSediment, me%bulkDensity, me%area))
         ! Remove this eroded soil from the total m_np in the profile
-        ! TODO Depracate me%m_np for the whole profile, as it
-        ! means updating NM mass in both the profile and the individual layers
-
-        do i = 1, C%nSizeClassesNP
+        do i = 1, C%nSizeClassesNM
             ! Transfer NM eroded from attached to heteroaggregated, by imposing the size distribution
             ! as for eroded SPM. The logic here is that the soil the NM is attached to will end up
             ! as SPM and thus the NM attached it will be heteroaggregated rather than attached/bound.
@@ -333,17 +334,81 @@ module classSoilProfile1
         end if
     end function
 
-    !> Impose a size class distribution on a total mass to split it up
-    !! into separate size classes. If no distribution has been specified
-    !! for this `SoilProfile`, then a default global size distribution is used
+    !> Impose a size class distribution on a total mass to split it up into separate size classes.
+    !! If no distribution has been specified for this `SoilProfile`, then a default global size
+    !! distribution is used. Clay enrichment is calculated by the calculateClayEnrichment function,
+    !! based on clay enrichment factors from the input data (or defaults).
     function imposeSizeDistributionSoilProfile1(me, mass) result(distribution)
         class(SoilProfile1) :: me                               !! This `SoilProfile` instance
         real(dp)            :: mass                             !! The mass to split into size classes
         real(dp)            :: distribution(C%nSizeClassesSpm)  !! The resulting distribution
-        integer             :: s                                ! Loop iterator for size classes
-        do s = 1, C%nSizeClassesSpm
-            distribution(s) = mass*me%distributionSediment(s)
+        distribution = mass * me%distributionSediment
+    end function
+
+    !> Re-bin the clay-silt-sand content into the binned sediment size classes used in the model
+    function calculateSizeDistributionSoilProfile1(me, clay, silt, sand, enrichClay) result(ssd)
+        class(SoilProfile1) :: me                                   !! This soil profile
+        real    :: clay, silt, sand                                 !! Percentage clay, silt and sand
+        logical :: enrichClay                                       !! Should we enrich the clay content of the sediment?
+        real    :: ssd(C%nSizeClassesSpm)                           !! Calculated sediment size distribution
+        real    :: texture(3)                                       !! Array to store clay, silt and sand content in
+        real    :: clayEnrichmentRatio                              ! Clay enrichment ratio
+        real    :: dClay                                            ! Change in clay content
+        real    :: textureEnriched(3)                               ! Texture distribution, clay enriched
+        real    :: texture_bins(3,2)                                ! Array to store texture size class bounds in
+        real    :: ssd_bins(C%nSizeClassesSpm,2)                    ! Array to store sediment size class bounds in
+        real    :: frac_ssd_in_texture_bin(3,C%nSizeClassesSpm)     ! Fraction of SSD bin in texture bin
+        integer :: i, j                                             ! Iterators
+        logical :: not_in_ssd_bin                                   ! Is this texture bin within this SSD bin?
+        real    :: lower, upper                                     ! Lower and upper bounds of overlap between texture and SSD bins
+        real    :: ssd_(3,C%nSizeClassesSpm)                        ! Temporary SSD array, before summing across SSD dimension
+        ! Bins for texture content, based on definition of clay, silt and sand. First bins
+        ! have non-zero lower bound to avoid numerical errors when logging
+        texture = [clay, silt, sand] / 100.0
+        if (enrichClay) then
+            clayEnrichmentRatio = 0.26 + 1 / (1 - texture(3))               ! Ref: Stefano and Ferro, 2002: https://doi.org/10.1006/bioe.2001.0034
+            dClay = texture(1) * clayEnrichmentRatio - texture(1)           ! Change in clay content due to enrichment
+            textureEnriched = [texture(1) * clayEnrichmentRatio, texture(2) - dClay / 2, texture(3) - dClay / 2]
+        else
+            textureEnriched = texture
+        end if
+        texture_bins = log(reshape([1e-9, 0.002, 0.06, 0.002, 0.06, 2.0], [3,2]))
+        ssd_bins(1,1) = log(1e-9)
+        do i = 1, C%nSizeClassesSpm
+            ! Set the upper bound for this bin to the diameter given in config, then set the
+            ! lower bound for the next bin to the same
+            ssd_bins(i,2) = log(C%d_spm(i) * 1e3)
+            if (i < C%nSizeClassesSpm) then
+                ssd_bins(i+1,1) = log(C%d_spm(i) * 1e3)
+            end if
         end do
+        ! Loop through texture bins and calculate the fraction of each SSD bin in that texture bin
+        do i = 1, 3
+            do j = 1, C%nSizeClassesSpm
+                not_in_ssd_bin = .false.
+                ! Lower overlap bound
+                if (texture_bins(i,1) <= ssd_bins(j,2)) then
+                    lower = max(texture_bins(i,1), ssd_bins(j,1))
+                else
+                    not_in_ssd_bin = .true.
+                end if
+                ! Upper overlap bound
+                if (texture_bins(i,2) >= ssd_bins(j,1)) then
+                    upper = min(texture_bins(i,2), ssd_bins(j,2))
+                else
+                    not_in_ssd_bin = .true.
+                end if
+                ! Set the fraction of SSD bin in this texture bin, based on lower and upper bounds
+                if (not_in_ssd_bin) then
+                    frac_ssd_in_texture_bin(i,j) = 0.0
+                else
+                    frac_ssd_in_texture_bin(i,j) = (upper - lower) / (texture_bins(i,2) - texture_bins(i,1))
+                end if
+            end do
+            ssd_(i,:) = textureEnriched(i) * frac_ssd_in_texture_bin(i,:)
+        end do
+        ! Sum the ssd_ array into the final sediment distribution
+        ssd = sum(ssd_, dim=1)
     end function
 
     !> Calculate the average grain size from soil texture properties, using RUSLE handbook
@@ -362,11 +427,9 @@ module classSoilProfile1
     function parseInputDataSoilProfile1(me) result(r)
         class(SoilProfile1)     :: me                       !! This `SoilProfile` instance
         type(Result)            :: r                        !! `Result` object to return
-        integer                 :: i                        ! Iterator
         integer                 :: landUse                  ! Index of max land use fraction in this profile
-        type(NcVariable)        :: var
 
-        me%distributionSediment = DATASET%defaultSpmSizeDistribution
+        me%distributionSediment = DATASET%defaultSpmSizeDistribution ! TODO we can probably get rid of this, but check
         me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
         me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
         me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
@@ -389,12 +452,17 @@ module classSoilProfile1
         end if
         ! Calculate the average grain diameter from soil texture
         me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+        me%distributionSediment = me%calculateSizeDistribution( &
+            me%clayContent, &
+            me%siltContent, &
+            me%sandContent, &
+            C%includeClayEnrichment &
+        )
         me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
 
         ! USLE params
         me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
-        ! TODO make usle_C not temporal
-        if ((me%usle_C(1) == nf90_fill_double) .or. (me%usle_C(1) < 0) .or. (me%usle_C(1) > 100)) then
+        if (me%usle_C == nf90_fill_double) then
             me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
         end if
         me%usle_P = DATASET%soilUslePFactor(me%x, me%y)
@@ -407,30 +475,46 @@ module classSoilProfile1
         end if
 
         ! Get earthworm density from land use. Select the maximum land use fraction and use all
-        ! of profile is that.
+        ! of profile as that
         landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
         ! TODO get these values more intelligently
         select case (landUse)
             case (1)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
+                me%dominantLandUseName = 'urban_no_soil'
             case (2)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanParks
+                me%dominantLandUseName = 'urban_parks_leisure'
             case (3)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+                me%dominantLandUseName = 'urban_industrial_soil'
             case (4)
                 me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+                me%dominantLandUseName = 'urban_green_residential'
             case (5)
                 me%earthwormDensity = DATASET%earthwormDensityArable
+                me%dominantLandUseName = 'arable'
             case (6)
                 me%earthwormDensity = DATASET%earthwormDensityGrassland
+                me%dominantLandUseName = 'grassland'
             case (7)
                 me%earthwormDensity = DATASET%earthwormDensityDeciduous
+                me%dominantLandUseName = 'deciduous'
             case (8)
                 me%earthwormDensity = DATASET%earthwormDensityConiferous
+                me%dominantLandUseName = 'coniferous'
             case (9)
                 me%earthwormDensity = DATASET%earthwormDensityHeathland
+                me%dominantLandUseName = 'heathland'
+            case (10)
+                me%earthwormDensity = 0.0_dp
+                me%dominantLandUseName = 'water'
+            case (11)
+                me%earthwormDensity = 0.0_dp
+                me%dominantLandUseName = 'desert'
             case default
                 me%earthwormDensity = 0.0_dp
+                me%dominantLandUseName = 'other'
         end select
 
         ! Auditing
@@ -438,8 +522,8 @@ module classSoilProfile1
             ERROR_HANDLER%equal( &
                 value = sum(me%distributionSediment), &
                 criterion = 1.0, &
-                message = "Specified size class distribution for sediments " &
-                            // "does not sum to 100%." &
+                message = "Grain size distribution does not sum to 100%. " &
+                            // "Have you set sediment size classes correctly?" &
             ) &
         )
 
@@ -456,6 +540,11 @@ module classSoilProfile1
         class(SoilProfile1) :: me
         integer :: landUse
 
+        ! These timeseries are passed to soil profile in create(), so we need to set again here
+        deallocate(me%q_evap_timeSeries, me%q_precip_timeSeries)
+        allocate(me%q_evap_timeSeries, source=DATASET%evap(me%x, me%y, :))
+        allocate(me%q_precip_timeSeries, source=DATASET%precip(me%x, me%y, :))
+
         me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
         me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
         me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
@@ -483,7 +572,7 @@ module classSoilProfile1
         ! USLE params
         me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
         ! TODO make usle_C not temporal
-        if ((me%usle_C(1) == nf90_fill_double) .or. (me%usle_C(1) < 0) .or. (me%usle_C(1) > 100)) then
+        if (me%usle_C == nf90_fill_double) then
             me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
         end if
         me%usle_P = DATASET%soilUslePFactor(me%x, me%y)
@@ -522,4 +611,66 @@ module classSoilProfile1
                 me%earthwormDensity = 0.0_dp
         end select
     end subroutine
+
+    !> Calculate the mean NM PEC across all soil layers for this soil profile
+    function get_C_np_SoilProfile1(me) result(C_np)
+        class(SoilProfile1)     :: me                       !! This SoilProfile instance
+        real(dp), allocatable   :: C_np(:,:,:)              !! Mass concentration of NM [kg/kg soil]
+        ! For some reason, ifort 18 won't compile if C_np isn't allocatable. Same for the other getter functions
+        allocate(C_np(C%npDim(1), C%npDim(2), C%npDim(3)))
+        C_np = me%get_m_np() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
+    end function
+
+    !> Calculate the mean transformed NM PEC across all soil layers for this soil profile
+    function get_C_transformed_SoilProfile1(me) result(C_transformed)
+        class(SoilProfile1)     :: me                               !! This SoilProfile instance
+        real(dp), allocatable   :: C_transformed(:,:,:)             !! Mass concentration of NM [kg/kg soil]
+        allocate(C_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
+        C_transformed = me%get_m_transformed() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
+    end function
+
+    !> Calculate the mean dissolved species PEC across all soil layers for this soil profile
+    function get_C_dissolved_SoilProfile1(me) result(C_dissolved)
+        class(SoilProfile1) :: me                           !! This SoilProfile instance
+        real(dp)            :: C_dissolved                  !! Mass concentration of dissolved species [kg/kg soil]
+        C_dissolved = me%get_m_dissolved() / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
+    end function
+
+    !> Get the total NM mass in the soil profile
+    function get_m_np_SoilProfile1(me) result(m_np)
+        class(SoilProfile1)     :: me               !! This SoilProfile instance
+        real(dp), allocatable   :: m_np(:,:,:)      !! NM mass in the soil profile [kg]
+        integer                 :: i                ! Iterator
+        allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)))
+        m_np = 0.0_dp
+        ! Loop through the soil layers and sum m_np
+        do i = 1, C%nSoilLayers
+            m_np = m_np + me%colSoilLayers(i)%item%m_np
+        end do
+    end function
+
+    !> Get the total transformed NM mass in the soil profile
+    function get_m_transformed_SoilProfile1(me) result(m_transformed)
+        class(SoilProfile1)     :: me                       !! This SoilProfile instance
+        real(dp), allocatable   :: m_transformed(:,:,:)     !! Transformed NM mass in the soil profile [kg]
+        integer                 :: i                        ! Iterator
+        allocate(m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
+        m_transformed = 0.0_dp
+        ! Loop through the soil layers and sum m_transformed
+        do i = 1, C%nSoilLayers
+            m_transformed = m_transformed + me%colSoilLayers(i)%item%m_transformed
+        end do
+    end function
+
+    !> Get the total dissolved NM mass in the soil profile
+    function get_m_dissolved_SoilProfile1(me) result(m_dissolved)
+        class(SoilProfile1) :: me               !! This SoilProfile instance 
+        real(dp)            :: m_dissolved      !! Dissolved NM mass in the soil profile [kg]
+        integer             :: i                ! Iterator
+        m_dissolved = 0.0_dp
+        ! Loop through the soil layers and sum m_dissolved
+        do i = 1, C%nSoilLayers
+            m_dissolved = m_dissolved + me%colSoilLayers(i)%item%m_dissolved
+        end do
+    end function
 end module

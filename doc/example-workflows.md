@@ -6,11 +6,11 @@ This document gives some examples of workflows for compiling input data, running
 
 If you haven't already, you need to compile the model to an executable file. This only needs to be done once (unless the model code changes), even if using different data. Instructions are given in the [README.md](../README.md).
 
-## Compiling/edit input data > running the model
+## Compiling/editing input data > running the model
 
 - Use the [NanoFASE data module](https://github.com/nerc-ceh/nanofase-data) to compile or edit input data. Refer to this [README.md](https://github.com/NERC-CEH/nanofase-data/blob/develop/README.md) for documentation on how to do this.
 - The data compilation will produce two files: A NetCDF file and a Fortran Namelist (.nml) file.
-- Create a model config file (example given here: [config/config.example.nml](../config/config.example.nml)) or update an existing one, ensuring that `&data` > `input_file` points to the NetCDF file, and `&data` > `constants_file` points to the Fortran Namelist file.
+- Create a model config file (example given here: [config.example/config.example.nml](../config.example/config.example.nml)) or update an existing one, ensuring that `&data` > `input_file` points to the NetCDF file, and `&data` > `constants_file` points to the Fortran Namelist file.
 - Run the model, as detailed in the [README.md](../README.md).
 
 ### Example: updating emissions scenarios

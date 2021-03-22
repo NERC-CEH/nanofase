@@ -16,11 +16,8 @@ module spcSoilProfile
         character(len=256) :: ref                                   !! A reference name for the object
         integer :: x                                                !! `GridCell` x reference
         integer :: y                                                !! `GridCell` y reference
-        integer :: p                                                !! `SoilProfile` reference (not needed currently as only one `SoilProfile` per `GridCell`)
-        type(NcGroup) :: ncGroup                                    !! The NetCDF group for this object
+        integer :: p                                                !! `SoilProfile` reference
         type(SoilLayerElement), allocatable :: colSoilLayers(:)     !! Array of `SoilLayerElement` objects to hold the soil layers
-        integer :: nSoilLayers                                !! Number of contained `SoilLayer`s
-        real(dp) :: slope                                           !! The slope of the containing `GridCell`
         real(dp) :: area                                            !! The surface area of the `SoilProfile`
         ! Nanomaterial
         real(dp), allocatable :: m_np(:,:,:)                        !! Mass of NM currently in profile [kg]
@@ -34,13 +31,14 @@ module spcSoilProfile
         real(dp), allocatable :: m_dissolved                        !! Mass of dissolved NM currently in profile [kg]
         real(dp), allocatable :: m_dissolved_in                     !! Mass of dissolved NM deposited to profile on a time step [kg]
         real(dp), allocatable :: m_dissolved_buried                 !! Cumulative mass of dissolved NM "lost" from the bottom `SoilLayer` [kg]
+        ! real(dp), allocatable :: C_np(:,:,:)                        !! Concentration of NM currently in profile [kg/kg soil]
         ! Hydrology and met
         real(dp) :: n_river                                         !! Manning's roughness coefficient for the river
-        real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep (not used for anything current) [m3 m-2]
-        real(dp), allocatable :: q_precip_timeSeries(:)             !! Time series of precipitation data [m3 m-2 s-1]
-        real(dp) :: q_precip                                        !! Precipitation for this time step [m3 m-2 s-1]
-        real(dp), allocatable :: q_evap_timeSeries(:)               !! Time series of evapotranspiration data [m3 m-2 s-1]
-        real(dp) :: q_evap                                          !! Evapotranspiration for this time step [m3 m-2 s-1]
+        real(dp) :: V_pool                                          !! Pooled water from top SoilLayer for this timestep [m3 m-2]
+        real, allocatable :: q_precip_timeSeries(:)                 !! Time series of precipitation data [m3 m-2 s-1]
+        real :: q_precip                                            !! Precipitation for this time step [m3 m-2 s-1]
+        real, allocatable :: q_evap_timeSeries(:)                   !! Time series of evapotranspiration data [m3 m-2 s-1]
+        real :: q_evap                                              !! Evapotranspiration for this time step [m3 m-2 s-1]
         real(dp) :: q_in
             !! Infiltration for this time step: \( q_{\text{in}} = q_{\text{precip}} - q_{\text{evap}} \) [m3 m-2 s-1]
         real(dp) :: WC_sat                                          !! Water content at saturation [m3 m-3]
@@ -57,8 +55,9 @@ module spcSoilProfile
         real(dp) :: porosity                                        !! Soil porosity [%]
         real(dp) :: bulkDensity                                     !! Soil bulk density [kg/m3]
         real(dp) :: earthwormDensity                                !! Earthworm density [individuals/m2]
+        character(len=23) :: dominantLandUseName                    !! Name of the dominant land use category in this cell
         ! Soil erosion
-        real(dp), allocatable :: usle_C(:)                          !! Cover and land management factor time series [-]
+        real(dp) :: usle_C                                          !! Cover and land management factor time series [-]
         real(dp) :: usle_K                                          !! Soil erodibility factor [t ha h ha-1 MJ-1 mm-1]
         real(dp) :: usle_LS                                         !! Topographic factor [-]
         real(dp) :: usle_P                                          !! Support practice factor [-]
@@ -69,23 +68,11 @@ module spcSoilProfile
         real(dp) :: erosivity_I30                                   !! Maximum half-hour rainfall [mm/hr]
         real(dp) :: erosivity_b                                     !! Rainfall erosivity parameter
         real(dp), allocatable :: erodedSediment(:)                  !! Sediment yield eroded on this time step [kg/timestep]
+        real(dp) :: sedimentTransportCapacity                       !! Maximum erodable sediment [kg/m2/timestep]
         real, allocatable :: distributionSediment(:)                !! Distribution to split sediment into
 
         ! TODO this will probably be modified when we start properly using land cover. Currently this is to account for urban soils
         logical :: isUrban = .false.
-
-        ! ------------------------------------
-        ! TODO Q_peak parameters - to be deprecated
-        real(dp), allocatable :: usle_alpha_half(:)                 !! Fraction of rainfall falling during maximum half hour [-]
-        real(dp) :: usle_area_hru                                   !! Area of the HRU corresponding to the containing `GridCell` [ha]
-        real(dp) :: usle_area_sb                                    !! Area of the subbasin corresponding to the containing `GridCell` [km2]
-        real(dp) :: usle_L_sb                                       !! Hillslope length for the subbasin [m]
-        real(dp) :: usle_n_sb                                       !! Manning's roughness coefficient for the subbasin [-]
-        real(dp) :: usle_slp_sb                                     !! Slope of the subbasin [m m-1]
-        real(dp) :: usle_slp_ch                                     !! Slope of the channel [m m-1]
-        real(dp) :: usle_L_ch                                       !! Hillslope length for the channel [km]
-        !--------------------------------------
-        
       contains
         procedure(createSoilProfile), deferred :: create                    ! Create the SoilProfile object
         procedure(destroySoilProfile), deferred :: destroy                  ! Remove the SoilProfile object and all contained objects
@@ -94,9 +81,16 @@ module spcSoilProfile
         procedure(erodeSoilProfile), deferred :: erode                      ! Erode soil for given time step
         procedure(bioturbationSoilProfile), deferred :: bioturbation        ! Bioturbate soil for a given time step
         procedure(imposeSizeDistributionSoilProfile), deferred :: imposeSizeDistribution ! Impose size distribution on mass of sediment
-        procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize
+        procedure(calculateSizeDistributionSoilProfile), deferred :: calculateSizeDistribution      ! Re-bin the soil texture (sand/silt/clay) into sediment size classes
+        procedure(calculateAverageGrainSizeSoilProfile), deferred :: calculateAverageGrainSize      ! Calculate the average grain size from sand/silt/clay content
         procedure(parseInputDataSoilProfile), deferred :: parseInputData    ! Parse the data from the input file and store in object properties
         procedure(parseNewBatchDataSoilProfile), deferred :: parseNewBatchData    ! Parse the data from the input file and store in object properties
+        procedure(get_m_np_SoilProfile), deferred :: get_m_np
+        procedure(get_m_transformed_SoilProfile), deferred :: get_m_transformed
+        procedure(get_m_dissolved_SoilProfile), deferred :: get_m_dissolved
+        procedure(get_C_np_SoilProfile), deferred :: get_C_np
+        procedure(get_C_transformed_SoilProfile), deferred :: get_C_transformed
+        procedure(get_C_dissolved_SoilProfile), deferred :: get_C_dissolved
     end type
 
     !> Container type for `class(SoilProfile)` such that a polymorphic
@@ -114,7 +108,6 @@ module spcSoilProfile
                                    x, &
                                    y, &
                                    p, &
-                                   slope, &
                                    n_river, &
                                    area, &
                                    q_precip_timeSeries, &
@@ -126,11 +119,10 @@ module spcSoilProfile
             integer             :: x                            !! Containing `GridCell` x position
             integer             :: y                            !! Containing `GridCell` y position
             integer             :: p                            !! `SoilProfile` reference
-            real(dp)            :: slope                        !! Slope of the containing `GridCell` [m m-1]
             real(dp)            :: n_river                      !! Manning's roughness coefficient for the `GridCell`'s rivers [-]
             real(dp)            :: area                         !! The area of the `SoilProfile`'s surface
-            real(dp), allocatable :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
-            real(dp), allocatable :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
+            real, allocatable   :: q_precip_timeSeries(:)     !! Precipitation time series [m/timestep]
+            real, allocatable   :: q_evap_timeSeries(:)       !! Evaporation time series [m/timestep]
             type(Result)        :: r                            !! `Result` object to return
         end function
 
@@ -194,11 +186,30 @@ module spcSoilProfile
             real(dp) :: distribution(C%nSizeClassesSpm)
         end function
 
+        function calculateSizeDistributionSoilProfile(me, clay, silt, sand, enrichClay) result(ssd)
+            use Globals, only: C
+            import SoilProfile
+            class(SoilProfile)  :: me                       !! This SoilProfile instance
+            real                :: clay, silt, sand         !! Percentage clay, silt and sand
+            logical             :: enrichClay               !! Should we enrich the clay content?
+            real                :: ssd(C%nSizeClassesSpm)   !! Calculated sediment size distribution
+        end function
+
         function calculateAverageGrainSizeSoilProfile(me, clay, silt, sand) result(d_grain)
             import SoilProfile
-            class(SoilProfile) :: me            ! This soil profile
-            real :: clay, silt, sand            ! Percentage clay, silt and sand
-            real :: d_grain                     ! The average grain size
+            class(SoilProfile) :: me            !! This soil profile
+            real :: clay, silt, sand            !! Percentage clay, silt and sand
+            real :: d_grain                     !! The average grain size
+        end function
+
+        function calculateClayEnrichmentSoilProfile(me, ssd, k_dist, a) result(ssdEnriched)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile)  :: me                               !! This SoilProfile instance
+            real(dp)            :: ssd(C%nSizeClassesSpm)           !! Original sediment size distribution
+            real(dp)            :: k_dist                           !! Enrichment scaling factor
+            real(dp)            :: a                                !! Enrichment skew factor
+            real(dp)            :: ssdEnriched(C%nSizeClassesSpm)   !! Enriched sediment size distribution
         end function
 
         !> Parses the input data for the `SoilProfile` from the data file
@@ -213,5 +224,49 @@ module spcSoilProfile
             import SoilProfile
             class(SoilProfile) :: me
         end subroutine
+
+        function get_m_np_SoilProfile(me) result(m_np)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp), allocatable :: m_np(:,:,:)
+        end function
+
+        function get_m_transformed_SoilProfile(me) result(m_transformed)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp), allocatable :: m_transformed(:,:,:)
+        end function
+
+        function get_m_dissolved_SoilProfile(me) result(m_dissolved)
+            use Globals, only: dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: m_dissolved
+        end function
+
+        function get_C_np_SoilProfile(me) result(C_np)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp), allocatable :: C_np(:,:,:)
+        end function
+
+        function get_C_transformed_SoilProfile(me) result(C_transformed)
+            use Globals, only: C, dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp), allocatable :: C_transformed(:,:,:)
+        end function
+
+        function get_C_dissolved_SoilProfile(me) result(C_dissolved)
+            use Globals, only: dp
+            import SoilProfile
+            class(SoilProfile) :: me
+            real(dp) :: C_dissolved
+        end function
+    
     end interface
+
 end module

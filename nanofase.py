@@ -21,8 +21,8 @@ def edit_data(config_file):
 
 
 # Compile the model using make. This is simply a wrapper to execute the make shell command
-def compile_model():
-    os.system(f'make')
+def compile_model(target='main'):
+    os.system(f'make {target}')
 
 
 # Run the model, again using make. We use make so that we call the exe in the correct place.
@@ -37,7 +37,7 @@ def run_model(config_file):
 
 
 # Command line choices available
-choices = ['compile-data', 'edit-data', 'compile-model', 'run-model']
+choices = ['compile-data', 'edit-data', 'compile-model', 'compile-model-release', 'run-model']
 
 # Parse the command line args
 parser = argparse.ArgumentParser(description='Common utilities for the NanoFASE model.')
@@ -55,6 +55,9 @@ elif args.method == 'edit-data':
 elif args.method == 'compile-model':
     # Compile the model using make
     compile_model()
+elif args.method == 'compile-model-release':
+    # Compile the model with the release target
+    compile_model('release')
 elif args.method == 'run-model':
     # Run the model using the given config file
     run_model(args.config)

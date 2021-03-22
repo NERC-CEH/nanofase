@@ -63,7 +63,7 @@ module classPointSource2
                 end if
                 ! Matrix-embedded
                 if (.not. DATASET%emissionsPointWaterMatrixEmbedded(me%x, me%y, t, me%s) == nf90_fill_double) then
-                    do i = 1, DATASET%nSizeClassesNM
+                    do i = 1, C%nSizeClassesNM
                         me%j_np_pointSource(i,1,3:) = DATASET%emissionsPointWaterMatrixEmbedded(me%x, me%y, t, me%s) &
                             * DATASET%defaultMatrixEmbeddedDistributionToSpm * DATASET%defaultNMSizeDistribution(i)
                     end do

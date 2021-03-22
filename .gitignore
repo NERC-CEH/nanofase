@@ -18,10 +18,13 @@ dll/
 x64/
 scratch/
 
-# Directory for personal code snippets and any output.txt data file
+# Config, directory for personal code snippets and data files
+config/
 snip/
-output*.*
+data/
+scratch/
 *.dat
+config/
 
 # Prerequisites
 *.d
@@ -63,6 +66,7 @@ output*.*
 *.sublime-project
 *.sublime-workspace
 .vs/
+.vscode/
 .project
 Debug/
 *.sln
@@ -75,10 +79,4 @@ fort*
 # Temp files
 ~$*.docx
 *.csv#
-
-# netCDF
-*.nc
-**/*.nc
-*.json
-**/*.json
 

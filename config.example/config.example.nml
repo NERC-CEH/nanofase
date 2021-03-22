@@ -1,0 +1,95 @@
+! One of the quirks of Fortran namelist files is that you can't saved implicitly sized
+! arrays to variables in Fortran code without knowing their length. The way around this
+! is to specify the array lengths as separate variables in a group read in before the
+! arrays themselves. This is that group.
+&allocatable_array_sizes
+n_soil_layers = 3                                       ! Number of soil layers to model
+n_sediment_layers = 4                                   ! Number of sediment layers to model
+n_nm_size_classes = 5                                   ! Number of NM size classes
+n_spm_size_classes = 5                                  ! Number of SPM size classes
+n_fractional_compositions = 4                           ! Number of fractional compositions for sediment
+/
+
+&nanomaterial
+nm_size_classes = 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ! Diameter of NM in each binned size class [m]
+n_nm_forms = 4                                          ! Number of NM forms (free, matrix-embedded, etc)
+n_nm_extra_states = 2                                   ! Number of extra NM states, other than heteroaggregated to SPM
+/ 
+
+! Run the model in calibration mode? Documentation here: [doc/calibration.md](../doc/calibration.md)
+&calibrate
+calibration_run = .false.                               ! Run in calibration mode or not? Following variables only required if this is true
+/
+
+! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
+&data
+input_file = "data.example/thames_tio2_2015.nc"         ! Path to NetCDF input data, which includes most of the spatial and temporally resolved data
+constants_file = "data.example/constants_tio2.nml"      ! Path to constants namelist file, which includes most of the non-spatiotemporal input data 
+output_path = "data/output/"                            ! Path to store the output data
+/
+
+! Various options related to what data to output. Generally speaking, the more of the include_ flags that are set to true,
+! the more data that is output and the larger the output data file sizes
+&output
+write_csv = .true.                                      ! Should we write output data to CSV files (n.b. turning this off currently suppresses all output, except for runs to steady state)
+write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comments at top of CSV files?
+include_waterbody_breakdown = .true.                    ! For surface water output, include breakdown over waterbodies or aggregate at grid cell level?
+include_sediment_layer_breakdown = .false.              ! Include breakdown of data over sediment layers?
+include_soil_layer_breakdown = .false.                  ! Include breaedown of data over soil layers?
+include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
+soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3? NOT CURRENTLY IN USE
+sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3? NOT CURRENTLY IN USE
+include_soil_erosion = .true.                           ! Should soil erosion yields be included in soil output?
+include_sediment_fluxes = .true.                        ! Should sediment fluxes to/from waterbodies be included?
+/
+
+&run
+description = "Thames catchment, nano-TiO2, 2015"       ! Not used by model, but included in output data
+write_to_log = .false.                                  ! Should we write logs to file?
+timestep = 86400                                        ! Length of each time step, in seconds
+n_timesteps = 365                                       ! Number of time steps
+start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format
+epsilon = 1e-20,                                        ! Precision for numerical simulations
+error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
+trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
+log_file_path = "log/"                                  ! Where to place model logs
+warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
+/
+
+! Checkpointing is the ability to save a model run so that it can be reinstated from file. This is useful if, for example,
+! you want to have a standard "warm-up" period for the model which you don't want to run every time you run the model.
+! The checkpoint file is a binary file and this may cause issues transferring to different architectures
+&checkpoint
+checkpoint_file = "./checkpoint.dat"                    ! Location of checkpoint file to read from and/or save to
+save_checkpoint = .false.                               ! Save a checkpoint file when the run is finished? Defaults to false
+reinstate_checkpoint = .false.                          ! Reinstate a checkpoint from checkpoint_file? Defaults to false
+preserve_timestep = .false.                             ! Should the timestep from the checkpoint be used as a starting timestep in a reinstated run?
+/
+
+&steady_state
+run_to_steady_state = .false.                           ! Should the model be run until steady state by iterating over current simulation input data?
+mode = 'sediment_size_distribution'                     ! Mode defines what variable will be used to assess steady state
+delta = 1e-4
+/
+
+&soil
+soil_layer_depth = 0.05, 0.15, 0.2                      ! Depth of each soil layer. Array of length &allocatable_array_sizes > n_soil_layers
+include_bioturbation = .true.                           ! Should bioturbation be modelled?
+include_attachment = .true.                             ! Should attachment be modelled?
+/
+
+&sediment
+sediment_layer_depth = 0.01, 0.01, 0.01, 0.01           ! Depth of each sediment layer. Array of length &allocatable_array_sizes > n_sediment_layers
+spm_size_classes = 0.002e-3, 0.06e-3, 0.2e-3, 0.6e-3, 2.0e-3    ! Upper bound of SPM diameter in each binned size class [m]
+include_bed_sediment = .true.                           ! Should bed sediment be modelled?
+sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
+/
+
+&water
+min_stream_slope = 0.0001                               ! Impose a minimum stream slope. Defaults to 0.0001, must be greater than 0
+min_estuary_timestep = 3600                             ! Minimum timestep length to use when modelling estuarine dynamics [s]. Defaults to 1 hour
+/
+
+&sources
+include_point_sources = .true.                          ! Should point sources be included?
+/

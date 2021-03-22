@@ -36,24 +36,24 @@ module classReactor1
         me%x = x
         me%y = y
         me%alpha_hetero = alpha_hetero
-        me%rho_np = C%nanomaterialDensity
+        me%rho_np = DATASET%nmDensity 
         me%volume = 0                   ! No river to begin with...
 
         call r%addErrors(.errors. me%parseInputData())
 
         ! Allocate size class arrays to the correct size
-        allocate(me%W_settle_np(C%nSizeClassesNP))
+        allocate(me%W_settle_np(C%nSizeClassesNM))
         allocate(me%W_settle_spm(C%nSizeClassesSpm))
-        allocate(me%k_hetero(C%nSizeClassesNP, C%nSizeClassesSpm))
+        allocate(me%k_hetero(C%nSizeClassesNM, C%nSizeClassesSpm))
         allocate(me%C_spm_particle(C%nSizeClassesSpm))
-        allocate(me%C_np_free_particle(C%nSizeClassesNP))
-        allocate(me%individualNPMass(C%nSizeClassesNP))
+        allocate(me%C_np_free_particle(C%nSizeClassesNM))
+        allocate(me%individualNPMass(C%nSizeClassesNM))
 
         ! Allocate the NP mass matrix to correct number of state/form elements.
         ! States: 1. free, 2. bound to solid, 3+ heteroaggreated (per SPM size class). 
         ! Forms: 1. core, 2. shell, 3. coating, 4. corona.
         allocate(me%m_np( &
-            C%nSizeClassesNP, &             ! Number of NP size classes
+            C%nSizeClassesNM, &             ! Number of NP size classes
             4, &                            ! Number of different forms
             C%nSizeClassesSpm + 2 &         ! Number of different states
         ))
@@ -62,7 +62,7 @@ module classReactor1
         ! Set the mass of individual particles (used for converting between
         ! particle concentrations and masses)
         ! TODO: Maybe set NP individual masses in globals?? Actually, don't think it's needed...
-        !do n = 1, C%nSizeClassesNP
+        !do n = 1, C%nSizeClassesNM
         !    me%individualNPMass(n) = me%rho_np * (4/3)*C%pi*(C%d_spm(n)/2)**3
         !end do
         
@@ -71,21 +71,21 @@ module classReactor1
     
     !> Run the `Reactor`'s simulation for the current time step
     function updateReactor1(me, t, m_np, m_transformed, m_dissolved, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
-        class(Reactor1) :: me           !! This `Reactor1` object
-        integer :: t                    !! The current time step
-        real(dp) :: m_np(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) !! Mass of NP for this timestep [kg]
-        real(dp) :: m_transformed(C%nSizeClassesNP, 4, 2 + C%nSizeClassesSpm) !! Mass of NP for this timestep [kg]
-        real(dp) :: m_dissolved
-        real(dp) :: C_spm(C%nSizeClassesSpm)    !! The current mass concentration of SPM [kg/m3]
-        real(dp) :: T_water             !! The current water temperature [C]
-        real(dp) :: W_settle_np(C%nSizeClassesNP)   !! NP settling velocity [m/s]
-        real(dp) :: W_settle_spm(C%nSizeClassesSpm) !! SPM settling velocity [m/s]
-        real(dp) :: G                   !! Shear rate [s-1]
-        real(dp) :: volume         !! Volume of the reach on this time step [m3]
-        type(Result) :: r               !! The `Result` object to return
-        integer :: s                    ! Iterator for SPM size classes
-        integer :: n                    ! Iterator for NP size classes
-        
+        class(Reactor1) :: me                                       !! This `Reactor1` object
+        integer         :: t                                        !! The current time step
+        real(dp)        :: m_np(C%npDim(1), C%npDim(2), C%npDim(3)) !! Mass of NM for this timestep [kg]
+        real(dp)        :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) !! Mass of NM for this timestep [kg]
+        real(dp)        :: m_dissolved                              !! Mass of dissolved NM for this timestep [kg]
+        real(dp)        :: C_spm(C%nSizeClassesSpm)                 !! The current mass concentration of SPM [kg/m3]
+        real            :: T_water                                  !! The current water temperature [C]
+        real(dp)        :: W_settle_np(C%nSizeClassesNM)            !! NM settling velocity [m/s]
+        real(dp)        :: W_settle_spm(C%nSizeClassesSpm)          !! SPM settling velocity [m/s]
+        real            :: G                                        !! Shear rate [s-1]
+        real(dp)        :: volume                                   !! Volume of the reach on this time step [m3]
+        type(Result)    :: r                                        !! The `Result` object to return
+        integer         :: s                                        ! Iterator for SPM size classes
+        integer         :: n                                        ! Iterator for NP size classes
+
         ! Set current mass of NP in reactor to that given. Reactor doesn't deal
         ! with inflows/outflows and just takes a mass on each timestep and transforms
         ! that mass
@@ -104,7 +104,7 @@ module classReactor1
             ! C_spm_particle = C_spm / mass of particle
             me%C_spm_particle(s) = me%calculateParticleConcentration( &
                 C_spm(s), &
-                sum(C%rho_spm)/C%nFracCompsSpm, &
+                sum(C%sedimentParticleDensities)/C%nFracCompsSpm, &
                 C%d_spm(s) &
             )
         end do
@@ -124,9 +124,9 @@ module classReactor1
         class(Reactor1) :: me                               !! This `Reactor1` instance
         !real(dp) :: beta(4,C%nSizeClassesSpm + 2) 
         type(Result) :: r                                   !! The `Result` object to return any errors in
-        real(dp) :: k_coll(C%nSizeClassesNp,C%nSizeClassesSpm)  ! Collision frequency [s-1]
+        real(dp) :: k_coll(C%nSizeClassesNM,C%nSizeClassesSpm)  ! Collision frequency [s-1]
         integer :: s, n                                     ! Iterators for NM and SPM size classes
-        real(dp) :: T(C%nSizeClassesNP, C%nSizeClassesSpm + 2, C%nSizeClassesSpm + 2)
+        real(dp) :: T(C%nSizeClassesNM, C%nSizeClassesSpm + 2, C%nSizeClassesSpm + 2)
         real(dp) :: dm_hetero           ! Mass of NPs heteroaggregated on this timestep [kg/timestep]
 
         ! Calculate the collision rate and then heteroaggregation rate constant
@@ -137,12 +137,12 @@ module classReactor1
             me%W_settle_spm &
         )
         do s = 1, C%nSizeClassesSpm
-            do n = 1, C%nSizeClassesNP
+            do n = 1, C%nSizeClassesNM
                 me%k_hetero(n,s) = k_coll(n,s) * me%alpha_hetero * me%C_spm_particle(s)
             end do
         end do
         
-        do n = 1, C%nSizeClassesNP
+        do n = 1, C%nSizeClassesNM
             ! Calculate mass heteroaggregated (dm_hetero)
             ! first so that, if all NPs are heteroaggregated on one timestep, the mass can be split
             ! amongst SPM size classes correctly (rather than using k_hetero for each SPM size class,
@@ -192,10 +192,12 @@ module classReactor1
         class(Reactor1) :: me
         type(Result)    :: rslt
         real(dp)        :: dm_transform(C%npDim(1), C%npDim(2), C%npDim(3))
+        
         ! Transformation (e.g. sulphidation) of pristine NM
         dm_transform = min(me%k_transform_pristine * C%timeStep * me%m_np, me%m_np)
         me%m_np = me%m_np - dm_transform
-        me%m_transformed = me%m_transformed + dm_transform        
+        me%m_transformed = me%m_transformed + dm_transform
+
     end function
     
     !> Parse the input data for this Reactor
@@ -213,20 +215,20 @@ module classReactor1
     !> Calculate the collision rate between NPs and SPM.
     !! Reference: [Praetorious et al, 2012](http://dx.doi.org/10.1021/es204530n)
     function calculateCollisionRateReactor1(me, T_water, G, W_settle_np, W_settle_spm) result(k_coll)
-        class(Reactor1) :: me           !! This `Reactor1` instance
-        real(dp) :: T_water             !! Temperature of the water [C]
-        real(dp) :: G                   !! Shear rate [s-1]
-        real(dp) :: W_settle_np(:)      !! NP settling velocity [m/s]
-        real(dp) :: W_settle_spm(:)     !! SPM settling velocity [m/s]
-        real(dp) :: k_coll(C%nSizeClassesNp,C%nSizeClassesSpm)
-        integer :: n, s                 ! Iterators for SPM and NP size classes
+        class(Reactor1) :: me                       !! This `Reactor1` instance
+        real            :: T_water                  !! Temperature of the water [deg C]
+        real            :: G                        !! Shear rate [/s]
+        real(dp)        :: W_settle_np(:)           !! NP settling velocity [m/s]
+        real(dp)        :: W_settle_spm(:)          !! SPM settling velocity [m/s]
+        real(dp)        :: k_coll(C%nSizeClassesNM, C%nSizeClassesSpm)      !! The collision frequency to return [/s]
+        integer         :: n, s                     ! Iterators for SPM and NP size classes
         
         do s = 1, C%nSizeClassesSpm
-            do n = 1, C%nSizeClassesNp
+            do n = 1, C%nSizeClassesNM
                 k_coll(n,s) = (2*C%k_B*(T_water+273.15_dp)/(3*C%mu_w(T_water))) &
-                              * (C%d_spm(s)/2 + C%d_np(n)/2)**2/((C%d_spm(s)/2)*(C%d_np(n)/2)) &
-                              + (4.0_dp/3.0_dp)*G*(C%d_np(n)/2 + C%d_spm(s)/2)**3 &
-                              + C%pi*(C%d_spm(s)/2+C%d_np(n)/2)**2 &
+                              * (C%d_spm(s)/2 + C%d_nm(n)/2)**2/((C%d_spm(s)/2)*(C%d_nm(n)/2)) &
+                              + (4.0_dp/3.0_dp)*G*(C%d_nm(n)/2 + C%d_spm(s)/2)**3 &
+                              + C%pi*(C%d_spm(s)/2+C%d_nm(n)/2)**2 &
                               * abs(W_settle_np(n) - W_settle_spm(s))
             end do
         end do
@@ -240,7 +242,7 @@ module classReactor1
         real :: rho_particle
         real :: d
         real(dp) :: C_particle
-        C_particle = C_mass / (rho_particle*(4/3)*C%pi*(d/2)**3)
+        C_particle = C_mass / (rho_particle*(4.0_dp/3.0_dp)*C%pi*(d/2)**3)
     end function
     
 end module

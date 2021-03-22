@@ -8,7 +8,9 @@ module UtilModule
     interface str
         module procedure strFromInteger
         module procedure strFromReal
+        module procedure strFromReal1D
         module procedure strFromDp
+        module procedure strFromLogical
     end interface
 
     interface ref
@@ -31,28 +33,66 @@ module UtilModule
         module procedure isLessThanZeroDp
     end interface
 
+    interface divideCheckZero
+        module procedure divideCheckZeroReal
+        module procedure divideCheckZeroDp
+        module procedure divideCheckZeroRealNumeratorIntegerDenominator
+        module procedure divideCheckZeroDpNumeratorIntegerDenominator
+    end interface
+
+    interface flushToZero
+        module procedure flushToZeroReal
+        module procedure flushToZeroDp
+    end interface
+
+    interface weightedAverage
+        module procedure weightedAverageDp
+        module procedure weightedAverageDp1D
+        module procedure weightedAverageDp2D
+        module procedure weightedAverageDp3D
+    end interface
+
     contains
-        !> print a set of r x c matrices to the console
-        subroutine print_matrix(m)
-            real(dp), allocatable :: m(:,:,:)                        !! the passed matrix as a 2D array
-            real(dp), allocatable :: mm(:)                           ! LOCAL 1D temproary array
-            integer :: r                                             ! LOCAL number of rows in array
-            integer :: c                                             ! LOCAL number of columns in array
-            integer :: s                                             ! LOCAL third array dimension
-            integer :: n                                             ! LOCAL loop counter 
-            integer :: p                                             ! LOCAL loop counter 
-            r = size(m, 1)                                           ! number of rows
-            c = size(m, 2)                                           ! number of columns
-            s = size(m, 3)                                           ! third dimension
-            allocate(mm(c))             
-            do p = 1, s
-                do n = 1, r
-                    mm = m(n, 1:c, p)
+
+        !> Print a welcome to the model message to the console.
+        subroutine printWelcome()
+            write(*,'(A)') "_____________________________________________________________________"
+            write(*,'(A)') "                _   _                   _____ _    ____  _____ "
+            write(*,'(A)') "               | \ | | __ _ _ __   ___ |  ___/ \  / ___|| ____|"
+            write(*,'(A)') "               |  \| |/ _` | '_ \ / _ \| |_ / _ \ \___ \|  _|  "
+            write(*,'(A)') "               | |\  | (_| | | | | (_) |  _/ ___ \ ___) | |___ "
+            write(*,'(A)') "Welcome to the |_| \_|\__,_|_| |_|\___/|_|/_/   \_\____/|_____| model"
+            write(*,'(A)') "...version: " // C%modelVersion
+            write(*,'(A)') "_____________________________________________________________________"
+            write(*,'(A)') ""
+        end subroutine
+
+        !> Print a 3D array as a set of 2D matrices to the console
+        subroutine printMatrix(m)
+            real(dp), allocatable :: m(:,:,:)                        !! The 3D array to print
+            real(dp), allocatable :: mm(:)                           ! 1D temproary array
+            integer :: i, j                                          ! Iterators 
+            allocate(mm(size(m, 2)))             
+            do j = 1, size(m, 3)
+                do i = 1, size(m, 1)
+                    mm = m(i, 1:size(m, 2), j)
                     print '(25f20.15)', mm
                 end do
                 print *, ""
             end do
         end subroutine
+
+        !> Convert a singular to a plural, if i is greater than 1
+        function pluralize(singular, i)
+            character(len=*)    :: singular
+            integer             :: i
+            character(len=256)  :: pluralize
+            if (i == 1) then
+                pluralize = singular
+            else
+                pluralize = trim(singular) // "s"
+            end if
+        end function
 
         !> Convert a signed integer to a logical value
         elemental function lgcl(i)
@@ -86,18 +126,37 @@ module UtilModule
 
         !> Convert a real to a string
         function strFromReal(r) result(str)
-            real, intent(in) :: r           !! The integer to convert to a string
+            real, intent(in) :: r           !! The real to convert to a string
             character(len=256) :: str       !! The string to return
             write(str, *)r
             str = trim(adjustl(str))
         end function
+        
+        !> Convert a real 1D array to a string
+        function strFromReal1D(r) result(string)
+            real, intent(in) :: r(:)        !! The integer to convert to a string
+            character(len=256) :: string       !! The string to return
+            integer         :: i
+            write(string, *) (trim(str(r(i))) // ", ", i=1, size(r) - 1)
+            string = trim(string) // " " // trim(str(r(size(r))))
+        end function
 
         !> Convert a double-precision real to a string
         function strFromDp(r) result(str)
-            real(dp), intent(in) :: r           !! The integer to convert to a string
-            character(len=256) :: str       !! The string to return
+            real(dp), intent(in) :: r           !! The dp real to convert to a string
+            character(len=256) :: str           !! The string to return
             write(str, *)r
             str = trim(adjustl(str))
+        end function
+
+        function strFromLogical(l) result(str)
+            logical, intent(in) :: l
+            character(len=5) :: str
+            if (l) then
+                str = "true"
+            else
+                str = "false"
+            end if
         end function
 
         !> Generate an object reference from a prefix (e.g., "GridCell")
@@ -168,7 +227,7 @@ module UtilModule
         end function
 
         !> Check whether a real value is within epsilon of zero
-        function isZeroReal(value, epsilon)
+        pure function isZeroReal(value, epsilon)
             real, intent(in)                :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
@@ -179,11 +238,11 @@ module UtilModule
             else
                 e = epsilon
             end if
-            if (abs(value) < epsilon) isZeroReal = .true.
+            if (abs(value) < e) isZeroReal = .true.
         end function
 
         !> Check whether a real(dp) value is within epsilon of zero
-        function isZeroDp(value, epsilon)
+        pure function isZeroDp(value, epsilon)
             real(dp), intent(in)            :: value        !! Value to check
             real(dp), intent(in), optional  :: epsilon      !! Proximity to zero permitted
             real(dp)                        :: e            !! Internal epsilon
@@ -197,7 +256,7 @@ module UtilModule
             if (abs(value) < e) isZeroDp = .true.
         end function
 
-        function isZeroDp3D(value, epsilon)
+        pure function isZeroDp3D(value, epsilon)
             real(dp), intent(in)            :: value(:,:,:)     !! Value to check
             real(dp), intent(in), optional  :: epsilon          !! Proximity to zero permitted
             real(dp)                        :: e                !! Internal epsilon
@@ -249,5 +308,164 @@ module UtilModule
             if (value <= -e) isLessThanZeroDp = .true.
         end function
 
+        !> Divide a number by another, check if the numerator or denominator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroReal(numerator, denominator)
+            real, intent(in) :: numerator
+            real, intent(in) :: denominator
+            real :: divideCheckZeroReal
+            if (isZero(numerator) .or. isZero(denominator)) then
+                divideCheckZeroReal = 0.0
+            else
+                divideCheckZeroReal = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator or denominator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroDp(numerator, denominator)
+            real(dp), intent(in) :: numerator
+            real(dp), intent(in) :: denominator
+            real(dp) :: divideCheckZeroDp
+            if (isZero(numerator) .or. isZero(denominator)) then
+                divideCheckZeroDp = 0.0_dp
+            else
+                divideCheckZeroDp = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator or denominator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroRealNumeratorIntegerDenominator(numerator, denominator)
+            real, intent(in) :: numerator
+            integer, intent(in) :: denominator
+            real :: divideCheckZeroRealNumeratorIntegerDenominator
+            if (isZero(numerator) .or. denominator == 0) then
+                divideCheckZeroRealNumeratorIntegerDenominator = 0.0_dp
+            else
+                divideCheckZeroRealNumeratorIntegerDenominator = numerator / denominator
+            end if
+        end function
+
+        !> Divide a number by another, check if the numerator or denominator is zero
+        !! first, and if so, setting the result to zero
+        elemental function divideCheckZeroDpNumeratorIntegerDenominator(numerator, denominator)
+            real(dp), intent(in) :: numerator
+            integer, intent(in) :: denominator
+            real(dp) :: divideCheckZeroDpNumeratorIntegerDenominator
+            if (isZero(numerator) .or. denominator == 0) then
+                divideCheckZeroDpNumeratorIntegerDenominator = 0.0_dp
+            else
+                divideCheckZeroDpNumeratorIntegerDenominator = numerator / denominator
+            end if
+        end function
+
+        pure elemental function flushToZeroReal(x) result(y)
+            real, intent(in)    :: x
+            real                :: y
+            if (abs(x) < C%epsilon) then
+                y = 0.0
+            else
+                y = x
+            end if
+        end function
+
+        pure elemental function flushToZeroDp(x) result(y)
+            real(dp), intent(in)    :: x
+            real(dp)                :: y
+            if (abs(x) < C%epsilon) then
+                y = 0.0_dp
+            else
+                y = x
+            end if
+        end function
+
+        function weightedAverageDp(x, w) result(x_w)
+            real(dp), intent(in) :: x(:)
+            real(dp), intent(in) :: w(:)
+            real(dp) :: x_w
+            x_w = divideCheckZero(sum(x * w), sum(w))
+        end function
+
+        !> Calculate the weighted average of an array of 1D variables (i.e. a 2D array)
+        !! using the provided weights
+        function weightedAverageDp1D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:)
+            integer :: i
+            allocate(x_w(size(x, dim=2)))
+            do i = 1, size(x, dim=2)
+                x_w(i) = weightedAverage(x(:,i), w)
+            end do
+        end function
+
+        !> Calculate the weighted average of an array of 2D variables (i.e. a 3D array)
+        !! using the provided weights
+        function weightedAverageDp2D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:,:)
+            integer :: i, j
+            allocate(x_w(size(x, dim=2), size(x, dim=3)))
+            do j = 1, size(x, dim=3)    
+                do i = 1, size(x, dim=2)
+                    x_w(i,j) = weightedAverage(x(:,i,j), w)
+                end do
+            end do
+        end function
+
+        !> Calculate the weighted average of an array of 3D variables (i.e. a 4D array)
+        !! using the provided weights
+        function weightedAverageDp3D(x, w) result(x_w)
+            real(dp), intent(in) :: x(:,:,:,:)
+            real(dp), intent(in) :: w(:)
+            real(dp), allocatable :: x_w(:,:,:)
+            integer :: i, j, k
+            allocate(x_w(size(x, dim=2), size(x, dim=3), size(x, dim=4)))
+            do k = 1, size(x, dim=4)
+                do j = 1, size(x, dim=3)
+                    do i = 1, size(x, dim=2)
+                        x_w(i,j,k) = weightedAverage(x(:,i,j,k), w)
+                    end do
+                end do
+            end do
+        end function
+
+! Functions without interfaces
+
+        function freeNM(x) result(free)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: free(C%nSizeClassesNM)
+            free = x(:,1,1)
+        end function
+
+        function attachedNM(x) result(attached)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: attached(C%nSizeClassesNM)
+            attached = x(:,1,2)
+        end function
+
+        function heteroaggregatedNM(x) result(heteroaggregated)
+            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
+            real(dp)                :: heteroaggregated(C%nSizeClassesNM)
+            heteroaggregated = sum(x(:,1,3:), dim=1)
+        end function
+
+        subroutine progress(j)
+            integer :: j,k
+            character(len=118) :: bar="\r???% |                                          "//&
+                "                                                          |"
+             
+            ! Updates the fraction of calculation done
+            write(unit=bar(2:4), fmt="(i3)") j
+            do k = 1, j
+                bar(7+k:7+k)="*"
+            end do
+             
+            ! Print the progress bar.
+            write(*,'(a)', advance='no') bar
+             
+        end subroutine
 
 end module
