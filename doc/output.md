@@ -24,4 +24,4 @@ In addition, two options to specific the units for concentrations (kg/m3 or kg/k
 
 ## Output files
 
-Column descriptions are given in the file metadata (if `write_metadata_as_comment` is set to `.true.`). For water, each row represents an individual waterbody on a timestep. For soils and sediment, each row represents the entire soil/sediment profile on a particular timestep.
+Column descriptions are given in the file metadata (if `write_metadata_as_comment` is set to `.true.`). For water, each row represents an individual waterbody on a timestep, if `include_waterbody_breakdown` is `.true.`, or aggregated to grid cell level if `.false.`. For soils and sediment, each row represents the entire soil/sediment profile in a grid cell on a particular timestep.
