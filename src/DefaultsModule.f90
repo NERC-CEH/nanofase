@@ -18,6 +18,7 @@ module DefaultsModule
     integer, parameter :: iouOutputSediment = 102
     integer, parameter :: iouOutputSoil = 103
     integer, parameter :: iouOutputSSD = 104
+    integer, parameter :: iouOutputStats = 105
     ! Checkpoint and logging
     integer, parameter :: iouCheckpoint = 500
     integer, parameter :: iouLog = 501
@@ -33,6 +34,7 @@ module DefaultsModule
         integer             :: minEstuaryTimestep = 3600            ! 1 hour [s] 
         logical             :: writeToLog = .true.
         ! Output
+        logical             :: writeCompartmentStats = .true.           ! Should a summary stats file for each compartment be written?
         logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included
         logical             :: includeSedimentFluxes = .false.
         logical             :: includeSoilErosion = .false.

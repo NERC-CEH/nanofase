@@ -1,7 +1,7 @@
 !> Module container for the DataOutput class
 module DataOutputModule1
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
-        iouOutputSediment, iouOutputSoil, iouOutputSSD
+        iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
     use Globals, only: C, dp
     use classDatabase, only: DATASET
     use spcEnvironment
@@ -11,15 +11,71 @@ module DataOutputModule1
     use EstuaryReachModule
     use UtilModule
     use datetime_module
+    use mo_netcdf
     implicit none
 
     !> The DataOutput class is responsible for writing output data to disk
     type, public :: DataOutput1
-        character(len=256) :: outputPath                    !! Path to the output directory
-        type(EnvironmentPointer) :: env                     !! Pointer to the environment, to retrieve state variables
+        character(len=256)          :: outputPath               !! Path to the output directory
+        type(EnvironmentPointer)    :: env                      !! Pointer to the environment, to retrieve state variables
         ! Storing variables across timesteps for dynamics calculations
-        real(dp), allocatable :: previousSSDByLayer(:,:)
-        real(dp), allocatable :: previousSSD(:)
+        real(dp), allocatable       :: previousSSDByLayer(:,:)
+        real(dp), allocatable       :: previousSSD(:)
+
+        type(NcDataset)             :: nc
+        type(NcVariable)            :: nc__water__waterbody_type
+        type(NcVariable)            :: nc__water__m_nm
+        type(NcVariable)            :: nc__water__m_transformed
+        type(NcVariable)            :: nc__water__m_dissolved
+        type(NcVariable)            :: nc__water__C_nm
+        type(NcVariable)            :: nc__water__C_transformed
+        type(NcVariable)            :: nc__water__C_dissolved
+        type(NcVariable)            :: nc__water__m_nm_outflow
+        type(NcVariable)            :: nc__water__m_transformed_outflow
+        type(NcVariable)            :: nc__water__m_dissolved_outflow
+        type(NcVariable)            :: nc__water__m_nm_deposited
+        type(NcVariable)            :: nc__water__m_transformed_deposited
+        type(NcVariable)            :: nc__water__m_nm_resuspended
+        type(NcVariable)            :: nc__water__m_transformed_resuspended
+        type(NcVariable)            :: nc__water__m_spm
+        type(NcVariable)            :: nc__water__C_spm
+        type(NcVariable)            :: nc__water__m_spm_erosion
+        type(NcVariable)            :: nc__water__m_spm_deposited
+        type(NcVariable)            :: nc__water__m_spm_resuspended
+        type(NcVariable)            :: nc__water__m_spm_inflow
+        type(NcVariable)            :: nc__water__m_spm_outflow
+        type(NcVariable)            :: nc__water__m_spm_bank_erosion
+        type(NcVariable)            :: nc__water__volume
+        type(NcVariable)            :: nc__water__depth
+        type(NcVariable)            :: nc__water__flow
+        real(dp), allocatable       :: output_water__waterbody_type(:,:)
+        real(dp), allocatable       :: output_water__m_nm(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_transformed(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_dissolved(:,:,:,:)
+        real(dp), allocatable       :: output_water__C_nm(:,:,:,:)
+        real(dp), allocatable       :: output_water__C_transformed(:,:,:,:)
+        real(dp), allocatable       :: output_water__C_dissolved(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_nm_outflow(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_transformed_outflow(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_dissolved_outflow(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_nm_deposited(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_transformed_deposited(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_nm_resuspended(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_transformed_resuspended(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_spm(:,:,:,:)
+        real(dp), allocatable       :: output_water__C_spm(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_spm_erosion(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_spm_deposition(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_spm_resuspended(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_spm_inflow(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_spm_outflow(:,:,:,:)
+        real(dp), allocatable       :: output_water__m_spm_bank_erosion(:,:,:,:)
+        real(dp), allocatable       :: output_water__volume(:,:,:,:)
+        real(dp), allocatable       :: output_water__depth(:,:,:,:)
+        real(dp), allocatable       :: output_water__flow(:,:,:,:)
+
+
+
       contains
         procedure, public :: init => initDataOutput
         procedure, public :: initSedimentSizeDistribution => initSedimentSizeDistributionDataOutput
@@ -30,6 +86,7 @@ module DataOutputModule1
         procedure, private :: writeHeadersWater => writeHeadersWaterDataOutput
         procedure, private :: writeHeadersSediment => writeHeadersSedimentDataOutput
         procedure, private :: writeHeadersSoil => writeHeadersSoilDataOutput
+        procedure, private :: writeHeadersStats => writeHeadersStatsDataOutput
         procedure, private :: updateWater => updateWaterDataOutput
         procedure, private :: updateSediment => updateSedimentDataOutput
         procedure, private :: updateSoil => updateSoilDataOutput
@@ -41,6 +98,11 @@ module DataOutputModule1
     subroutine initDataOutput(me, env)
         class(DataOutput1)           :: me
         type(Environment1), target  :: env
+
+
+
+        type(NcDimension) :: t_dim, x_dim, y_dim, w_dim
+
         
         ! Point the Environment object to that passed in
         me%env%item => env
@@ -51,13 +113,78 @@ module DataOutputModule1
             open(iouOutputWater, file=trim(C%outputPath) // 'output_water.csv')
             open(iouOutputSediment, file=trim(C%outputPath) // 'output_sediment.csv')
             open(iouOutputSoil, file=trim(C%outputPath) // 'output_soil.csv')
-            ! open(unit=104, file=trim(C%outputPath) // 'n_output_soil_biota.csv')
-            ! open(unit=105, file=trim(C%outputPath) // 'n_output_water_biota.csv')
-            ! open(unit=106, file=trim(C%outputPath) // 'n_output_rate_constants.csv')
+        end if
+        if (C%writeCompartmentStats) then
+            open(iouOutputStats, file=trim(C%outputPath) // 'stats.csv')
         end if
 
         ! Write the headers for the files
         call me%writeHeaders()
+
+        ! Dimensions: w, x, y, t
+        allocate(me%output_water__m_spm(7, DATASET%gridShape(1), DATASET%gridShape(2), C%nTimestepsInBatch))
+        allocate(me%output_water__C_spm(7, DATASET%gridShape(1), DATASET%gridShape(2), C%nTimestepsInBatch))
+        me%output_water__m_spm = nf90_fill_double
+        me%output_water__C_spm = nf90_fill_double
+
+        me%nc = NcDataset('test.nc', 'w')
+        t_dim = me%nc%setDimension('t', C%nTimestepsInBatch)
+        x_dim = me%nc%setDimension('x', DATASET%gridShape(1))
+        y_dim = me%nc%setDimension('y', DATASET%gridShape(2))
+        w_dim = me%nc%setDimension('w', 7)
+
+        me%nc__water__waterbody_type = me%nc%setVariable('waterbody_type', 'i8', [x_dim, y_dim])
+        call me%nc__water__waterbody_type('description', '1 = river, 2 = estuary')
+        me%nc__water__m_spm = me%nc%setVariable('m_spm','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_spm%setAttribute('units', 'kg')
+        me%nc__water__C_spm = me%nc%setVariable('C_spm','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__C_spm%setAttribute('units', 'kg/m3')
+        me%nc__water__m_nm = me%nc%setVariable('m_np','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_nm%setAttribute('units', 'kg')
+        me%nc__water__m_transformed = me%nc%setVariable('m_transformed','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_transformed%setAttribute('units', 'kg')
+        me%nc__water__m_dissolved = me%nc%setVariable('m_dissolved','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_dissolved%setAttribute('units', 'kg')
+        me%nc__water__C_nm = me%nc%setVariable('C_nm','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__C_nm%setAttribute('units', 'kg/m3')
+        me%nc__water__C_transformed = me%nc%setVariable('C_transformed','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__C_transformed%setAttribute('units', 'kg/m3')
+        me%nc__water__C_dissolved = me%nc%setVariable('C_dissolved','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__C_dissolved%setAttribute('units', 'kg/m3')
+        me%nc__water__m_nm_outflow = me%nc%setVariable('m_np_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_nm_outflow%setAttribute('units', 'kg')
+        me%nc__water__m_transformed_outflow = me%nc%setVariable('m_transformed_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_transformed_outflow%setAttribute('units', 'kg')
+        me%nc__water__m_dissolved_outflow = me%nc%setVariable('m_dissolved_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_dissolved_outflow%setAttribute('units', 'kg')
+        me%nc__water__m_nm_deposited = me%nc%setVariable('m_nm_deposited','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_nm_deposited%setAttribute('units', 'kg')
+        me%nc__water__m_transformed_deposited = me%nc%setVariable('m_transformed_deposited','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_transformed_deposited%setAttribute('units', 'kg')
+        me%nc__water__m_nm_resuspended = me%nc%setVariable('m_nm_resuspended','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_nm_resuspended%setAttribute('units', 'kg')
+        me%nc__water__m_transformed_resuspended = me%nc%setVariable('m_transformed_resuspended','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_transformed_resuspended%setAttribute('units', 'kg')
+        me%nc__water__m_spm_erosion = me%nc%setVariable('m_spm_erosion','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_spm_erosion%setAttribute('units', 'kg')
+        me%nc__water__m_spm_deposited = me%nc%setVariable('m_spm_deposited','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_spm_deposited%setAttribute('units', 'kg')
+        me%nc__water__m_spm_resuspended = me%nc%setVariable('m_spm_resuspended','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_spm_resuspended%setAttribute('units', 'kg')
+        me%nc__water__m_spm_inflow = me%nc%setVariable('m_spm_inflow','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_spm_inflow%setAttribute('units', 'kg')
+        me%nc__water__m_spm_outflow = me%nc%setVariable('m_spm_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_spm_outflow%setAttribute('units', 'kg')
+        me%nc__water__m_spm_bank_erosion = me%nc%setVariable('m_spm_bank_erosion','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__m_spm_bank_erosion%setAttribute('units', 'kg')
+        me%nc__water__volume = me%nc%setVariable('volume','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__volume%setAttribute('units', 'm3')
+        me%nc__water__depth = me%nc%setVariable('depth','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__depth%setAttribute('units', 'm')
+        me%nc__water__flow = me%nc%setVariable('flow','f64', [w_dim, x_dim, y_dim, t_dim])
+        call me%nc__water__flow%setAttribute('units', 'm3/s')
+        
+
     end subroutine
 
     !> Initialise the sediment size distribution steady state run output data file
@@ -76,7 +203,8 @@ module DataOutputModule1
         open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd.csv')
         if (C%writeMetadataAsComment) then
             write(iouOutputSSD, '(a)') "# NanoFASE model output data - SEDIMENT SIZE DISTRIBUTION."
-            write(iouOutputSSD, '(a)') "# Output file  for when running the model until sediment size distribution is at steady state."
+            write(iouOutputSSD, '(a)') "# Output file for when running the model until sediment size distribution " // &
+                " is at steady state."
             write(iouOutputSSD, '(a)') "# Each row represents a complete model run (as defined by the config/batch config file)."
             write(iouOutputSSD, '(a)') "#\ti: model run index (number of iterations of the same input data)"
             write(iouOutputSSD, '(a)') "#\tssd_sci_all_layers: sediment size distribution across size classes i, " // &
@@ -221,6 +349,34 @@ module DataOutputModule1
                 end if
             end associate
         end if
+
+
+        do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
+            associate(reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                ! me%output_water__m_spm(w,x,y,t) = sum(me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item%m_spm)
+                ! me%output_water__C_spm(w,x,y,t) = sum(me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item%C_spm)
+                call me%nc__water__m_nm%setData(sum(reach%m_np), start=[w,x,y,t])    
+                call me%nc__water__m_transformed%setData(sum(reach%m_transformed), start=[w,x,y,t])    
+                call me%nc__water__m_dissolved%setData(reach%m_dissolved, start=[w,x,y,t])    
+                call me%nc__water__C_nm%setData(sum(reach%C_np), start=[w,x,y,t])    
+                call me%nc__water__C_transformed%setData(sum(reach%m_transformed), start=[w,x,y,t])    
+                call me%nc__water__C_dissolved%setData(reach%C_dissolved, start=[w,x,y,t])    
+                call me%nc__water__m_spm%setData(sum(reach%m_spm), start=[w,x,y,t])    
+                call me%nc__water__C_spm%setData(sum(reach%C_spm), start=[w,x,y,t])    
+            end associate
+        end do
+
+        ! if (t == 10) then
+        !     print *, sum(me%output_water__m_spm(1,:,:,9), mask=me%output_water__m_spm(1,:,:,9)/=nf90_fill_double)
+        !     print *, sum(me%output_water__C_spm(1,:,:,9), mask=x==nf90_fill_double)
+        !     error stop
+        ! end if
+
+
+
+
+
+
     end subroutine
 
     !> Update the current sediment output file on the current timestep
@@ -374,6 +530,7 @@ module DataOutputModule1
         end if
         ! Close the files
         close(iouOutputSummary); close(iouOutputWater); close(iouOutputSediment); close(iouOutputSoil)
+        close(iouOutputSSD); close(iouOutputStats)
     end subroutine
 
     ! Write the headers for the output files
@@ -381,9 +538,15 @@ module DataOutputModule1
         class(DataOutput1)   :: me                   !! This DataOutput instance
         ! Write headers all of the output files
         call me%writeHeadersSimulationSummary()
-        call me%writeHeadersWater()
-        call me%writeHeadersSediment()
-        call me%writeHeadersSoil()
+        if (C%writeCSV) then
+            call me%writeHeadersWater()
+            call me%writeHeadersSediment()
+            call me%writeHeadersSoil()
+        end if
+        if (C%writeCompartmentStats) then
+            call me%writeHeadersStats()
+        end if
+
     end subroutine
 
     !> Write headers for the simulation summary file, including basic info about the model run
@@ -423,6 +586,18 @@ module DataOutputModule1
         write(iouOutputSummary, *) "- Number of non-empty grid cells: " // trim(str(me%env%item%nGridCells))
         write(iouOutputSummary, *) "- Is simulation masked? " // trim(str(C%hasSimulationMask))
         write(iouOutputSummary, *) "- Number of non-masked grid cells: " // trim(str(DATASET%nNonMaskedCells))
+    end subroutine
+
+    !> Write the headers for the compartment stats file
+    subroutine writeHeadersStatsDataOutput(me)
+        class(DataOutput1)  :: me
+
+        ! ! Write metadata, if we're meant to
+        ! if (C%writeMetadataAsComment) then
+        !     write(iouOutputStats, '(a)') "# NanoFASE model output data - COMPARTMENT STATS.\n"
+        !     write(iouOutputStats, '(a)') "# This file contains summary statistics for each environmental compartment.\n"
+        ! end if
+        ! write(iouOutputStats '(a)')
     end subroutine
 
     !> Write the headers for the water output file
