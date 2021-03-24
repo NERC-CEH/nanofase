@@ -203,8 +203,8 @@ module DataOutputModule1
         open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd.csv')
         if (C%writeMetadataAsComment) then
             write(iouOutputSSD, '(a)') "# NanoFASE model output data - SEDIMENT SIZE DISTRIBUTION."
-            write(iouOutputSSD, '(a)') "# Output file for when running the model until sediment size distribution " // &
-                " is at steady state."
+            write(iouOutputSSD, '(a)') "# Output file for when running the model until sediment size " // &
+                "distribution is at steady state."
             write(iouOutputSSD, '(a)') "# Each row represents a complete model run (as defined by the config/batch config file)."
             write(iouOutputSSD, '(a)') "#\ti: model run index (number of iterations of the same input data)"
             write(iouOutputSSD, '(a)') "#\tssd_sci_all_layers: sediment size distribution across size classes i, " // &

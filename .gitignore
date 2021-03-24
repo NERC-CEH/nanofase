@@ -16,6 +16,7 @@ log/
 cache/
 dll/
 x64/
+scratch/
 
 # Config, directory for personal code snippets and data files
 config/
@@ -23,7 +24,6 @@ snip/
 data/
 scratch/
 *.dat
-config/
 
 # Prerequisites
 *.d

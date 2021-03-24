@@ -38,8 +38,8 @@ include_waterbody_breakdown = .true.                    ! For surface water outp
 include_sediment_layer_breakdown = .false.              ! Include breakdown of data over sediment layers?
 include_soil_layer_breakdown = .false.                  ! Include breaedown of data over soil layers?
 include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
-soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3?
-sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3?
+soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3? NOT CURRENTLY IN USE
+sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3? NOT CURRENTLY IN USE
 include_soil_erosion = .true.                           ! Should soil erosion yields be included in soil output?
 include_sediment_fluxes = .true.                        ! Should sediment fluxes to/from waterbodies be included?
 /
