@@ -11,6 +11,8 @@ doc/graph/
 doxygen/
 bin/
 build/
+release/
+debug/
 obj/
 log/
 cache/
@@ -58,6 +60,10 @@ scratch/
 *.out
 *.app
 
+# Debugging
+massif*
+gmon.out
+
 # IDEs
 *.cbp
 *.depend
@@ -68,6 +74,7 @@ scratch/
 .vscode/
 .project
 Debug/
+Release/
 *.sln
 *.u2d
 *.vfproj*

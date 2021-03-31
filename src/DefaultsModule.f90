@@ -34,6 +34,9 @@ module DefaultsModule
         integer             :: minEstuaryTimestep = 3600                ! 1 hour [s] 
         logical             :: writeToLog = .true.
         ! Output
+        logical             :: writeCSV = .true.                        ! Should output data be written to CSV files?
+        logical             :: writeNetCDF = .false.                    ! Should output data be written to NetCDF?
+        character(len=3)    :: netCDFWriteMode = 'end'                  ! When to write the NetCDF file - every time step ('itr') or at the end ('end')
         logical             :: writeCompartmentStats = .true.           ! Should a summary stats file for each compartment be written?
         logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included
         logical             :: includeSedimentFluxes = .false.

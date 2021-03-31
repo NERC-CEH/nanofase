@@ -4,7 +4,7 @@
 !! accessible throughout the model.
 module classDatabase
     use mo_netcdf
-    use netcdf
+    ! use netcdf
     use DefaultsModule
     use Globals
     use ResultModule, only: Result
@@ -107,6 +107,8 @@ module classDatabase
         real, allocatable :: gridRes(:)             ! Resolution of grid cells [m]
         real, allocatable :: gridBounds(:)          ! Bounding box of grid, indexed as left, bottom, right, top [m]
         logical, allocatable :: gridMask(:,:)       ! Logical mask for extent of grid [-]
+        character(len=2000) :: crsWKT               ! The well-known text of the CRS, to be saved to output data
+        integer :: epsgCode                         ! The EPSG code of the CRS
         real, allocatable :: x(:)                   ! Centre of cell [m]
         real, allocatable :: x_l(:)                 ! Left side of cell [m]
         real, allocatable :: y(:)                   ! Centre of cell [m]
@@ -237,9 +239,13 @@ module classDatabase
         call var%getData(me%y)
         allocate(me%y_u(me%gridShape(2)))
         me%y_u = me%y + 0.5 * me%gridRes(2)
-        var = me%nc%getVariable('t')
-        call var%getData(me%t)
-        me%nTimesteps = size(me%t)
+        var = me%nc%getVariable('crs')
+        call var%getAttribute('crs_wkt', me%crsWKT)
+        ! if (me%nc%hasVariable('epsg_code')) then
+        !     call var%getAttribute('epsg_code', me%epsgCode)
+        ! else
+        !     me%epsgCode = 0             ! No EPSG code was set
+        ! end if
 
         ! ROUTING VARIABLES
         var = me%nc%getVariable('outflow')
@@ -316,6 +322,7 @@ module classDatabase
         me%nc = NcDataset(C%inputFile, 'r')
 
         ! Deallocate the previous chunk's variables
+        deallocate(me%t)
         deallocate(me%soilAttachmentRate)
         deallocate(me%soilAttachmentEfficiency)
         deallocate(me%emissionsArealSoilPristine)

@@ -12,67 +12,69 @@ module DataOutputModule1
     use UtilModule
     use datetime_module
     use mo_netcdf
+    use NetCDFOutputModule
     implicit none
 
     !> The DataOutput class is responsible for writing output data to disk
     type, public :: DataOutput1
         character(len=256)          :: outputPath               !! Path to the output directory
         type(EnvironmentPointer)    :: env                      !! Pointer to the environment, to retrieve state variables
+        type(NetCDFOutput)          :: ncout                    !! NetCDF output class
         ! Storing variables across timesteps for dynamics calculations
         real(dp), allocatable       :: previousSSDByLayer(:,:)
         real(dp), allocatable       :: previousSSD(:)
 
-        type(NcDataset)             :: nc
-        type(NcVariable)            :: nc__water__waterbody_type
-        type(NcVariable)            :: nc__water__m_nm
-        type(NcVariable)            :: nc__water__m_transformed
-        type(NcVariable)            :: nc__water__m_dissolved
-        type(NcVariable)            :: nc__water__C_nm
-        type(NcVariable)            :: nc__water__C_transformed
-        type(NcVariable)            :: nc__water__C_dissolved
-        type(NcVariable)            :: nc__water__m_nm_outflow
-        type(NcVariable)            :: nc__water__m_transformed_outflow
-        type(NcVariable)            :: nc__water__m_dissolved_outflow
-        type(NcVariable)            :: nc__water__m_nm_deposited
-        type(NcVariable)            :: nc__water__m_transformed_deposited
-        type(NcVariable)            :: nc__water__m_nm_resuspended
-        type(NcVariable)            :: nc__water__m_transformed_resuspended
-        type(NcVariable)            :: nc__water__m_spm
-        type(NcVariable)            :: nc__water__C_spm
-        type(NcVariable)            :: nc__water__m_spm_erosion
-        type(NcVariable)            :: nc__water__m_spm_deposited
-        type(NcVariable)            :: nc__water__m_spm_resuspended
-        type(NcVariable)            :: nc__water__m_spm_inflow
-        type(NcVariable)            :: nc__water__m_spm_outflow
-        type(NcVariable)            :: nc__water__m_spm_bank_erosion
-        type(NcVariable)            :: nc__water__volume
-        type(NcVariable)            :: nc__water__depth
-        type(NcVariable)            :: nc__water__flow
-        real(dp), allocatable       :: output_water__waterbody_type(:,:)
-        real(dp), allocatable       :: output_water__m_nm(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_transformed(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_dissolved(:,:,:,:)
-        real(dp), allocatable       :: output_water__C_nm(:,:,:,:)
-        real(dp), allocatable       :: output_water__C_transformed(:,:,:,:)
-        real(dp), allocatable       :: output_water__C_dissolved(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_nm_outflow(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_transformed_outflow(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_dissolved_outflow(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_nm_deposited(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_transformed_deposited(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_nm_resuspended(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_transformed_resuspended(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_spm(:,:,:,:)
-        real(dp), allocatable       :: output_water__C_spm(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_spm_erosion(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_spm_deposition(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_spm_resuspended(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_spm_inflow(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_spm_outflow(:,:,:,:)
-        real(dp), allocatable       :: output_water__m_spm_bank_erosion(:,:,:,:)
-        real(dp), allocatable       :: output_water__volume(:,:,:,:)
-        real(dp), allocatable       :: output_water__depth(:,:,:,:)
-        real(dp), allocatable       :: output_water__flow(:,:,:,:)
+        ! type(NcDataset)             :: nc
+        ! type(NcVariable)            :: nc__water__waterbody_type
+        ! type(NcVariable)            :: nc__water__m_nm
+        ! type(NcVariable)            :: nc__water__m_transformed
+        ! type(NcVariable)            :: nc__water__m_dissolved
+        ! type(NcVariable)            :: nc__water__C_nm
+        ! type(NcVariable)            :: nc__water__C_transformed
+        ! type(NcVariable)            :: nc__water__C_dissolved
+        ! type(NcVariable)            :: nc__water__m_nm_outflow
+        ! type(NcVariable)            :: nc__water__m_transformed_outflow
+        ! type(NcVariable)            :: nc__water__m_dissolved_outflow
+        ! type(NcVariable)            :: nc__water__m_nm_deposited
+        ! type(NcVariable)            :: nc__water__m_transformed_deposited
+        ! type(NcVariable)            :: nc__water__m_nm_resuspended
+        ! type(NcVariable)            :: nc__water__m_transformed_resuspended
+        ! type(NcVariable)            :: nc__water__m_spm
+        ! type(NcVariable)            :: nc__water__C_spm
+        ! type(NcVariable)            :: nc__water__m_spm_erosion
+        ! type(NcVariable)            :: nc__water__m_spm_deposited
+        ! type(NcVariable)            :: nc__water__m_spm_resuspended
+        ! type(NcVariable)            :: nc__water__m_spm_inflow
+        ! type(NcVariable)            :: nc__water__m_spm_outflow
+        ! type(NcVariable)            :: nc__water__m_spm_bank_erosion
+        ! type(NcVariable)            :: nc__water__volume
+        ! type(NcVariable)            :: nc__water__depth
+        ! type(NcVariable)            :: nc__water__flow
+        ! real(dp), allocatable       :: output_water__waterbody_type(:,:)
+        ! real(dp), allocatable       :: output_water__m_nm(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_transformed(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_dissolved(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__C_nm(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__C_transformed(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__C_dissolved(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_nm_outflow(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_transformed_outflow(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_dissolved_outflow(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_nm_deposited(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_transformed_deposited(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_nm_resuspended(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_transformed_resuspended(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_spm(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__C_spm(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_spm_erosion(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_spm_deposition(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_spm_resuspended(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_spm_inflow(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_spm_outflow(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__m_spm_bank_erosion(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__volume(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__depth(:,:,:,:)
+        ! real(dp), allocatable       :: output_water__flow(:,:,:,:)
 
 
 
@@ -81,6 +83,8 @@ module DataOutputModule1
         procedure, public :: initSedimentSizeDistribution => initSedimentSizeDistributionDataOutput
         procedure, public :: update => updateDataOutput
         procedure, public :: finalise => finaliseDataOutput
+        procedure, public :: newChunk => newChunkDataOutput
+        procedure, public :: finaliseChunk => finaliseChunkDataOutput
         procedure, private :: writeHeaders => writeHeadersDataOutput
         procedure, private :: writeHeadersSimulationSummary => writeHeadersSimulationSummaryDataOutput
         procedure, private :: writeHeadersWater => writeHeadersWaterDataOutput
@@ -95,17 +99,18 @@ module DataOutputModule1
 
   contains
     
+    !> Initialise the data output be creating the relevant output files and writing
+    !! their headers and metadata
     subroutine initDataOutput(me, env)
         class(DataOutput1)           :: me
         type(Environment1), target  :: env
-
-
-
-        type(NcDimension) :: t_dim, x_dim, y_dim, w_dim
-
         
         ! Point the Environment object to that passed in
         me%env%item => env
+
+        if (C%writeNetCDF) then
+            call me%ncout%init(env, 1)
+        end if
 
         ! Open the files to write to
         open(iouOutputSummary, file=trim(C%outputPath) // 'summary.md')
@@ -120,71 +125,6 @@ module DataOutputModule1
 
         ! Write the headers for the files
         call me%writeHeaders()
-
-        ! Dimensions: w, x, y, t
-        allocate(me%output_water__m_spm(7, DATASET%gridShape(1), DATASET%gridShape(2), C%nTimestepsInBatch))
-        allocate(me%output_water__C_spm(7, DATASET%gridShape(1), DATASET%gridShape(2), C%nTimestepsInBatch))
-        me%output_water__m_spm = nf90_fill_double
-        me%output_water__C_spm = nf90_fill_double
-
-        me%nc = NcDataset('test.nc', 'w')
-        t_dim = me%nc%setDimension('t', C%nTimestepsInBatch)
-        x_dim = me%nc%setDimension('x', DATASET%gridShape(1))
-        y_dim = me%nc%setDimension('y', DATASET%gridShape(2))
-        w_dim = me%nc%setDimension('w', 7)
-
-        me%nc__water__waterbody_type = me%nc%setVariable('waterbody_type', 'i8', [x_dim, y_dim])
-        call me%nc__water__waterbody_type('description', '1 = river, 2 = estuary')
-        me%nc__water__m_spm = me%nc%setVariable('m_spm','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_spm%setAttribute('units', 'kg')
-        me%nc__water__C_spm = me%nc%setVariable('C_spm','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__C_spm%setAttribute('units', 'kg/m3')
-        me%nc__water__m_nm = me%nc%setVariable('m_np','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_nm%setAttribute('units', 'kg')
-        me%nc__water__m_transformed = me%nc%setVariable('m_transformed','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_transformed%setAttribute('units', 'kg')
-        me%nc__water__m_dissolved = me%nc%setVariable('m_dissolved','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_dissolved%setAttribute('units', 'kg')
-        me%nc__water__C_nm = me%nc%setVariable('C_nm','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__C_nm%setAttribute('units', 'kg/m3')
-        me%nc__water__C_transformed = me%nc%setVariable('C_transformed','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__C_transformed%setAttribute('units', 'kg/m3')
-        me%nc__water__C_dissolved = me%nc%setVariable('C_dissolved','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__C_dissolved%setAttribute('units', 'kg/m3')
-        me%nc__water__m_nm_outflow = me%nc%setVariable('m_np_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_nm_outflow%setAttribute('units', 'kg')
-        me%nc__water__m_transformed_outflow = me%nc%setVariable('m_transformed_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_transformed_outflow%setAttribute('units', 'kg')
-        me%nc__water__m_dissolved_outflow = me%nc%setVariable('m_dissolved_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_dissolved_outflow%setAttribute('units', 'kg')
-        me%nc__water__m_nm_deposited = me%nc%setVariable('m_nm_deposited','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_nm_deposited%setAttribute('units', 'kg')
-        me%nc__water__m_transformed_deposited = me%nc%setVariable('m_transformed_deposited','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_transformed_deposited%setAttribute('units', 'kg')
-        me%nc__water__m_nm_resuspended = me%nc%setVariable('m_nm_resuspended','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_nm_resuspended%setAttribute('units', 'kg')
-        me%nc__water__m_transformed_resuspended = me%nc%setVariable('m_transformed_resuspended','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_transformed_resuspended%setAttribute('units', 'kg')
-        me%nc__water__m_spm_erosion = me%nc%setVariable('m_spm_erosion','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_spm_erosion%setAttribute('units', 'kg')
-        me%nc__water__m_spm_deposited = me%nc%setVariable('m_spm_deposited','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_spm_deposited%setAttribute('units', 'kg')
-        me%nc__water__m_spm_resuspended = me%nc%setVariable('m_spm_resuspended','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_spm_resuspended%setAttribute('units', 'kg')
-        me%nc__water__m_spm_inflow = me%nc%setVariable('m_spm_inflow','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_spm_inflow%setAttribute('units', 'kg')
-        me%nc__water__m_spm_outflow = me%nc%setVariable('m_spm_outflow','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_spm_outflow%setAttribute('units', 'kg')
-        me%nc__water__m_spm_bank_erosion = me%nc%setVariable('m_spm_bank_erosion','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__m_spm_bank_erosion%setAttribute('units', 'kg')
-        me%nc__water__volume = me%nc%setVariable('volume','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__volume%setAttribute('units', 'm3')
-        me%nc__water__depth = me%nc%setVariable('depth','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__depth%setAttribute('units', 'm')
-        me%nc__water__flow = me%nc%setVariable('flow','f64', [w_dim, x_dim, y_dim, t_dim])
-        call me%nc__water__flow%setAttribute('units', 'm3/s')
-        
-
     end subroutine
 
     !> Initialise the sediment size distribution steady state run output data file
@@ -223,9 +163,10 @@ module DataOutputModule1
     end subroutine
 
     !> Save the output from the current timestep to the output files
-    subroutine updateDataOutput(me, t)
+    subroutine updateDataOutput(me, t, tInChunk)
         class(DataOutput1)   :: me       !! The DataOutput instance
-        integer             :: t        !! The current timestep
+        integer             :: t        !! The current timestep in the batch
+        integer             :: tInChunk !! The timestep in the current chunk
         integer             :: x, y     ! Iterators
         type(datetime)      :: date
         character(len=100)  :: dateISO
@@ -242,20 +183,19 @@ module DataOutputModule1
                 if (DATASET%simulationMask(x,y)) then
                     easts = DATASET%x(x)
                     norths = DATASET%y(y)
-                    if (C%writeCSV) then
-                        call me%updateWater(t, x, y, dateISO, easts, norths)
-                        call me%updateSediment(t, x, y, dateISO, easts, norths)
-                        call me%updateSoil(t, x, y, dateISO, easts, norths)
-                    end if
+                    call me%updateWater(t, tInChunk, x, y, dateISO, easts, norths)
+                    call me%updateSediment(t, tInChunk, x, y, dateISO, easts, norths)
+                    call me%updateSoil(t, tInChunk, x, y, dateISO, easts, norths)
                 end if
             end do
         end do
     end subroutine
 
     !> Update the water output file for the current timestep
-    subroutine updateWaterDataOutput(me, t, x, y, date, easts, norths)
+    subroutine updateWaterDataOutput(me, t, tInChunk, x, y, date, easts, norths)
         class(DataOutput1)   :: me               !! The DataOutput instance
         integer             :: t                !! The current timestep
+        integer             :: tInChunk         !! Timestep in the current chunk
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
         real                :: easts, norths    !! Eastings and northings of this grid cell
@@ -263,126 +203,108 @@ module DataOutputModule1
         character(len=3)    :: reachType        ! Is this a river of estuary?
         real(dp)            :: m_spm(C%nSizeClassesSpm) ! SPM masses
         real(dp)            :: C_spm(C%nSizeClassesSpm) ! SPM concs
-        ! Do we want to output waterbody breakdown or aggregate to grid cell level?
-        if (C%includeWaterbodyBreakdown) then
-            ! Loop through the waterbodies in this cell. Only loops if nReaches > 0, hence we don't check explicitly
-            do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
-                associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                    ! Is it a reach or an estuary?
-                    select type (reach)
-                        type is (RiverReach)
-                            reachType = 'riv'
-                        type is (EstuaryReach)
-                            reachType = 'est'
-                    end select
-                    ! Write the data
-                    write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
-                        trim(str(x)) // "," // trim(str(y)) // "," // &
-                        trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                        trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
-                        trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
-                        trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
-                        trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
-                        trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
-                        trim(str(sum(reach%obj_j_nm%resuspension))) // "," // &
-                        trim(str(sum(reach%obj_j_nm_transformed%resuspension))) // "," // &
-                        trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
-                        trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
-                        trim(str(reach%obj_j_dissolved%outflow)) // "," // &
-                        trim(str(sum(reach%m_spm))) // "," // &
-                        trim(str(sum(reach%C_spm))) // ","
-                    if (C%includeSpmSizeClassBreakdown) then
-                        write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
-                            trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+        if (C%writeCSV) then
+            ! Do we want to output waterbody breakdown or aggregate to grid cell level?
+            if (C%includeWaterbodyBreakdown) then
+                ! Loop through the waterbodies in this cell. Only loops if nReaches > 0, hence we don't check explicitly
+                do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
+                    associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                        ! Is it a reach or an estuary?
+                        select type (reach)
+                            type is (RiverReach)
+                                reachType = 'riv'
+                            type is (EstuaryReach)
+                                reachType = 'est'
+                        end select
+                        ! Write the data
+                        write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
+                            trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
+                            trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
+                            trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
+                            trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
+                            trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
+                            trim(str(sum(reach%obj_j_nm%resuspension))) // "," // &
+                            trim(str(sum(reach%obj_j_nm_transformed%resuspension))) // "," // &
+                            trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
+                            trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
+                            trim(str(reach%obj_j_dissolved%outflow)) // "," // &
+                            trim(str(sum(reach%m_spm))) // "," // &
+                            trim(str(sum(reach%C_spm))) // ","
+                        if (C%includeSpmSizeClassBreakdown) then
+                            write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
+                                trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                        end if
+                        if (C%includeSedimentFluxes) then
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
+                        end if
+                        write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
+                            trim(str(reach%obj_Q%outflow / C%timeStep))
+                    end associate
+                end do
+            else
+                ! We're not including waterbody breakdown, so just output the grid cell aggregated values. Here we check
+                ! that there are reaches in the cell, and if not, don't print a row for this cell. There is slightly different
+                ! to checking if the cell is empty (i.e. doesn't have a soil profile either)
+                associate (cell => me%env%item%colGridCells(x,y)%item)
+                    if (cell%nReaches > 0) then
+                        ! Write the data
+                        write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
+                            trim(str(sum(cell%get_m_np_water()))) // "," // trim(str(sum(cell%get_C_np_water()))) // "," // &
+                            trim(str(sum(cell%get_m_transformed_water()))) // "," // &
+                            trim(str(sum(cell%get_C_transformed_water()))) // "," // &
+                            trim(str(cell%get_m_dissolved_water())) // "," // &
+                            trim(str(cell%get_C_dissolved_water())) // "," // &
+                            trim(str(sum(cell%get_j_nm_deposition()))) // "," // &
+                            trim(str(sum(cell%get_j_transformed_deposition()))) // "," // &
+                            trim(str(sum(cell%get_j_nm_resuspension()))) // "," // &
+                            trim(str(sum(cell%get_j_transformed_resuspension()))) // "," // &
+                            trim(str(sum(cell%get_j_nm_outflow()))) // "," // &
+                            trim(str(sum(cell%get_j_transformed_outflow()))) // "," // &
+                            trim(str(cell%get_j_dissolved_outflow())) // ","
+                        m_spm = cell%get_m_spm()
+                        C_spm = cell%get_C_spm()
+                        write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_spm))) // "," // &
+                            trim(str(sum(C_spm))) // ","
+                        if (C%includeSpmSizeClassBreakdown) then
+                            write(iouOutputWater, '(*(a))', advance='no') (trim(str(m_spm(i))) // "," // &
+                                trim(str(C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                        end if
+                        if (C%includeSedimentFluxes) then
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_deposition()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_resuspension()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_inflow()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_outflow()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_bankErosion()))) // ","
+                        end if
+                        write(iouOutputWater, '(a)') trim(str(cell%getWaterVolume())) // "," // &
+                            trim(str(cell%getWaterDepth())) // "," // &
+                            trim(str(cell%get_Q_outflow() / C%timeStep))
                     end if
-                    if (C%includeSedimentFluxes) then
-                        write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
-                            trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
-                            trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
-                            trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
-                            trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
-                    end if
-                    write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
-                        trim(str(reach%obj_Q%outflow / C%timeStep))
                 end associate
-            end do
-        else
-            ! We're not including waterbody breakdown, so just output the grid cell aggregated values. Here we check
-            ! that there are reaches in the cell, and if not, don't print a row for this cell. There is slightly different
-            ! to checking if the cell is empty (i.e. doesn't have a soil profile either)
-            associate (cell => me%env%item%colGridCells(x,y)%item)
-                if (cell%nReaches > 0) then
-                    ! Write the data
-                    write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
-                        trim(str(x)) // "," // trim(str(y)) // "," // &
-                        trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
-                        trim(str(sum(cell%get_m_np_water()))) // "," // trim(str(sum(cell%get_C_np_water()))) // "," // &
-                        trim(str(sum(cell%get_m_transformed_water()))) // "," // &
-                        trim(str(sum(cell%get_C_transformed_water()))) // "," // &
-                        trim(str(cell%get_m_dissolved_water())) // "," // &
-                        trim(str(cell%get_C_dissolved_water())) // "," // &
-                        trim(str(sum(cell%get_j_nm_deposition()))) // "," // &
-                        trim(str(sum(cell%get_j_transformed_deposition()))) // "," // &
-                        trim(str(sum(cell%get_j_nm_resuspension()))) // "," // &
-                        trim(str(sum(cell%get_j_transformed_resuspension()))) // "," // &
-                        trim(str(sum(cell%get_j_nm_outflow()))) // "," // &
-                        trim(str(sum(cell%get_j_transformed_outflow()))) // "," // &
-                        trim(str(cell%get_j_dissolved_outflow())) // ","
-                    m_spm = cell%get_m_spm()
-                    C_spm = cell%get_C_spm()
-                    write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_spm))) // "," // &
-                        trim(str(sum(C_spm))) // ","
-                    if (C%includeSpmSizeClassBreakdown) then
-                        write(iouOutputWater, '(*(a))', advance='no') (trim(str(m_spm(i))) // "," // &
-                            trim(str(C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
-                    end if
-                    if (C%includeSedimentFluxes) then
-                        write(iouOutputWater, '(a)', advance='no') trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
-                            trim(str(sum(cell%get_j_spm_deposition()))) // "," // &
-                            trim(str(sum(cell%get_j_spm_resuspension()))) // "," // &
-                            trim(str(sum(cell%get_j_spm_inflow()))) // "," // trim(str(sum(cell%get_j_spm_outflow()))) // "," // &
-                            trim(str(sum(cell%get_j_spm_bankErosion()))) // ","
-                    end if
-                    write(iouOutputWater, '(a)') trim(str(cell%getWaterVolume())) // "," // &
-                        trim(str(cell%getWaterDepth())) // "," // &
-                        trim(str(cell%get_Q_outflow() / C%timeStep))
-                end if
-            end associate
+            end if
         end if
 
-
-        do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
-            associate(reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                ! me%output_water__m_spm(w,x,y,t) = sum(me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item%m_spm)
-                ! me%output_water__C_spm(w,x,y,t) = sum(me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item%C_spm)
-                call me%nc__water__m_nm%setData(sum(reach%m_np), start=[w,x,y,t])    
-                call me%nc__water__m_transformed%setData(sum(reach%m_transformed), start=[w,x,y,t])    
-                call me%nc__water__m_dissolved%setData(reach%m_dissolved, start=[w,x,y,t])    
-                call me%nc__water__C_nm%setData(sum(reach%C_np), start=[w,x,y,t])    
-                call me%nc__water__C_transformed%setData(sum(reach%m_transformed), start=[w,x,y,t])    
-                call me%nc__water__C_dissolved%setData(reach%C_dissolved, start=[w,x,y,t])    
-                call me%nc__water__m_spm%setData(sum(reach%m_spm), start=[w,x,y,t])    
-                call me%nc__water__C_spm%setData(sum(reach%C_spm), start=[w,x,y,t])    
-            end associate
-        end do
-
-        ! if (t == 10) then
-        !     print *, sum(me%output_water__m_spm(1,:,:,9), mask=me%output_water__m_spm(1,:,:,9)/=nf90_fill_double)
-        !     print *, sum(me%output_water__C_spm(1,:,:,9), mask=x==nf90_fill_double)
-        !     error stop
-        ! end if
-
-
-
-
-
+        ! Are we writing to a NetCDF file?
+        if (C%writeNetCDF) then
+            call me%ncout%updateWater(t, tInChunk, x, y)
+        end if
 
     end subroutine
 
     !> Update the current sediment output file on the current timestep
-    subroutine updateSedimentDataOutput(me, t, x, y, date, easts, norths)
+    subroutine updateSedimentDataOutput(me, t, tInChunk, x, y, date, easts, norths)
         class(DataOutput1)   :: me               !! The DataOutput1 instance
         integer             :: t                !! The current timestep
+        integer             :: tInChunk         !! The current timestep
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
         real                :: easts, norths    !! Eastings and northings of this grid cell
@@ -418,9 +340,10 @@ module DataOutputModule1
     end subroutine
 
     !> Update the sediment output file on the current timestep
-    subroutine updateSoilDataOutput(me, t, x, y, date, easts, norths)
+    subroutine updateSoilDataOutput(me, t, tInChunk, x, y, date, easts, norths)
         class(DataOutput1)   :: me               !! This DataOutput1 instance
         integer             :: t                !! The current timestep
+        integer             :: tInChunk         !! The current timestep
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
         real                :: easts, norths    !! Eastings and northings of this grid cell
@@ -528,9 +451,37 @@ module DataOutputModule1
             write(iouOutputSummary, *) "- Time until steady state: " &
                 // trim(str(iSteadyState * C%timeStep * C%nTimestepsInBatch)) // " s"
         end if
+
         ! Close the files
         close(iouOutputSummary); close(iouOutputWater); close(iouOutputSediment); close(iouOutputSoil)
         close(iouOutputSSD); close(iouOutputStats)
+    end subroutine
+
+    !> Tell the NetCDF output class to reallocate memory for the new chunk,
+    !! if we're in write-at-end mode
+    subroutine newChunkDataOutput(me, k)
+        class(DataOutput1)  :: me       !! This DataOutput instance
+        integer             :: k        !! This chunk index
+        ! Only bother calling this if we need to reallocate memory
+        if (C%writeNetCDF .and. C%netCDFWriteMode == 'end') then
+            call me%ncout%newChunk(k)
+        end if
+    end subroutine
+
+    !> Tell the NetCDF output class that we're at the end of a chunk, so that
+    !! it write to the NetCDF file if in write-at-end mode
+    subroutine finaliseChunkDataOutput(me, tStart, isFinalChunk)
+        class(DataOutput1)  :: me               !! This DataOutput instance
+        integer             :: tStart           !! Timestep index at the start of this chunk
+        logical             :: isFinalChunk     !! Is this the final chunk?
+        ! Only bother calling this if we need to write to the NetCDF file
+        if (C%writeNetCDF .and. C%netCDFWriteMode == 'end') then
+            call me%ncout%finaliseChunk(tStart)
+        end if
+        ! If this is the final chunk, close the NetCDF file
+        if (C%writeNetCDF .and. isFinalChunk) then
+            call me%ncout%close()
+        end if
     end subroutine
 
     ! Write the headers for the output files
@@ -546,11 +497,9 @@ module DataOutputModule1
         if (C%writeCompartmentStats) then
             call me%writeHeadersStats()
         end if
-
     end subroutine
 
     !> Write headers for the simulation summary file, including basic info about the model run
-    !! TODO currently doesn't work with batch runs
     subroutine writeHeadersSimulationSummaryDataOutput(me)
         class(DataOutput1)   :: me                   !! This DataOutput instance
         type(datetime)      :: simDatetime          ! Datetime the simulation was run 

@@ -22,6 +22,7 @@ module Globals
         character(len=256)  :: outputPath                       !! Path to directory to store output data
         logical             :: writeCSV                         !! Should output data be written as CSV file?
         logical             :: writeNetCDF                      !! Should output data be written as NetCDF file?
+        character(len=3)    :: netCDFWriteMode                  !! Should NetCDF output be written on each timestep or at the end of the chunk?
         logical             :: writeCompartmentStats            !! Should a file with summary stats for each compartment (soil, water, sediment) be output?
         logical             :: writeMetadataAsComment           !! Should CSV files be prepended with metadata as a #-delimited comment?
         logical             :: includeWaterbodyBreakdown        !! Should the surface water output include breakdown of waterbodies?
@@ -150,6 +151,7 @@ module Globals
         character(len=7) :: calibration_mode
         character(len=20), allocatable :: other_sites(:)
         character(len=5) :: soil_pec_units, sediment_pec_units
+        character(len=3) :: netcdf_write_mode
         integer, allocatable :: n_timesteps_per_chunk(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions, n_chunks
@@ -163,7 +165,7 @@ module Globals
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
             preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
             write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown, &
-            write_compartment_stats
+            write_compartment_stats 
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
@@ -173,7 +175,8 @@ module Globals
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv, include_sediment_fluxes, &
-            include_soil_erosion, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats
+            include_soil_erosion, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats, &
+            write_netcdf, netcdf_write_mode
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
             description, trigger_warnings, simulation_mask, write_to_log
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
@@ -190,8 +193,9 @@ module Globals
         ! Defaults, which will be overwritten if present in config file
         ! TODO move all defaults to DefaultsModule.f90
         write_to_log = configDefaults%writeToLog                                ! True
-        write_csv = .true.
-        write_netcdf = .false.
+        write_csv = configDefaults%writeCSV                                     ! True
+        write_netcdf = configDefaults%writeNetCDF                               ! False
+        netcdf_write_mode = configDefaults%netCDFWriteMode                      ! 'end'
         description = ""
         batch_description = ""
         write_metadata_as_comment = .true.
@@ -302,6 +306,7 @@ module Globals
         ! Output
         C%writeCSV = write_csv
         C%writeNetCDF = write_netcdf
+        C%netCDFWriteMode = netcdf_write_mode
         C%writeMetadataAsComment = write_metadata_as_comment
         C%writeCompartmentStats = write_compartment_stats
         C%includeWaterbodyBreakdown = include_waterbody_breakdown
@@ -371,7 +376,7 @@ module Globals
         C%includePointSources = include_point_sources
 
         ! If this is batch run, then use the config options in the batch config file
-        ! to override those given in the config file. Also set some variable about the
+        ! to override those given in the config file. Also set some variables about the
         ! whole batch run
         if (C%isBatchRun) then
             C%inputFile = C%batchInputFiles(1)
@@ -385,6 +390,8 @@ module Globals
             C%nTimestepsInBatch = C%nTimesteps
             C%batchStartDate = C%startDate
             C%batchEndDate = C%startDate + timedelta(C%nTimeSteps - 1)
+            allocate(C%batchNTimesteps(1))
+            C%batchNTimesteps(1) = C%nTimeSteps
         end if
 
         allocate(C%d_spm_low(C%nSizeClassesSpm))
@@ -469,6 +476,12 @@ module Globals
                     message='Invalid or non-present config file value for &steady_state > mode.' &
                 ))
             end if
+        end if
+
+        if (me%netCDFWriteMode /= 'itr' .and. me%netCDFWriteMode /= 'end') then
+            call rslt%addError(ErrorInstance( &
+                message='Invalid config file value for &output > netcdf_write_mode. Should be "itr" or "end"' &
+            ))
         end if
         
         ! Trigger the errors, if there were any

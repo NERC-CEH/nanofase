@@ -32,6 +32,8 @@ output_path = "data/output/"                            ! Path to store the outp
 ! the more data that is output and the larger the output data file sizes
 &output
 write_csv = .true.                                      ! Should we write output data to CSV files (n.b. turning this off currently suppresses all output, except for runs to steady state)
+write_netcdf = .true.                                   ! Should we write output data to a NetCDF file?
+netcdf_write_mode = 'itr'                           ! When should we write to the NetCDF file? Every time step ('itr') or at the end of the run ('end'). Every time step is slower, end uses much more memory
 write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comments at top of CSV files?
 write_compartment_stats = .true.                        ! Should a file with summary stats for each compartment (soil, water, sediment) be written?
 include_waterbody_breakdown = .true.                    ! For surface water output, include breakdown over waterbodies or aggregate at grid cell level?

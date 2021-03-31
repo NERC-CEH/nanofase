@@ -62,13 +62,13 @@ module spcGridCell
         logical :: hasDemands = .false.                                 !! Does this `GridCell` have any water demand data?
         logical :: hasCrop = .false.                                    !! Does this `GridCell` have any crops?
         logical :: hasLargeCity = .false.                               !! Does this `GridCell` have a large city?
-        real(dp) :: totalPopulation                                     !! Total population for the `GridCell` TODO what are the units?
-        real(dp) :: urbanPopulation                                     !! Urban population for the `GridCell` TODO what are the units?
-        real(dp) :: cattlePopulation = 0                                !! Cattle population for the `GridCell` TODO what are the units?
-        real(dp) :: sheepGoatPopulation = 0                             !! Sheep/goat population for the `GridCell` TODO what are the units?
-        real(dp) :: urbanDemandPerCapita = 0                            !! Urban demand per capita for the `GridCell` [l/day/capita]
-        real(dp) :: ruralDemandPerCapita = 0                            !! Cattle population for the `GridCell` [1/day/capita]
-        real(dp) :: industrialDemand = 0                                !! Industrial demand for `GridCell` [Mm3/day]
+        real(dp) :: totalPopulation = 0.0_dp                            !! Total population for the `GridCell` TODO what are the units?
+        real(dp) :: urbanPopulation = 0.0_dp                            !! Urban population for the `GridCell` TODO what are the units?
+        real(dp) :: cattlePopulation = 0.0_dp                           !! Cattle population for the `GridCell` TODO what are the units?
+        real(dp) :: sheepGoatPopulation = 0.0_dp                        !! Sheep/goat population for the `GridCell` TODO what are the units?
+        real(dp) :: urbanDemandPerCapita = 0.0_dp                       !! Urban demand per capita for the `GridCell` [l/day/capita]
+        real(dp) :: ruralDemandPerCapita = 0.0_dp                       !! Cattle population for the `GridCell` [1/day/capita]
+        real(dp) :: industrialDemand = 0.0_dp                           !! Industrial demand for `GridCell` [Mm3/day]
         real(dp) :: surfaceWaterToTotalWaterRatio                       !! Ratio of surface to total water demand (same for all demands) [-]
         type(Crop), allocatable :: crops(:)                             !! Crops present in this `GridCell`
       
