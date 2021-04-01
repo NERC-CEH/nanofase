@@ -15,14 +15,16 @@ if (CMAKE_Fortran_COMPILER_ID MATCHES Intel)
     set(release_flags "/O3 /assume:bscc")
 endif()
 
+# Find NetCDF Fortran
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE INTERNAL "Location of CMake modules.")
 set(NETCDF_F90 "YES")
 find_package(NetCDF REQUIRED)
 
+# Set debug and release flags
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_flags}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${release_flags}")
 
-# Sources to compile
+# Sources to compile - everything except those matching the regex
 file(GLOB_RECURSE sources src/*.f90 vendor/*.f90)
 list(FILTER sources EXCLUDE REGEX ".*vendor/feh/example/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/feh/tests/.*f90$")
