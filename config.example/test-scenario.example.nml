@@ -27,13 +27,15 @@ output_path = "data/output/"                            ! Path to store the outp
 write_csv = .true.                                      ! Should we write output data to CSV files?
 write_netcdf = .true.                                   ! Should we write output data to a NetCDF file?
 netcdf_write_mode = 'end'
-write_metadata_as_comment = .false.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
-include_waterbody_breakdown = .true.
+write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
+include_waterbody_breakdown = .false.
 include_sediment_layer_breakdown = .true.               ! Include breakdown of data over sediment layers?
-include_soil_layer_breakdown = .false.                  ! Include breaedown of data over soil layers?
+include_soil_layer_breakdown = .true.                   ! Include breaedown of data over soil layers?
+include_soil_state_breakdown = .true.                   ! Include breakdown of NM state - free vs attached to soil matrix
+include_soil_erosion = .true.
+include_sediment_fluxes = .true.
 soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3?
 sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3?
-include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
 /
 
 &run

@@ -74,43 +74,49 @@ module spcGridCell
       
     contains
         ! Creation/destruction
-        procedure(createGridCell), deferred :: create
-        procedure(finaliseCreateGridCell), deferred :: finaliseCreate
-        procedure(snapPointSourcesToReachGridCell), deferred :: snapPointSourcesToReach
+        procedure(createGridCell), deferred                         :: create
+        procedure(finaliseCreateGridCell), deferred                 :: finaliseCreate
+        procedure(snapPointSourcesToReachGridCell), deferred        :: snapPointSourcesToReach
         ! Simulation
-        procedure(updateGridCell), deferred :: update
-        procedure(finaliseUpdateGridCell), deferred :: finaliseUpdate
-        procedure(parseNewBatchDataGridCell), deferred :: parseNewBatchData
+        procedure(updateGridCell), deferred                         :: update
+        procedure(finaliseUpdateGridCell), deferred                 :: finaliseUpdate
+        procedure(parseNewBatchDataGridCell), deferred              :: parseNewBatchData
         ! Getters
-        procedure(get_Q_outflowGridCell), deferred :: get_Q_outflow
-        procedure(get_j_spm_outflowGridCell), deferred :: get_j_spm_outflow
-        procedure(get_m_spmGridCell), deferred :: get_m_spm
-        procedure(get_j_spm_inflowGridCell), deferred :: get_j_spm_inflow
-        procedure(get_j_spm_soilErosionGridCell), deferred :: get_j_spm_soilErosion
-        procedure(get_j_spm_bankErosionGridCell), deferred :: get_j_spm_bankErosion
-        procedure(get_j_spm_depositionGridCell), deferred :: get_j_spm_deposition
-        procedure(get_j_spm_resuspensionGridCell), deferred :: get_j_spm_resuspension
-        procedure(get_m_np_waterGridCell), deferred :: get_m_np_water
-        procedure(get_m_transformed_waterGridCell), deferred :: get_m_transformed_water
-        procedure(get_m_dissolved_waterGridCell), deferred :: get_m_dissolved_water
-        procedure(get_C_spmGridCell), deferred :: get_C_spm
-        procedure(get_C_np_soilGridCell), deferred :: get_C_np_soil
-        procedure(get_C_np_waterGridCell), deferred :: get_C_np_water
-        procedure(get_C_np_sedimentGridCell), deferred :: get_C_np_sediment
-        procedure(get_C_transformed_waterGridCell), deferred :: get_C_transformed_water
-        procedure(get_C_dissolved_waterGridCell), deferred :: get_C_dissolved_water
-        procedure(get_j_nm_depositionGridCell), deferred :: get_j_nm_deposition
-        procedure(get_j_transformed_depositionGridCell), deferred :: get_j_transformed_deposition
-        procedure(get_j_nm_resuspensionGridCell), deferred :: get_j_nm_resuspension
+        procedure(get_Q_outflowGridCell), deferred                  :: get_Q_outflow
+        procedure(get_j_spm_outflowGridCell), deferred              :: get_j_spm_outflow
+        procedure(get_m_spmGridCell), deferred                      :: get_m_spm
+        procedure(get_j_spm_inflowGridCell), deferred               :: get_j_spm_inflow
+        procedure(get_j_spm_soilErosionGridCell), deferred          :: get_j_spm_soilErosion
+        procedure(get_j_spm_bankErosionGridCell), deferred          :: get_j_spm_bankErosion
+        procedure(get_j_spm_depositionGridCell), deferred           :: get_j_spm_deposition
+        procedure(get_j_spm_resuspensionGridCell), deferred         :: get_j_spm_resuspension
+        procedure(get_m_np_waterGridCell), deferred                 :: get_m_np_water
+        procedure(get_m_transformed_waterGridCell), deferred        :: get_m_transformed_water
+        procedure(get_m_dissolved_waterGridCell), deferred          :: get_m_dissolved_water
+        procedure(get_C_spmGridCell), deferred                      :: get_C_spm
+        procedure(get_C_np_soilGridCell), deferred                  :: get_C_np_soil
+        procedure(get_C_np_waterGridCell), deferred                 :: get_C_np_water
+        procedure(get_C_np_sedimentGridCell), deferred              :: get_C_np_sediment
+        procedure(get_C_np_sediment_byVolumeGridCell), deferred     :: get_C_np_sediment_byVolume
+        procedure(get_C_np_sediment_lGridCell), deferred            :: get_C_np_sediment_l
+        procedure(get_C_np_sediment_l_byVolumeGridCell), deferred   :: get_C_np_sediment_l_byVolume
+        procedure(get_C_transformed_waterGridCell), deferred        :: get_C_transformed_water
+        procedure(get_C_dissolved_waterGridCell), deferred          :: get_C_dissolved_water
+        procedure(get_m_np_sedimentGridCell), deferred              :: get_m_np_sediment
+        procedure(get_m_np_buried_sedimentGridCell), deferred       :: get_m_np_buried_sediment
+        procedure(get_sediment_massGridCell), deferred              :: get_sediment_mass
+        procedure(get_j_nm_depositionGridCell), deferred            :: get_j_nm_deposition
+        procedure(get_j_transformed_depositionGridCell), deferred   :: get_j_transformed_deposition
+        procedure(get_j_nm_resuspensionGridCell), deferred          :: get_j_nm_resuspension
         procedure(get_j_transformed_resuspensionGridCell), deferred :: get_j_transformed_resuspension
-        procedure(get_j_nm_outflowGridCell), deferred :: get_j_nm_outflow
-        procedure(get_j_transformed_outflowGridCell), deferred :: get_j_transformed_outflow
-        procedure(get_j_dissolved_outflowGridCell), deferred :: get_j_dissolved_outflow
-        procedure(getTotalReachLengthGridCell), deferred :: getTotalReachLength
-        procedure(getWaterVolumeGridCell), deferred :: getWaterVolume
-        procedure(getWaterDepthGridCell), deferred :: getWaterDepth
-        procedure(getBedSedimentAreaGridCell), deferred :: getBedSedimentArea
-        procedure(getBedSedimentMassGridCell), deferred :: getBedSedimentMass
+        procedure(get_j_nm_outflowGridCell), deferred               :: get_j_nm_outflow
+        procedure(get_j_transformed_outflowGridCell), deferred      :: get_j_transformed_outflow
+        procedure(get_j_dissolved_outflowGridCell), deferred        :: get_j_dissolved_outflow
+        procedure(getTotalReachLengthGridCell), deferred            :: getTotalReachLength
+        procedure(getWaterVolumeGridCell), deferred                 :: getWaterVolume
+        procedure(getWaterDepthGridCell), deferred                  :: getWaterDepth
+        procedure(getBedSedimentAreaGridCell), deferred             :: getBedSedimentArea
+        procedure(getBedSedimentMassGridCell), deferred             :: getBedSedimentMass
     end type
       
     !> Container type for polymorphic `GridCell`s
@@ -123,29 +129,29 @@ module spcGridCell
         function createGridCell(me, x, y, isEmpty) result(r)
             use ResultModule, only: Result
             import GridCell
-            class(GridCell), target :: me                              !! The `GridCell` instance
-            integer :: x, y                                            !! The (x,y) position of the `GridCell`
-            logical, optional :: isEmpty                               !! Is anything to be simulated for this `GridCell`?
-            type(Result) :: r                                         !! The `Result` object to return any errors in
+            class(GridCell), target :: me           !! The `GridCell` instance
+            integer :: x, y                         !! The (x,y) position of the `GridCell`
+            logical, optional :: isEmpty            !! Is anything to be simulated for this `GridCell`?
+            type(Result) :: r                       !! The `Result` object to return any errors in
         end function
         
         !> Finalise the creation of the `GridCell`, after river routing has been established
         subroutine finaliseCreateGridCell(me)
             import GridCell
-            class(GridCell) :: me                                   !! This `GridCell` instance
+            class(GridCell) :: me                   !! This `GridCell` instance
         end subroutine
         
         !> Run the `GridCell`'s simulation for this time step
         subroutine updateGridCell(me, t)
             import GridCell
-            class(GridCell) :: me                                      !! The `GridCell` instance
-            integer :: t                                               !! The current time step
+            class(GridCell) :: me                   !! The `GridCell` instance
+            integer :: t                            !! The current time step
         end subroutine
         
         !> Finalise the `GridCell`'s state variables for this time step
         subroutine finaliseUpdateGridCell(me)
             import GridCell
-            class(GridCell) :: me                                      !! The `GridCell` instance
+            class(GridCell) :: me                   !! The `GridCell` instance
         end subroutine
 
         subroutine snapPointSourcesToReachGridCell(me)
@@ -162,15 +168,15 @@ module spcGridCell
             use Globals, only: dp    
             use ResultModule, only: Result
             import GridCell
-            class(GridCell) :: me                                   !! This grid cell
-            real(dp) :: Q_outflow                                   !! Discharge to return
+            class(GridCell) :: me                   !! This grid cell
+            real(dp) :: Q_outflow                   !! Discharge to return
         end function
 
         function get_j_spm_outflowGridCell(me) result(j_spm_outflow)
             use Globals, only: dp, C
             import GridCell
-            class(GridCell) :: me                                   !! This grid cell
-            real(dp)        :: j_spm_outflow(C%nSizeClassesSpm)     !! SPM outflow to return
+            class(GridCell) :: me                               !! This grid cell
+            real(dp)        :: j_spm_outflow(C%nSizeClassesSpm) !! SPM outflow to return
         end function
 
         function get_m_spmGridCell(me) result(m_spm)
@@ -218,15 +224,22 @@ module spcGridCell
         function get_m_np_waterGridCell(me) result(m_np)
             use Globals, only: dp, C
             import GridCell
-            class(GridCell) :: me
-            real(dp)        :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))
+            class(GridCell)         :: me
+            real(dp), allocatable   :: m_np(:,:,:)
+        end function
+
+        function get_m_np_sedimentGridCell(me) result(m_np)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell)         :: me
+            real(dp), allocatable   :: m_np(:,:,:)
         end function
 
         function get_m_transformed_waterGridCell(me) result(m_transformed)
             use Globals, only: dp, C
             import GridCell
-            class(GridCell) :: me
-            real(dp)        :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
+            class(GridCell)         :: me
+            real(dp), allocatable   :: m_transformed(:,:,:)
         end function
 
         function get_m_dissolved_waterGridCell(me) result(m_dissolved)
@@ -239,8 +252,8 @@ module spcGridCell
         function get_C_spmGridCell(me) result(C_spm)
             use Globals, only: dp, C
             import GridCell
-            class(GridCell) :: me
-            real(dp)        :: C_spm(C%nSizeClassesSpm)
+            class(GridCell)         :: me
+            real(dp), allocatable   :: C_spm(:)
         end function
 
         function get_C_np_soilGridCell(me) result(C_np_soil)
@@ -264,6 +277,29 @@ module spcGridCell
             real(dp), allocatable   :: C_np_sediment(:,:,:)
         end function
 
+        function get_C_np_sediment_byVolumeGridCell(me) result(C_np_sediment)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell)         :: me
+            real(dp), allocatable   :: C_np_sediment(:,:,:)
+        end function
+
+        function get_C_np_sediment_lGridCell(me, l) result(C_np_sediment)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell)         :: me
+            integer                 :: l
+            real(dp), allocatable   :: C_np_sediment(:,:,:)
+        end function
+
+        function get_C_np_sediment_l_byVolumeGridCell(me, l) result(C_np_sediment)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell)         :: me
+            integer                 :: l
+            real(dp), allocatable   :: C_np_sediment(:,:,:)
+        end function
+
         function get_C_transformed_waterGridCell(me) result(C_transformed_water)
             use Globals, only: dp
             import GridCell
@@ -276,6 +312,20 @@ module spcGridCell
             import GridCell
             class(GridCell) :: me
             real(dp)        :: C_dissolved_water
+        end function
+
+        function get_m_np_buried_sedimentGridCell(me) result(m_np_buried)
+            use Globals, only: dp
+            import GridCell
+            class(GridCell)         :: me
+            real(dp), allocatable   :: m_np_buried(:,:,:)
+        end function
+
+        function get_sediment_massGridCell(me) result(sediment_mass) 
+            use Globals, only: dp
+            import GridCell
+            class(GridCell) :: me
+            real(dp)        :: sediment_mass
         end function
 
         function get_j_nm_depositionGridCell(me) result(j_nm_deposition)

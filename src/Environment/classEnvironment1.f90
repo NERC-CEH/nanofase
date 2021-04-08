@@ -280,6 +280,7 @@ module classEnvironment1
         ! Add to the per timestep spatial weighted mean water and sediment conc array
         ! Here we simply append to the array because we don't want to loose data from
         ! a previous chunk, if we're in batch run mode
+        ! TODO allocate size from C%batchNTimesteps so we don't have to reallocate
         call move_alloc(me%C_np_water_t, tmp_C_np)
         allocate(me%C_np_water_t(size(tmp_C_np, dim=1) + 1, size(tmp_C_np, dim=2), size(tmp_C_np, dim=3), size(tmp_C_np, dim=4)))
         me%C_np_water_t(:size(tmp_C_np, dim=1), :, :, :) = tmp_C_np
@@ -290,6 +291,7 @@ module classEnvironment1
         me%C_np_sediment_t(:size(tmp_C_np, dim=1), :, :, :) = tmp_C_np
         me%C_np_sediment_t(size(tmp_C_np, dim=1) + 1, :, :, :) = me%get_C_np_sediment()
         ! Sediment mass
+        ! TODO don't think this is needed, potentially remove
         call move_alloc(me%m_sediment_t_byLayer, tmp_m_sediment)
         allocate(me%m_sediment_t_byLayer(size(tmp_m_sediment, dim=1) + 1, size(tmp_m_sediment, dim=2), size(tmp_m_sediment, dim=3)))
         me%m_sediment_t_byLayer(:size(tmp_m_sediment, dim=1), :, :) = tmp_m_sediment

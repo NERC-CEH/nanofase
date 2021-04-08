@@ -31,7 +31,6 @@ list(FILTER sources EXCLUDE REGEX ".*vendor/feh/tests/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/datetime-fortran/src/tests/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/mo_netcdf/examples/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/mo_netcdf/tests/.*f90$")
-list(FILTER sources EXCLUDE REGEX "src/Data/DataOutputModule.f90")
 
 # Compile to executable and link to NetCDF
 add_executable(nanofase ${sources})

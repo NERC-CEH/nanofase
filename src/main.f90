@@ -23,7 +23,7 @@ program main
     use classEnvironment1
     use classDatabase, only: DATASET
     use CheckpointModule, only: Checkpoint
-    use DataOutputModule1
+    use DataOutputModule
     use classLogger, only: LOGR
     use DefaultsModule, only: iouLog
     use datetime_module
@@ -32,7 +32,7 @@ program main
     real                :: start, finish                    !! Simulation start and finish times
     type(Environment1)  :: env                              !! Environment object
     type(Result)        :: r                                !! Result object
-    type(DataOutput1)    :: output                           !! Data output class
+    type(DataOutput)    :: output                           !! Data output class
     type(Checkpoint)    :: checkpt                          !! Checkpoint module
     integer             :: t, k                             !! Loop iterators
     integer             :: tPreviousChunk = 0               !! Timestep at end of previous batch
