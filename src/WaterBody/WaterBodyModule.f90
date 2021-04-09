@@ -1,4 +1,3 @@
-
 !> Module containing definition of base class `WaterBody1`, which provides the primitive
 !! functionality to all environmental compartments that are water bodies.
 module WaterBodyModule

@@ -38,7 +38,7 @@ The [example makefile](./Makefile.example) provides targets for both debug and r
 ```shell
 # Build the debug version
 $ make
-# Build the release version
+# OR, build the release version
 $ make release
 ```
 

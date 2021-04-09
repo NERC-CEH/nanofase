@@ -273,7 +273,7 @@ module DataOutputModule
                             // trim(date) // "," // trim(str(x)) // "," // trim(str(y)) &
                             // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // &
                             trim(str(w)) // "," // reachType // "," // &
-                            trim(str(sum(reach%bedSediment%get_m_np()) * reach%bedArea)) // "," // &            ! Converting from kg/m2 to kg
+                            trim(str(sum(reach%bedSediment%get_m_np()) * reach%bedArea)) // "," // &    ! Converting from kg/m2 to kg
                             trim(str(sum(reach%bedSediment%get_C_np()))) // "," // &
                             trim(str(sum(reach%bedSediment%get_C_np_byMass()))) // ","
                         ! Only include layer-by-layer breakdown if we've been asked to
@@ -299,7 +299,7 @@ module DataOutputModule
                             trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
                             trim(str(sum(cell%get_m_np_sediment()))) // "," // &
                             trim(str(sum(cell%get_C_np_sediment_byVolume()))) // "," // &
-                            trim(str(sum(cell%get_C_np_sediment())))
+                            trim(str(sum(cell%get_C_np_sediment()))) // ","
                         ! Only include layer-by-layer breakdown if we've been asked to
                         if (C%includeSedimentLayerBreakdown) then
                             write(iouOutputSediment, '(*(a))', advance='no') &
@@ -537,7 +537,11 @@ module DataOutputModule
             write(iouOutputWater, '(a)') "#\tx, y: grid cell (eastings and northings) index"
             write(iouOutputWater, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
             if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)') "#\tw: waterbody index within this grid cell"
-            write(iouOutputWater, '(a)') "#\twaterbody_type: what type (river, estuary etc) is this waterbody?"
+            if (C%includeWaterbodyBreakdown) then
+                write(iouOutputWater, '(a)') "#\twaterbody_type: what type (river, estuary etc) is this waterbody?"
+            else
+                write(iouOutputWater, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
+            end if
             write(iouOutputWater, '(a)') "#\tm_np(kg), m_transformed(kg), m_dissolved(kg): " // &
                 "NM mass (untransformed, transformed and dissolved, kg)"
             write(iouOutputWater, '(a)') "#\tC_np(kg/m3), C_transformed(kg/m3), C_dissolved(kg/m3): NM concentration (kg/m3)"
@@ -588,9 +592,13 @@ module DataOutputModule
             write(iouOutputSediment, '(a)') "# See summary.md for model run metadata."
             write(iouOutputSediment, '(a)') "#\tx, y: grid cell (eastings and northings) index"
             write(iouOutputSediment, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
-            if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)') "#\tw: waterbody index within this grid cell"
-            ! write(iouOutputSediment, '(a)') "#\tw: waterbody index within this grid cell"
-            write(iouOutputSediment, '(a)') "#\twaterbody_type: what type (river, estuary etc) of waterbody is this sediment in?"
+            if (C%includeWaterbodyBreakdown) write(iouOutputSediment, '(a)') "#\tw: waterbody index within this grid cell"
+            if (C%includeWaterbodyBreakdown) then
+                write(iouOutputSediment, '(a)') "#\twaterbody_type: what type (river, estuary etc) " // &
+                    "of waterbody is this sediment in?"
+            else
+                write(iouOutputSediment, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
+            end if
             write(iouOutputSediment, '(a)') "#\tm_np_total(kg), C_np_total(kg/m3), C_np_total(kg/kg): " &
                 // "NM mass (kg) and concentration (kg/m3 and kg/kg dry weight) for all layers"
             if (C%includeSedimentLayerBreakdown) then
@@ -603,7 +611,7 @@ module DataOutputModule
         end if
         ! Write the actual headers
         write(iouOutputSediment, '(a)', advance="no") "t,datetime,x,y,easts,norths," 
-        if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)', advance='no') "w,"
+        if (C%includeWaterbodyBreakdown) write(iouOutputSediment, '(a)', advance='no') "w,"
         write(iouOutputSediment, '(a)', advance='no') "waterbody_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg),"
         ! Should we include sediment layer breakdown?
         if (C%includeSedimentLayerBreakdown) then

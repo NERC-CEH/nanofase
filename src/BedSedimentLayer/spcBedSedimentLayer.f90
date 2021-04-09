@@ -316,7 +316,7 @@ module spcBedSedimentLayer
             integer :: i                                             ! LOCAL loop counter
             Mf_layer = 0
             do i = 1, me%nSizeClasses
-                Mf_layer = Mf_layer + Me%colFineSediment(i)%M_f()
+                Mf_layer = Mf_layer + Me%colFineSediment(i)%M_f_l
             end do
         end function
         !> **Function purpose**                                     <br>
