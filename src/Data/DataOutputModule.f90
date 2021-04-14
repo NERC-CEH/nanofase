@@ -241,6 +241,8 @@ module DataOutputModule
         ! Are we writing to a NetCDF file?
         if (C%writeNetCDF) then
             call me%ncout%updateWater(t, tInChunk, x, y)
+            call me%ncout%updateSediment(t, tInChunk, x, y)
+            call me%ncout%updateSoil(t, tInChunk, x, y)
         end if
 
     end subroutine
