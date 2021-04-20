@@ -194,8 +194,6 @@ module classBedSediment1
         integer             :: i, j, k, l                       ! Iterator
         real(dp)            :: M_f_byLayer(C%nSedimentLayers)   ! Mass of fine sediment by layer
 
-        ! call print_matrix(me%delta_sed)
-
         ! Assumes me%delta_sed has already been set
         ! Add new deposited NM to matrix, reset resus and buried to zero
         me%M_np(1,:,:,:) = j_np_dep                     ! Deposited     [kg/m2]

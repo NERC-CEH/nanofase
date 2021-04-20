@@ -527,8 +527,11 @@ module NetCDFOutputModule
         class(NetCDFOutput)     :: me
         integer                 :: k
         real(dp), allocatable   :: emptyArray(:,:,:,:)
+        real(dp), allocatable   :: emptyArrayLayers(:,:,:,:,:)
         ! Allocate the empty array to be the current size for this chunk
         allocate(emptyArray(7, DATASET%gridShape(1), DATASET%gridShape(2), C%batchNTimesteps(k)))
+        allocate(emptyArrayLayers(C%nSedimentLayers, 7, DATASET%gridShape(1), &
+                                  DATASET%gridShape(2), C%batchNTimesteps(k)))
         ! Allocate all water output variables to the correct shape, and fill with the NetCDF fill value
         emptyArray = nf90_fill_double
         allocate(me%output_water__m_nm, source=emptyArray)
@@ -557,6 +560,13 @@ module NetCDFOutputModule
         allocate(me%output_water__volume, source=emptyArray)
         allocate(me%output_water__depth, source=emptyArray)
         allocate(me%output_water__flow, source=emptyArray)
+        ! Allocate the sediment variables and fill with the NetCDF fill value
+        allocate(me%output_sediment__m_nm_total, source=emptyArray)
+        allocate(me%output_sediment__C_nm_total, source=emptyArray)
+        allocate(me%output_sediment__C_nm_layers, source=emptyArrayLayers)
+        allocate(me%output_sediment__m_nm_buried, source=emptyArray)
+        allocate(me%output_sediment__bed_area, source=emptyArray)
+        allocate(me%output_sediment__mass, source=emptyArray)
     end subroutine
 
     !> Reallocate output variable memory for a new chunk. This subroutine should
@@ -604,7 +614,7 @@ module NetCDFOutputModule
         ! Sediment
         call me%nc__sediment__m_nm_total%setData(me%output_sediment__m_nm_buried, start=[1,1,1,tStart])
         call me%nc__sediment__C_nm_total%setData(me%output_sediment__C_nm_total, start=[1,1,1,tStart])
-        call me%nc__sediment__C_nm_layers%setData(me%output_sediment__C_nm_layers, start=[1,1,1,tStart])
+        call me%nc__sediment__C_nm_layers%setData(me%output_sediment__C_nm_layers, start=[1,1,1,1,tStart])
         call me%nc__sediment__m_nm_buried%setData(me%output_sediment__m_nm_buried, start=[1,1,1,tStart])
         call me%nc__sediment__bed_area%setData(me%output_sediment__bed_area, start=[1,1,1,tStart])
         call me%nc__sediment__mass%setData(me%output_sediment__mass, start=[1,1,1,tStart])

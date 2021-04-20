@@ -147,12 +147,6 @@ module classEstuaryReach
         me%j_transformed = 0
         me%j_dissolved = 0
         previousVolume = me%volume
-        ! me%j_ionic = 0
-        ! if (t == 1) then
-        !     previousVolume = 0.0_dp
-        ! else
-        !     previousVolume = me%volume      ! me%volume will be changed by setDimensions() below
-        ! end if
         
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = me%T_water(currentDate%yearday())
@@ -215,19 +209,13 @@ module classEstuaryReach
         ! Input will always be from runoff, transfers and sources
         ! TODO that ^ is not true for transfers
         me%Q_in_total = me%Q_runoff() + me%Q_transfers()
-        ! j_spm_input_total = me%j_spm_runoff() + me%j_spm_transfers()
-        ! j_np_input_total = me%j_np_runoff() + me%j_np_transfers() + me%j_np_pointsource() + me%j_np_diffusesource()
         ! If outflow is positive, then some input will be provided by the inflowing outflow
         if (Q_outflow > 0) then
             me%Q_in_total = me%Q_in_total + me%Q_outflow()
-            ! j_spm_input_total = j_spm_input_total + me%j_spm_outflow()
-            ! j_np_input_total = j_np_input_total + me%j_np_outflow()
         end if
         ! If inflow is positive, input will also be from inflows
         if (me%Q_inflows() > 0) then
             me%Q_in_total = me%Q_in_total + me%Q_inflows()
-            ! j_spm_input_total = j_spm_input_total + me%j_spm_inflows()
-            ! j_np_input_total = j_np_input_total + me%j_np_inflows()
         end if
 
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
