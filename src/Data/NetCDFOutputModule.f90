@@ -233,8 +233,13 @@ module NetCDFOutputModule
         end do
     end subroutine
 
-    subroutine updateSoil(me)
+    !> Update either the NetCDF file or the in-memory output variables on this time step
+    subroutine updateSoil(me, t, tInChunk, x, y)
         class(NetCDFOutput) :: me
+        integer             :: t            !! Timestep index for whole batch
+        integer             :: tInChunk     !! Timestep index for this chunk
+        integer             :: x            !! Grid cell x index
+        integer             :: y            !! Grid cell y index
     end subroutine
 
     !> Create the NetCDF file and fill with variables and their attributes
@@ -292,7 +297,7 @@ module NetCDFOutputModule
         call var%setAttribute('axis', 'X')
         call var%setData(DATASET%x)
         ! y coordinate
-        var = me%nc%setVariable('y', 'i32', [y_dim])
+        var = me%nc%setVariable('y', 'i32', [me%y_dim])
         call var%setAttribute('units', 'm')
         call var%setAttribute('standard_name', 'projection_y_coordinate')
         call var%setAttribute('axis', 'Y')
@@ -308,7 +313,7 @@ module NetCDFOutputModule
             waterbodyType = nf90_fill_int
         end where
         ! Waterbody type
-        me%nc__water__waterbody_type = me%nc%setVariable('waterbody_type', 'i32', [me%x_dim, y_dim])
+        me%nc__water__waterbody_type = me%nc%setVariable('waterbody_type', 'i32', [me%x_dim, me%y_dim])
         call me%nc__water__waterbody_type%setAttribute('description', '1 = river, 2 = estuary')
         call me%nc__water__waterbody_type%setAttribute('long_name', 'Type of waterbody')
         call me%nc__water__waterbody_type%setAttribute('grid_mapping', 'spatial_ref')
@@ -329,82 +334,85 @@ module NetCDFOutputModule
         class(NetCDFOutput) :: me
 
         ! SPM mass and concentration
-        me%nc__water__m_spm = me%nc%setVariable('water__m_spm','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_spm = me%nc%setVariable('water__m_spm','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_spm%setAttribute('units', 'kg')
         call me%nc__water__m_spm%setAttribute('long_name', 'Mass of suspended particulate matter in surface water')
         call me%nc__water__m_spm%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_spm%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__C_spm = me%nc%setVariable('water__C_spm','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__C_spm = me%nc%setVariable('water__C_spm','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__C_spm%setAttribute('units', 'kg/m3')
         call me%nc__water__C_spm%setAttribute('long_name', 'Concentration of suspended particulate matter in surface water')
         call me%nc__water__C_spm%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__C_spm%setAttribute('_FillValue', nf90_fill_double)
         ! NM mass
-        me%nc__water__m_nm = me%nc%setVariable('water__m_nm','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_nm = me%nc%setVariable('water__m_nm','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_nm%setAttribute('units', 'kg')
         call me%nc__water__m_nm%setAttribute('long_name', 'Mass of NM in surface water')
         call me%nc__water__m_nm%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_nm%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__m_transformed = me%nc%setVariable('water__m_transformed','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_transformed = me%nc%setVariable('water__m_transformed','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_transformed%setAttribute('units', 'kg')
         call me%nc__water__m_transformed%setAttribute('long_name', 'Mass of transformed NM in surface water')
         call me%nc__water__m_transformed%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_transformed%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__m_dissolved = me%nc%setVariable('water__m_dissolved','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_dissolved = me%nc%setVariable('water__m_dissolved','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_dissolved%setAttribute('units', 'kg')
         call me%nc__water__m_dissolved%setAttribute('long_name', 'Mass of dissolved species in surface water')
         call me%nc__water__m_dissolved%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_dissolved%setAttribute('_FillValue', nf90_fill_double)
         ! NM concentration
-        me%nc__water__C_nm = me%nc%setVariable('water__C_nm','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__C_nm = me%nc%setVariable('water__C_nm','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__C_nm%setAttribute('units', 'kg/m3')
         call me%nc__water__C_nm%setAttribute('long_name', 'Concentration of NM in surface water')
         call me%nc__water__C_nm%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__C_nm%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__C_transformed = me%nc%setVariable('water__C_transformed','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__C_transformed = me%nc%setVariable('water__C_transformed','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__C_transformed%setAttribute('units', 'kg/m3')
         call me%nc__water__C_transformed%setAttribute('long_name', 'Concentration of transformed NM in surface water')
         call me%nc__water__C_transformed%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__C_transformed%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__C_dissolved = me%nc%setVariable('water__C_dissolved','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__C_dissolved = me%nc%setVariable('water__C_dissolved','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__C_dissolved%setAttribute('units', 'kg/m3')
         call me%nc__water__C_dissolved%setAttribute('long_name', 'Concentration of dissolved species in surface water')
         call me%nc__water__C_dissolved%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__C_dissolved%setAttribute('_FillValue', nf90_fill_double)
         ! NM flows
-        me%nc__water__m_nm_outflow = me%nc%setVariable('water__m_np_outflow','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_nm_outflow = me%nc%setVariable('water__m_np_outflow','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_nm_outflow%setAttribute('units', 'kg')
         call me%nc__water__m_nm_outflow%setAttribute('long_name', 'Mass of NM outflowing downstream')
         call me%nc__water__m_nm_outflow%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_nm_outflow%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__m_transformed_outflow = me%nc%setVariable('water__m_transformed_outflow','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_transformed_outflow = me%nc%setVariable('water__m_transformed_outflow','f64', &
+                                                                [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_transformed_outflow%setAttribute('units', 'kg')
         call me%nc__water__m_transformed_outflow%setAttribute('long_name', 'Mass of transformed NM outflowing downstream')
         call me%nc__water__m_transformed%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_transformed%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__m_dissolved_outflow = me%nc%setVariable('water__m_dissolved_outflow','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_dissolved_outflow = me%nc%setVariable('water__m_dissolved_outflow','f64', &
+                                                              [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_dissolved_outflow%setAttribute('units', 'kg')
         call me%nc__water__m_dissolved_outflow%setAttribute('long_name', 'Mass of dissolved species outflowing downstream')
         call me%nc__water__m_dissolved_outflow%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_dissolved_outflow%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__m_nm_deposited = me%nc%setVariable('water__m_nm_deposited','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_nm_deposited = me%nc%setVariable('water__m_nm_deposited','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_nm_deposited%setAttribute('units', 'kg')
         call me%nc__water__m_nm_deposited%setAttribute('long_name', 'Mass of NM deposited to bed sediment')
         call me%nc__water__m_nm_deposited%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_nm_deposited%setAttribute('_FillValue', nf90_fill_double)
         me%nc__water__m_transformed_deposited = me%nc%setVariable('water__m_transformed_deposited', &
-                                                                        'f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+                                                                        'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_transformed_deposited%setAttribute('long_name', 'Mass of transformed NM deposited to bed sediment')
         call me%nc__water__m_transformed_deposited%setAttribute('units', 'kg')
         call me%nc__water__m_transformed_deposited%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_transformed_deposited%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__m_nm_resuspended = me%nc%setVariable('water__m_nm_resuspended','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__m_nm_resuspended = me%nc%setVariable('water__m_nm_resuspended','f64', &
+                                                           [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_nm_resuspended%setAttribute('units', 'kg')
         call me%nc__water__m_nm_resuspended%setAttribute('long_name', 'Mass of NM resuspended from bed sediment')
         call me%nc__water__m_nm_resuspended%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_nm_resuspended%setAttribute('_FillValue', nf90_fill_double)
         me%nc__water__m_transformed_resuspended = me%nc%setVariable('water__m_transformed_resuspended', &
-                                                                          'f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+                                                                          'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_transformed_resuspended%setAttribute('units', 'kg')
         call me%nc__water__m_transformed_resuspended%setAttribute('long_name', &
                                                                   'Mass of transformed NM resuspended from bed sediment')
@@ -412,36 +420,39 @@ module NetCDFOutputModule
         call me%nc__water__m_transformed%setAttribute('_FillValue', nf90_fill_double)
         ! SPM flows
         if (C%includeSedimentFluxes) then
-            me%nc__water__m_spm_erosion = me%nc%setVariable('water__m_spm_erosion','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+            me%nc__water__m_spm_erosion = me%nc%setVariable('water__m_spm_erosion','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__m_spm_erosion%setAttribute('units', 'kg')
             call me%nc__water__m_spm_erosion%setAttribute('long_name', 'Mass of suspended particulate matter from soil erosion')
             call me%nc__water__m_spm_erosion%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__water__m_spm_erosion%setAttribute('_FillValue', nf90_fill_double)
-            me%nc__water__m_spm_deposited = me%nc%setVariable('water__m_spm_deposited','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+            me%nc__water__m_spm_deposited = me%nc%setVariable('water__m_spm_deposited','f64', &
+                                                              [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__m_spm_deposited%setAttribute('units', 'kg')
             call me%nc__water__m_spm_deposited%setAttribute('long_name', &
                                                             'Mass of suspended particulate matter deposited to bed sediment')
             call me%nc__water__m_spm_deposited%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__water__m_spm_deposited%setAttribute('_FillValue', nf90_fill_double)
-            me%nc__water__m_spm_resuspended = me%nc%setVariable('water__m_spm_resuspended','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+            me%nc__water__m_spm_resuspended = me%nc%setVariable('water__m_spm_resuspended','f64', &
+                                                                [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__m_spm_resuspended%setAttribute('units', 'kg')
             call me%nc__water__m_spm_resuspended%setAttribute('long_name', &
                                                              'Mass of suspended particulate matter resuspended from bed sediment')
             call me%nc__water__m_spm_resuspended%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__water__m_spm_resuspended%setAttribute('_FillValue', nf90_fill_double)
-            me%nc__water__m_spm_inflow = me%nc%setVariable('water__m_spm_inflow','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+            me%nc__water__m_spm_inflow = me%nc%setVariable('water__m_spm_inflow','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__m_spm_inflow%setAttribute('units', 'kg')
             call me%nc__water__m_spm_inflow%setAttribute('long_name', &
                                                          'Mass of suspended particulate matter inflowing from upstream')
             call me%nc__water__m_spm_inflow%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__water__m_spm_inflow%setAttribute('_FillValue', nf90_fill_double)
-            me%nc__water__m_spm_outflow = me%nc%setVariable('water__m_spm_outflow','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+            me%nc__water__m_spm_outflow = me%nc%setVariable('water__m_spm_outflow','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__m_spm_outflow%setAttribute('units', 'kg')
             call me%nc__water__m_spm_outflow%setAttribute('long_name', &
                                                           'Mass of suspended particulate matter outflowing downstream')
             call me%nc__water__m_spm_outflow%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__water__m_spm_outflow%setAttribute('_FillValue', nf90_fill_double)
-            me%nc__water__m_spm_bank_erosion = me%nc%setVariable('water__m_spm_bank_erosion','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+            me%nc__water__m_spm_bank_erosion = me%nc%setVariable('water__m_spm_bank_erosion','f64', &
+                                                                 [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__m_spm_bank_erosion%setAttribute('units', 'kg')
             call me%nc__water__m_spm_bank_erosion%setAttribute('long_name', &
                                                                'Mass of suspended particulate matter from bank erosion')
@@ -449,18 +460,18 @@ module NetCDFOutputModule
             call me%nc__water__m_spm_bank_erosion%setAttribute('_FillValue', nf90_fill_double)
         end if
         ! Water
-        me%nc__water__volume = me%nc%setVariable('water__volume','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__volume = me%nc%setVariable('water__volume','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__volume%setAttribute('units', 'm3')
         call me%nc__water__volume%setAttribute('long_name', 'Volume of water')
         call me%nc__water__volume%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__volume%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__depth = me%nc%setVariable('water__depth','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__depth = me%nc%setVariable('water__depth','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__depth%setAttribute('units', 'm')
         call me%nc__water__depth%setAttribute('standard_name', 'depth')
         call me%nc__water__depth%setAttribute('long_name', 'Depth of water')
         call me%nc__water__depth%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__depth%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__water__flow = me%nc%setVariable('water__flow','f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__water__flow = me%nc%setVariable('water__flow','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__flow%setAttribute('units', 'm3/s')
         call me%nc__water__flow%setAttribute('standard_name', 'water_volume_transport_in_river_channel')
         call me%nc__water__flow%setAttribute('long_name', 'Flow of water')
@@ -472,32 +483,33 @@ module NetCDFOutputModule
     subroutine initSediment(me)
         class(NetCDFOutput) :: me
 
-        me%nc__sediment__m_nm_total = me%nc%setVariable('sediment__m_nm_total', 'f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__sediment__m_nm_total = me%nc%setVariable('sediment__m_nm_total', 'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__sediment__m_nm_total%setAttribute('units', 'kg')
         call me%nc__sediment__m_nm_total%setAttribute('long_name', 'Mass of NM in sediment')
         call me%nc__sediment__m_nm_total%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__sediment__m_nm_total%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__sediment__C_nm_total = me%nc%setVariable('sediment__C_nm_total', 'f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__sediment__C_nm_total = me%nc%setVariable('sediment__C_nm_total', 'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__sediment__C_nm_total%setAttribute('units', 'kg/kg')
         call me%nc__sediment__C_nm_total%setAttribute('long_name', 'Mass concentration of NM across all sediment layers')
         call me%nc__sediment__C_nm_total%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__sediment__C_nm_total%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__sediment__C_nm_layers = me%nc%setVariable('sediment__C_nm_layers', 'f64', [sed_l_dim, w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__sediment__C_nm_layers = me%nc%setVariable('sediment__C_nm_layers', 'f64', &
+                                                         [me%sed_l_dim, me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__sediment__C_nm_layers%setAttribute('units', 'kg/kg')
         call me%nc__sediment__C_nm_layers%setAttribute('long_name', 'Mass concentration of NM by sediment layer')
         call me%nc__sediment__C_nm_layers%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__sediment__C_nm_layers%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__sediment__m_nm_buried = me%nc%setVariable('sediment__m_nm_buried', 'f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__sediment__m_nm_buried = me%nc%setVariable('sediment__m_nm_buried', 'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__sediment__m_nm_buried%setAttribute('units', 'kg')
         call me%nc__sediment__m_nm_buried%setAttribute('long_name', 'Mass of NM buried from sediment')
         call me%nc__sediment__m_nm_buried%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__sediment__m_nm_buried%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__sediment__bed_area = me%nc%setVariable('sediment__bed_area', 'f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__sediment__bed_area = me%nc%setVariable('sediment__bed_area', 'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__sediment__bed_area%setAttribute('units', 'm2')
         call me%nc__sediment__bed_area%setAttribute('long_name', 'Surface area of bed sediment')
         call me%nc__sediment__bed_area%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__sediment__bed_area%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__sediment__mass = me%nc%setVariable('sediment__mass', 'f64', [w_dim, me%x_dim, y_dim, me%t_dim])
+        me%nc__sediment__mass = me%nc%setVariable('sediment__mass', 'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__sediment__mass%setAttribute('units', 'kg')
         call me%nc__sediment__mass%setAttribute('long_name', 'Mass of fine sediment in bed sediment')
         call me%nc__sediment__mass%setAttribute('grid_mapping', 'spatial_ref')
