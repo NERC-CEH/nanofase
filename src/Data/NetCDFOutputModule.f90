@@ -1,5 +1,6 @@
 module NetCDFOutputModule
     use Globals, only: C, dp
+    use UtilModule
     use mo_netcdf, only: NcDataset, NcVariable, NcDimension, nf90_fill_int, nf90_fill_double
     use classDatabase, only: DATASET
     use classEnvironment1
@@ -43,6 +44,31 @@ module NetCDFOutputModule
         type(NcVariable)            :: nc__sediment__m_nm_buried
         type(NcVariable)            :: nc__sediment__bed_area
         type(NcVariable)            :: nc__sediment__mass
+        type(NcVariable)            :: nc__soil__land_use
+        type(NcVariable)            :: nc__soil__m_nm_total
+        type(NcVariable)            :: nc__soil__m_transformed_total
+        type(NcVariable)            :: nc__soil__m_dissolved_total
+        type(NcVariable)            :: nc__soil__C_nm_total
+        type(NcVariable)            :: nc__soil__C_transformed_total
+        type(NcVariable)            :: nc__soil__C_dissolved_total
+        type(NcVariable)            :: nc__soil__C_nm_free
+        type(NcVariable)            :: nc__soil__C_transformed_free
+        type(NcVariable)            :: nc__soil__C_nm_att
+        type(NcVariable)            :: nc__soil__C_transformed_att
+        type(NcVariable)            :: nc__soil__C_nm_layers
+        type(NcVariable)            :: nc__soil__C_transformed_layers
+        type(NcVariable)            :: nc__soil__C_dissolved_layers
+        type(NcVariable)            :: nc__soil__C_nm_free_layers
+        type(NcVariable)            :: nc__soil__C_transformed_free_layers
+        type(NcVariable)            :: nc__soil__C_nm_att_layers
+        type(NcVariable)            :: nc__soil__C_transformed_att_layers
+        type(NcVariable)            :: nc__soil__m_soil_eroded
+        type(NcVariable)            :: nc__soil__m_nm_eroded
+        type(NcVariable)            :: nc__soil__m_transformed_eroded
+        type(NcVariable)            :: nc__soil__m_nm_buried
+        type(NcVariable)            :: nc__soil__m_transformed_buried
+        type(NcVariable)            :: nc__soil__m_dissolved_buried
+        type(NcVariable)            :: nc__soil__bulk_density
 
         ! Model output variables
         real(dp), allocatable       :: output_water__waterbody_type(:,:)
@@ -76,27 +102,53 @@ module NetCDFOutputModule
         real(dp), allocatable       :: output_sediment__m_nm_buried(:,:,:,:)
         real(dp), allocatable       :: output_sediment__bed_area(:,:,:,:)
         real(dp), allocatable       :: output_sediment__mass(:,:,:,:)
+        real(dp), allocatable       :: output_soil__land_use(:,:)
+        real(dp), allocatable       :: output_soil__m_nm_total(:,:,:)
+        real(dp), allocatable       :: output_soil__m_transformed_total(:,:,:)
+        real(dp), allocatable       :: output_soil__m_dissolved_total(:,:,:)
+        real(dp), allocatable       :: output_soil__C_nm_total(:,:,:)
+        real(dp), allocatable       :: output_soil__C_transformed_total(:,:,:)
+        real(dp), allocatable       :: output_soil__C_dissolved_total(:,:,:)
+        real(dp), allocatable       :: output_soil__C_nm_free(:,:,:)
+        real(dp), allocatable       :: output_soil__C_transformed_free(:,:,:)
+        real(dp), allocatable       :: output_soil__C_nm_att(:,:,:)
+        real(dp), allocatable       :: output_soil__C_transformed_att(:,:,:)
+        real(dp), allocatable       :: output_soil__C_nm_layers(:,:,:,:)
+        real(dp), allocatable       :: output_soil__C_transformed_layers(:,:,:,:)
+        real(dp), allocatable       :: output_soil__C_dissolved_layers(:,:,:,:)
+        real(dp), allocatable       :: output_soil__C_nm_free_layers(:,:,:,:)
+        real(dp), allocatable       :: output_soil__C_transformed_free_layers(:,:,:,:)
+        real(dp), allocatable       :: output_soil__C_nm_att_layers(:,:,:,:)
+        real(dp), allocatable       :: output_soil__C_transformed_att_layers(:,:,:,:)
+        real(dp), allocatable       :: output_soil__m_soil_eroded(:,:,:)
+        real(dp), allocatable       :: output_soil__m_nm_eroded(:,:,:)
+        real(dp), allocatable       :: output_soil__m_transformed_eroded(:,:,:)
+        real(dp), allocatable       :: output_soil__m_nm_buried(:,:,:)
+        real(dp), allocatable       :: output_soil__m_transformed_buried(:,:,:)
+        real(dp), allocatable       :: output_soil__m_dissolved_buried(:,:,:)
+        real(dp), allocatable       :: output_soil__bulk_density(:,:)
         
       contains
-        procedure, public   :: init
-        procedure, public   :: updateWater
-        procedure, public   :: updateSediment
-        procedure, public   :: updateSoil
-        procedure, private  :: initFile
-        procedure, private  :: initWater
-        procedure, private  :: initSediment
-        procedure, private  :: initSoil
-        procedure, private  :: allocateVariables
-        procedure, public   :: newChunk
-        procedure, public   :: finaliseChunk
-        procedure, public   :: close => closeNetCDF
+        procedure, public   :: init => initNetCDFOutput
+        procedure, public   :: updateWater => updateWaterNetCDFOutput
+        procedure, public   :: updateSediment => updateSedimentNetCDFOutput
+        procedure, public   :: updateSoil => updateSoilNetCDFOutput
+        procedure, public   :: initFile => initFileNetCDFOutput
+        procedure, private  :: initWater => initWaterNetCDFOutput
+        procedure, private  :: initSediment => initSedimentNetCDFOutput
+        procedure, public   :: initSoil => initSoilNetCDFOutput
+        procedure, private  :: createDimensions => createDimensionsNetCDFOutput
+        procedure, private  :: allocateVariables => allocateVariablesNetCDFOutput
+        procedure, public   :: newChunk => newChunkNetCDFOutput
+        procedure, public   :: finaliseChunk => finaliseChunkNetCDFOutput
+        procedure, public   :: close => closeNetCDFOutput
     end type
 
   contains
 
     !> Initialise the NetCDF output class by creating the NetCDF file and allocating space
     !! for the output variables (if we're in write-at-end mode and it's needed)
-    subroutine init(me, env, k)
+    subroutine initNetCDFOutput(me, env, k)
         class(NetCDFOutput)         :: me           !! This NetCDFOutput class
         type(Environment1), target  :: env
         integer                     :: k            !! Chunk index
@@ -115,7 +167,7 @@ module NetCDFOutputModule
     end subroutine
 
     !> Update either the NetCDF file or the in-memory output variables on this time step
-    subroutine updateWater(me, t, tInChunk, x, y)
+    subroutine updateWaterNetCDFOutput(me, t, tInChunk, x, y)
         class(NetCDFOutput) :: me           !! This NetCDFOutput class
         integer             :: t            !! Timestep index for whole batch
         integer             :: tInChunk     !! Timestep index for this chunk
@@ -162,7 +214,7 @@ module NetCDFOutputModule
                     call me%nc__water__m_transformed%setData(sum(reach%m_transformed), start=[w,x,y,t]) 
                     call me%nc__water__m_dissolved%setData(reach%m_dissolved, start=[w,x,y,t]) 
                     call me%nc__water__C_nm%setData(sum(reach%C_np), start=[w,x,y,t]) 
-                    call me%nc__water__C_transformed%setData(sum(reach%m_transformed), start=[w,x,y,t]) 
+                    call me%nc__water__C_transformed%setData(sum(reach%C_transformed), start=[w,x,y,t]) 
                     call me%nc__water__C_dissolved%setData(reach%C_dissolved, start=[w,x,y,t]) 
                     call me%nc__water__m_nm_outflow%setData(sum(reach%obj_j_nm%outflow), start=[w,x,y,t]) 
                     call me%nc__water__m_transformed_outflow%setData(sum(reach%obj_j_nm_transformed%outflow), start=[w,x,y,t]) 
@@ -192,7 +244,7 @@ module NetCDFOutputModule
     end subroutine
 
     !> Update either the NetCDF file or write to the in-memory variables for this timestep 
-    subroutine updateSediment(me, t, tInChunk, x, y)
+    subroutine updateSedimentNetCDFOutput(me, t, tInChunk, x, y)
         class(NetCDFOutput) :: me               !! This NetCDFOutput instance
         integer             :: t                !! Current timestep in batch
         integer             :: tInChunk         !! Current timestep in chunk
@@ -212,7 +264,8 @@ module NetCDFOutputModule
                     do l = 1, C%nSedimentLayers
                         me%output_sediment__C_nm_layers(l,w,x,y,tInChunk) = sum(reach%bedSediment%get_C_np_l_byMass(l))
                     end do
-                    me%output_sediment__m_nm_buried(w,x,y,tInChunk) = sum(reach%bedSediment%get_m_np_buried())
+                    me%output_sediment__m_nm_buried(w,x,y,tInChunk) = sum(reach%bedSediment%get_m_np_buried()) &
+                                                                      * reach%bedArea
                     me%output_sediment__bed_area(w,x,y,tInChunk) = reach%bedArea
                     me%output_sediment__mass(w,x,y,tInChunk) = reach%bedSediment%Mf_bed_all() * reach%bedArea
                 ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
@@ -225,7 +278,8 @@ module NetCDFOutputModule
                         call me%nc__sediment__C_nm_layers%setData(sum(reach%bedSediment%get_C_np_l_byMass(l)), &
                                                           start=[l,w,x,y,t])
                     end do
-                    call me%nc__sediment__m_nm_buried%setData(sum(reach%bedSediment%get_m_np_buried()), start=[w,x,y,t])
+                    call me%nc__sediment__m_nm_buried%setData(sum(reach%bedSediment%get_m_np_buried()) * reach%bedArea, &
+                                                              start=[w,x,y,t])
                     call me%nc__sediment__bed_area%setData(reach%bedArea, start=[w,x,y,t])
                     call me%nc__sediment__mass%setData(reach%bedSediment%Mf_bed_all() * reach%bedArea, start=[w,x,y,t])
                 end if
@@ -234,16 +288,101 @@ module NetCDFOutputModule
     end subroutine
 
     !> Update either the NetCDF file or the in-memory output variables on this time step
-    subroutine updateSoil(me, t, tInChunk, x, y)
+    subroutine updateSoilNetCDFOutput(me, t, tInChunk, x, y)
         class(NetCDFOutput) :: me
         integer             :: t            !! Timestep index for whole batch
         integer             :: tInChunk     !! Timestep index for this chunk
         integer             :: x            !! Grid cell x index
         integer             :: y            !! Grid cell y index
+        integer             :: l            !! Soil layer index
+
+        if (me%env%item%colGridCells(x,y)%item%nSoilProfiles > 0) then
+            associate(profile => me%env%item%colGridCells(x,y)%item%colSoilProfiles(1)%item)
+                ! If we're in 'write at end' mode, then store this timestep's output to the output arrays, indexed
+                ! by the timestep in the current chunk (because we write the NetCDF file at the end of each chunk)
+                if (C%netCDFWriteMode == 'end') then
+                    me%output_soil__m_nm_total(x,y,tInChunk) = sum(profile%get_m_np())
+                    me%output_soil__m_transformed_total(x,y,tInChunk) = sum(profile%get_m_transformed())
+                    me%output_soil__m_dissolved_total(x,y,tInChunk) = profile%get_m_dissolved()
+                    me%output_soil__C_nm_total(x,y,tInChunk) = sum(profile%get_C_np())
+                    me%output_soil__C_transformed_total(x,y,tInChunk) = sum(profile%get_C_transformed())
+                    me%output_soil__C_dissolved_total(x,y,tInChunk) = profile%get_C_dissolved()
+                    if (C%includeSoilStateBreakdown) then
+                        me%output_soil__C_nm_free(x,y,tInChunk) = sum(freeNM(profile%get_C_np()))
+                        me%output_soil__C_transformed_free(x,y,tInChunk) = sum(freeNM(profile%get_C_transformed()))
+                        me%output_soil__C_nm_att(x,y,tInChunk) = sum(attachedNM(profile%get_C_np()))
+                        me%output_soil__C_transformed_att(x,y,tInChunk) = sum(attachedNM(profile%get_C_transformed()))
+                    end if
+                    if (C%includeSoilLayerBreakdown) then
+                        do l = 1, C%nSoilLayers
+                            associate(layer => profile%colSoilLayers(l)%item)
+                                me%output_soil__C_nm_layers(l,x,y,tInChunk) = sum(layer%C_np)
+                                me%output_soil__C_transformed_layers(l,x,y,tInChunk) = sum(layer%C_transformed)
+                                me%output_soil__C_dissolved_layers(l,x,y,tInChunk) = layer%C_dissolved
+                                if (C%includeSoilStateBreakdown) then
+                                    me%output_soil__C_nm_free_layers(l,x,y,tInChunk) = sum(freeNM(layer%C_np))
+                                    me%output_soil__C_transformed_free_layers(l,x,y,tInChunk) = sum(freeNM(layer%C_transformed))
+                                    me%output_soil__C_nm_att_layers(l,x,y,tInChunk) = sum(attachedNM(layer%C_np))
+                                    me%output_soil__C_transformed_att_layers(l,x,y,tInChunk) = sum(attachedNM(layer%C_transformed))
+                                end if
+                            end associate
+                        end do
+                    end if
+                    if (C%includeSoilErosion) then
+                        me%output_soil__m_soil_eroded(x,y,tInChunk) = sum(profile%erodedSediment) * profile%area
+                        me%output_soil__m_nm_eroded(x,y,tInChunk) = sum(profile%m_np_eroded(:,:,2))
+                        me%output_soil__m_transformed_eroded(x,y,tInChunk) = sum(profile%m_transformed_eroded(:,:,2))
+                    end if
+                    me%output_soil__m_nm_buried(x,y,tInChunk) = sum(profile%m_np_buried) 
+                    me%output_soil__m_transformed_buried(x,y,tInChunk) = sum(profile%m_transformed_buried) 
+                    me%output_soil__m_dissolved_buried(x,y,tInChunk) = profile%m_dissolved_buried
+                ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
+                ! by the whole batch, not just this chunk
+                else if (C%netCDFWriteMode == 'itr') then
+                    call me%nc__soil__m_nm_total%setData(sum(profile%get_m_np()), start=[x,y,t])
+                    call me%nc__soil__m_transformed_total%setData(sum(profile%get_m_transformed()), start=[x,y,t])
+                    call me%nc__soil__m_dissolved_total%setData(profile%get_m_dissolved(), start=[x,y,t])
+                    call me%nc__soil__C_nm_total%setData(sum(profile%get_C_np()), start=[x,y,t])
+                    call me%nc__soil__C_transformed_total%setData(sum(profile%get_C_transformed()), start=[x,y,t])
+                    call me%nc__soil__C_dissolved_total%setData(profile%get_C_dissolved(), start=[x,y,t])
+                    if (C%includeSoilStateBreakdown) then
+                        call me%nc__soil__C_nm_free%setData(sum(freeNM(profile%get_C_np())), start=[x,y,t])
+                        call me%nc__soil__C_transformed_free%setData(sum(freeNM(profile%get_C_transformed())), start=[x,y,t])
+                        call me%nc__soil__C_nm_att%setData(sum(attachedNM(profile%get_C_np())), start=[x,y,t])
+                        call me%nc__soil__C_transformed_att%setData(sum(attachedNM(profile%get_C_transformed())), start=[x,y,t])
+                    end if
+                    if (C%includeSoilLayerBreakdown) then
+                        do l = 1, C%nSoilLayers
+                            associate(layer => profile%colSoilLayers(l)%item)
+                                call me%nc__soil__C_nm_layers%setData(sum(layer%C_np), start=[l,x,y,t])
+                                call me%nc__soil__C_transformed_layers%setData(sum(layer%C_transformed), start=[l,x,y,t])
+                                call me%nc__soil__C_dissolved_layers%setData(layer%C_dissolved, start=[l,x,y,t])
+                                if (C%includeSoilStateBreakdown) then
+                                    call me%nc__soil__C_nm_free_layers%setData(sum(freeNM(layer%C_np)), start=[l,x,y,t])
+                                    call me%nc__soil__C_transformed_free_layers%setData(sum(freeNM(layer%C_transformed)), &
+                                                                                        start=[l,x,y,t])
+                                    call me%nc__soil__C_nm_att_layers%setData(sum(attachedNM(layer%C_np)), start=[l,x,y,t])
+                                    call me%nc__soil__C_transformed_att_layers%setData(sum(attachedNM(layer%C_transformed)), &
+                                                                                       start=[l,x,y,t])
+                                end if
+                            end associate
+                        end do
+                    end if
+                    if (C%includeSoilErosion) then
+                        call me%nc__soil__m_soil_eroded%setData(sum(profile%erodedSediment) * profile%area, start=[x,y,t])
+                        call me%nc__soil__m_nm_eroded%setData(sum(profile%m_np_eroded(:,:,2)), start=[x,y,t])
+                        call me%nc__soil__m_transformed_eroded%setData(sum(profile%m_transformed_eroded(:,:,2)), start=[x,y,t])
+                    end if
+                    call me%nc__soil__m_nm_buried%setData(sum(profile%m_np_buried), start=[x,y,t])
+                    call me%nc__soil__m_transformed_buried%setData(sum(profile%m_transformed_buried), start=[x,y,t])
+                    call me%nc__soil__m_dissolved_buried%setData(profile%m_dissolved_buried, start=[x,y,t])
+                end if
+            end associate
+        end if
     end subroutine
 
     !> Create the NetCDF file and fill with variables and their attributes
-    subroutine initFile(me)
+    subroutine initFileNetCDFOutput(me)
         class(NetCDFOutput) :: me           !! This NetCDFOutput class
         type(datetime)      :: simDatetime  ! Datetime that the simulation we performed
         type(NcVariable)    :: var          ! NetCDF variable
@@ -272,13 +411,7 @@ module NetCDFOutputModule
         call var%setAttribute('crs_wkt', trim(DATASET%crsWKT))              ! CF conventions recommends crs_wkt
         call var%setAttribute('epsg_code', DATASET%epsgCode)                ! Not a standard, but might be useful instead of having to decipher WKT
 
-        ! Create the dimensions
-        me%t_dim = me%nc%setDimension('t', C%nTimestepsInBatch)
-        me%x_dim = me%nc%setDimension('x', DATASET%gridShape(1))
-        me%y_dim = me%nc%setDimension('y', DATASET%gridShape(2))
-        me%w_dim = me%nc%setDimension('w', 7)
-        me%sed_l_dim = me%nc%setDimension('sed_l', C%nSedimentLayers)
-        me%soil_l_dim = me%nc%setDimension('soil_l', C%nSoilLayers)
+        call me%createDimensions()
 
         ! Create the record dimensions
         var = me%nc%setVariable('t', 'i32', [me%t_dim])
@@ -330,7 +463,7 @@ module NetCDFOutputModule
     end subroutine
 
     !> Create the variables for water
-    subroutine initWater(me)
+    subroutine initWaterNetCDFOutput(me)
         class(NetCDFOutput) :: me
 
         ! SPM mass and concentration
@@ -480,7 +613,7 @@ module NetCDFOutputModule
     end subroutine
 
     !> Create variables for bed sediments
-    subroutine initSediment(me)
+    subroutine initSedimentNetCDFOutput(me)
         class(NetCDFOutput) :: me
 
         me%nc__sediment__m_nm_total = me%nc%setVariable('sediment__m_nm_total', 'f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
@@ -516,63 +649,270 @@ module NetCDFOutputModule
         call me%nc__sediment__mass%setAttribute('_FillValue', nf90_fill_double)
     end subroutine
 
-    subroutine initSoil(me)
+    !> Create the soil variables in the NetCDF file
+    subroutine initSoilNetCDFOutput(me)
         class(NetCDFOutput) :: me
-        ! Create some soily variables
+        ! Land use - we can fill this now
+        me%nc__soil__land_use = me%nc%setVariable('land_use', 'i32', [me%x_dim, me%y_dim])
+        call me%nc__soil__land_use%setAttribute('units', '-')
+        call me%nc__soil__land_use%setAttribute('long_name', 'Land use')
+        call me%nc__soil__land_use%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__land_use%setAttribute('category_lookup', '1: urban_no_soil. 2: urban_parks_leisure. ' // &
+                                                '3: urban_industrial_soil. 4: urban_green_residential. 5: arable. ' // &
+                                                '6: grassland. 7: deciduous. 8: coniferous. 9: heathland. 10: water.' // &
+                                                '11: desert. 12/other: other')
+        call me%nc__soil__land_use%setData(maxloc(DATASET%landUse(:, :, :), dim=3))
+        ! Everything else - create now, fill later
+        me%nc__soil__m_nm_total = me%nc%setVariable('soil__m_nm_total', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__m_nm_total%setAttribute('units', 'kg')
+        call me%nc__soil__m_nm_total%setAttribute('long_name', 'Mass of NM in soil')
+        call me%nc__soil__m_nm_total%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__m_nm_total%setAttribute('_FillValue', nf90_fill_double)
+        me%nc__soil__m_transformed_total = me%nc%setVariable('soil__m_transformed_total', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__m_transformed_total%setAttribute('units', 'kg')
+        call me%nc__soil__m_transformed_total%setAttribute('long_name', 'Mass of transformed NM in soil')
+        call me%nc__soil__m_transformed_total%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__m_transformed_total%setAttribute('_FillValue', nf90_fill_double)
+        me%nc__soil__m_dissolved_total = me%nc%setVariable('soil__m_dissolved_total', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__m_dissolved_total%setAttribute('units', 'kg')
+        call me%nc__soil__m_dissolved_total%setAttribute('long_name', 'Mass of dissolved species in soil')
+        call me%nc__soil__m_dissolved_total%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__m_dissolved_total%setAttribute('_FillValue', nf90_fill_double)
+        me%nc__soil__C_nm_total = me%nc%setVariable('soil__C_nm_total', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__C_nm_total%setAttribute('units', 'kg/kg')
+        call me%nc__soil__C_nm_total%setAttribute('long_name', 'Mass concentration of NM in soil')
+        call me%nc__soil__C_nm_total%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__C_nm_total%setAttribute('_FillValue', nf90_fill_double)
+        me%nc__soil__C_transformed_total = me%nc%setVariable('soil__C_transformed_total', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__C_transformed_total%setAttribute('units', 'kg/kg')
+        call me%nc__soil__C_transformed_total%setAttribute('long_name', 'Mass concentration of transformed NM in soil')
+        call me%nc__soil__C_transformed_total%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__C_transformed_total%setAttribute('_FillValue', nf90_fill_double)
+        me%nc__soil__C_dissolved_total = me%nc%setVariable('soil__C_dissolved_total', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__C_dissolved_total%setAttribute('units', 'kg/kg')
+        call me%nc__soil__C_dissolved_total%setAttribute('long_name', 'Mass concentration of dissolved species in soil')
+        call me%nc__soil__C_dissolved_total%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__C_dissolved_total%setAttribute('_FillValue', nf90_fill_double)
+        if (C%includeSoilStateBreakdown) then
+            me%nc__soil__C_nm_free = me%nc%setVariable('soil__C_nm_free', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__C_nm_free%setAttribute('units', 'kg/kg')
+            call me%nc__soil__C_nm_free%setAttribute('long_name', 'Mass concentration of free NM in soil')
+            call me%nc__soil__C_nm_free%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__C_nm_free%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__C_transformed_free = me%nc%setVariable('soil__C_transformed_free', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__C_transformed_free%setAttribute('units', 'kg/kg')
+            call me%nc__soil__C_transformed_free%setAttribute('long_name', 'Mass concentration of free transformed NM in soil')
+            call me%nc__soil__C_transformed_free%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__C_transformed_free%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__C_nm_att = me%nc%setVariable('soil__C_nm_att', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__C_nm_att%setAttribute('units', 'kg/kg')
+            call me%nc__soil__C_nm_att%setAttribute('long_name', 'Mass concentration of attached NM in soil')
+            call me%nc__soil__C_nm_att%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__C_nm_att%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__C_transformed_att = me%nc%setVariable('soil__C_transformed_att', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__C_transformed_att%setAttribute('units', 'kg/kg')
+            call me%nc__soil__C_transformed_att%setAttribute('long_name', 'Mass concentration of attached transformed NM in soil')
+            call me%nc__soil__C_transformed_att%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__C_transformed_att%setAttribute('_FillValue', nf90_fill_double)
+        end if
+        if (C%includeSoilLayerBreakdown) then
+            me%nc__soil__C_nm_layers = me%nc%setVariable('soil__C_nm_layers', 'f64', [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__C_nm_layers%setAttribute('units', 'kg/kg')
+            call me%nc__soil__C_nm_layers%setAttribute('long_name', 'Mass concentration of NM by soil layer')
+            call me%nc__soil__C_nm_layers%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__C_nm_layers%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__C_transformed_layers = me%nc%setVariable('soil__C_transformed_layers', 'f64', &
+                                                                [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__C_transformed_layers%setAttribute('units', 'kg/kg')
+            call me%nc__soil__C_transformed_layers%setAttribute('long_name', 'Mass concentration of transformed NM by soil layer')
+            call me%nc__soil__C_transformed_layers%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__C_transformed_layers%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__C_dissolved_layers = me%nc%setVariable('soil__C_dissolved_layers', 'f64', &
+                                                                [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__C_dissolved_layers%setAttribute('units', 'kg/kg')
+            call me%nc__soil__C_dissolved_layers%setAttribute('long_name', 'Mass concentration of dissolved species by soil layer')
+            call me%nc__soil__C_dissolved_layers%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__C_dissolved_layers%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__C_nm_free_layers = me%nc%setVariable('soil__C_nm_free_layers', 'f64', &
+                                                            [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
+            if (C%includeSoilStateBreakdown) then
+                call me%nc__soil__C_nm_free_layers%setAttribute('units', 'kg/kg')
+                call me%nc__soil__C_nm_free_layers%setAttribute('long_name', 'Mass concentration of free NM by soil layer')
+                call me%nc__soil__C_nm_free_layers%setAttribute('grid_mapping', 'spatial_ref')
+                call me%nc__soil__C_nm_free_layers%setAttribute('_FillValue', nf90_fill_double)
+                me%nc__soil__C_transformed_free_layers = me%nc%setVariable('soil__C_transformed_free_layers', 'f64', &
+                                                                        [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
+                call me%nc__soil__C_transformed_free_layers%setAttribute('units', 'kg/kg')
+                call me%nc__soil__C_transformed_free_layers%setAttribute('long_name', &
+                                                                        'Mass concentration of free transformed NM by soil layer')
+                call me%nc__soil__C_transformed_free_layers%setAttribute('grid_mapping', 'spatial_ref')
+                call me%nc__soil__C_transformed_free_layers%setAttribute('_FillValue', nf90_fill_double)
+                me%nc__soil__C_nm_att_layers = me%nc%setVariable('soil__C_nm_att_layers', 'f64', &
+                                                                [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
+                call me%nc__soil__C_nm_att_layers%setAttribute('units', 'kg/kg')
+                call me%nc__soil__C_nm_att_layers%setAttribute('long_name', 'Mass concentration of attached NM by soil layer')
+                call me%nc__soil__C_nm_att_layers%setAttribute('grid_mapping', 'spatial_ref')
+                call me%nc__soil__C_nm_att_layers%setAttribute('_FillValue', nf90_fill_double)
+                me%nc__soil__C_transformed_att_layers = me%nc%setVariable('soil__C_transformed_att_layers', 'f64', &
+                                                                        [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
+                call me%nc__soil__C_transformed_att_layers%setAttribute('units', 'kg/kg')
+                call me%nc__soil__C_transformed_att_layers%setAttribute( &
+                    'long_name', &
+                    'Mass concentration of attached transformed NM by soil layer')
+                call me%nc__soil__C_transformed_att_layers%setAttribute('grid_mapping', 'spatial_ref')
+                call me%nc__soil__C_transformed_att_layers%setAttribute('_FillValue', nf90_fill_double)
+            end if
+        end if
+        if (C%includeSoilErosion) then
+            me%nc__soil__m_soil_eroded = me%nc%setVariable('soil__m_soil_eroded', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__m_soil_eroded%setAttribute('units', 'kg')
+            call me%nc__soil__m_soil_eroded%setAttribute('long_name', 'Mass of soil eroded')
+            call me%nc__soil__m_soil_eroded%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__m_soil_eroded%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__m_nm_eroded = me%nc%setVariable('soil__m_nm_eroded', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__m_nm_eroded%setAttribute('units', 'kg')
+            call me%nc__soil__m_nm_eroded%setAttribute('long_name', 'Mass of NM eroded from soil')
+            call me%nc__soil__m_nm_eroded%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__m_nm_eroded%setAttribute('_FillValue', nf90_fill_double)
+            me%nc__soil__m_transformed_eroded = me%nc%setVariable('soil__m_transformed_eroded', &
+                                                                  'f64', [me%x_dim, me%y_dim, me%t_dim])
+            call me%nc__soil__m_transformed_eroded%setAttribute('units', 'kg')
+            call me%nc__soil__m_transformed_eroded%setAttribute('long_name', 'Mass of transformed NM eroded from soil')
+            call me%nc__soil__m_transformed_eroded%setAttribute('grid_mapping', 'spatial_ref')
+            call me%nc__soil__m_transformed_eroded%setAttribute('_FillValue', nf90_fill_double)
+        end if
+        me%nc__soil__m_nm_buried = me%nc%setVariable('soil__m_nm_buried', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__m_nm_buried%setAttribute('units', 'kg')
+        call me%nc__soil__m_nm_buried%setAttribute('long_name', 'Mass of NM buried from soil')
+        call me%nc__soil__m_nm_buried%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__m_nm_buried%setAttribute('_FillValue', nf90_fill_double)
+        me%nc__soil__m_transformed_buried = me%nc%setVariable('soil__m_transformed_buried', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__m_transformed_buried%setAttribute('units', 'kg')
+        call me%nc__soil__m_transformed_buried%setAttribute('long_name', 'Mass of transformed NM buried from soil')
+        call me%nc__soil__m_transformed_buried%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__m_transformed_buried%setAttribute('_FillValue', nf90_fill_double)
+        me%nc__soil__m_dissolved_buried = me%nc%setVariable('soil__m_dissolved_buried', 'f64', [me%x_dim, me%y_dim, me%t_dim])
+        call me%nc__soil__m_dissolved_buried%setAttribute('units', 'kg')
+        call me%nc__soil__m_dissolved_buried%setAttribute('long_name', 'Mass of dissolved species buried from soil')
+        call me%nc__soil__m_dissolved_buried%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__m_dissolved_buried%setAttribute('_FillValue', nf90_fill_double)
+        ! We can also set bulk density now
+        me%nc__soil__bulk_density = me%nc%setVariable('soil__bulk_density', 'f64', [me%x_dim, me%y_dim])
+        call me%nc__soil__bulk_density%setAttribute('units', 'kg')
+        call me%nc__soil__bulk_density%setAttribute('long_name', 'Bulk density of the soil')
+        call me%nc__soil__bulk_density%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__soil__bulk_density%setAttribute('_FillValue', nf90_fill_double)
+        call me%nc__soil__bulk_density%setData(DATASET%soilBulkDensity)
+    end subroutine
+
+    subroutine createDimensionsNetCDFOutput(me)
+        class(NetCDFOutput)     :: me
+        ! Create the dimensions
+        me%t_dim = me%nc%setDimension('t', C%nTimestepsInBatch)
+        me%x_dim = me%nc%setDimension('x', DATASET%gridShape(1))
+        me%y_dim = me%nc%setDimension('y', DATASET%gridShape(2))
+        me%sed_l_dim = me%nc%setDimension('sed_l', C%nSedimentLayers)
+        me%soil_l_dim = me%nc%setDimension('soil_l', C%nSoilLayers)
+        me%w_dim = me%nc%setDimension('w', 7)
     end subroutine
 
     !> Allocate space for the in-memory output variables and fill with NetCDF fill value.
     !! Only call this if we're in iterative write mode.
-    subroutine allocateVariables(me, k)
+    subroutine allocateVariablesNetCDFOutput(me, k)
         class(NetCDFOutput)     :: me
         integer                 :: k
-        real(dp), allocatable   :: emptyArray(:,:,:,:)
-        real(dp), allocatable   :: emptyArrayLayers(:,:,:,:,:)
+        real(dp), allocatable   :: empty2DArray(:,:)
+        real(dp), allocatable   :: empty3DArray(:,:,:)
+        real(dp), allocatable   :: empty4DArray(:,:,:,:)
+        real(dp), allocatable   :: empty4DArraySoil(:,:,:,:)
+        real(dp), allocatable   :: empty5DArray(:,:,:,:,:)
         ! Allocate the empty array to be the current size for this chunk
-        allocate(emptyArray(7, DATASET%gridShape(1), DATASET%gridShape(2), C%batchNTimesteps(k)))
-        allocate(emptyArrayLayers(C%nSedimentLayers, 7, DATASET%gridShape(1), &
+        allocate(empty2DArray(DATASET%gridShape(1), DATASET%gridShape(2)))
+        allocate(empty3DArray(DATASET%gridShape(1), DATASET%gridShape(2), C%batchNTimesteps(k)))
+        allocate(empty4DArray(7, DATASET%gridShape(1), DATASET%gridShape(2), C%batchNTimesteps(k)))
+        allocate(empty4DArraySoil(C%nSoilLayers, DATASET%gridShape(1), &
+                 DATASET%gridShape(2), C%batchNTimesteps(k)))
+        allocate(empty5DArray(C%nSedimentLayers, 7, DATASET%gridShape(1), &
                                   DATASET%gridShape(2), C%batchNTimesteps(k)))
         ! Allocate all water output variables to the correct shape, and fill with the NetCDF fill value
-        emptyArray = nf90_fill_double
-        allocate(me%output_water__m_nm, source=emptyArray)
-        allocate(me%output_water__m_transformed, source=emptyArray)
-        allocate(me%output_water__m_dissolved, source=emptyArray)
-        allocate(me%output_water__C_nm, source=emptyArray)
-        allocate(me%output_water__C_transformed, source=emptyArray)
-        allocate(me%output_water__C_dissolved, source=emptyArray)
-        allocate(me%output_water__m_nm_outflow, source=emptyArray)
-        allocate(me%output_water__m_transformed_outflow, source=emptyArray)
-        allocate(me%output_water__m_dissolved_outflow, source=emptyArray)
-        allocate(me%output_water__m_nm_deposited, source=emptyArray)
-        allocate(me%output_water__m_transformed_deposited, source=emptyArray)
-        allocate(me%output_water__m_nm_resuspended, source=emptyArray)
-        allocate(me%output_water__m_transformed_resuspended, source=emptyArray)
-        allocate(me%output_water__m_spm, source=emptyArray)
-        allocate(me%output_water__C_spm, source=emptyArray)
+        empty2DArray = nf90_fill_double
+        empty3DArray = nf90_fill_double
+        empty4DArray = nf90_fill_double
+        empty4DArraySoil = nf90_fill_double
+        empty5DArray = nf90_fill_double
+        allocate(me%output_water__m_nm, source=empty4DArray)
+        allocate(me%output_water__m_transformed, source=empty4DArray)
+        allocate(me%output_water__m_dissolved, source=empty4DArray)
+        allocate(me%output_water__C_nm, source=empty4DArray)
+        allocate(me%output_water__C_transformed, source=empty4DArray)
+        allocate(me%output_water__C_dissolved, source=empty4DArray)
+        allocate(me%output_water__m_nm_outflow, source=empty4DArray)
+        allocate(me%output_water__m_transformed_outflow, source=empty4DArray)
+        allocate(me%output_water__m_dissolved_outflow, source=empty4DArray)
+        allocate(me%output_water__m_nm_deposited, source=empty4DArray)
+        allocate(me%output_water__m_transformed_deposited, source=empty4DArray)
+        allocate(me%output_water__m_nm_resuspended, source=empty4DArray)
+        allocate(me%output_water__m_transformed_resuspended, source=empty4DArray)
+        allocate(me%output_water__m_spm, source=empty4DArray)
+        allocate(me%output_water__C_spm, source=empty4DArray)
         if (C%includeSedimentFluxes) then
-            allocate(me%output_water__m_spm_erosion, source=emptyArray)
-            allocate(me%output_water__m_spm_deposition, source=emptyArray)
-            allocate(me%output_water__m_spm_resuspended, source=emptyArray)
-            allocate(me%output_water__m_spm_inflow, source=emptyArray)
-            allocate(me%output_water__m_spm_outflow, source=emptyArray)
-            allocate(me%output_water__m_spm_bank_erosion, source=emptyArray)
+            allocate(me%output_water__m_spm_erosion, source=empty4DArray)
+            allocate(me%output_water__m_spm_deposition, source=empty4DArray)
+            allocate(me%output_water__m_spm_resuspended, source=empty4DArray)
+            allocate(me%output_water__m_spm_inflow, source=empty4DArray)
+            allocate(me%output_water__m_spm_outflow, source=empty4DArray)
+            allocate(me%output_water__m_spm_bank_erosion, source=empty4DArray)
         end if
-        allocate(me%output_water__volume, source=emptyArray)
-        allocate(me%output_water__depth, source=emptyArray)
-        allocate(me%output_water__flow, source=emptyArray)
+        allocate(me%output_water__volume, source=empty4DArray)
+        allocate(me%output_water__depth, source=empty4DArray)
+        allocate(me%output_water__flow, source=empty4DArray)
         ! Allocate the sediment variables and fill with the NetCDF fill value
-        allocate(me%output_sediment__m_nm_total, source=emptyArray)
-        allocate(me%output_sediment__C_nm_total, source=emptyArray)
-        allocate(me%output_sediment__C_nm_layers, source=emptyArrayLayers)
-        allocate(me%output_sediment__m_nm_buried, source=emptyArray)
-        allocate(me%output_sediment__bed_area, source=emptyArray)
-        allocate(me%output_sediment__mass, source=emptyArray)
+        allocate(me%output_sediment__m_nm_total, source=empty4DArray)
+        allocate(me%output_sediment__C_nm_total, source=empty4DArray)
+        allocate(me%output_sediment__C_nm_layers, source=empty5DArray)
+        allocate(me%output_sediment__m_nm_buried, source=empty4DArray)
+        allocate(me%output_sediment__bed_area, source=empty4DArray)
+        allocate(me%output_sediment__mass, source=empty4DArray)
+        ! Allocate the sediment variables and fill with NetCDF fill value
+        allocate(me%output_soil__land_use, source=empty2DArray)
+        allocate(me%output_soil__m_nm_total, source=empty3DArray)
+        allocate(me%output_soil__m_transformed_total, source=empty3DArray)
+        allocate(me%output_soil__m_dissolved_total, source=empty3DArray)
+        allocate(me%output_soil__C_nm_total, source=empty3DArray)
+        allocate(me%output_soil__C_transformed_total, source=empty3DArray)
+        allocate(me%output_soil__C_dissolved_total, source=empty3DArray)
+        if (C%includeSoilStateBreakdown) then
+            allocate(me%output_soil__C_nm_free, source=empty3DArray)
+            allocate(me%output_soil__C_transformed_free, source=empty3DArray)
+            allocate(me%output_soil__C_nm_att, source=empty3DArray)
+            allocate(me%output_soil__C_transformed_att, source=empty3DArray)
+        end if
+        if (C%includeSoilLayerBreakdown) then
+            allocate(me%output_soil__C_nm_layers, source=empty4DArraySoil)
+            allocate(me%output_soil__C_transformed_layers, source=empty4DArraySoil)
+            allocate(me%output_soil__C_dissolved_layers, source=empty4DArraySoil)
+            if (C%includeSoilStateBreakdown) then
+                allocate(me%output_soil__C_nm_free_layers, source=empty4DArraySoil)
+                allocate(me%output_soil__C_transformed_free_layers, source=empty4DArraySoil)
+                allocate(me%output_soil__C_nm_att_layers, source=empty4DArraySoil)
+                allocate(me%output_soil__C_transformed_att_layers, source=empty4DArraySoil)
+            end if
+        end if
+        if (C%includeSoilErosion) then
+            allocate(me%output_soil__m_soil_eroded, source=empty3DArray)
+            allocate(me%output_soil__m_nm_eroded, source=empty3DArray)
+            allocate(me%output_soil__m_transformed_eroded, source=empty3DArray)
+        end if
+        allocate(me%output_soil__m_nm_buried, source=empty3DArray)
+        allocate(me%output_soil__m_transformed_buried, source=empty3DArray)
+        allocate(me%output_soil__m_dissolved_buried, source=empty3DArray)
+        allocate(me%output_soil__bulk_density, source=empty2DArray)
     end subroutine
 
     !> Reallocate output variable memory for a new chunk. This subroutine should
     !! only be called if we're writing to the NetCDF file, in write-at-end mode
     !! and at the start of a new chunk, so be sure of that when calling it
-    subroutine newChunk(me, k)
+    subroutine newChunkNetCDFOutput(me, k)
         class(NetCDFOutput) :: me       !! This NetCDF output class
         integer             :: k        !! This chunk index
         ! Allocate the variables. They should have been deallocated at the end of the previous chunk
@@ -581,7 +921,7 @@ module NetCDFOutputModule
 
     !> Write the output variables to the NetCDF file. This subroutine should be called
     !! at the end of a chunk if we're in write-at-end mode and writing to a NetCDF file
-    subroutine finaliseChunk(me, tStart)
+    subroutine finaliseChunkNetCDFOutput(me, tStart)
         class(NetCDFOutput) :: me               !! This NetCDF output class
         integer             :: tStart           !! Timestep index at the start of this chunk
         ! Write the data from this chunk to the NetCDF file, water first
@@ -612,12 +952,44 @@ module NetCDFOutputModule
         call me%nc__water__depth%setData(me%output_water__depth, start=[1,1,1,tStart])
         call me%nc__water__flow%setData(me%output_water__flow, start=[1,1,1,tStart])
         ! Sediment
-        call me%nc__sediment__m_nm_total%setData(me%output_sediment__m_nm_buried, start=[1,1,1,tStart])
+        call me%nc__sediment__m_nm_total%setData(me%output_sediment__m_nm_total, start=[1,1,1,tStart])
         call me%nc__sediment__C_nm_total%setData(me%output_sediment__C_nm_total, start=[1,1,1,tStart])
         call me%nc__sediment__C_nm_layers%setData(me%output_sediment__C_nm_layers, start=[1,1,1,1,tStart])
         call me%nc__sediment__m_nm_buried%setData(me%output_sediment__m_nm_buried, start=[1,1,1,tStart])
         call me%nc__sediment__bed_area%setData(me%output_sediment__bed_area, start=[1,1,1,tStart])
         call me%nc__sediment__mass%setData(me%output_sediment__mass, start=[1,1,1,tStart])
+        ! Soil
+        call me%nc__soil__m_nm_total%setData(me%output_soil__m_nm_total, start=[1,1,tStart])
+        call me%nc__soil__m_transformed_total%setData(me%output_soil__m_transformed_total, start=[1,1,tStart])
+        call me%nc__soil__m_dissolved_total%setData(me%output_soil__m_dissolved_total, start=[1,1,tStart])
+        call me%nc__soil__C_nm_total%setData(me%output_soil__C_nm_total, start=[1,1,tStart])
+        call me%nc__soil__C_transformed_total%setData(me%output_soil__C_transformed_total, start=[1,1,tStart])
+        call me%nc__soil__C_dissolved_total%setData(me%output_soil__C_dissolved_total, start=[1,1,tStart])
+        if (C%includeSoilStateBreakdown) then
+            call me%nc__soil__C_nm_free%setData(me%output_soil__C_nm_free, start=[1,1,tStart])
+            call me%nc__soil__C_transformed_free%setData(me%output_soil__C_transformed_free, start=[1,1,tStart])
+            call me%nc__soil__C_nm_att%setData(me%output_soil__C_nm_att, start=[1,1,tStart])
+            call me%nc__soil__C_transformed_att%setData(me%output_soil__C_transformed_att, start=[1,1,tStart])
+        end if
+        if (C%includeSoilLayerBreakdown) then
+            call me%nc__soil__C_nm_layers%setData(me%output_soil__C_nm_layers, start=[1,1,1,tStart])
+            call me%nc__soil__C_transformed_layers%setData(me%output_soil__C_transformed_layers, start=[1,1,1,tStart])
+            call me%nc__soil__C_dissolved_layers%setData(me%output_soil__C_dissolved_layers, start=[1,1,1,tStart])
+            if (C%includeSoilStateBreakdown) then
+                call me%nc__soil__C_nm_free_layers%setData(me%output_soil__C_nm_free_layers, start=[1,1,1,tStart])
+                call me%nc__soil__C_transformed_free_layers%setData(me%output_soil__C_transformed_free_layers, start=[1,1,1,tStart])
+                call me%nc__soil__C_nm_att_layers%setData(me%output_soil__C_nm_att_layers, start=[1,1,1,tStart])
+                call me%nc__soil__C_transformed_att_layers%setData(me%output_soil__C_transformed_att_layers, start=[1,1,1,tStart])
+            end if
+        end if
+        if (C%includeSoilErosion) then
+            call me%nc__soil__m_soil_eroded%setData(me%output_soil__m_soil_eroded, start=[1,1,tStart])
+            call me%nc__soil__m_nm_eroded%setData(me%output_soil__m_nm_eroded, start=[1,1,tStart])
+            call me%nc__soil__m_transformed_eroded%setData(me%output_soil__m_transformed_eroded, start=[1,1,tStart])
+        end if
+        call me%nc__soil__m_nm_buried%setData(me%output_soil__m_nm_buried, start=[1,1,tStart])
+        call me%nc__soil__m_transformed_buried%setData(me%output_soil__m_transformed_buried, start=[1,1,tStart])
+        call me%nc__soil__m_dissolved_buried%setData(me%output_soil__m_dissolved_buried, start=[1,1,tStart])
         ! Deallocate the output variables
         deallocate(me%output_water__m_nm)
         deallocate(me%output_water__m_transformed)
@@ -651,10 +1023,41 @@ module NetCDFOutputModule
         deallocate(me%output_sediment__m_nm_buried)
         deallocate(me%output_sediment__bed_area)
         deallocate(me%output_sediment__mass)
+        deallocate(me%output_soil__m_nm_total)
+        deallocate(me%output_soil__m_transformed_total)
+        deallocate(me%output_soil__m_dissolved_total)
+        deallocate(me%output_soil__C_nm_total)
+        deallocate(me%output_soil__C_transformed_total)
+        deallocate(me%output_soil__C_dissolved_total)
+        if (C%includeSoilStateBreakdown) then
+            deallocate(me%output_soil__C_nm_free)
+            deallocate(me%output_soil__C_transformed_free)
+            deallocate(me%output_soil__C_nm_att)
+            deallocate(me%output_soil__C_transformed_att)
+        end if
+        if (C%includeSoilLayerBreakdown) then
+            deallocate(me%output_soil__C_nm_layers)
+            deallocate(me%output_soil__C_transformed_layers)
+            deallocate(me%output_soil__C_dissolved_layers)
+            if (C%includeSoilStateBreakdown) then
+                deallocate(me%output_soil__C_nm_free_layers)
+                deallocate(me%output_soil__C_transformed_free_layers)
+                deallocate(me%output_soil__C_nm_att_layers)
+                deallocate(me%output_soil__C_transformed_att_layers)
+            end if
+        end if
+        if (C%includeSoilErosion) then
+            deallocate(me%output_soil__m_soil_eroded)
+            deallocate(me%output_soil__m_nm_eroded)
+            deallocate(me%output_soil__m_transformed_eroded)
+        end if
+        deallocate(me%output_soil__m_nm_buried)
+        deallocate(me%output_soil__m_transformed_buried)
+        deallocate(me%output_soil__m_dissolved_buried)
     end subroutine
     
     !> Close the NetCDF dataset
-    subroutine closeNetCDF(me)
+    subroutine closeNetCDFOutput(me)
         class(NetCDFOutput) :: me
         call me%nc%close()
     end subroutine

@@ -13,16 +13,17 @@ module DataOutputModule
     use datetime_module
     use mo_netcdf
     use NetCDFOutputModule
+    use NetCDFAggregatedOutputModule
     implicit none
 
     !> The DataOutput class is responsible for writing output data to disk
     type, public :: DataOutput
-        character(len=256)          :: outputPath               !! Path to the output directory
-        type(EnvironmentPointer)    :: env                      !! Pointer to the environment, to retrieve state variables
-        type(NetCDFOutput)          :: ncout                    !! NetCDF output class
+        character(len=256)                  :: outputPath               !! Path to the output directory
+        type(EnvironmentPointer)            :: env                      !! Pointer to the environment, to retrieve state variables
+        class(NetCDFOutput), allocatable    :: ncout                    !! NetCDF output class
         ! Storing variables across timesteps for dynamics calculations
-        real(dp), allocatable       :: previousSSDByLayer(:,:)
-        real(dp), allocatable       :: previousSSD(:)
+        real(dp), allocatable               :: previousSSDByLayer(:,:)
+        real(dp), allocatable               :: previousSSD(:)
       contains
         procedure, public :: init => initDataOutput
         procedure, public :: initSedimentSizeDistribution => initSedimentSizeDistributionDataOutput
@@ -52,6 +53,13 @@ module DataOutputModule
         
         ! Point the Environment object to that passed in
         me%env%item => env
+        ! Allocate the appropriate NetCDF output object, depending on whether we're aggregating
+        ! to grid cell or not
+        if (C%includeWaterbodyBreakdown) then
+            allocate(NetCDFOutput :: me%ncout)
+        else 
+            allocate(NetCDFAggregatedOutput :: me%ncout)
+        end if
 
         if (C%writeNetCDF) then
             call me%ncout%init(env, 1)
@@ -131,6 +139,12 @@ module DataOutputModule
                     call me%updateWater(t, tInChunk, x, y, dateISO, easts, norths)
                     call me%updateSediment(t, tInChunk, x, y, dateISO, easts, norths)
                     call me%updateSoil(t, tInChunk, x, y, dateISO, easts, norths)
+                    ! Are we writing to a NetCDF file?
+                    if (C%writeNetCDF) then
+                        call me%ncout%updateWater(t, tInChunk, x, y)
+                        call me%ncout%updateSediment(t, tInChunk, x, y)
+                        call me%ncout%updateSoil(t, tInChunk, x, y)
+                    end if
                 end if
             end do
         end do
@@ -238,13 +252,6 @@ module DataOutputModule
             end if
         end if
 
-        ! Are we writing to a NetCDF file?
-        if (C%writeNetCDF) then
-            call me%ncout%updateWater(t, tInChunk, x, y)
-            call me%ncout%updateSediment(t, tInChunk, x, y)
-            call me%ncout%updateSoil(t, tInChunk, x, y)
-        end if
-
     end subroutine
 
     !> Update the current sediment output file on the current timestep
@@ -285,7 +292,7 @@ module DataOutputModule
                                 trim(str(sum(reach%bedSediment%get_C_np_l_byMass(l)))) // ",", l=1, C%nSedimentLayers)
                         end if
                         write(iouOutputSediment, '(a)') &
-                            trim(str(sum(reach%bedSediment%get_m_np_buried() * reach%bedArea))) // "," // &
+                            trim(str(sum(reach%bedSediment%get_m_np_buried()) * reach%bedArea)) // "," // &
                             trim(str(reach%bedArea)) // "," // trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea))
                     end associate
                 end do

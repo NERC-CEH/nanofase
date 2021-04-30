@@ -81,6 +81,7 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/Environment/spcEnvironment.o \
 	src/Environment/classEnvironment1.o \
 	src/Data/NetCDFOutputModule.o \
+	src/Data/NetCDFAggregatedOutputModule.o \
 	src/Data/DataOutputModule.o \
 	src/CheckpointModule.o \
 	src/main.o 

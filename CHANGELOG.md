@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the model will be documented in this file. Breaking changes (i.e. those that cause changes to the model's interface) are denoted by ⚠️
+All notable changes to the model will be documented in this file. Breaking changes (i.e. those that cause changes to the model's interface) are denoted by ⚠️.
 
 ## [Unreleased]
 

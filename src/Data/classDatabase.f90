@@ -241,11 +241,6 @@ module classDatabase
         me%y_u = me%y + 0.5 * me%gridRes(2)
         var = me%nc%getVariable('crs')
         call var%getAttribute('crs_wkt', me%crsWKT)
-        ! if (me%nc%hasVariable('epsg_code')) then
-        !     call var%getAttribute('epsg_code', me%epsgCode)
-        ! else
-        !     me%epsgCode = 0             ! No EPSG code was set
-        ! end if
 
         ! ROUTING VARIABLES
         var = me%nc%getVariable('outflow')
