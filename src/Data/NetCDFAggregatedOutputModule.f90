@@ -86,65 +86,67 @@ module NetCDFAggregatedOutputModule
         integer             :: y            !! Grid cell y index
         
         associate (cell => me%env%item%colGridCells(x,y)%item)
-            ! If we're in 'write at end' mode, then store this timestep's output to the output arrays, indexed
-            ! by the timestep in the current chunk (because we write the NetCDF file at the end of each chunk)
-            if (C%netCDFWriteMode == 'end') then
-                me%output_agg_water__m_nm(x,y,tInChunk) = sum(cell%get_m_np_water())
-                me%output_agg_water__m_transformed(x,y,tInChunk) = sum(cell%get_m_transformed_water())
-                me%output_agg_water__m_dissolved(x,y,tInChunk) = cell%get_m_dissolved_water()
-                me%output_agg_water__C_nm(x,y,tInChunk) = sum(cell%get_C_np_water())
-                me%output_agg_water__C_transformed(x,y,tInChunk) = sum(cell%get_C_transformed_water())
-                me%output_agg_water__C_dissolved(x,y,tInChunk) = cell%get_C_dissolved_water()
-                me%output_agg_water__m_nm_outflow(x,y,tInChunk) = sum(cell%get_j_nm_outflow())
-                me%output_agg_water__m_transformed_outflow(x,y,tInChunk) = sum(cell%get_j_transformed_outflow())
-                me%output_agg_water__m_dissolved_outflow(x,y,tInChunk) = cell%get_j_dissolved_outflow()
-                me%output_agg_water__m_nm_deposited(x,y,tInChunk) = sum(cell%get_j_nm_deposition())
-                me%output_agg_water__m_transformed_deposited(x,y,tInChunk) = sum(cell%get_j_transformed_deposition())
-                me%output_agg_water__m_nm_resuspended(x,y,tInChunk) = sum(cell%get_j_nm_resuspension())
-                me%output_agg_water__m_transformed_resuspended(x,y,tInChunk) = sum(cell%get_j_transformed_resuspension())
-                me%output_agg_water__m_spm(x,y,tInChunk) = sum(cell%get_m_spm())
-                me%output_agg_water__C_spm(x,y,tInChunk) = sum(cell%get_C_spm())
-                if (C%includeSedimentFluxes) then
-                    me%output_agg_water__m_spm_erosion(x,y,tInChunk) = sum(cell%get_j_spm_soilErosion())
-                    me%output_agg_water__m_spm_deposition(x,y,tInChunk) = sum(cell%get_j_spm_deposition())
-                    me%output_agg_water__m_spm_resuspended(x,y,tInChunk) = sum(cell%get_j_spm_resuspension())
-                    me%output_agg_water__m_spm_inflow(x,y,tInChunk) = sum(cell%get_j_spm_inflow())
-                    me%output_agg_water__m_spm_outflow(x,y,tInChunk) = sum(cell%get_j_spm_outflow())
-                    me%output_agg_water__m_spm_bank_erosion(x,y,tInChunk) = sum(cell%get_j_spm_bankErosion())
+            if (cell%nReaches > 0) then
+                ! If we're in 'write at end' mode, then store this timestep's output to the output arrays, indexed
+                ! by the timestep in the current chunk (because we write the NetCDF file at the end of each chunk)
+                if (C%netCDFWriteMode == 'end') then
+                    me%output_agg_water__m_nm(x,y,tInChunk) = sum(cell%get_m_np_water())
+                    me%output_agg_water__m_transformed(x,y,tInChunk) = sum(cell%get_m_transformed_water())
+                    me%output_agg_water__m_dissolved(x,y,tInChunk) = cell%get_m_dissolved_water()
+                    me%output_agg_water__C_nm(x,y,tInChunk) = sum(cell%get_C_np_water())
+                    me%output_agg_water__C_transformed(x,y,tInChunk) = sum(cell%get_C_transformed_water())
+                    me%output_agg_water__C_dissolved(x,y,tInChunk) = cell%get_C_dissolved_water()
+                    me%output_agg_water__m_nm_outflow(x,y,tInChunk) = sum(cell%get_j_nm_outflow())
+                    me%output_agg_water__m_transformed_outflow(x,y,tInChunk) = sum(cell%get_j_transformed_outflow())
+                    me%output_agg_water__m_dissolved_outflow(x,y,tInChunk) = cell%get_j_dissolved_outflow()
+                    me%output_agg_water__m_nm_deposited(x,y,tInChunk) = sum(cell%get_j_nm_deposition())
+                    me%output_agg_water__m_transformed_deposited(x,y,tInChunk) = sum(cell%get_j_transformed_deposition())
+                    me%output_agg_water__m_nm_resuspended(x,y,tInChunk) = sum(cell%get_j_nm_resuspension())
+                    me%output_agg_water__m_transformed_resuspended(x,y,tInChunk) = sum(cell%get_j_transformed_resuspension())
+                    me%output_agg_water__m_spm(x,y,tInChunk) = sum(cell%get_m_spm())
+                    me%output_agg_water__C_spm(x,y,tInChunk) = sum(cell%get_C_spm())
+                    if (C%includeSedimentFluxes) then
+                        me%output_agg_water__m_spm_erosion(x,y,tInChunk) = sum(cell%get_j_spm_soilErosion())
+                        me%output_agg_water__m_spm_deposition(x,y,tInChunk) = sum(cell%get_j_spm_deposition())
+                        me%output_agg_water__m_spm_resuspended(x,y,tInChunk) = sum(cell%get_j_spm_resuspension())
+                        me%output_agg_water__m_spm_inflow(x,y,tInChunk) = sum(cell%get_j_spm_inflow())
+                        me%output_agg_water__m_spm_outflow(x,y,tInChunk) = sum(cell%get_j_spm_outflow())
+                        me%output_agg_water__m_spm_bank_erosion(x,y,tInChunk) = sum(cell%get_j_spm_bankErosion())
+                    end if
+                    me%output_agg_water__volume(x,y,tInChunk) = cell%getWaterVolume()
+                    me%output_agg_water__depth(x,y,tInChunk) = cell%getWaterDepth()
+                    me%output_agg_water__flow(x,y,tInChunk) = cell%get_Q_outflow() / C%timeStep
+                ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
+                ! by the whole batch, not just this chunk
+                else if (C%netCDFWriteMode == 'itr') then
+                    call me%nc__water__m_nm%setData(sum(cell%get_m_np_water()), start=[x,y,t]) 
+                    call me%nc__water__m_transformed%setData(sum(cell%get_m_transformed_water()), start=[x,y,t]) 
+                    call me%nc__water__m_dissolved%setData(cell%get_m_dissolved_water(), start=[x,y,t]) 
+                    call me%nc__water__C_nm%setData(sum(cell%get_C_np_water()), start=[x,y,t]) 
+                    call me%nc__water__C_transformed%setData(sum(cell%get_C_transformed_water()), start=[x,y,t]) 
+                    call me%nc__water__C_dissolved%setData(cell%get_C_dissolved_water(), start=[x,y,t]) 
+                    call me%nc__water__m_nm_outflow%setData(sum(cell%get_j_nm_outflow()), start=[x,y,t]) 
+                    call me%nc__water__m_transformed_outflow%setData(sum(cell%get_j_transformed_outflow()), start=[x,y,t]) 
+                    call me%nc__water__m_dissolved_outflow%setData(cell%get_j_dissolved_outflow(), start=[x,y,t]) 
+                    call me%nc__water__m_nm_deposited%setData(sum(cell%get_j_nm_deposition()), start=[x,y,t]) 
+                    call me%nc__water__m_transformed_deposited%setData(sum(cell%get_j_transformed_deposition()), start=[x,y,t]) 
+                    call me%nc__water__m_nm_resuspended%setData(sum(cell%get_j_nm_resuspension()), start=[x,y,t]) 
+                    call me%nc__water__m_transformed_resuspended%setData(sum(cell%get_j_transformed_resuspension()), &
+                                                                            start=[x,y,t]) 
+                    call me%nc__water__m_spm%setData(sum(cell%get_m_spm()), start=[x,y,t]) 
+                    call me%nc__water__C_spm%setData(sum(cell%get_C_spm()), start=[x,y,t]) 
+                    if (C%includeSedimentFluxes) then
+                        call me%nc__water__m_spm_erosion%setData(sum(cell%get_j_spm_soilErosion()), start=[x,y,t]) 
+                        call me%nc__water__m_spm_deposited%setData(sum(cell%get_j_spm_deposition()), start=[x,y,t]) 
+                        call me%nc__water__m_spm_resuspended%setData(sum(cell%get_j_spm_resuspension()), start=[x,y,t]) 
+                        call me%nc__water__m_spm_inflow%setData(sum(cell%get_j_spm_inflow()), start=[x,y,t]) 
+                        call me%nc__water__m_spm_outflow%setData(sum(cell%get_j_spm_outflow()), start=[x,y,t]) 
+                        call me%nc__water__m_spm_bank_erosion%setData(sum(cell%get_j_spm_bankErosion()), start=[x,y,t])
+                    end if 
+                    call me%nc__water__volume%setData(cell%getWaterVolume(), start=[x,y,t])
+                    call me%nc__water__depth%setData(cell%getWaterDepth(), start=[x,y,t])
+                    call me%nc__water__flow%setData(cell%get_Q_outflow() / C%timeStep, start=[x,y,t])
                 end if
-                me%output_agg_water__volume(x,y,tInChunk) = cell%getWaterVolume()
-                me%output_agg_water__depth(x,y,tInChunk) = cell%getWaterDepth()
-                me%output_agg_water__flow(x,y,tInChunk) = cell%get_Q_outflow() / C%timeStep
-            ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
-            ! by the whole batch, not just this chunk
-            else if (C%netCDFWriteMode == 'itr') then
-                call me%nc__water__m_nm%setData(sum(cell%get_m_np_water()), start=[x,y,t]) 
-                call me%nc__water__m_transformed%setData(sum(cell%get_m_transformed_water()), start=[x,y,t]) 
-                call me%nc__water__m_dissolved%setData(cell%get_m_dissolved_water()) 
-                call me%nc__water__C_nm%setData(sum(cell%get_C_np_water()), start=[x,y,t]) 
-                call me%nc__water__C_transformed%setData(sum(cell%get_C_transformed_water()), start=[x,y,t]) 
-                call me%nc__water__C_dissolved%setData(cell%get_C_dissolved_water(), start=[x,y,t]) 
-                call me%nc__water__m_nm_outflow%setData(sum(cell%get_j_nm_outflow()), start=[x,y,t]) 
-                call me%nc__water__m_transformed_outflow%setData(sum(cell%get_j_transformed_outflow()), start=[x,y,t]) 
-                call me%nc__water__m_dissolved_outflow%setData(cell%get_j_dissolved_outflow(), start=[x,y,t]) 
-                call me%nc__water__m_nm_deposited%setData(sum(cell%get_j_nm_deposition()), start=[x,y,t]) 
-                call me%nc__water__m_transformed_deposited%setData(sum(cell%get_j_transformed_deposition()), start=[x,y,t]) 
-                call me%nc__water__m_nm_resuspended%setData(sum(cell%get_j_nm_resuspension()), start=[x,y,t]) 
-                call me%nc__water__m_transformed_resuspended%setData(sum(cell%get_j_transformed_resuspension()), &
-                                                                        start=[x,y,t]) 
-                call me%nc__water__m_spm%setData(sum(cell%get_m_spm()), start=[x,y,t]) 
-                call me%nc__water__C_spm%setData(sum(cell%get_C_spm()), start=[x,y,t]) 
-                if (C%includeSedimentFluxes) then
-                    call me%nc__water__m_spm_erosion%setData(sum(cell%get_j_spm_soilErosion()), start=[x,y,t]) 
-                    call me%nc__water__m_spm_deposited%setData(sum(cell%get_j_spm_deposition()), start=[x,y,t]) 
-                    call me%nc__water__m_spm_resuspended%setData(sum(cell%get_j_spm_resuspension()), start=[x,y,t]) 
-                    call me%nc__water__m_spm_inflow%setData(sum(cell%get_j_spm_inflow()), start=[x,y,t]) 
-                    call me%nc__water__m_spm_outflow%setData(sum(cell%get_j_spm_outflow()), start=[x,y,t]) 
-                    call me%nc__water__m_spm_bank_erosion%setData(sum(cell%get_j_spm_bankErosion()), start=[x,y,t])
-                end if 
-                call me%nc__water__volume%setData(cell%getWaterVolume(), start=[x,y,t])
-                call me%nc__water__depth%setData(cell%getWaterDepth(), start=[x,y,t])
-                call me%nc__water__flow%setData(cell%get_Q_outflow() / C%timeStep, start=[x,y,t])
             end if
         end associate
 
@@ -161,26 +163,28 @@ module NetCDFAggregatedOutputModule
         associate(cell => me%env%item%colGridCells(x,y)%item)
             ! If we're in 'write at end' mode, then store this timestep's output to the output arrays, indexed
             ! by the timestep in the current chunk (because we write the NetCDF file at the end of each chunk)
-            if (C%netCDFWriteMode == 'end') then
-                me%output_agg_sediment__m_nm_total(x,y,tInChunk) = sum(cell%get_m_np_sediment())
-                me%output_agg_sediment__C_nm_total(x,y,tInChunk) = sum(cell%get_C_np_sediment())
-                do l = 1, C%nSedimentLayers
-                    me%output_agg_sediment__C_nm_layers(l,x,y,tInChunk) = sum(cell%get_C_np_sediment_l(l))
-                end do
-                me%output_agg_sediment__m_nm_buried(x,y,tInChunk) = sum(cell%get_m_np_buried_sediment())
-                me%output_agg_sediment__bed_area(x,y,tInChunk) = cell%getBedSedimentArea()
-                me%output_agg_sediment__mass(x,y,tInChunk) = cell%getBedSedimentMass()
-            ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
-            ! by the whole batch, not just this chunk
-            else if (C%netCDFWriteMode == 'itr') then
-                call me%nc__sediment__m_nm_total%setData(sum(cell%get_m_np_sediment()), start=[x,y,t])
-                call me%nc__sediment__C_nm_total%setData(sum(cell%get_C_np_sediment()), start=[x,y,t])
-                do l = 1, C%nSedimentLayers
-                    call me%nc__sediment__C_nm_layers%setData(sum(cell%get_C_np_sediment_l(l)), start=[l,x,y,t])
-                end do
-                call me%nc__sediment__m_nm_buried%setData(sum(cell%get_m_np_buried_sediment()), start=[x,y,t])
-                call me%nc__sediment__bed_area%setData(cell%getBedSedimentArea(), start=[x,y,t])
-                call me%nc__sediment__mass%setData(cell%getBedSedimentMass(), start=[x,y,t])
+            if (cell%nReaches > 0) then
+                if (C%netCDFWriteMode == 'end') then
+                    me%output_agg_sediment__m_nm_total(x,y,tInChunk) = sum(cell%get_m_np_sediment())
+                    me%output_agg_sediment__C_nm_total(x,y,tInChunk) = sum(cell%get_C_np_sediment())
+                    do l = 1, C%nSedimentLayers
+                        me%output_agg_sediment__C_nm_layers(l,x,y,tInChunk) = sum(cell%get_C_np_sediment_l(l))
+                    end do
+                    me%output_agg_sediment__m_nm_buried(x,y,tInChunk) = sum(cell%get_m_np_buried_sediment())
+                    me%output_agg_sediment__bed_area(x,y,tInChunk) = cell%getBedSedimentArea()
+                    me%output_agg_sediment__mass(x,y,tInChunk) = cell%getBedSedimentMass()
+                ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
+                ! by the whole batch, not just this chunk
+                else if (C%netCDFWriteMode == 'itr') then
+                    call me%nc__sediment__m_nm_total%setData(sum(cell%get_m_np_sediment()), start=[x,y,t])
+                    call me%nc__sediment__C_nm_total%setData(sum(cell%get_C_np_sediment()), start=[x,y,t])
+                    do l = 1, C%nSedimentLayers
+                        call me%nc__sediment__C_nm_layers%setData(sum(cell%get_C_np_sediment_l(l)), start=[l,x,y,t])
+                    end do
+                    call me%nc__sediment__m_nm_buried%setData(sum(cell%get_m_np_buried_sediment()), start=[x,y,t])
+                    call me%nc__sediment__bed_area%setData(cell%getBedSedimentArea(), start=[x,y,t])
+                    call me%nc__sediment__mass%setData(cell%getBedSedimentMass(), start=[x,y,t])
+                end if
             end if
         end associate
     end subroutine
@@ -233,7 +237,7 @@ module NetCDFAggregatedOutputModule
         call me%nc__water__C_dissolved%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__C_dissolved%setAttribute('_FillValue', nf90_fill_double)
         ! NM flows
-        me%nc__water__m_nm_outflow = me%nc%setVariable('water__m_np_outflow','f64', [me%x_dim, me%y_dim, me%t_dim])
+        me%nc__water__m_nm_outflow = me%nc%setVariable('water__m_nm_outflow','f64', [me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_nm_outflow%setAttribute('units', 'kg')
         call me%nc__water__m_nm_outflow%setAttribute('long_name', 'Mass of NM outflowing downstream')
         call me%nc__water__m_nm_outflow%setAttribute('grid_mapping', 'spatial_ref')
@@ -242,8 +246,8 @@ module NetCDFAggregatedOutputModule
                                                                 [me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_transformed_outflow%setAttribute('units', 'kg')
         call me%nc__water__m_transformed_outflow%setAttribute('long_name', 'Mass of transformed NM outflowing downstream')
-        call me%nc__water__m_transformed%setAttribute('grid_mapping', 'spatial_ref')
-        call me%nc__water__m_transformed%setAttribute('_FillValue', nf90_fill_double)
+        call me%nc__water__m_transformed_outflow%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__water__m_transformed_outflow%setAttribute('_FillValue', nf90_fill_double)
         me%nc__water__m_dissolved_outflow = me%nc%setVariable('water__m_dissolved_outflow','f64', &
                                                               [me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_dissolved_outflow%setAttribute('units', 'kg')
@@ -272,8 +276,8 @@ module NetCDFAggregatedOutputModule
         call me%nc__water__m_transformed_resuspended%setAttribute('units', 'kg')
         call me%nc__water__m_transformed_resuspended%setAttribute('long_name', &
                                                                   'Mass of transformed NM resuspended from bed sediment')
-        call me%nc__water__m_transformed%setAttribute('grid_mapping', 'spatial_ref')
-        call me%nc__water__m_transformed%setAttribute('_FillValue', nf90_fill_double)
+        call me%nc__water__m_transformed_resuspended%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__water__m_transformed_resuspended%setAttribute('_FillValue', nf90_fill_double)
         ! SPM flows
         if (C%includeSedimentFluxes) then
             me%nc__water__m_spm_erosion = me%nc%setVariable('water__m_spm_erosion','f64', [me%x_dim, me%y_dim, me%t_dim])

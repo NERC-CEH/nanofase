@@ -438,9 +438,9 @@ module NetCDFOutputModule
 
         ! Create the variables
         ! TODO change to aggregated waterbody type
-        where (DATASET%isEstuary .and. .not. DATASET%gridMask)
+        where (DATASET%isEstuary .and. .not. DATASET%gridMask .and. DATASET%nWaterbodies > 0)
             waterbodyType = 2
-        elsewhere (.not. DATASET%isEstuary .and. .not. DATASET%gridMask)
+        elsewhere (.not. DATASET%isEstuary .and. .not. DATASET%gridMask .and. DATASET%nWaterbodies > 0)
             waterbodyType = 1
         elsewhere
             waterbodyType = nf90_fill_int
@@ -519,8 +519,8 @@ module NetCDFOutputModule
                                                                 [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_transformed_outflow%setAttribute('units', 'kg')
         call me%nc__water__m_transformed_outflow%setAttribute('long_name', 'Mass of transformed NM outflowing downstream')
-        call me%nc__water__m_transformed%setAttribute('grid_mapping', 'spatial_ref')
-        call me%nc__water__m_transformed%setAttribute('_FillValue', nf90_fill_double)
+        call me%nc__water__m_transformed_outflow%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__water__m_transformed_outflow%setAttribute('_FillValue', nf90_fill_double)
         me%nc__water__m_dissolved_outflow = me%nc%setVariable('water__m_dissolved_outflow','f64', &
                                                               [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_dissolved_outflow%setAttribute('units', 'kg')
@@ -549,8 +549,8 @@ module NetCDFOutputModule
         call me%nc__water__m_transformed_resuspended%setAttribute('units', 'kg')
         call me%nc__water__m_transformed_resuspended%setAttribute('long_name', &
                                                                   'Mass of transformed NM resuspended from bed sediment')
-        call me%nc__water__m_transformed%setAttribute('grid_mapping', 'spatial_ref')
-        call me%nc__water__m_transformed%setAttribute('_FillValue', nf90_fill_double)
+        call me%nc__water__m_transformed_resuspended%setAttribute('grid_mapping', 'spatial_ref')
+        call me%nc__water__m_transformed_resuspended%setAttribute('_FillValue', nf90_fill_double)
         ! SPM flows
         if (C%includeSedimentFluxes) then
             me%nc__water__m_spm_erosion = me%nc%setVariable('water__m_spm_erosion','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
