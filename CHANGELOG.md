@@ -1,8 +1,11 @@
 # Changelog
 
-All notable changes to the model will be documented in this file. Breaking changes (i.e. those that cause changes to the model's interface) are denoted by ⚠️.
+All notable changes to the model will be documented in this file. Breaking changes (i.e. those that cause changes to the model's interface) are denoted by ⚠️. Until v1.0.0, breaking changes might occur between minor versions and patches.
 
 ## [Unreleased]
+
+
+## [0.0.2] - 2021-05-21
 
 ### Added
 
@@ -26,5 +29,6 @@ All notable changes to the model will be documented in this file. Breaking chang
 - Added option to aggregate CSV output for waterbodies at grid cell level, rather than breaking it down to waterbody level. Internal functions for aggregating to grid cell added (e.g. weighted means, fetching outflow reaches). This option can be used by specifying `&output > include_waterbody_breakdown = .false.` in the [model config file](./config.example/config.example.nml). Default is `.true.`.
 - This changelog.
 
-[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.1...HEAD
+[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.2...HEAD
+[0.0.2]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.2
 [0.0.1]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.1
