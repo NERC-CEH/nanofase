@@ -1,37 +1,42 @@
 !> Module container for the DataOutput class
 module DataOutputModule
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
-        iouOutputSediment, iouOutputSoil, iouOutputSSD
+        iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
     use Globals, only: C, dp
     use classDatabase, only: DATASET
     use spcEnvironment
     use classEnvironment1
     use spcGridCell
-    use classRiverReach
-    ! use RiverReachModule
-    use classEstuaryReach
-    ! use EstuaryReachModule
+    use RiverReachModule
+    use EstuaryReachModule
     use UtilModule
     use datetime_module
+    use mo_netcdf
+    use NetCDFOutputModule
+    use NetCDFAggregatedOutputModule
     implicit none
 
     !> The DataOutput class is responsible for writing output data to disk
     type, public :: DataOutput
-        character(len=256) :: outputPath                    !! Path to the output directory
-        type(EnvironmentPointer) :: env                     !! Pointer to the environment, to retrieve state variables
+        character(len=256)                  :: outputPath               !! Path to the output directory
+        type(EnvironmentPointer)            :: env                      !! Pointer to the environment, to retrieve state variables
+        class(NetCDFOutput), allocatable    :: ncout                    !! NetCDF output class
         ! Storing variables across timesteps for dynamics calculations
-        real(dp), allocatable :: previousSSDByLayer(:,:)
-        real(dp), allocatable :: previousSSD(:)
+        real(dp), allocatable               :: previousSSDByLayer(:,:)
+        real(dp), allocatable               :: previousSSD(:)
       contains
         procedure, public :: init => initDataOutput
         procedure, public :: initSedimentSizeDistribution => initSedimentSizeDistributionDataOutput
         procedure, public :: update => updateDataOutput
         procedure, public :: finalise => finaliseDataOutput
+        procedure, public :: newChunk => newChunkDataOutput
+        procedure, public :: finaliseChunk => finaliseChunkDataOutput
         procedure, private :: writeHeaders => writeHeadersDataOutput
         procedure, private :: writeHeadersSimulationSummary => writeHeadersSimulationSummaryDataOutput
         procedure, private :: writeHeadersWater => writeHeadersWaterDataOutput
         procedure, private :: writeHeadersSediment => writeHeadersSedimentDataOutput
         procedure, private :: writeHeadersSoil => writeHeadersSoilDataOutput
+        procedure, private :: writeHeadersStats => writeHeadersStatsDataOutput
         procedure, private :: updateWater => updateWaterDataOutput
         procedure, private :: updateSediment => updateSedimentDataOutput
         procedure, private :: updateSoil => updateSoilDataOutput
@@ -40,12 +45,25 @@ module DataOutputModule
 
   contains
     
+    !> Initialise the data output be creating the relevant output files and writing
+    !! their headers and metadata
     subroutine initDataOutput(me, env)
         class(DataOutput)           :: me
         type(Environment1), target  :: env
         
         ! Point the Environment object to that passed in
         me%env%item => env
+        ! Allocate the appropriate NetCDF output object, depending on whether we're aggregating
+        ! to grid cell or not
+        if (C%includeWaterbodyBreakdown) then
+            allocate(NetCDFOutput :: me%ncout)
+        else 
+            allocate(NetCDFAggregatedOutput :: me%ncout)
+        end if
+
+        if (C%writeNetCDF) then
+            call me%ncout%init(env, 1)
+        end if
 
         ! Open the files to write to
         open(iouOutputSummary, file=trim(C%outputPath) // 'summary.md')
@@ -53,15 +71,16 @@ module DataOutputModule
             open(iouOutputWater, file=trim(C%outputPath) // 'output_water.csv')
             open(iouOutputSediment, file=trim(C%outputPath) // 'output_sediment.csv')
             open(iouOutputSoil, file=trim(C%outputPath) // 'output_soil.csv')
-            ! open(unit=104, file=trim(C%outputPath) // 'n_output_soil_biota.csv')
-            ! open(unit=105, file=trim(C%outputPath) // 'n_output_water_biota.csv')
-            ! open(unit=106, file=trim(C%outputPath) // 'n_output_rate_constants.csv')
+        end if
+        if (C%writeCompartmentStats) then
+            open(iouOutputStats, file=trim(C%outputPath) // 'stats.csv')
         end if
 
         ! Write the headers for the files
         call me%writeHeaders()
     end subroutine
 
+    !> Initialise the sediment size distribution steady state run output data file
     subroutine initSedimentSizeDistributionDataOutput(me)
         class(DataOutput)           :: me
         integer                     :: i, j
@@ -77,7 +96,8 @@ module DataOutputModule
         open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd.csv')
         if (C%writeMetadataAsComment) then
             write(iouOutputSSD, '(a)') "# NanoFASE model output data - SEDIMENT SIZE DISTRIBUTION."
-            write(iouOutputSSD, '(a)') "# Output file running the model until sediment size distribution is at steady state."
+            write(iouOutputSSD, '(a)') "# Output file for when running the model until sediment size " // &
+                "distribution is at steady state."
             write(iouOutputSSD, '(a)') "# Each row represents a complete model run (as defined by the config/batch config file)."
             write(iouOutputSSD, '(a)') "#\ti: model run index (number of iterations of the same input data)"
             write(iouOutputSSD, '(a)') "#\tssd_sci_all_layers: sediment size distribution across size classes i, " // &
@@ -93,13 +113,13 @@ module DataOutputModule
             i=1, C%nSizeClassesSpm), j=1, C%nSedimentLayers)
         write(iouOutputSSD, '(*(a))', advance='no') ('delta_max_l'//trim(str(i))//',', i=1, C%nSedimentLayers)
         write(iouOutputSSD, '(*(a))') 'delta_max_all_layers'
-
     end subroutine
 
     !> Save the output from the current timestep to the output files
-    subroutine updateDataOutput(me, t)
+    subroutine updateDataOutput(me, t, tInChunk)
         class(DataOutput)   :: me       !! The DataOutput instance
-        integer             :: t        !! The current timestep
+        integer             :: t        !! The current timestep in the batch
+        integer             :: tInChunk !! The timestep in the current chunk
         integer             :: x, y     ! Iterators
         type(datetime)      :: date
         character(len=100)  :: dateISO
@@ -116,10 +136,14 @@ module DataOutputModule
                 if (DATASET%simulationMask(x,y)) then
                     easts = DATASET%x(x)
                     norths = DATASET%y(y)
-                    if (C%writeCSV) then
-                        call me%updateWater(t, x, y, dateISO, easts, norths)
-                        call me%updateSediment(t, x, y, dateISO, easts, norths)
-                        call me%updateSoil(t, x, y, dateISO, easts, norths)
+                    call me%updateWater(t, tInChunk, x, y, dateISO, easts, norths)
+                    call me%updateSediment(t, tInChunk, x, y, dateISO, easts, norths)
+                    call me%updateSoil(t, tInChunk, x, y, dateISO, easts, norths)
+                    ! Are we writing to a NetCDF file?
+                    if (C%writeNetCDF) then
+                        call me%ncout%updateWater(t, tInChunk, x, y)
+                        call me%ncout%updateSediment(t, tInChunk, x, y)
+                        call me%ncout%updateSoil(t, tInChunk, x, y)
                     end if
                 end if
             end do
@@ -127,97 +151,184 @@ module DataOutputModule
     end subroutine
 
     !> Update the water output file for the current timestep
-    subroutine updateWaterDataOutput(me, t, x, y, date, easts, norths)
+    subroutine updateWaterDataOutput(me, t, tInChunk, x, y, date, easts, norths)
         class(DataOutput)   :: me               !! The DataOutput instance
         integer             :: t                !! The current timestep
+        integer             :: tInChunk         !! Timestep in the current chunk
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
         real                :: easts, norths    !! Eastings and northings of this grid cell
         integer             :: i, w             ! Iterators
         character(len=3)    :: reachType        ! Is this a river of estuary?
-        
-        ! Loop through the waterbodies in this cell
-        do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
-            associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                ! Is it a reach or an estuary?
-                select type (reach)
-                    type is (RiverReach)
-                        reachType = 'riv'
-                    type is (EstuaryReach)
-                        reachType = 'est'
-                end select
-                ! Write the data
-                write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
-                    trim(str(x)) // "," // trim(str(y)) // "," // &
-                    trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                    trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
-                    trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
-                    trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
-                    trim(str(sum(reach%j_np_deposit()))) // "," // &
-                    trim(str(sum(reach%j_transformed_deposit()))) // "," // &
-                    trim(str(sum(reach%j_np_outflow()))) // "," // &
-                    trim(str(sum(reach%j_transformed_outflow()))) // "," // &
-                    trim(str(reach%j_dissolved_outflow())) // "," // &
-                    trim(str(sum(reach%m_spm))) // "," // &
-                    trim(str(sum(reach%C_spm))) // ","
-                if (C%includeSpmSizeClassBreakdown) then
-                    write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
-                        trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
-                end if
-                if (C%includeSedimentFluxes) then
-                    write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%j_spm_runoff()))) // "," // &
-                        trim(str(sum(reach%spmFluxDeposit))) // "," // trim(str(sum(reach%spmFluxResus))) // "," // &
-                        trim(str(sum(reach%j_spm_inflows()))) // "," // trim(str(sum(reach%j_spm_outflow()))) // "," // &
-                        trim(str(sum(reach%spmFluxBankErosion))) // ","
-                end if
-                write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
-                    trim(str(reach%Q(1)/C%timeStep))
-            end associate
-        end do
+        real(dp)            :: m_spm(C%nSizeClassesSpm) ! SPM masses
+        real(dp)            :: C_spm(C%nSizeClassesSpm) ! SPM concs
+        if (C%writeCSV) then
+            ! Do we want to output waterbody breakdown or aggregate to grid cell level?
+            if (C%includeWaterbodyBreakdown) then
+                ! Loop through the waterbodies in this cell. Only loops if nReaches > 0, hence we don't check explicitly
+                do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
+                    associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                        ! Is it a reach or an estuary?
+                        select type (reach)
+                            type is (RiverReach)
+                                reachType = 'riv'
+                            type is (EstuaryReach)
+                                reachType = 'est'
+                        end select
+                        ! Write the data
+                        write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
+                            trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
+                            trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
+                            trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
+                            trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
+                            trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
+                            trim(str(sum(reach%obj_j_nm%resuspension))) // "," // &
+                            trim(str(sum(reach%obj_j_nm_transformed%resuspension))) // "," // &
+                            trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
+                            trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
+                            trim(str(reach%obj_j_dissolved%outflow)) // "," // &
+                            trim(str(sum(reach%m_spm))) // "," // &
+                            trim(str(sum(reach%C_spm))) // ","
+                        if (C%includeSpmSizeClassBreakdown) then
+                            write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
+                                trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                        end if
+                        if (C%includeSedimentFluxes) then
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
+                                trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
+                        end if
+                        write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
+                            trim(str(reach%obj_Q%outflow / C%timeStep))
+                    end associate
+                end do
+            else
+                ! We're not including waterbody breakdown, so just output the grid cell aggregated values. Here we check
+                ! that there are reaches in the cell, and if not, don't print a row for this cell. There is slightly different
+                ! to checking if the cell is empty (i.e. doesn't have a soil profile either)
+                associate (cell => me%env%item%colGridCells(x,y)%item)
+                    if (cell%nReaches > 0) then
+                        ! Write the data
+                        write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
+                            trim(str(sum(cell%get_m_np_water()))) // "," // trim(str(sum(cell%get_C_np_water()))) // "," // &
+                            trim(str(sum(cell%get_m_transformed_water()))) // "," // &
+                            trim(str(sum(cell%get_C_transformed_water()))) // "," // &
+                            trim(str(cell%get_m_dissolved_water())) // "," // &
+                            trim(str(cell%get_C_dissolved_water())) // "," // &
+                            trim(str(sum(cell%get_j_nm_deposition()))) // "," // &
+                            trim(str(sum(cell%get_j_transformed_deposition()))) // "," // &
+                            trim(str(sum(cell%get_j_nm_resuspension()))) // "," // &
+                            trim(str(sum(cell%get_j_transformed_resuspension()))) // "," // &
+                            trim(str(sum(cell%get_j_nm_outflow()))) // "," // &
+                            trim(str(sum(cell%get_j_transformed_outflow()))) // "," // &
+                            trim(str(cell%get_j_dissolved_outflow())) // ","
+                        m_spm = cell%get_m_spm()
+                        C_spm = cell%get_C_spm()
+                        write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_spm))) // "," // &
+                            trim(str(sum(C_spm))) // ","
+                        if (C%includeSpmSizeClassBreakdown) then
+                            write(iouOutputWater, '(*(a))', advance='no') (trim(str(m_spm(i))) // "," // &
+                                trim(str(C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                        end if
+                        if (C%includeSedimentFluxes) then
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_deposition()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_resuspension()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_inflow()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_outflow()))) // "," // &
+                                trim(str(sum(cell%get_j_spm_bankErosion()))) // ","
+                        end if
+                        write(iouOutputWater, '(a)') trim(str(cell%getWaterVolume())) // "," // &
+                            trim(str(cell%getWaterDepth())) // "," // &
+                            trim(str(cell%get_Q_outflow() / C%timeStep))
+                    end if
+                end associate
+            end if
+        end if
+
     end subroutine
 
     !> Update the current sediment output file on the current timestep
-    subroutine updateSedimentDataOutput(me, t, x, y, date, easts, norths)
+    subroutine updateSedimentDataOutput(me, t, tInChunk, x, y, date, easts, norths)
         class(DataOutput)   :: me               !! The DataOutput instance
         integer             :: t                !! The current timestep
+        integer             :: tInChunk         !! The current timestep
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
         real                :: easts, norths    !! Eastings and northings of this grid cell
         integer             :: w, l             ! Iterators
         character(len=3)    :: reachType        ! Is this a river of estuary?
-       
-        ! Loop through the waterbodies in this cell
-        do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
-            associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                ! Is this a river or estuary?
-                select type (reach)
-                    type is (RiverReach)
-                        reachType = 'riv'
-                    type is (EstuaryReach)
-                        reachType = 'est'
-                end select
-                ! Write the data
-                write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," &
-                    // trim(date) // "," // trim(str(x)) // "," // trim(str(y)) &
-                    // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                    trim(str(sum(reach%bedSediment%get_m_np()) * reach%bedArea)) // "," // &            ! Converting from kg/m2 to kg
-                    trim(str(sum(reach%bedSediment%get_C_np()))) // "," // &
-                    trim(str(sum(reach%bedSediment%get_C_np_byMass()))) // ","
-                ! Only include layer-by-layer breakdown if we've been asked to
-                if (C%includeSedimentLayerBreakdown) then
-                    write(iouOutputSediment, '(*(a))', advance='no') (trim(str(sum(reach%bedSediment%get_C_np_l(l)))) // "," // &
-                        trim(str(sum(reach%bedSediment%get_C_np_l_byMass(l)))) // ",", l=1, C%nSedimentLayers)
-                end if
-                write(iouOutputSediment, '(a)') trim(str(sum(reach%bedSediment%get_m_np_buried() * reach%bedArea))) // "," // &
-                    trim(str(reach%bedArea)) // "," // trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea))
-            end associate
-        end do
+
+        if (C%writeCSV) then
+            if (C%includeWaterbodyBreakdown) then
+                ! Loop through the waterbodies in this cell
+                do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
+                    associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                        ! Is this a river or estuary?
+                        select type (reach)
+                            type is (RiverReach)
+                                reachType = 'riv'
+                            type is (EstuaryReach)
+                                reachType = 'est'
+                        end select
+                        ! Write the data
+                        write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," &
+                            // trim(date) // "," // trim(str(x)) // "," // trim(str(y)) &
+                            // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // &
+                            trim(str(w)) // "," // reachType // "," // &
+                            trim(str(sum(reach%bedSediment%get_m_np()) * reach%bedArea)) // "," // &    ! Converting from kg/m2 to kg
+                            trim(str(sum(reach%bedSediment%get_C_np()))) // "," // &
+                            trim(str(sum(reach%bedSediment%get_C_np_byMass()))) // ","
+                        ! Only include layer-by-layer breakdown if we've been asked to
+                        if (C%includeSedimentLayerBreakdown) then
+                            write(iouOutputSediment, '(*(a))', advance='no') &
+                                (trim(str(sum(reach%bedSediment%get_C_np_l(l))))  // "," // &
+                                trim(str(sum(reach%bedSediment%get_C_np_l_byMass(l)))) // ",", l=1, C%nSedimentLayers)
+                        end if
+                        write(iouOutputSediment, '(a)') &
+                            trim(str(sum(reach%bedSediment%get_m_np_buried()) * reach%bedArea)) // "," // &
+                            trim(str(reach%bedArea)) // "," // trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea))
+                    end associate
+                end do
+            else
+                ! We're not including waterbody breakdown, so just output the grid cell aggregated values. Here we check
+                ! that there are reaches in the cell, and if not, don't print a row for this cell. There is slightly different
+                ! to checking if the cell is empty (i.e. doesn't have a soil profile either)
+                associate (cell => me%env%item%colGridCells(x,y)%item)
+                    if (cell%nReaches > 0) then
+                        ! Write the data
+                        write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
+                            trim(str(sum(cell%get_m_np_sediment()))) // "," // &
+                            trim(str(sum(cell%get_C_np_sediment_byVolume()))) // "," // &
+                            trim(str(sum(cell%get_C_np_sediment()))) // ","
+                        ! Only include layer-by-layer breakdown if we've been asked to
+                        if (C%includeSedimentLayerBreakdown) then
+                            write(iouOutputSediment, '(*(a))', advance='no') &
+                                (trim(str(sum(cell%get_C_np_sediment_l_byVolume(l)))) // "," // &
+                                trim(str(sum(cell%get_C_np_sediment_l(l)))) // ",", l=1, C%nSedimentLayers)
+                        end if
+                        write(iouOutputSediment, '(a)') &
+                            trim(str(sum(cell%get_m_np_buried_sediment()))) // "," // &
+                            trim(str(cell%getBedSedimentArea())) // "," // trim(str(cell%getBedSedimentMass()))
+                    end if
+                end associate
+            end if
+        end if
     end subroutine
 
     !> Update the sediment output file on the current timestep
-    subroutine updateSoilDataOutput(me, t, x, y, date, easts, norths)
+    subroutine updateSoilDataOutput(me, t, tInChunk, x, y, date, easts, norths)
         class(DataOutput)   :: me               !! This DataOutput instance
         integer             :: t                !! The current timestep
+        integer             :: tInChunk         !! The current timestep
         integer             :: x, y             !! Grid cell indices
         character(len=*)    :: date             !! Datetime of this timestep
         real                :: easts, norths    !! Eastings and northings of this grid cell
@@ -325,8 +436,37 @@ module DataOutputModule
             write(iouOutputSummary, *) "- Time until steady state: " &
                 // trim(str(iSteadyState * C%timeStep * C%nTimestepsInBatch)) // " s"
         end if
+
         ! Close the files
         close(iouOutputSummary); close(iouOutputWater); close(iouOutputSediment); close(iouOutputSoil)
+        close(iouOutputSSD); close(iouOutputStats)
+    end subroutine
+
+    !> Tell the NetCDF output class to reallocate memory for the new chunk,
+    !! if we're in write-at-end mode
+    subroutine newChunkDataOutput(me, k)
+        class(DataOutput)  :: me       !! This DataOutput instance
+        integer             :: k        !! This chunk index
+        ! Only bother calling this if we need to reallocate memory
+        if (C%writeNetCDF .and. C%netCDFWriteMode == 'end') then
+            call me%ncout%newChunk(k)
+        end if
+    end subroutine
+
+    !> Tell the NetCDF output class that we're at the end of a chunk, so that
+    !! it write to the NetCDF file if in write-at-end mode
+    subroutine finaliseChunkDataOutput(me, tStart, isFinalChunk)
+        class(DataOutput)  :: me               !! This DataOutput instance
+        integer             :: tStart           !! Timestep index at the start of this chunk
+        logical             :: isFinalChunk     !! Is this the final chunk?
+        ! Only bother calling this if we need to write to the NetCDF file
+        if (C%writeNetCDF .and. C%netCDFWriteMode == 'end') then
+            call me%ncout%finaliseChunk(tStart)
+        end if
+        ! If this is the final chunk, close the NetCDF file
+        if (C%writeNetCDF .and. isFinalChunk) then
+            call me%ncout%close()
+        end if
     end subroutine
 
     ! Write the headers for the output files
@@ -334,13 +474,17 @@ module DataOutputModule
         class(DataOutput)   :: me                   !! This DataOutput instance
         ! Write headers all of the output files
         call me%writeHeadersSimulationSummary()
-        call me%writeHeadersWater()
-        call me%writeHeadersSediment()
-        call me%writeHeadersSoil()
+        if (C%writeCSV) then
+            call me%writeHeadersWater()
+            call me%writeHeadersSediment()
+            call me%writeHeadersSoil()
+        end if
+        if (C%writeCompartmentStats) then
+            call me%writeHeadersStats()
+        end if
     end subroutine
 
     !> Write headers for the simulation summary file, including basic info about the model run
-    !! TODO currently doesn't work with batch runs
     subroutine writeHeadersSimulationSummaryDataOutput(me)
         class(DataOutput)   :: me                   !! This DataOutput instance
         type(datetime)      :: simDatetime          ! Datetime the simulation was run 
@@ -378,6 +522,18 @@ module DataOutputModule
         write(iouOutputSummary, *) "- Number of non-masked grid cells: " // trim(str(DATASET%nNonMaskedCells))
     end subroutine
 
+    !> Write the headers for the compartment stats file
+    subroutine writeHeadersStatsDataOutput(me)
+        class(DataOutput)  :: me
+
+        ! ! Write metadata, if we're meant to
+        ! if (C%writeMetadataAsComment) then
+        !     write(iouOutputStats, '(a)') "# NanoFASE model output data - COMPARTMENT STATS.\n"
+        !     write(iouOutputStats, '(a)') "# This file contains summary statistics for each environmental compartment.\n"
+        ! end if
+        ! write(iouOutputStats '(a)')
+    end subroutine
+
     !> Write the headers for the water output file
     subroutine writeHeadersWaterDataOutput(me)
         class(DataOutput)   :: me           !! This DataOutput instance
@@ -385,18 +541,23 @@ module DataOutputModule
         
         ! Write metadata, if we're meant to 
         if (C%writeMetadataAsComment) then
-            write(iouOutputWater, '(a)') "# NanoFASE model output data - WATER.\n# see summary.md for model run metadata."
+            write(iouOutputWater, '(a)') "# NanoFASE model output data - WATER.\n# See summary.md for model run metadata."
             write(iouOutputWater, '(a)') "# Columns:\n#\tt: timestep index\n#\tdatetime: datetime of this timestep"
             write(iouOutputWater, '(a)') "#\tx, y: grid cell (eastings and northings) index"
             write(iouOutputWater, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
-            write(iouOutputWater, '(a)') "#\tw: waterbody index within this grid cell"
-            write(iouOutputWater, '(a)') "#\twaterbody_type: what type (river, estuary etc) is this waterbody?"
+            if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)') "#\tw: waterbody index within this grid cell"
+            if (C%includeWaterbodyBreakdown) then
+                write(iouOutputWater, '(a)') "#\twaterbody_type: what type (river, estuary etc) is this waterbody?"
+            else
+                write(iouOutputWater, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
+            end if
             write(iouOutputWater, '(a)') "#\tm_np(kg), m_transformed(kg), m_dissolved(kg): " // &
                 "NM mass (untransformed, transformed and dissolved, kg)"
             write(iouOutputWater, '(a)') "#\tC_np(kg/m3), C_transformed(kg/m3), C_dissolved(kg/m3): NM concentration (kg/m3)"
             write(iouOutputWater, '(a)') "#\tm_np_outflow(kg), m_transformed_outflow(kg), m_dissolved_outflow(kg): " // &
                 "downstream outflow NM masses (kg)"
             write(iouOutputWater, '(a)') "#\tm_np_deposited(kg), m_transformed_deposited(kg): mass of NM deposited (kg)"
+            write(iouOutputWater, '(a)') "#\tm_np_resuspended(kg), m_transformed_resuspended(kg): mass of NM resuspended (kg)"
             write(iouOutputWater, '(a)') "#\tm_spm(kg), C_spm(kg/m3): mass and concentration of SPM (kg, kg/m3)"
             if (C%includeSpmSizeClassBreakdown) then
                 write(iouOutputWater, '(a)') "#\tm_spm_sci(kg), C_spm_sci(kg/m3): mass aond concentration of SPM in " // &
@@ -411,9 +572,12 @@ module DataOutputModule
                 "depth (m) and flow rate (m3/s) of this waterbody"
         end if
         ! Write the actual headers
-        write(iouOutputWater, '(a)', advance='no') "t,datetime,x,y,easts,norths,w,waterbody_type,m_np(kg),C_np(kg/m3)," // &
+        write(iouOutputWater, '(a)', advance='no') "t,datetime,x,y,easts,norths,"
+        if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)', advance='no') "w,"
+        write(iouOutputWater, '(a)', advance='no') "waterbody_type,m_np(kg),C_np(kg/m3)," // &
             "m_transformed(kg),C_transformed(kg/m3),m_dissolved(kg),C_dissolved(kg/m3)," // &
-            "m_np_deposited(kg),m_transformed_deposited(kg),m_np_outflow(kg),m_transformed_outflow(kg)," // &
+            "m_np_deposited(kg),m_transformed_deposited(kg)," // &
+            "m_np_resuspended(kg),m_transformed_resuspended(kg),m_np_outflow(kg),m_transformed_outflow(kg)," // &
             "m_dissolved_outflow(kg),m_spm(kg),C_spm(kg/m3),"
         if (C%includeSpmSizeClassBreakdown) then
             write(iouOutputWater, '(*(a))', advance="no") &
@@ -437,8 +601,13 @@ module DataOutputModule
             write(iouOutputSediment, '(a)') "# See summary.md for model run metadata."
             write(iouOutputSediment, '(a)') "#\tx, y: grid cell (eastings and northings) index"
             write(iouOutputSediment, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
-            write(iouOutputSediment, '(a)') "#\tw: waterbody index within this grid cell"
-            write(iouOutputSediment, '(a)') "#\twaterbody_type: what type (river, estuary etc) of waterbody is this sediment in?"
+            if (C%includeWaterbodyBreakdown) write(iouOutputSediment, '(a)') "#\tw: waterbody index within this grid cell"
+            if (C%includeWaterbodyBreakdown) then
+                write(iouOutputSediment, '(a)') "#\twaterbody_type: what type (river, estuary etc) " // &
+                    "of waterbody is this sediment in?"
+            else
+                write(iouOutputSediment, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
+            end if
             write(iouOutputSediment, '(a)') "#\tm_np_total(kg), C_np_total(kg/m3), C_np_total(kg/kg): " &
                 // "NM mass (kg) and concentration (kg/m3 and kg/kg dry weight) for all layers"
             if (C%includeSedimentLayerBreakdown) then
@@ -450,8 +619,9 @@ module DataOutputModule
                 "in this bed sediment (kg, *not* kg/m2)"
         end if
         ! Write the actual headers
-        write(iouOutputSediment, '(a)', advance="no") "t,datetime,x,y,easts,norths,w,waterbody_type," // &
-            "m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg),"
+        write(iouOutputSediment, '(a)', advance="no") "t,datetime,x,y,easts,norths," 
+        if (C%includeWaterbodyBreakdown) write(iouOutputSediment, '(a)', advance='no') "w,"
+        write(iouOutputSediment, '(a)', advance='no') "waterbody_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg),"
         ! Should we include sediment layer breakdown?
         if (C%includeSedimentLayerBreakdown) then
             write(iouOutputSediment, '(*(a))', advance="no") &

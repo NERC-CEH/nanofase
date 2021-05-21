@@ -8,7 +8,7 @@ module classFineSediment1
     !> Definition of `FineSediment1` class. Nonpolymorphic.
     type, public :: FineSediment1
         character(len=256) :: name = "Undefined FineSediment"        !! A name for the object
-        real(dp), private :: M_f_l                                   !! LOCAL fine sediment mass [kg m-2]
+        real(dp), public :: M_f_l                                       !! LOCAL fine sediment mass [kg m-2]
         real(dp), private :: M_f_l_backup                            !! LOCAL backup copy of fine sediment mass [kg m-2]
         real(dp), private :: V_w_l = 0.0_dp                          !! LOCAL volume of water associated with fine sediment [m3 m-2]
         real(dp), allocatable :: f_comp(:)                           !! Fractional composition [-]

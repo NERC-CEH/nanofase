@@ -1,0 +1,401 @@
+soil:
+  t:
+    long_name: Timestep index
+    description: Integer index of the timestep
+    units: ~
+  datetime:
+    long_name: Date
+    description: Datetime at the start of the current timestep
+    units: ~
+  x:
+    long_name: Spatial x index
+    description: x index of the current grid cell (longitudinal)
+    units: ~
+  y:
+    long_name: Spatial y index
+    description: y index of the current grid cell (latitudinal)
+    units: ~
+  easts:
+    long_name: Eastings
+    description: Eastings coordinate at the centre of the grid cell
+    units: m
+  easts:
+    long_name: Northing
+    description: Northings coordinate at the centre of the grid cell
+    units: m
+  p:
+    long_name: Soil profile index
+    description: Index of the soil profile within this grid cell
+    comments: Currently limited to 1 soil profile per cell
+    units: ~
+  land_use:
+    long_name: Main land use
+    description: Predominant land use type of this soil profile
+    units: ~
+  m_np_total:
+    long_name: Untransformed NM mass
+    description: Untransformed NM mass in whole soil profile, attached and free
+    units: kg
+  m_transformed_total:
+    long_name: Transformed NM mass
+    description: Transformed NM mass in whole soil profile, attached and free
+    units: kg
+  m_dissolved_total:
+    long_name: Dissolved species mass
+    description: Dissolved species mass in whole soil profile
+    units: kg
+  C_np_total:
+    long_name: NM concentration
+    description: Average concentration of untransformed NM across soil profile, attached and free
+    units: kg/kg
+  C_transformed_total:
+    long_name: Transformed NM concentration
+    description: Average concentration of transformed NM across soil profile, attached and free
+    units: kg/kg
+  C_dissolved_total:
+    long_name: Dissolved species concentration
+    description: Average concentration of dissolved species across soil profile
+    units: kg/kg
+  C_np_free:
+    long_name: Free NM concentration
+    description: Average concentration of free untransformed NM across soil profile
+    units: kg/kg
+    comments: Only output if include_soil_state_breakdown = .true.
+  C_transformed_free:
+    long_name: Free transformed NM concentration
+    description: Average concentration of free transformed NM across soil profile
+    units: kg/kg
+    comments: Only output if include_soil_state_breakdown = .true.
+  C_np_att:
+    long_name: Attached NM concentration
+    description: Average concentration of attached untransformed NM across soil profile
+    units: kg/kg
+    comments: Only output if include_soil_state_breakdown = .true.
+  C_transformed_att:
+    long_name: Attached transformed NM concentration
+    description: Average concentration of attached transformed NM across soil profile
+    units: kg/kg
+    comments: Only output if include_soil_state_breakdown = .true.
+  C_np_l{i}:
+    long_name: NM concentration in layer {i} 
+    description: Concentration of untransformed NM in soil layer {i}, attached and free
+    units: kg/kg
+    comments: Only output if include_soil_layer_breakdown = .true.
+  C_transformed_l{i}:
+    long_name: Transformed NM concentration in layer {i} 
+    description: Concentration of transformed NM in soil layer {i}, attached and free
+    units: kg/kg
+    comments: Only output if include_soil_layer_breakdown = .true.
+  C_dissolved_l{i}:
+    long_name: Dissolved species concentration in layer {i} 
+    description: Concentration of dissolved species in soil layer {i}
+    units: kg/kg
+    comments: Only output if include_soil_layer_breakdown = .true.
+  C_np_free_l{i}:
+    long_name: Free NM concentration in layer {i} 
+    description: Concentration of free untransformed NM in soil layer {i}
+    units: kg/kg
+    comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
+  C_transformed_free_l{i}:
+    long_name: Free transformed NM concentration in layer {i} 
+    description: Concentration of free transformed NM in soil layer {i}
+    units: kg/kg
+    comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
+  C_np_att_l{i}:
+    long_name: Attached NM concentration in layer {i} 
+    description: Concentration of attached untransformed NM in soil layer {i}
+    units: kg/kg
+    comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
+  C_transformed_att_l{i}:
+    long_name: Attached transformed NM concentration in layer {i} 
+    description: Concentration of attached transformed NM in soil layer {i}
+    units: kg/kg
+    comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
+  m_np_buried:
+    long_name: Mass of NM buried
+    description: Mass of untransformed NM buried from the bottom of the soil profile on this timestep
+    units: kg
+  m_transformed_buried:
+    long_name: Mass of transformed NM buried
+    description: Mass of transformed NM buried from the bottom of the soil profile on this timestep
+    units: kg
+  m_dissolved_buried:
+    long_name: Mass of dissolved species buried
+    description: Mass of dissolved species buried from the bottom of the soil profile on this timestep
+    units: kg
+  bulk_density:
+    long_name: Bulk density
+    description: Bulk density of this soil profile
+    units: kg/m3
+water:
+  t:
+    long_name: Timestep index
+    description: Integer index of the timestep
+    units: ~
+  datetime:
+    long_name: Date
+    description: Datetime at the start of the current timestep
+    units: ~
+  x:
+    long_name: Spatial x index
+    description: x index of the current grid cell (longitudinal)
+    units: ~
+  y:
+    long_name: Spatial y index
+    description: y index of the current grid cell (latitudinal)
+    units: ~
+  easts:
+    long_name: Eastings
+    description: Eastings coordinate at the centre of the grid cell
+    units: m
+  easts:
+    long_name: Northing
+    description: Northings coordinate at the centre of the grid cell
+    units: m
+  w:
+    long_name: Waterbody index
+    description: Index of the waterbody within this grid cell
+    comments: |
+      Waterbodies can be river reaches or estuary reaches. Limited to 7 per cell.
+      Only output if include_waterbody_breakdown is .true in config
+    units: ~
+  waterbody_type:
+    long_name: Waterbody type
+    description: Waterbody type - river or estuary?
+    units: ~
+  m_np:
+    long_name: Untransformed NM mass
+    description: Untransformed NM mass
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across waterbodies for this grid cell.
+    units: kg
+  m_transformed_total:
+    long_name: Transformed NM mass
+    description: Transformed NM mass in whole soil profile
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across waterbodies for this grid cell.
+    units: kg
+  m_dissolved_total:
+    long_name: Dissolved species mass
+    description: Dissolved species mass in whole soil profile
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across waterbodies for this grid cell.
+    units: kg
+  C_np:
+    long_name: Untransformed NM concentration
+    description: Untransformed NM concentration
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the weighted average across waterbodies for this grid cell.
+    units: kg/m3
+  C_transformed_total:
+    long_name: Transformed NM concentration
+    description: Transformed NM concentration
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the weighted average across waterbodies for this grid cell.
+    units: kg/m3
+  C_dissolved_total:
+    long_name: Dissolved species concentration
+    description: Dissolved species concentration
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the weighted average across waterbodies for this grid cell.
+    units: kg/m3
+  m_np_outflow:
+    long_name: Untransformed NM mass in outflow
+    description: Untransformed NM mass in downstream outflow on this timestep
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the outflow to the grid cell.
+    units: kg
+  m_transformed_outflow:
+    long_name: Transformed NM mass in outflow
+    description: Transformed NM mass in downstream outflow on this timestep
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the outflow to the grid cell.
+    units: kg
+  m_dissolved_outflow:
+    long_name: Dissolved species mass in outflow
+    description: Dissolved species mass in downstream outflow on this timestep
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the outflow to the grid cell.
+    units: kg
+  m_np_deposited:
+    long_name: Untransformed NM mass deposited
+    description: Untransformed NM mass deposited to bed sediment on this timestep
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  m_transformed_deposited:
+    long_name: Transformed NM mass deposited
+    description: Transformed NM mass deposited to bed sediment on this timestep
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  m_np_resuspended:
+    long_name: Untransformed NM mass resuspended
+    description: Untransformed NM mass resuspended from bed sediment on this timestep
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  m_transformed_resuspended:
+    long_name: Transformed NM mass resuspended
+    description: Transformed NM mass resuspended from bed sediment on this timestep
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  m_spm:
+    long_name: Mass of suspended particulate matter
+    description: Mass of suspended particulate matter
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  C_spm:
+    long_name: Concentration of suspended particulate matter
+    description: Concentration of suspended particulate matter
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the weighted average across the grid cell.
+    units: kg/m3
+  m_spm_erosion:
+    long_name: Mass of suspended particulate matter from soil erosion
+    description: Mass of suspended particulate matter from soil erosion on this timestep
+    comments: |
+      Only output if include_sediment_fluxes = .true.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  m_spm_dep:
+    long_name: Mass of suspended particulate matter deposited
+    description: Mass of suspended particulate matter deposited to bed sediment on this timestep
+    comments: |
+      Only output if include_sediment_fluxes = .true.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  m_spm_res:
+    long_name: Mass of suspended particulate matter resuspended
+    description: Mass of suspended particulate matter resuspended from bed sediment on this timestep
+    comments: |
+      Only output if include_sediment_fluxes = .true.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  m_spm_inflow:
+    long_name: Mass of suspended particulate matter in inflow
+    description: Mass of suspended particulate matter in inflow from upstream on this timestep
+    comments: |
+      Only output if include_sediment_fluxes = .true.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the summed across the inflows to the whole grid cell.
+    units: kg
+  m_spm_outflow:
+    long_name: Mass of suspended particulate matter in outflow
+    description: Mass of suspended particulate matter in inflow from upstream on this timestep
+    comments: |
+      Only output if include_sediment_fluxes = .true.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the inflow to the whole grid cell.
+    units: kg
+  m_spm_bank_erosion:
+    long_name: Mass of suspended particulate matter from bank erosion
+    description: Mass of suspended particulate matter from bank erosion on this timestep
+    comments: |
+      Only output if include_sediment_fluxes = .true.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the whole grid cell.
+    units: kg
+  volume:
+    long_name: Volume of water
+    description: Volume of water
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the total volume of water across the whole grid cell.
+    units: kg
+  depth:
+    long_name: Depth of water
+    description: Depth of water
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the average depth across the whole grid cell.
+    units: kg
+  flow:
+    long_name: Flow rate
+    description: Flow rate of water at outflow
+    comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the flow rate at the outflow to the grid cell.
+    units: m3/s 
+sediment:
+  t:
+    long_name: Timestep index
+    description: Integer index of the timestep
+    units: ~
+  datetime:
+    long_name: Date
+    description: Datetime at the start of the current timestep
+    units: ~
+  x:
+    long_name: Spatial x index
+    description: x index of the current grid cell (longitudinal)
+    units: ~
+  y:
+    long_name: Spatial y index
+    description: y index of the current grid cell (latitudinal)
+    units: ~
+  easts:
+    long_name: Eastings
+    description: Eastings coordinate at the centre of the grid cell
+    units: m
+  easts:
+    long_name: Northing
+    description: Northings coordinate at the centre of the grid cell
+    units: m
+  w:
+    long_name: Waterbody index
+    description: Index of the waterbody this bed sediment is in
+    comments: |
+      Waterbodies can be river reaches or estuary reaches. Limited to 7 per cell.
+      Only output if include_waterbody_breakdown is .true in config
+    units: ~
+  waterbody_type:
+    long_name: Waterbody type
+    description: Waterbody type for the waterbody this bed sediment is in - river or estuary?
+    units: ~
+  m_np_total:
+    long_name: Untransformed NM mass
+    description: Total untransformed NM mass across the sediment layers
+    units: kg
+  C_np_total:
+    long_name: Untransformed NM concentration
+    description: Total untransformed NM concentration across the sediment layers
+    units: kg/m3 and kg/kg
+    comments: Outputs conentrations in kg/kg and kg/m3
+  C_np_l{i}:
+    long_name: Untransformed NM concentration in sediment layer {i}
+    description: Untransformed NM concentration in sediment layer {i} 
+    units: kg/m3 and kg/kg
+    comments: Outputs conentrations in kg/kg and kg/m3
+  m_np_buried:
+    long_name: Untransformed NM mass buried
+    description: Mass of untransformed NM mass buried from the bottom sediment layer 
+    units: kg
+  bed_area:
+    long_name: Bed sediment area
+    description: Surface area of the bed sediment at the sediment-water interface
+    units: m2
+  sediment_mass:
+    long_name: Fine sediment mass
+    description: Mass of fine sediment in the bed sediment
+    units: kg

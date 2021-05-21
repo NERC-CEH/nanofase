@@ -8,7 +8,6 @@ n_sediment_layers = 4                                   ! Number of sediment lay
 n_nm_size_classes = 5                                   ! Number of NM size classes
 n_spm_size_classes = 5                                  ! Number of SPM size classes
 n_fractional_compositions = 4                           ! Number of fractional compositions for sediment
-n_other_sites = 1                                       ! Number of other sampling sites
 /
 
 &nanomaterial
@@ -16,15 +15,6 @@ nm_size_classes = 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ! Diameter of NM in each
 n_nm_forms = 4                                          ! Number of NM forms (free, matrix-embedded, etc)
 n_nm_extra_states = 2                                   ! Number of extra NM states, other than heteroaggregated to SPM
 / 
-
-! Run the model in calibration mode? Documentation here: [doc/calibration.md](../doc/calibration.md)
-&calibrate
-calibration_run = .false.                               ! Run in calibration mode or not? Following variables only required if this is true
-site_data = ""                                          ! Path to CSV of sampling sites
-start_site = ""                                         ! Code of start site (most upstream) in sampling sites CSV
-end_site = ""                                           ! Code of end site (most downstream) in sampling sites CSV
-other_sites = ""                                        ! Which other sites should be used from sampling sites CSV? Array of length &allocatable_array_sizes > n_other_sites
-/
 
 ! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
 &data
@@ -34,14 +24,18 @@ output_path = "data/output/"                            ! Path to store the outp
 /
 
 &output
-write_csv = .true.                                      ! Should we write output data to CSV files (n.b. turning this off currently suppresses all output, except for runs to steady state)
+write_csv = .true.                                      ! Should we write output data to CSV files?
+write_netcdf = .true.                                   ! Should we write output data to a NetCDF file?
+netcdf_write_mode = 'itr'
 write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
+include_waterbody_breakdown = .false.
 include_sediment_layer_breakdown = .true.               ! Include breakdown of data over sediment layers?
-include_soil_layer_breakdown = .false.                  ! Include breaedown of data over soil layers?
+include_soil_layer_breakdown = .true.                   ! Include breaedown of data over soil layers?
+include_soil_state_breakdown = .true.                   ! Include breakdown of NM state - free vs attached to soil matrix
+include_soil_erosion = .true.
+include_sediment_fluxes = .true.
 soil_pec_units = 'kg/kg'                                ! What units to use for soil PEC - kg/kg or kg/m3?
 sediment_pec_units = 'kg/kg'                            ! What units to use for sediment PEC - kg/kg or kg/m3?
-include_soil_state_breakdown = .false.                  ! Include breakdown of NM state - free vs attached to soil matrix
-! output_rate_constant_summary = .true.
 /
 
 &run
@@ -56,19 +50,6 @@ log_file_path = "log/"                                  ! Where to place model l
 warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 /
 
-&checkpoint
-checkpoint_file = "./checkpoint.dat"                    ! Location of checkpoint file to read from and/or save to
-save_checkpoint = .false.                               ! Save a checkpoint file when the run is finished? Defaults to false
-reinstate_checkpoint = .false.                          ! Reinstate a checkpoint from checkpoint_file? Defaults to false
-preserve_timestep = .false.                             ! Should the timestep from the checkpoint be used as a starting timestep in a reinstated run?
-/
-
-&steady_state
-run_to_steady_state = .false.
-mode = 'sediment_size_distribution'
-delta = 1e-4                                            ! Delta value to test whether at steady state
-/
-
 &soil
 soil_layer_depth = 0.05, 0.15, 0.2                      ! Depth of each soil layer. Array of length &allocatable_array_sizes > n_soil_layers
 include_bioturbation = .true.                           ! Should bioturbation be modelled?
@@ -77,7 +58,7 @@ include_attachment = .true.                             ! Should attachment be m
 
 &sediment
 sediment_layer_depth = 0.01, 0.01, 0.01, 0.01           ! Depth of each sediment layer. Array of length &allocatable_array_sizes > n_sediment_layers
-spm_size_classes = 1e-6, 3e-6, 10e-6, 30e-6, 100e-6     ! Diameter of SPM in each binned size class [m]
+spm_size_classes = 0.002e-3, 0.06e-3, 0.2e-3, 0.6e-3, 2.0e-3    ! Diameter of SPM in each binned size class [m]
 include_bed_sediment = .true.                           ! Should bed sediment be modelled?
 sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
 /
