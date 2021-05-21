@@ -46,8 +46,14 @@ module classGridCell2
         procedure :: get_C_np_soil => get_C_np_soilGridCell2
         procedure :: get_C_np_water => get_C_np_waterGridCell2
         procedure :: get_C_np_sediment => get_C_np_sedimentGridCell2
+        procedure :: get_C_np_sediment_byVolume => get_C_np_sediment_byVolumeGridCell2
+        procedure :: get_C_np_sediment_l => get_C_np_sediment_lGridCell2
+        procedure :: get_C_np_sediment_l_byVolume => get_C_np_sediment_l_byVolumeGridCell2
         procedure :: get_C_transformed_water => get_C_transformed_waterGridCell2
         procedure :: get_C_dissolved_water => get_C_dissolved_waterGridCell2
+        procedure :: get_m_np_sediment => get_m_np_sedimentGridCell2
+        procedure :: get_m_np_buried_sediment => get_m_np_buried_sedimentGridCell2
+        procedure :: get_sediment_mass => get_sediment_massGridCell2
         procedure :: get_j_nm_deposition => get_j_nm_depositionGridCell2
         procedure :: get_j_transformed_deposition => get_j_transformed_depositionGridCell2
         procedure :: get_j_nm_resuspension => get_j_nm_resuspensionGridCell2
@@ -360,7 +366,7 @@ module classGridCell2
         allocate(me%reachTypes(me%nReaches))
         ! What are the types of those waterbodies?
         ! Currently, all reach types in a cell must be the same, but the functionality to have
-        ! different reach types exists (hence the averageReachType variable)
+        ! different reach types exists (hence the aggregatedReachType variable)
         if (DATASET%isEstuary(me%x, me%y)) then
             me%reachTypes = 'est'
             me%aggregatedReachType = 'est'
@@ -478,10 +484,10 @@ module classGridCell2
 
     !> Get the outflow of SPM from this grid cell
     function get_j_spm_outflowGridCell2(me) result(j_spm_outflow)
-        class(GridCell2)    :: me                      !! This `GridCell2` instance
+        class(GridCell2)    :: me                       !! This `GridCell2` instance
         real(dp)            :: j_spm_outflow(C%nSizeClassesSpm) !! Outflow from this grid cell [kg/timestep]
         integer             :: i                        ! Iterator
-        j_spm_outflow = 0
+        j_spm_outflow = 0.0_dp
         ! Loop through reaches and sum the SPM outflow for the grid cell outflows
         do i = 1, me%nReaches
             if (me%colRiverReaches(i)%item%isGridCellOutflow) then
@@ -492,10 +498,10 @@ module classGridCell2
 
     !> Get the total mass of SPM currently in the GridCell
     function get_m_spmGridCell2(me) result(m_spm)
-        class(GridCell2)    :: me                       !! This `GridCell2` instance
+        class(GridCell2)    :: me                   !! This `GridCell2` instance
         real(dp)            :: m_spm(C%nSizeClassesSpm) !! SPM mass in this reach
-        integer             :: i                        ! Iterator
-        m_spm = 0
+        integer                 :: i                ! Iterator
+        m_spm = 0.0_dp
         ! Loop through the reaches and sum the SPM masses
         do i = 1, me%nReaches
             m_spm = m_spm + me%colRiverReaches(i)%item%m_spm
@@ -566,47 +572,76 @@ module classGridCell2
         end do
     end function
 
-    !> Get the total mass of NM currently in the GridCell, by looping over waterbodies
+    !> Get the total mass of NM currently in waterbodies in the GridCell
     function get_m_np_waterGridCell2(me) result(m_np)
-        class(GridCell2)    :: me                      !! This `GridCell2` instance
-        real(dp)            :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))
-        integer             :: w
-        m_np = 0
+        class(GridCell2)        :: me                      !! This `GridCell2` instance
+        real(dp), allocatable   :: m_np(:,:,:)
+        integer                 :: w
+        allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)))
+        m_np = 0.0_dp
         do w = 1, me%nReaches
             m_np = m_np + me%colRiverReaches(w)%item%m_np
         end do
     end function
 
-    !> Get the total mass of transformed NM currently in the GridCell, by looping over waterbodies
+    !> Get the total mass of transformed NM currently in waterbodies in the GridCell
     function get_m_transformed_waterGridCell2(me) result(m_transformed)
-        class(GridCell2)    :: me                      !! This `GridCell2` instance
-        real(dp)            :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3))
-        integer             :: w
-        m_transformed = 0
+        class(GridCell2)        :: me                      !! This `GridCell2` instance
+        real(dp), allocatable   :: m_transformed(:,:,:)
+        integer                 :: w
+        allocate(m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
+        m_transformed = 0.0_dp
         do w = 1, me%nReaches
             m_transformed = m_transformed + me%colRiverReaches(w)%item%m_transformed
         end do
     end function
 
-    !> Get the total mass of dissolved species currently in the GridCell, by looping over waterbodies
+    !> Get the total mass of dissolved species currently in the GridCell
     function get_m_dissolved_waterGridCell2(me) result(m_dissolved)
         class(GridCell2)    :: me                      !! This `GridCell2` instance
         real(dp)            :: m_dissolved
         integer             :: w
-        m_dissolved = 0
+        m_dissolved = 0.0_dp
         do w = 1, me%nReaches
             m_dissolved = m_dissolved + me%colRiverReaches(w)%item%m_dissolved
+        end do
+    end function
+
+    !> Get the total mass of NM currently in the sediment in the GridCell
+    function get_m_np_sedimentGridCell2(me) result(m_np)
+        class(GridCell2)    :: me                       !! This `GridCell2` instance
+        real(dp), allocatable :: m_np(:,:,:)
+        integer             :: w                        ! Waterbody iterator
+        allocate(m_np(C%npDim(1), C%npDim(2), C%npDim(3)))
+        m_np = 0.0_dp
+        do w = 1, me%nReaches
+            associate (reach => me%colRiverReaches(w)%item) 
+                m_np = m_np + reach%bedSediment%get_m_np() * reach%bedArea
+            end associate
+        end do
+    end function
+   
+    !> Get the total mass of sediment in this grid cell
+    function get_sediment_massGridCell2(me) result(sediment_mass) 
+        class(GridCell2)    :: me                   !! This GridCell instance
+        real(dp)            :: sediment_mass        !! Mass of sediment in grid cell [kg]
+        integer             :: i                    ! Iterator
+        sediment_mass = 0.0_dp
+        do i = 1, me%nReaches
+            sediment_mass = sediment_mass + me%colRiverReaches(i)%item%bedSediment%Mf_bed_all() &
+                            * me%colRiverReaches(i)%item%bedArea
         end do
     end function
 
     !> Get the average SPM concentration in the grid cell, weighted by water volume in 
     !! each of the water bodies
     function get_C_spmGridCell2(me) result(C_spm)
-        class(GridCell2)    :: me                       !! This grid cell
-        real(dp)            :: C_spm(C%nSizeClassesSpm) !! Average SPM concentration in grid cell
-        real(dp)            :: C_spm_w(me%nReaches,C%nSizeClassesSpm)
-        real(dp)            :: volumes(me%nReaches)
-        integer             :: i                        !! Iterator for water bodies
+        class(GridCell2)        :: me                       !! This grid cell
+        real(dp), allocatable   :: C_spm(:)                 !! Average SPM concentration in grid cell
+        real(dp)                :: C_spm_w(me%nReaches,C%nSizeClassesSpm)
+        real(dp)                :: volumes(me%nReaches)
+        integer                 :: i                        !! Iterator for water bodies
+        allocate(C_spm(C%nSizeClassesSpm))
         ! Loop over the water bodies in this cell and get SPM and volume
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
@@ -711,11 +746,79 @@ module classGridCell2
             associate (bedSediment => me%colRiverReaches(i)%item%bedSediment)
                 ! Get the NM PEC [kg/kg] for each sediment
                 C_np_sediment_b(i, :, :, :) = bedSediment%get_C_np_byMass()
-                ! Get the sediment mass from BedSediment [kg/m2] and multiple by bed area to give total mass
+                ! Get the sediment mass from BedSediment [kg/m2] and multiply by bed area to give total mass
                 sedimentMasses(i) = bedSediment%Mf_bed_all() * me%colRiverReaches(i)%item%bedArea
             end associate
         end do
-        ! Get the weighted mean across the bed sediments, using bed area as the weight
+        ! Get the weighted mean across the bed sediments, using sediment mass as the weight
+        C_np_sediment = weightedAverage(C_np_sediment_b, sedimentMasses)
+    end function
+
+    !> Get the current weighted mean sediment PEC [kg/m3] in this grid cell,
+    !! weighted by the current volume of sediment in the grid cell
+    function get_C_np_sediment_byVolumeGridCell2(me) result(C_np_sediment)
+        class(GridCell2)        :: me                                                   !! This GridCell instance
+        real(dp), allocatable   :: C_np_sediment(:,:,:)                                 !! Volume concentration of NM in this GridCell's sediment [kg/m3]
+        real(dp)                :: C_np_sediment_b(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per sediment NM concentration [kg/m3]
+        real(dp)                :: sedimentVolumes(me%nReaches)                         ! Volume of sediment in each reach, used to weight average [m3]
+        integer                 :: i                                                    ! Iterator
+        allocate(C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3)))
+        ! Loop over the water bodies in this cell and get sediment PEC and bed area
+        do i = 1, me%nReaches
+            associate (bedSediment => me%colRiverReaches(i)%item%bedSediment)
+                ! Get the NM PEC [kg/m3] for each sediment
+                C_np_sediment_b(i, :, :, :) = bedSediment%get_C_np()
+                ! Calculate the sediment volume from the bed area and depth
+                sedimentVolumes(i) = me%colRiverReaches(i)%item%bedArea * sum(C%sedimentLayerDepth)
+            end associate
+        end do
+        ! Get the weighted mean across the bed sediments, using sediment mass as the weight
+        C_np_sediment = weightedAverage(C_np_sediment_b, sedimentVolumes)
+    end function
+
+    !> Get the current weighted mean sediment PEC [kg/m3] for sediment layer l,
+    !! weighted by the current volume of sediment layer l in the grid cell
+    function get_C_np_sediment_l_byVolumeGridCell2(me, l) result(C_np_sediment)
+        class(GridCell2)        :: me                                                   !! This GridCell instance
+        integer                 :: l                                                    !! Sediment layer index
+        real(dp), allocatable   :: C_np_sediment(:,:,:)                                 !! Volume concentration of NM in this GridCell's sediment [kg/m3]
+        real(dp)                :: C_np_sediment_b(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per sediment NM concentration [kg/m3]
+        real(dp)                :: sedimentVolumes(me%nReaches)                         ! Volume of sediment in each reach, used to weight average [m3]
+        integer                 :: i                                                    ! Iterator
+        allocate(C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3)))
+        ! Loop over the water bodies in this cell and get sediment PEC and bed area for layer l
+        do i = 1, me%nReaches
+            associate (bedSediment => me%colRiverReaches(i)%item%bedSediment)
+                ! Get the NM PEC [kg/m3] for each layer
+                C_np_sediment_b(i, :, :, :) = bedSediment%get_C_np_l(l)
+                ! Calculate the sediment volume from the bed area and layer depth
+                sedimentVolumes(i) = me%colRiverReaches(i)%item%bedArea * C%sedimentLayerDepth(l)
+            end associate
+        end do
+        ! Get the weighted mean across the sediment layers, using sediment mass as the weight
+        C_np_sediment = weightedAverage(C_np_sediment_b, sedimentVolumes)
+    end function
+
+    !> Get the current weighted mean sediment PEC [kg/kg] for sediment layer l,
+    !! weighted by the current mass of sediment in layers
+    function get_C_np_sediment_lGridCell2(me, l) result(C_np_sediment)
+        class(GridCell2)        :: me                                                   !! This GridCell instance
+        integer                 :: l                                                    !! Sediment layer index
+        real(dp), allocatable   :: C_np_sediment(:,:,:)                                 !! Mass concentration of NM in this GridCell's sediment [kg/kg]
+        real(dp)                :: C_np_sediment_b(me%nReaches, C%npDim(1), C%npDim(2), C%npDim(3)) ! Per sediment NM concentration [kg/kg]
+        real(dp)                :: sedimentMasses(me%nReaches)                          ! Mass of sediment layer l in each reach, used to weight average [kg]
+        integer                 :: i                                                    ! Iterator
+        allocate(C_np_sediment(C%npDim(1), C%npDim(2), C%npDim(3)))
+        ! Loop over the water bodies in this cell and get sediment PEC and bed area for layer l
+        do i = 1, me%nReaches
+            associate (bedSediment => me%colRiverReaches(i)%item%bedSediment)
+                ! Get the NM PEC [kg/m3] for each layer
+                C_np_sediment_b(i, :, :, :) = bedSediment%get_C_np_l(l)
+                ! Calculate the sediment volume from the bed area and layer depth
+                sedimentMasses(i) = bedSediment%Mf_bed_by_layer(l) * me%colRiverReaches(i)%item%bedArea
+            end associate
+        end do
+        ! Get the weighted mean across the sediment layers, using sediment mass as the weight
         C_np_sediment = weightedAverage(C_np_sediment_b, sedimentMasses)
     end function
 
@@ -742,12 +845,12 @@ module classGridCell2
     !> Get the current weighted mean of dissolved species conc in the water bodies in this grid cell,
     !! weighted by the current water volume in the cell
     function get_C_dissolved_waterGridCell2(me) result(C_dissolved_water)
-        class(GridCell2)        :: me                                   !! This GridCell instance
-        real(dp)                :: C_dissolved_water                    !! Mass concentration of NM in this GridCell [kg/m3]
-        real(dp)                :: C_dissolved_water_w(me%nReaches)     ! Per waterbody NM concentration [kg/m3]
-        real(dp)                :: volumes(me%nReaches)                 ! Volumes [m3] of each reach, used for weighting
-        integer                 :: i                                    ! Iterator 
-        ! Loop over the water bodies in this cell and get water PEC and volume
+        class(GridCell2)    :: me                                   !! This GridCell instance
+        real(dp)            :: C_dissolved_water                    !! Mass concentration of NM in this GridCell [kg/m3]
+        real(dp)            :: C_dissolved_water_w(me%nReaches)     ! Per waterbody NM concentration [kg/m3]
+        real(dp)            :: volumes(me%nReaches)                 ! Volumes [m3] of each reach, used for weighting
+        integer             :: i                                    ! Iterator 
+        ! Loop over the waterbodies in this cell and get water PEC and volume
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
                 C_dissolved_water_w(i) = reach%C_dissolved
@@ -756,6 +859,22 @@ module classGridCell2
         end do
         ! Get the weighted average across the reaches, using the volumes as the weight
         C_dissolved_water = weightedAverage(C_dissolved_water_w, volumes)
+    end function
+
+    !> Get the mass of NM buried for all the bed sediments in this grid cell
+    function get_m_np_buried_sedimentGridCell2(me) result(m_np_buried)
+        class(GridCell2)        :: me                   ! This GridCell instance
+        real(dp), allocatable   :: m_np_buried(:,:,:)   ! Mass of NM buried [kg]
+        integer                 :: i                    ! Iterator
+        allocate(m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3)))
+        m_np_buried = 0.0_dp
+        ! Loop over the waterbodies in this cell and get mass of sediment buried
+        do i = 1, me%nReaches
+            associate (reach => me%colRiverReaches(i)%item)
+                m_np_buried = m_np_buried &
+                    + reach%bedSediment%get_m_np_buried() * reach%bedArea
+            end associate
+        end do
     end function
 
     !> Get the sum of MN deposition for this grid cell 

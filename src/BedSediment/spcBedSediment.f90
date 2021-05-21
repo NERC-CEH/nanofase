@@ -55,8 +55,8 @@ module spcBedSediment
         procedure, public :: Mf_bed_by_layer => get_Mf_bed_by_layer  ! fine sediment mass as an array of all layers
         procedure, public :: V_w_by_layer => get_V_w_by_layer        ! total water volume in each layer
         ! Getters
-        procedure, public :: get_m_np => get_m_npBedSediment
-        procedure, public :: get_C_np => get_C_npBedSediment
+        procedure, public :: get_m_np
+        procedure, public :: get_C_np
         procedure, public :: get_C_np_byMass => get_C_np_byMassBedSediment
         procedure, public :: get_m_np_l => get_m_np_lBedSediment
         procedure, public :: get_C_np_l => get_C_np_lBedSediment
@@ -462,13 +462,12 @@ contains
         end do
     end function
 
-    function get_Mf_bed_by_layer(me) result(Mf)
-        class(BedSediment), intent(in) :: me
-        real(dp) :: Mf(C%nSedimentLayers)
-        integer :: i
-        do i = 1, C%nSedimentLayers
-            Mf(i) = me%colBedSedimentLayers(i)%item%M_f_layer()
-        end do
+    !> Get mass of fine sediment for layer l [kg/m2]
+    function get_Mf_bed_by_layer(me, l) result(Mf)
+        class(BedSediment), intent(in)  :: me
+        integer                         :: l
+        real(dp)                        :: Mf
+        Mf = me%colBedSedimentLayers(l)%item%M_f_layer()
     end function
 
     function get_V_w_by_layer(me) result(V_w)
@@ -481,7 +480,7 @@ contains
     end function
     
     function Get_Mf_bed_by_size(Me) result(Mf_size)
-        class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
+        class(BedSediment), intent(in) :: Me                         !! The BedSediment instance
         integer :: L                                                 ! LOCAL loop counter
         integer :: S                                                 ! LOCAL loop counter
         real(dp) :: Mf                                               ! LOCAL internal storage
@@ -498,9 +497,9 @@ contains
     end function
     
     !> Get the current mass of NM in all bed sediment layers
-    function get_m_npBedSediment(me) result(m_np)
-        class(BedSediment)  :: me                                           !! This BedSediment instance
-        real(dp)            :: m_np(C%npDim(1), C%npDim(2), C%npDim(3))     !! NM mass in all bed sediment layers [kg/m2]
+    function get_m_np(me) result(m_np)
+        class(BedSediment)  :: me                                       !! This BedSediment instance
+        real(dp)            :: m_np(C%npDim(1),C%npDim(2),C%npDim(3))   !! NM mass in all bed sediment layers [kg/m2]
         ! Sum the layer mass from the bed sediment m_np array. The first two elements
         ! are ignored as they are deposited and resuspended NM
         m_np = sum(me%m_np(3:C%nSedimentLayers+2,:,:,:), dim=1)
@@ -515,7 +514,7 @@ contains
     end function
 
     !> Get the current NM PEC [kg/m3] across all bed sediment layers
-    function get_C_npBedSediment(me) result(C_np)
+    function get_C_np(me) result(C_np)
         class(BedSediment)  :: me                                           !! This BedSediment instance
         real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))     !! NM PEC across all bed sediment layers [kg/m3]
         C_np = me%get_m_np() / sum(C%sedimentLayerDepth)
@@ -525,7 +524,7 @@ contains
     function get_C_np_lBedSediment(me, l) result(C_np_l)
         class(BedSediment)  :: me                                           !! This BedSediment instance
         integer             :: l                                            !! Layer index to retrieve NM PEC for
-        real(dp)            :: C_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM PEC in layer l
+        real(dp)            :: C_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM PEC in layer l [kg/m3]
         C_np_l = me%get_m_np_l(l) / C%sedimentLayerDepth(l)
     end function
 
@@ -534,8 +533,11 @@ contains
         class(BedSediment)  :: me                                               !! This BedSediment instance
         real(dp)            :: C_np_byMass(C%npDim(1), C%npDim(2), C%npDim(3))  !! NM PEC across all bed layers [kg/kg]
         real(dp)            :: layerMasses(C%nSedimentLayers)                   !! Mass (per m2) of each layer to weight average NM PEC by [kg/m2]
+        integer             :: i
         ! Get the masses of the sediment in each layer to use in weighting PEC average
-        layerMasses = me%Mf_bed_by_layer()
+        do i = 1, C%nSedimentLayers
+            layerMasses(i) = me%Mf_bed_by_layer(i)
+        end do
         ! Calculate the weighted average using these masses
         C_np_byMass = weightedAverage(me%C_np_byMass, layerMasses)
     end function

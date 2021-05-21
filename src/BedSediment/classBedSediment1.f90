@@ -194,16 +194,11 @@ module classBedSediment1
         integer             :: i, j, k, l                       ! Iterator
         real(dp)            :: M_f_byLayer(C%nSedimentLayers)   ! Mass of fine sediment by layer
 
-        ! call print_matrix(me%delta_sed)
-
         ! Assumes me%delta_sed has already been set
         ! Add new deposited NM to matrix, reset resus and buried to zero
         me%M_np(1,:,:,:) = j_np_dep                     ! Deposited     [kg/m2]
         me%M_np(2,:,:,:) = 0.0_dp                       ! Resuspended   [kg/m2]
         me%M_np(C%nSedimentLayers+3,:,:,:) = 0.0_dp     ! Buried        [kg/m2]
-
-        ! Get the breakdown of fine sediment masses down the layers
-        M_f_byLayer = me%Mf_bed_by_layer()
 
         ! Perform the transfer calculation to move NM between the layers
         do k = 1, C%nSizeClassesSpm
@@ -211,7 +206,7 @@ module classBedSediment1
                 do i = 1, C%npDim(1)
                     me%M_np(:,i,j,k+2) = matmul(me%delta_sed(:,:,k), me%M_np(:,i,j,k+2))
                     do l = 1, C%nSedimentLayers
-                        me%C_np_byMass(l,i,j,k+2) = divideCheckZero(me%M_np(l+2,i,j,k+2), M_f_byLayer(l))
+                        me%C_np_byMass(l,i,j,k+2) = divideCheckZero(me%M_np(l+2,i,j,k+2), me%Mf_bed_by_layer(l))
                     end do
                 end do
             end do

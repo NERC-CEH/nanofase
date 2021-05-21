@@ -23,7 +23,7 @@ program main
     use classEnvironment1
     use classDatabase, only: DATASET
     use CheckpointModule, only: Checkpoint
-    use DataOutputModule1
+    use DataOutputModule
     use classLogger, only: LOGR
     use DefaultsModule, only: iouLog
     use datetime_module
@@ -32,7 +32,7 @@ program main
     real                :: start, finish                    !! Simulation start and finish times
     type(Environment1)  :: env                              !! Environment object
     type(Result)        :: r                                !! Result object
-    type(DataOutput1)    :: output                           !! Data output class
+    type(DataOutput)    :: output                           !! Data output class
     type(Checkpoint)    :: checkpt                          !! Checkpoint module
     integer             :: t, k                             !! Loop iterators
     integer             :: tPreviousChunk = 0               !! Timestep at end of previous batch
@@ -95,6 +95,7 @@ program main
             if (k > 1) then
                 call DATASET%update(k)
                 call env%parseNewBatchData()
+                call output%newChunk(k)
             end if
             ! Loop through the timestep in this batch. The model itself is intentionally agnostic to
             ! the fact we might be in a batch run and so the timestep within the chunk, t, can be used
@@ -106,8 +107,11 @@ program main
                 call ERROR_HANDLER%trigger(errors=.errors.r)
                 ! Update the output files. Passing the "correct" timestep, taking into account previous
                 ! chunks, is important otherwise timestep indices will be incorrect in the data
-                call output%update(t + tPreviousChunk)
+                call output%update(t + tPreviousChunk, t)
             end do
+            ! Finalise the output for this chunk, which amounts to writing to the NetCDF
+            ! if in 'end' mode (otherwise this subroutine doesn't do anything)
+            call output%finaliseChunk(tPreviousChunk + 1, k == C%nChunks)
             ! Keep a tally of what actual timestep we're on across the batch run
             tPreviousChunk = tPreviousChunk + t - 1
         end do

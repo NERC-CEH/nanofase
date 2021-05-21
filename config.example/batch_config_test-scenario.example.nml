@@ -1,0 +1,10 @@
+&batch_config
+n_chunks = 3
+/
+
+&chunks
+input_files = "data.example/test-scenario.nc", "data.example/test-scenario-t11.nc", "data.example/test-scenario.nc"
+constants_files = "data.example/constants_test-scenario.nml", "data.example/constants_test-scenario.nml", "data.example/constants_test-scenario.nml"
+start_dates = "2015-01-01", "2015-01-11", "2015-01-23" 
+n_timesteps_per_chunk = 10, 11, 10
+/

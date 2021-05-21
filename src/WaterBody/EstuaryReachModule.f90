@@ -357,8 +357,10 @@ module EstuaryReachModule
 
                 call me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea)
                 ! The above must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
-                ! Now actually transfer the NM between the layers
-                call me%bedSediment%transferNM(dj_nm_deposit_perArea)
+                ! Now actually transfer the NM between the layers (only if there is NM to deposit)
+                if (.not. any(dj_nm_deposit_perArea == 0.0_dp)) then
+                    call me%bedSediment%transferNM(dj_nm_deposit_perArea)
+                end if
                 ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices
                 dj_nm_resus = me%bedSediment%M_np(2,:,:,:) * me%bedArea
                 me%obj_j_nm%resuspension = me%obj_j_nm%resuspension + dj_nm_resus
