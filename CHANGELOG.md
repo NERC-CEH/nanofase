@@ -4,6 +4,9 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ## [Unreleased]
 
+### Changed
+
+- Changed "untransformed" to "pristine" in output data nomenclature, to describe NM that hasn't undergone any chemical transformation. This brings the model nomenclature in line with literature conventions.
 
 ## [0.0.2] - 2021-05-21
 
