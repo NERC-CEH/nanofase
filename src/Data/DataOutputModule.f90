@@ -552,7 +552,7 @@ module DataOutputModule
                 write(iouOutputWater, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
             end if
             write(iouOutputWater, '(a)') "#\tm_np(kg), m_transformed(kg), m_dissolved(kg): " // &
-                "NM mass (untransformed, transformed and dissolved, kg)"
+                "NM mass (pristine, transformed and dissolved, kg)"
             write(iouOutputWater, '(a)') "#\tC_np(kg/m3), C_transformed(kg/m3), C_dissolved(kg/m3): NM concentration (kg/m3)"
             write(iouOutputWater, '(a)') "#\tm_np_outflow(kg), m_transformed_outflow(kg), m_dissolved_outflow(kg): " // &
                 "downstream outflow NM masses (kg)"
@@ -644,7 +644,7 @@ module DataOutputModule
             write(iouOutputSoil, '(a)') "#\tp: soil profile index within this cell"
             write(iouOutputSoil, '(a)') "#\tland_use: dominant land use of this soil profile"
             write(iouOutputSoil, '(a)') "#\tm_np_total(kg), m_transformed_total(kg), m_dissolved_total(kg): " // &
-                "NM mass (untransformed, transformed and dissolved) in whole soil profile, sum of free and attached NM"
+                "NM mass (pristine, transformed and dissolved) in whole soil profile, sum of free and attached NM"
             write(iouOutputSoil, '(a)') "#\tC_np_total(" // C%soilPECUnits // "), C_transformed_total(" // C%soilPECUnits // &
                 "), C_dissolved_total(" // C%soilPECUnits // "): " // &
                 "NM concentration averaged over all soil layers, sum of free and attached NM"

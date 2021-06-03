@@ -33,8 +33,8 @@ soil:
     description: Predominant land use type of this soil profile
     units: ~
   m_np_total:
-    long_name: Untransformed NM mass
-    description: Untransformed NM mass in whole soil profile, attached and free
+    long_name: Pristine NM mass
+    description: Pristine NM mass in whole soil profile, attached and free
     units: kg
   m_transformed_total:
     long_name: Transformed NM mass
@@ -45,8 +45,8 @@ soil:
     description: Dissolved species mass in whole soil profile
     units: kg
   C_np_total:
-    long_name: NM concentration
-    description: Average concentration of untransformed NM across soil profile, attached and free
+    long_name: Pristine NM concentration
+    description: Average concentration of pristine NM across soil profile, attached and free
     units: kg/kg
   C_transformed_total:
     long_name: Transformed NM concentration
@@ -57,8 +57,8 @@ soil:
     description: Average concentration of dissolved species across soil profile
     units: kg/kg
   C_np_free:
-    long_name: Free NM concentration
-    description: Average concentration of free untransformed NM across soil profile
+    long_name: Free pristine NM concentration
+    description: Average concentration of free pristine NM across soil profile
     units: kg/kg
     comments: Only output if include_soil_state_breakdown = .true.
   C_transformed_free:
@@ -67,8 +67,8 @@ soil:
     units: kg/kg
     comments: Only output if include_soil_state_breakdown = .true.
   C_np_att:
-    long_name: Attached NM concentration
-    description: Average concentration of attached untransformed NM across soil profile
+    long_name: Attached pristine NM concentration
+    description: Average concentration of attached pristine NM across soil profile
     units: kg/kg
     comments: Only output if include_soil_state_breakdown = .true.
   C_transformed_att:
@@ -77,8 +77,8 @@ soil:
     units: kg/kg
     comments: Only output if include_soil_state_breakdown = .true.
   C_np_l{i}:
-    long_name: NM concentration in layer {i} 
-    description: Concentration of untransformed NM in soil layer {i}, attached and free
+    long_name: Pristine NM concentration in layer {i} 
+    description: Concentration of pristine NM in soil layer {i}, attached and free
     units: kg/kg
     comments: Only output if include_soil_layer_breakdown = .true.
   C_transformed_l{i}:
@@ -92,8 +92,8 @@ soil:
     units: kg/kg
     comments: Only output if include_soil_layer_breakdown = .true.
   C_np_free_l{i}:
-    long_name: Free NM concentration in layer {i} 
-    description: Concentration of free untransformed NM in soil layer {i}
+    long_name: Free pristine NM concentration in layer {i} 
+    description: Concentration of free pristine NM in soil layer {i}
     units: kg/kg
     comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
   C_transformed_free_l{i}:
@@ -102,8 +102,8 @@ soil:
     units: kg/kg
     comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
   C_np_att_l{i}:
-    long_name: Attached NM concentration in layer {i} 
-    description: Concentration of attached untransformed NM in soil layer {i}
+    long_name: Attached pristine NM concentration in layer {i} 
+    description: Concentration of attached pristine NM in soil layer {i}
     units: kg/kg
     comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
   C_transformed_att_l{i}:
@@ -112,8 +112,8 @@ soil:
     units: kg/kg
     comments: Only output if include_soil_layer_breakdown = .true. and include_soil_state_breakdown = .true.
   m_np_buried:
-    long_name: Mass of NM buried
-    description: Mass of untransformed NM buried from the bottom of the soil profile on this timestep
+    long_name: Mass of pristine NM buried
+    description: Mass of pristine NM buried from the bottom of the soil profile on this timestep
     units: kg
   m_transformed_buried:
     long_name: Mass of transformed NM buried
@@ -164,8 +164,8 @@ water:
     description: Waterbody type - river or estuary?
     units: ~
   m_np:
-    long_name: Untransformed NM mass
-    description: Untransformed NM mass
+    long_name: Pristine NM mass
+    description: Pristine NM mass
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the sum across waterbodies for this grid cell.
@@ -185,8 +185,8 @@ water:
       If .false., this is the sum across waterbodies for this grid cell.
     units: kg
   C_np:
-    long_name: Untransformed NM concentration
-    description: Untransformed NM concentration
+    long_name: Pristine NM concentration
+    description: Pristine NM concentration
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the weighted average across waterbodies for this grid cell.
@@ -206,8 +206,8 @@ water:
       If .false., this is the weighted average across waterbodies for this grid cell.
     units: kg/m3
   m_np_outflow:
-    long_name: Untransformed NM mass in outflow
-    description: Untransformed NM mass in downstream outflow on this timestep
+    long_name: Pristine NM mass in outflow
+    description: Pristine NM mass in downstream outflow on this timestep
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the outflow to the grid cell.
@@ -227,8 +227,8 @@ water:
       If .false., this is the outflow to the grid cell.
     units: kg
   m_np_deposited:
-    long_name: Untransformed NM mass deposited
-    description: Untransformed NM mass deposited to bed sediment on this timestep
+    long_name: Pristine NM mass deposited
+    description: Pristine NM mass deposited to bed sediment on this timestep
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the sum across the grid cell.
@@ -241,8 +241,8 @@ water:
       If .false., this is the sum across the grid cell.
     units: kg
   m_np_resuspended:
-    long_name: Untransformed NM mass resuspended
-    description: Untransformed NM mass resuspended from bed sediment on this timestep
+    long_name: Pristine NM mass resuspended
+    description: Pristine NM mass resuspended from bed sediment on this timestep
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the sum across the grid cell.
@@ -374,22 +374,22 @@ sediment:
     description: Waterbody type for the waterbody this bed sediment is in - river or estuary?
     units: ~
   m_np_total:
-    long_name: Untransformed NM mass
-    description: Total untransformed NM mass across the sediment layers
+    long_name: Pristine NM mass
+    description: Total pristine NM mass across the sediment layers
     units: kg
   C_np_total:
-    long_name: Untransformed NM concentration
+    long_name: Pristine NM concentration
     description: Total untransformed NM concentration across the sediment layers
     units: kg/m3 and kg/kg
     comments: Outputs conentrations in kg/kg and kg/m3
   C_np_l{i}:
-    long_name: Untransformed NM concentration in sediment layer {i}
-    description: Untransformed NM concentration in sediment layer {i} 
+    long_name: Pristine NM concentration in sediment layer {i}
+    description: Pristine NM concentration in sediment layer {i} 
     units: kg/m3 and kg/kg
     comments: Outputs conentrations in kg/kg and kg/m3
   m_np_buried:
-    long_name: Untransformed NM mass buried
-    description: Mass of untransformed NM mass buried from the bottom sediment layer 
+    long_name: Pristine NM mass buried
+    description: Mass of pristine NM mass buried from the bottom sediment layer 
     units: kg
   bed_area:
     long_name: Bed sediment area
