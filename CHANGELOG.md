@@ -1,12 +1,16 @@
 # Changelog
 
-All notable changes to the model will be documented in this file. Breaking changes (i.e. those that cause changes to the model's interface) are denoted by ⚠️. Until v1.0.0, breaking changes might occur between minor versions and patches.
+All notable changes to the model will be documented in this file. Breaking changes (i.e. those that cause changes to the model's interface) are denoted by ⚠️. Until v1.0.0, breaking changes might occur between minor versions and patches. Thereafter, semantic versioning will be followed.
 
 ## [Unreleased]
 
 ### Changed
 
 - Changed "untransformed" to "pristine" in output data nomenclature, to describe NM that hasn't undergone any chemical transformation. This brings the model nomenclature in line with literature conventions.
+
+### Fixed
+
+- Fixed bug where `output_soil__land_use` and `output_soil__bulk_density` attribute of `NetCDFOutput` class weren't being deallocated before being allocated between chunks in a batch run.
 
 ## [0.0.2] - 2021-05-21
 

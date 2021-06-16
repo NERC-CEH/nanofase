@@ -592,6 +592,7 @@ module NetCDFAggregatedOutputModule
         deallocate(me%output_agg_sediment__m_nm_buried)
         deallocate(me%output_agg_sediment__bed_area)
         deallocate(me%output_agg_sediment__mass)
+        deallocate(me%output_soil__land_use)
         deallocate(me%output_soil__m_nm_total)
         deallocate(me%output_soil__m_transformed_total)
         deallocate(me%output_soil__m_dissolved_total)
@@ -623,6 +624,7 @@ module NetCDFAggregatedOutputModule
         deallocate(me%output_soil__m_nm_buried)
         deallocate(me%output_soil__m_transformed_buried)
         deallocate(me%output_soil__m_dissolved_buried)
+        deallocate(me%output_soil__bulk_density)
     end subroutine
 
 end module
