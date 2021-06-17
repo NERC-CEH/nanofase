@@ -1,5 +1,7 @@
 # NanoFASE model
 
+*This model is under active development. Use at your own risk!*
+
 Multimedia spatiotemporal environmental fate and exposure model for engineered nanomaterials.
 
 Project links:
