@@ -7,9 +7,9 @@ The temporal period that the model is run for is defined by the model config (or
 
 Hence, the temporal period over which the model runs is the length of the `t` dimension in the NetCDF file, multiplied by the time step length from the config file. The important point here is that the model ignores the `units` attribute of the `t` dimension, which is commonly used to describe the start date of the data. Additionally, there is no check that this `units` attribute is the same as the config `start_date` property. This is intentional: It allows the same NetCDF file to be used to model different time period, which might be useful for ready the model to steady state. The upshot of this is that changing the `start_date` config option doesn't change the data that is being used in the model run, it is simply used to tell the model what the start date of the NetCDF data is.
 
-## What if I only want to run the model for a subset of the NetCDF data's temporal period?
+## What if I only want to run the model for a slice of the NetCDF data's temporal period?
 
-For example, say you have a NetCDF file with data for an entire year with a daily time step (like the [example Thames 2015 data](../data.example/thames_tio2_2015.nc)), but you only want to run the model for one month of that year - let's say April.
+For example, say you have a NetCDF file with data for an entire year with a daily time step (like the [example Thames 2015 data](../data.example/thames_tio2_2015.nc)), but you only want to run the model for one month of that year - let's say June.
 
 The bad news is that the model doesn't currently provide a way to do this without creating a new NetCDF file. If you were to change the `start_date` config option to `2015-06-01` and `n_timesteps` to `30`, the model would actually use the first 30 time steps it encounters in the data file (for the example data, corresponding to January), but write to the output data that it was performing the calculation for June.
 
