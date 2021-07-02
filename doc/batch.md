@@ -1,6 +1,6 @@
 # Batch runs
 
-The model allows for multiple simulations ("chunks") to be chained together, such that the final temporal state of one model simulation provides the intial temporal state of the next. The main advantage of this is when doing model runs over long temporal periods: The model stores all input data in memory, and so long runs may use a significant amount of memory (depending on your geographical setup). Batching runs together means that only the input data for the current chunk is stored in memory at any time. 
+The model allows for multiple simulations ("chunks") to be chained together, such that the final temporal state of one model simulation provides the initial temporal state of the next. The main advantage of this is when wanting to run the model over long temporal periods: The model stores all input data in memory, and so long runs may use a significant amount of memory (depending on your geographical setup). Batching runs together means that only the input data for the current chunk is stored in memory at any time. 
 
 In addition to the normal config file (which for batch runs provides config options for the entire batch run), batch runs need a batch config namelist file, which specifies the location of the input data and temporal information of each chunk within the batch run. An example is given at [config.example/batch_config.example.nml](../config.example/batch_config.example.nml)
 
