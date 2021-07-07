@@ -390,7 +390,7 @@ module NetCDFOutputModule
         integer             :: waterbodyType(DATASET%gridShape(1), DATASET%gridShape(2))    ! Waterbody type
 
         ! Create the NetCDF file
-        me%nc = NcDataset(trim(C%outputPath) // 'output.nc', 'w')
+        me%nc = NcDataset(trim(C%outputPath) // 'output' // trim(C%outputHash) // '.nc', 'w')
 
         ! Metadata to describe the NetCDF file
         call me%nc%setAttribute('title', 'NanoFASE model output data: ' // trim(C%runDescription))

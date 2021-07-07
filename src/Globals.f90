@@ -20,6 +20,7 @@ module Globals
         character(len=256)  :: constantsFile
         ! Data output 
         character(len=256)  :: outputPath                       !! Path to directory to store output data
+        character(len=32)   :: outputHash                       !! Hash to append to output file names. Useful for parallel runs.
         logical             :: writeCSV                         !! Should output data be written as CSV file?
         logical             :: writeNetCDF                      !! Should output data be written as NetCDF file?
         character(len=3)    :: netCDFWriteMode                  !! Should NetCDF output be written on each timestep or at the end of the chunk?
@@ -152,6 +153,7 @@ module Globals
         character(len=20), allocatable :: other_sites(:)
         character(len=5) :: soil_pec_units, sediment_pec_units
         character(len=3) :: netcdf_write_mode
+        character(len=32) :: output_hash
         integer, allocatable :: n_timesteps_per_chunk(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions, n_chunks
@@ -178,7 +180,7 @@ module Globals
             include_soil_erosion, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats, &
             write_netcdf, netcdf_write_mode
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description, trigger_warnings, simulation_mask, write_to_log
+            description, trigger_warnings, simulation_mask, write_to_log, output_hash
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
         namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment
@@ -196,6 +198,7 @@ module Globals
         write_csv = configDefaults%writeCSV                                     ! True
         write_netcdf = configDefaults%writeNetCDF                               ! False
         netcdf_write_mode = configDefaults%netCDFWriteMode                      ! 'end'
+        output_hash = configDefaults%outputHash                                 ! ''
         description = ""
         batch_description = ""
         write_metadata_as_comment = .true.
@@ -303,6 +306,7 @@ module Globals
         C%inputFile = input_file
         C%constantsFile = constants_file
         C%outputPath = output_path
+        C%outputHash = output_hash
         ! Output
         C%writeCSV = write_csv
         C%writeNetCDF = write_netcdf

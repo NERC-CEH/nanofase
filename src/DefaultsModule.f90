@@ -45,6 +45,8 @@ module DefaultsModule
         logical             :: includeClayEnrichment = .false.
         character(len=5)    :: soilPECUnits = 'kg/kg'                   ! Should soil PECS be kg/kg or kg/m3?
         character(len=5)    :: sedimentPECUnits = 'kg/kg'               ! Should sediment PECs be kg/kg or kg/m3?
+        ! Run
+        character(len=32)   :: outputHash = ''                          ! Hash to append to output file names
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults

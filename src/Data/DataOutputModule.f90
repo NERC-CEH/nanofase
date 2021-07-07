@@ -68,12 +68,16 @@ module DataOutputModule
         ! Open the files to write to
         open(iouOutputSummary, file=trim(C%outputPath) // 'summary.md')
         if (C%writeCSV) then
-            open(iouOutputWater, file=trim(C%outputPath) // 'output_water.csv')
-            open(iouOutputSediment, file=trim(C%outputPath) // 'output_sediment.csv')
-            open(iouOutputSoil, file=trim(C%outputPath) // 'output_soil.csv')
+            open(iouOutputWater, &
+                 file=trim(C%outputPath) // 'output_water' // trim(C%outputHash) // '.csv')
+            open(iouOutputSediment, &
+                 file=trim(C%outputPath) // 'output_sediment' // trim(C%outputHash) // '.csv')
+            open(iouOutputSoil, &
+                 file=trim(C%outputPath) // 'output_soil' // trim(C%outputHash) // '.csv')
         end if
         if (C%writeCompartmentStats) then
-            open(iouOutputStats, file=trim(C%outputPath) // 'stats.csv')
+            open(iouOutputStats, &
+                 file=trim(C%outputPath) // 'stats' // trim(C%outputHash) // '.csv')
         end if
 
         ! Write the headers for the files
@@ -93,7 +97,7 @@ module DataOutputModule
         end do
 
         ! Open the SSD file and write the headers
-        open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd.csv')
+        open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd' // trim(C%outputHash) // '.csv')
         if (C%writeMetadataAsComment) then
             write(iouOutputSSD, '(a)') "# NanoFASE model output data - SEDIMENT SIZE DISTRIBUTION."
             write(iouOutputSSD, '(a)') "# Output file for when running the model until sediment size " // &

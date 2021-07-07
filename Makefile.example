@@ -62,13 +62,9 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/Source/classDiffuseSource2.o \
 	src/Source/classPointSource2.o \
 	src/WaterBody/FlowModule.o \
-	src/WaterBody/spcWaterBody.o \
 	src/WaterBody/WaterBodyModule.o \
-	src/WaterBody/spcReach.o \
 	src/WaterBody/ReachModule.o \
-	src/classRiverReach.o \
 	src/RiverReachModule.o \
-	src/classEstuaryReach.o \
 	src/EstuaryReachModule.o \
 	src/classSampleSite.o \
 	src/Soil/spcSoilLayer.o \

@@ -7,6 +7,7 @@ All notable changes to the model will be documented in this file. Breaking chang
 ### Added
 
 - Documentation for running the model for different time periods.
+- Added `output_hash` config option. The value specified here will be appended to output file names (e.g. "output_water.csv" will become "output_water{output_hash}.csv"). Particularly useful when performing parallel model runs to avoid multiple model runs writing to the same file.
 
 ### Changed
 
