@@ -1,19 +1,20 @@
-!---------------------------------------------------------------!
-!> NanoFASE model                                               !
-!> --------------                                               !
-!> Nanomaterial Fate And Speciation in the Environment          !
-!>                                                              !
-!> Authors: Sam Harrison (sharrison@ceh.ac.uk)                  !
-!>          Stephen Lofts                                       !
-!>          Virginie Keller                                     !
-!>          Michael Hutchins                                    !
-!>          Richard Williams                                    !
-!> Institute: UK Centre for Ecology & Hydrology                 !
-!> Repository: https://github.com/nerc-ceh/nanofase             !
-!> Documentation: *                                             !
-!> Changelog: *                                                 !
-!> License: *                                                   !
-!---------------------------------------------------------------!
+!-------------------------------------------------------------------------------!
+!> NanoFASE model                                                               !
+!> --------------                                                               !
+!> Nanomaterial Fate And Speciation in the Environment                          !
+!>                                                                              !
+!> Authors: Sam Harrison (sharrison@ceh.ac.uk)                                  !
+!>          Stephen Lofts                                                       !
+!>          Virginie Keller                                                     !
+!>          Michael Hutchins                                                    !
+!>          Richard Williams                                                    !
+!> Institute: UK Centre for Ecology & Hydrology                                 !
+!> Repository: https://github.com/nerc-ceh/nanofase                             !
+!> Documentation: *                                                             !
+!> Changelog: https://github.com/NERC-CEH/nanofase/blob/develop/CHANGELOG.md    !
+!> License: BSD 3-Clause,                                                       !
+!>          https://github.com/NERC-CEH/nanofase/blob/develop/LICENSE           !
+!-------------------------------------------------------------------------------!
 program main
     use Globals
     use UtilModule

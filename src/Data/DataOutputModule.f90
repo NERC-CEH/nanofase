@@ -66,7 +66,7 @@ module DataOutputModule
         end if
 
         ! Open the files to write to
-        open(iouOutputSummary, file=trim(C%outputPath) // 'summary.md')
+        open(iouOutputSummary, file=trim(C%outputPath) // 'summary' // trim(C%outputHash) // '.md')
         if (C%writeCSV) then
             open(iouOutputWater, &
                  file=trim(C%outputPath) // 'output_water' // trim(C%outputHash) // '.csv')

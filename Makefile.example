@@ -22,8 +22,8 @@ EXEC_PATH = ./bin/
 # NetCDF config, assuming you have the nf-config utility installed
 NETCDF = `nf-config --fflags --flibs`
 # Config file name and path. Used when running `make run`.
-CONFIG_PATH = ./config/
-CONFIG_FILE = thames.nml
+CONFIG_PATH = ./config.example/
+CONFIG_FILE = config.example.nml
 # The following variables generate a unique compilation metadata file to be placed in EXEC_PATH,
 # which includes the current Git commit, branch and compilation time
 GIT_HASH = `git rev-parse HEAD`
