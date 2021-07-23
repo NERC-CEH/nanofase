@@ -30,19 +30,21 @@ program main
     use datetime_module
     implicit none
 
-    real                :: start, finish                    !! Simulation start and finish times
-    type(Environment1)  :: env                              !! Environment object
-    type(Result)        :: r                                !! Result object
-    type(DataOutput)    :: output                           !! Data output class
-    type(Checkpoint)    :: checkpt                          !! Checkpoint module
-    integer             :: t, k                             !! Loop iterators
-    integer             :: tPreviousChunk = 0               !! Timestep at end of previous batch
-    integer             :: i                                !! If running to steady state, this is the iterator
-    logical             :: steadyStateReached = .false.     !! Has steady state been reached?
-    real(dp)            :: delta_max                        !! Maximum difference between the same size classes on separate runs
+    real                :: start, finish                        !! Simulation start and finish CPU times
+    integer(i64)        :: start_wall, finish_wall, clock_rate  !! Simulation start and finish wall times, and clock rate
+    type(Environment1)  :: env                                  !! Environment object
+    type(Result)        :: r                                    !! Result object
+    type(DataOutput)    :: output                               !! Data output class
+    type(Checkpoint)    :: checkpt                              !! Checkpoint module
+    integer             :: t, k                                 !! Loop iterators
+    integer             :: tPreviousChunk = 0                   !! Timestep at end of previous batch
+    integer             :: i                                    !! If running to steady state, this is the iterator
+    logical             :: steadyStateReached = .false.         !! Has steady state been reached?
+    real(dp)            :: delta_max                            !! Maximum difference between the same size classes on separate runs
 
-    ! Get the CPU time at the start of the model run
+    ! Get the CPU and wall time at the start of the model run
     call cpu_time(start)
+    call system_clock(start_wall, clock_rate)
 
     ! Set up global vars/constants and initialise the logger
     call GLOBALS_INIT()
@@ -53,10 +55,11 @@ program main
         logFilePath=C%logFilePath, &
         fileUnit=iouLog &
     )
-    ! Welcome!
+
+    ! Welcome, good to have you here!
     call printWelcome()
 
-    ! Pull in the input data
+    ! Load the input data
     call DATASET%init(C%inputFile, C%constantsFile)
 
     ! Create the Environment object and deal with any errors that arise
@@ -152,6 +155,8 @@ program main
     
     ! Timings
     call cpu_time(finish)
-    call LOGR%add("CPU time taken to run simulation (s): " // str(finish - start))
+    call system_clock(finish_wall, clock_rate)
+    call LOGR%add("CPU time taken to run simulation (s): " // trim(str(finish - start)))
+    call LOGR%add("Wall time taken to run simulation (s): " // trim(str(real(finish_wall - start_wall) / real(clock_rate))))
 
 end program

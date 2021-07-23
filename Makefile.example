@@ -9,9 +9,11 @@
 # What compiler to use? gfortran recommended
 FC = gfortran
 # Flags for debug (main) build. Caution using -O0 due to this issue: https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran
-DEBUG_FLAGS = -O1 -pg -g -Wall
+DEBUG_FLAGS = -Og -pg -g -Wall
 # Flags for release build
 RELEASE_FLAGS = -O3
+# Fast flags - use with caution. The -march flag might result in the compiled model only working on your computer
+FAST_FLAGS = -Ofast -march=native -mtune=native
 # Flags common to both builds
 COMMON_FLAGS = -ffpe-trap=zero,invalid,overflow,underflow -fcheck=all -fbackslash -fopenmp
 # Default to debug flags
@@ -22,7 +24,7 @@ EXEC_PATH = ./bin/
 # NetCDF config, assuming you have the nf-config utility installed
 NETCDF = `nf-config --fflags --flibs`
 # Config file name and path. Used when running `make run`.
-CONFIG_PATH = ./config.example/
+CONFIG_PATH = ./config/
 CONFIG_FILE = config.example.nml
 # The following variables generate a unique compilation metadata file to be placed in EXEC_PATH,
 # which includes the current Git commit, branch and compilation time
@@ -43,6 +45,8 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/datetime-fortran/mod_datetime.o \
 	vendor/datetime-fortran/mod_clock.o \
 	vendor/datetime-fortran/datetime.o \
+	vendor/spoof/sparskit.o \
+	vendor/spoof/Spoof.o \
 	src/mod_strptime.o \
 	src/DefaultsModule.o \
 	src/Globals.o \
@@ -66,7 +70,6 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/WaterBody/ReachModule.o \
 	src/RiverReachModule.o \
 	src/EstuaryReachModule.o \
-	src/classSampleSite.o \
 	src/Soil/spcSoilLayer.o \
 	src/Soil/classSoilLayer1.o \
 	src/Soil/spcSoilProfile.o \
@@ -87,6 +90,7 @@ OBJECTS = $(notdir $(OBJ))
 VPATH = vendor/feh/src \
 	vendor/mo_netcdf/src \
 	vendor/datetime-fortran/src/lib \
+	vendor/spoof \
 	src \
 	src/Data \
 	src/Logger \
@@ -107,6 +111,8 @@ $(EXEC_FILE): $(OBJECTS)
 	$(FC) -c $(FLAGS) $< $(NETCDF)
 release: FLAGS = ${RELEASE_FLAGS} ${COMMON_FLAGS}
 release: $(EXEC_FILE)
+fast: FLAGS = ${FAST_FLAGS} ${COMMON_FLAGS}
+fast: $(EXEC_FILE)
 run:
 	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 profile:

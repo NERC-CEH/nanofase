@@ -8,14 +8,20 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 - Documentation for running the model for different time periods.
 - Added `output_hash` config option. The value specified here will be appended to output file names (e.g. "output_water.csv" will become "output_water{output_hash}.csv"). Particularly useful when performing parallel model runs to avoid multiple model runs writing to the same file.
+- `make fast` target added to example Makefile, which turns on `-Ofast -march=native -mtune=native` flags. Use with caution.
 
 ### Changed
 
 - Changed "untransformed" to "pristine" in output data nomenclature, to describe NM that hasn't undergone any chemical transformation. This brings the model nomenclature in line with literature conventions.
+- ⚠️ NM transfer between bed sediment layers uses a NxN mass transfer matrix, where N is the number of sediment layers. This tends to end up quite a sparse matrix, and is the biggest bottleneck in the model. To speed things up, CSR storage is now being used for this matrix, requiring the compilation of two new files: `vendor/spoof/sparskit.f90` and `vendor/spoof/Spoof.f90`. Your Makefile might need updating. SPOOF is a new library: SParse matrices in Object-Oriented Fortran, which acts as a modern Fortran interface over the [SPARSKIT library](https://www-users.cse.umn.edu/~saad/software/SPARSKIT/) (so far only CSR and diagonal matrices, and matrix by vector multiplication, are implemented). 
 
 ### Fixed
 
 - Fixed bug where `output_soil__land_use` and `output_soil__bulk_density` attribute of `NetCDFOutput` class weren't being deallocated before being allocated between chunks in a batch run.
+
+### Removed
+
+- ️️⚠️ Removed depracated calibration method, including config file `calibrate` group. You will need to remove this from any config files to avoid errors. The `src/classSampleSite.f90` has been removed, and may need removing from your Makefile.
 
 ## [0.0.2] - 2021-05-21
 

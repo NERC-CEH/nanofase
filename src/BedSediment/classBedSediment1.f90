@@ -1,10 +1,12 @@
 !> Module containing definition of `BedSediment1`.
 module classBedSediment1
     use Globals
+    use UtilModule
     use ResultModule
     use spcBedSediment
     use classBedSedimentLayer1
     use classFineSediment1
+    use Spoof
     implicit none
     private
 
@@ -90,6 +92,10 @@ module classBedSediment1
                 end do
             end do
         end do
+        ! Convert delta_sed to CSR storage, to speed up NM transfer during simulation
+        do s = 1, C%nSizeClassesSpm
+            me%delta_sed_csr(s) = CSRMatrix(me%delta_sed(:,:,s))
+        end do
     end subroutine
     !> **Function purpose**                                         <br>
     !! Initialise a BedSediment object.
@@ -117,10 +123,12 @@ module classBedSediment1
         ! Initialise NM mass pools matrix
         allocate(me%M_np(C%nSedimentLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%C_np_byMass(C%nSedimentLayers, C%npDim(1), C%npDim(2), C%npDim(3)))
+        allocate(me%delta_sed_csr(C%nSizeClassesSpm))
         me%M_np = 0.0_dp
         me%C_np_byMass = 0.0_dp
 
-        allocate(Me%colBedSedimentLayers(C%nSedimentLayers))            ! create BedSedimentLayer collection
+        allocate(Me%colBedSedimentLayers(C%nSedimentLayers))        ! Create BedSedimentLayer collection
+        me%n_delta_sed = C%nSedimentLayers + 3                      ! The order of the delta_sed matrix
         allocate(Me%delta_sed(C%nSedimentLayers + 3, &
                               C%nSedimentLayers + 3, &
                               Me%nSizeClasses))                         ! allocate space for sediment mass transfer matrix
@@ -164,12 +172,7 @@ module classBedSediment1
         integer :: L                                                 ! LOCAL Loop iterator
         integer :: allst                                             ! LOCAL array allocation status
         character(len=18), parameter :: ms = "Deallocation error"    ! LOCAL CONSTANT error message
-        !
-        ! Notes
-        ! ----------------------------------------------------------------------------------
-        !
-        ! no notes
-        ! ----------------------------------------------------------------------------------
+
         do L = 1, C%nSedimentLayers
             call r%addErrors(.errors. &
                 Me%colBedSedimentLayers(L)%item%destroy())           ! destroy enclosed BedSedimentLayers
@@ -204,10 +207,29 @@ module classBedSediment1
         do k = 1, C%nSizeClassesSpm
             do j = 1, C%npDim(2)
                 do i = 1, C%npDim(1)
-                    me%M_np(:,i,j,k+2) = matmul(me%delta_sed(:,:,k), me%M_np(:,i,j,k+2))
-                    do l = 1, C%nSedimentLayers
-                        me%C_np_byMass(l,i,j,k+2) = divideCheckZero(me%M_np(l+2,i,j,k+2), me%Mf_bed_by_layer(l))
-                    end do
+                    ! Below are a number of different matrix multiplication methods. Generally, the fastest
+                    ! is when delta_sed is stored in CSR format, for setups with ~5 sediment layers. You may
+                    ! wish to play around with other methods if your setup typically uses fewer or more
+                    ! sediment layers. This function is generally the most computationally expensive in the model.
+                    ! If changing storage format, make sure delta_sed_dia or delta_sed_csr are initialised
+
+                    ! CSR storage implementation
+                    me%M_np(:,i,j,k+2) = me%delta_sed_csr(k)%multiply(me%M_np(:,i,j,k+2))
+                    ! Set NM concentration for all layers 
+                    me%C_np_byMass(:,i,j,k+2) = divideCheckZero(me%M_np(3:C%nSedimentLayers+2,i,j,k+2), me%Mf_bed_layer_array())
+
+                    ! Matmul implementation. Might be faster for <5 sediment layers
+                    ! me%M_np(:,i,j,k+2) = matmul(me%delta_sed(:,:,k), me%M_np(:,i,j,k+2))
+
+                    ! Diagonal storage implementation. Might be faster for >5 sediment layers,
+                    ! especially if transfers typically only between adjacent layers
+                    ! me%M_np(:,i,j,k+2) = me%delta_sed_dia(k)%multiply(me%M_np(:,i,j,k+2))
+
+                    ! OpenBLAS implementation. Might be faster for >5 sediment layers and if
+                    ! transfers across multiple layers are possible. Make sure you have OpenBLAS/BLAS
+                    ! installed and linked when compiling
+                    ! call dgemv('n', me%n_delta_sed, me%n_delta_sed, 1.0_dp, me%delta_sed(:,:,k), &
+                    !             me%n_delta_sed, me%M_np(:,i,j,k+2), 1, 0.0_dp, me%M_np(:,i,j,k+2), 1) 
                 end do
             end do
         end do
@@ -642,33 +664,6 @@ module classBedSediment1
         end do
     end function
 
-    !> **Function purpose**
-    !! initialise the matrix of mass transfer coefficients for sediment deposition and resuspension
-    !!                                                          
-    !! **Function inputs**                                      
-    !! none (uses class-level variable array delta_sed(:,:,:))
-    !!                                                          
-    !! **Function outputs/outcomes**                            
-    !! delta_sed populated with initial values, all zero except for layer(x) ->layer(y) coefficients where x=y; these are set to unity
-    ! function initialiseMatrix1(Me) result(r)
-    !     class(BedSediment1) :: Me                                    !! The `BedSediment` instance
-    !     type(Result) :: r                                            !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
-    !     character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
-    !     integer :: L                                                 ! LOCAL loop counter for sediment layers
-    !     integer :: LL                                                ! LOCAL second loop counter for sediment layers
-    !     integer :: S                                                 ! LOCAL loop counter for size classes
-    !     tr = trim(Me%name) // "%initialiseMatrix1"                   ! object and procedure binding name as trace
-    !     if (size(Me%delta_sed, 1) /= C%nSedimentLayers + 3 .or. &
-    !         size(Me%delta_sed, 2) /= C%nSedimentLayers + 3.or. &
-    !         size(Me%delta_sed, 3) /= Me%nSizeClasses) then
-    !         call r%addError(ErrorInstance(1, &
-    !                  tr // "Array size error", .true., [tr] &
-    !                                      ) &
-    !                        )                                         ! create a critical error if there is an array size issue
-    !         return
-    !     end if
-    !     me%delta_sed = 0.0_dp                                       ! Initialise to zero
-    ! end function
     !> **Function purpose**                                   
     !! 1. Report the mass of fine sediment in each layer to the console
     !! 2. report the total mass of fine sediment in the sediment to the console

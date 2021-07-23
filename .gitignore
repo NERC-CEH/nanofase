@@ -60,9 +60,10 @@ scratch/
 *.out
 *.app
 
-# Debugging
+# Debugging/profiling
 massif*
 gmon.out
+gprof
 
 # IDEs
 *.cbp

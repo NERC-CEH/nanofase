@@ -46,16 +46,6 @@ module ReachModule
         real(dp) :: n                                               !! Manning's roughness coefficient [-]
         ! Transformation properties
         real(dp) :: alpha_hetero                                    !! Heteroaggregation attachment efficiency, 0-1 [-]
-        ! TODO NetCDF group needed to pass to bed sediment. Need to deprecate this eventually to save memory
-        ! type(NcGroup) :: ncGroup
-        ! Boundary conditions for calibration
-        logical :: isBoundary = .false.                             !! Is this a sampling site for calibrating?
-        real(dp) :: boundary_C_spm                                  !! Boundary condition for C_spm
-        real(dp), allocatable :: boundary_C_spm_timeseries(:)
-        real(dp), allocatable :: boundary_Q_timeseries(:)
-        type(datetime), allocatable :: boundary_dates(:)
-        real(dp) :: boundary_Q                                      !! Boundary condition for Q
-        character(len=20) :: calibrationSiteRef                     !! Reference of the calibration site
 
       contains
         ! Data

@@ -72,14 +72,6 @@ module Globals
         integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
         real                :: minStreamSlope                   !! Minimum stream slope, imposed where calculated stream slope is less than this value [m/m]
         integer             :: minEstuaryTimestep               !! Minimum timestep (displacement) length for modelling estuarine dynamics [s]
-        
-        ! Calibration
-        logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
-        character(len=7)    :: calibrationMode                  !! What mode to run the calibration in
-        character(len=256)  :: siteData                         !! Where is the data about the sampling sites stored?
-        character(len=20)   :: startSite                        !! Where does the calibration start from?
-        character(len=20)   :: endSite                          !! Where does the calibration end?
-        character(len=20), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
 
         ! Batch run
         integer                         :: nChunks = 1          !! Numbers of chunks to run
@@ -145,34 +137,30 @@ module Globals
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
-            startDateStr, site_data, description, checkpoint_file, batch_description, simulation_mask
+            startDateStr, description, checkpoint_file, batch_description, simulation_mask
         character(len=50) :: mode
         character(len=256), allocatable :: input_files(:), constants_files(:), start_dates(:)
-        character(len=20) :: start_site, end_site
-        character(len=7) :: calibration_mode
-        character(len=20), allocatable :: other_sites(:)
         character(len=5) :: soil_pec_units, sediment_pec_units
         character(len=3) :: netcdf_write_mode
         character(len=32) :: output_hash
         integer, allocatable :: n_timesteps_per_chunk(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions, n_chunks
-        integer :: timestep, n_timesteps, n_soil_layers, n_other_sites, n_sediment_layers, min_estuary_timestep
+        integer :: timestep, n_timesteps, n_soil_layers, n_sediment_layers, min_estuary_timestep
         real :: min_stream_slope
         real(dp) :: epsilon, delta
         real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
             sediment_particle_densities(:), sediment_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
-            calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
+            write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
             preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
             write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown, &
             write_compartment_stats 
         
         ! Config file namelists
-        namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
+        namelist /allocatable_array_sizes/ n_soil_layers, n_nm_size_classes, n_spm_size_classes, &
             n_fractional_compositions, n_sediment_layers
-        namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites, calibration_mode
         namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
@@ -217,9 +205,6 @@ module Globals
         run_to_steady_state = configDefaults%runToSteadyState                   ! False
         delta = configDefaults%steadyStateDelta
         mode = configDefaults%steadyStateMode
-        calibration_run = .false.
-        calibration_mode = configDefaults%calibrationMode
-        n_other_sites = 0
         simulation_mask = ""
         min_stream_slope = configDefaults%minStreamSlope
         min_estuary_timestep = configDefaults%minEstuaryTimestep
@@ -274,13 +259,8 @@ module Globals
         allocate(nm_size_classes(n_nm_size_classes))
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(sediment_particle_densities(n_fractional_compositions))
-        allocate(other_sites(n_other_sites))
         ! Carry on reading in the different config groups
         read(iouConfig, nml=nanomaterial); rewind(iouConfig)
-        read(iouConfig, nml=calibrate, iostat=nmlIOStat); rewind(iouConfig)
-        if (nmlIOStat .ge. 0) then
-            read(iouConfig, nml=calibrate); rewind(iouConfig)
-        end if
         read(iouConfig, nml=data); rewind(iouConfig)
         read(iouConfig, nml=output); rewind(iouConfig)
         read(iouConfig, nml=run); rewind(iouConfig)
@@ -349,15 +329,6 @@ module Globals
         C%runToSteadyState = run_to_steady_state
         C%steadyStateMode = mode
         C%steadyStateDelta = delta
-        ! Calibration
-        C%calibrationRun = calibration_run
-        if (C%calibrationRun) then
-            C%calibrationMode = calibration_mode
-            C%siteData = site_data
-            C%startSite = start_site
-            C%endSite = end_site
-            C%otherSites = other_sites
-        end if
         ! Sediment
         C%sedimentLayerDepth = sediment_layer_depth
         C%nSizeClassesSpm = n_spm_size_classes

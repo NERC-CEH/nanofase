@@ -13,3 +13,6 @@
 [submodule "vendor/nanofase-data"]
 	path = vendor/nanofase-data
 	url = https://github.com/NERC-CEH/nanofase-data.git
+[submodule "vendor/spoof"]
+	path = vendor/spoof
+	url = https://github.com/samharrison7/spoof.git

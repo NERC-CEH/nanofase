@@ -16,11 +16,6 @@ n_nm_forms = 4                                          ! Number of NM forms (fr
 n_nm_extra_states = 2                                   ! Number of extra NM states, other than heteroaggregated to SPM
 / 
 
-! Run the model in calibration mode? Documentation here: [doc/calibration.md](../doc/calibration.md)
-&calibrate
-calibration_run = .false.                               ! Run in calibration mode or not? Following variables only required if this is true
-/
-
 ! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
 &data
 input_file = "data.example/thames_tio2_2015.nc"         ! Path to NetCDF input data, which includes most of the spatial and temporally resolved data
@@ -56,7 +51,6 @@ epsilon = 1e-20,                                        ! Precision for numerica
 error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
-warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
 output_hash = ""                                        ! Append all output file names with this value. Useful for parallel model runs. Max 32 characters (e.g. hex string).
 /
 

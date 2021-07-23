@@ -19,9 +19,7 @@ module RiverReachModule
         ! Simulators
         procedure :: update => updateRiverReach
         procedure :: updateDisplacement => updateDisplacementRiverReach
-        procedure :: updateCalibrationMode => updateCalibrationModeRiverReach
         procedure :: setDimensions
-        procedure :: useObservationData
         ! Data handlers
         procedure :: parseInputData => parseInputDataRiverReach
         ! Calculators
@@ -113,107 +111,97 @@ module RiverReachModule
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = me%T_water(currentDate%yearday())
 
-        ! If we're not meant to be using observation data, do the normal reach simulations
-        if (.not. me%useObservationData(currentDate)) then
             
-            ! Get the inflows from upstream water bodies
-            do i = 1, me%nInflows
-                me%obj_Q%inflow = me%obj_Q%inflow - me%inflows(i)%item%obj_Q%outflow
-                me%obj_j_SPM%inflow = me%obj_j_SPM%inflow - me%inflows(i)%item%obj_j_SPM%outflow
-                me%obj_j_NM%inflow = me%obj_j_NM%inflow - me%inflows(i)%item%obj_j_NM%outflow
-                me%obj_j_NM_transformed%inflow = me%obj_j_NM_transformed%inflow - me%inflows(i)%item%obj_j_NM_transformed%outflow
-                me%obj_j_dissolved%inflow = me%obj_j_dissolved%inflow - me%inflows(i)%item%obj_j_dissolved%outflow
-            end do
+        ! Get the inflows from upstream water bodies
+        do i = 1, me%nInflows
+            me%obj_Q%inflow = me%obj_Q%inflow - me%inflows(i)%item%obj_Q%outflow
+            me%obj_j_SPM%inflow = me%obj_j_SPM%inflow - me%inflows(i)%item%obj_j_SPM%outflow
+            me%obj_j_NM%inflow = me%obj_j_NM%inflow - me%inflows(i)%item%obj_j_NM%outflow
+            me%obj_j_NM_transformed%inflow = me%obj_j_NM_transformed%inflow - me%inflows(i)%item%obj_j_NM_transformed%outflow
+            me%obj_j_dissolved%inflow = me%obj_j_dissolved%inflow - me%inflows(i)%item%obj_j_dissolved%outflow
+        end do
 
-            ! Get the inflows from runoff and scale to this reach, then use this to set dimensions
-            me%obj_Q%runoff = q_runoff * contributingArea
-            me%Q_in_total = me%obj_Q%inflow + me%obj_Q%runoff
-            call me%setDimensions(t)
+        ! Get the inflows from runoff and scale to this reach, then use this to set dimensions
+        me%obj_Q%runoff = q_runoff * contributingArea
+        me%Q_in_total = me%obj_Q%inflow + me%obj_Q%runoff
+        call me%setDimensions(t)
 
-            ! Set the erosion yields, with includes scaling the soil erosion by sediment transport
-            ! capacity, calculating the bank ersoion, and storing these in the flow objects
-            call me%setErosionYields(j_spm_runoff, q_overland, contributingArea, j_np_runoff, j_transformed_runoff)
+        ! Set the erosion yields, with includes scaling the soil erosion by sediment transport
+        ! capacity, calculating the bank ersoion, and storing these in the flow objects
+        call me%setErosionYields(j_spm_runoff, q_overland, contributingArea, j_np_runoff, j_transformed_runoff)
 
-            ! TODO transfers and demands
+        ! TODO transfers and demands
 
-            ! Inflows from point and diffuse sources, updates the NM flow object
-            call me%updateSources(t)
+        ! Inflows from point and diffuse sources, updates the NM flow object
+        call me%updateSources(t)
 
-            ! Set the resuspension and settling rates [/s] (but don't settle until we're looping through displacements) 
-            call me%setResuspensionRate(me%Q_in_total / C%timeStep, T_water_t)
-            call me%setSettlingRate(T_water_t)
+        ! Set the resuspension and settling rates [/s] (but don't settle until we're looping through displacements) 
+        call me%setResuspensionRate(me%Q_in_total / C%timeStep, T_water_t)
+        call me%setSettlingRate(T_water_t)
 
-            ! If the total inflow for this timestep is bigger than the current reach volume, 
-            ! then we need to split into a number of time displacements
-            if (isZero(me%Q_in_total) .or. isZero(me%volume)) then
-                nDisp = 1
-            else
-                nDisp = ceiling(me%Q_in_total / me%volume)
-            end if
-            dt = C%timestep / nDisp
-            dQ = me%Q_in_total / nDisp
-            dj_SPM = (me%obj_j_SPM%inflow + me%obj_j_SPM%soilErosion + me%obj_j_SPM%bankErosion) / nDisp
-            dj_NM = (me%obj_j_NM%inflow + me%obj_j_NM%soilErosion + me%obj_j_NM%pointSources & 
-                    + me%obj_j_NM%diffuseSources) / nDisp
-            dj_NM_transformed = (me%obj_j_NM_transformed%inflow + me%obj_j_NM_transformed%soilErosion &
-                                + me%obj_j_NM_transformed%pointSources + me%obj_j_NM_transformed%diffuseSources) / nDisp
-            dj_dissolved = (me%obj_j_dissolved%inflow + me%obj_j_dissolved%pointSources &
-                         + me%obj_j_dissolved%diffuseSources) / nDisp
-
-            ! Now we can run the simulation for each time displacement, with calculates SPM and NM outflow,
-            ! deposition and resuspension, and updates the flow objects accordingly
-            do i = 1, nDisp
-                call me%updateDisplacement(t, i, dt, dQ, dj_SPM, dj_NM, dj_nm_transformed, dj_dissolved)
-            end do
-
-            ! Set the new concentrations
-            me%C_spm = divideCheckZero(me%m_spm, me%volume)
-            me%C_np = divideCheckZero(me%m_np, me%volume)
-            me%C_transformed = divideCheckZero(me%m_transformed, me%volume)
-            me%C_dissolved = divideCheckZero(me%m_dissolved, me%volume)
-
-            ! Now we pass the NM to the reactor to update
-            call rslt%addErrors([.errors. &
-                me%reactor%update( &
-                    t, &
-                    me%m_np, &
-                    me%m_transformed, &
-                    me%m_dissolved, &
-                    me%C_spm, &
-                    T_water_t, &
-                    me%W_settle_np, &
-                    me%W_settle_spm, &
-                    DATASET%shearRate, &
-                    me%volume &
-                ) &
-            ])
-            ! Get the resultant masses from the Reactor
-            me%m_np = me%reactor%m_np
-            me%m_transformed = me%reactor%m_transformed
-            me%m_dissolved = me%reactor%m_dissolved
-
-            ! Set the final concentrations based on the calculated mases [kg/m3]
-            me%C_np = divideCheckZero(me%m_np, me%volume)
-            me%C_transformed = divideCheckZero(me%m_transformed, me%volume)
-            me%C_dissolved = divideCheckZero(me%m_dissolved, me%volume)
-
-            ! Update the biota
-            do i = 1, me%nBiota
-                call rslt%addErrors(.errors. me%biota(i)%update( &
-                    t, &
-                    me%C_np, &
-                    me%C_transformed, &
-                    me%C_dissolved &
-                ))
-            end do
-        
-        ! If we're in calibration mode, updating is done by a separate routine
+        ! If the total inflow for this timestep is bigger than the current reach volume, 
+        ! then we need to split into a number of time displacements
+        if (isZero(me%Q_in_total) .or. isZero(me%volume)) then
+            nDisp = 1
         else
-            call me%updateCalibrationMode(t, q_runoff, contributingArea)
+            nDisp = ceiling(me%Q_in_total / me%volume)
         end if
+        dt = C%timestep / nDisp
+        dQ = me%Q_in_total / nDisp
+        dj_SPM = (me%obj_j_SPM%inflow + me%obj_j_SPM%soilErosion + me%obj_j_SPM%bankErosion) / nDisp
+        dj_NM = (me%obj_j_NM%inflow + me%obj_j_NM%soilErosion + me%obj_j_NM%pointSources & 
+                + me%obj_j_NM%diffuseSources) / nDisp
+        dj_NM_transformed = (me%obj_j_NM_transformed%inflow + me%obj_j_NM_transformed%soilErosion &
+                            + me%obj_j_NM_transformed%pointSources + me%obj_j_NM_transformed%diffuseSources) / nDisp
+        dj_dissolved = (me%obj_j_dissolved%inflow + me%obj_j_dissolved%pointSources &
+                        + me%obj_j_dissolved%diffuseSources) / nDisp
 
-        ! Set flag to say we've already updated this reach
-        ! me%isUpdated = .true.
+        ! Now we can run the simulation for each time displacement, with calculates SPM and NM outflow,
+        ! deposition and resuspension, and updates the flow objects accordingly
+        do i = 1, nDisp
+            call me%updateDisplacement(t, i, dt, dQ, dj_SPM, dj_NM, dj_nm_transformed, dj_dissolved)
+        end do
+
+        ! Set the new concentrations
+        me%C_spm = divideCheckZero(me%m_spm, me%volume)
+        me%C_np = divideCheckZero(me%m_np, me%volume)
+        me%C_transformed = divideCheckZero(me%m_transformed, me%volume)
+        me%C_dissolved = divideCheckZero(me%m_dissolved, me%volume)
+
+        ! Now we pass the NM to the reactor to update
+        call rslt%addErrors([.errors. &
+            me%reactor%update( &
+                t, &
+                me%m_np, &
+                me%m_transformed, &
+                me%m_dissolved, &
+                me%C_spm, &
+                T_water_t, &
+                me%W_settle_np, &
+                me%W_settle_spm, &
+                DATASET%shearRate, &
+                me%volume &
+            ) &
+        ])
+        ! Get the resultant masses from the Reactor
+        me%m_np = me%reactor%m_np
+        me%m_transformed = me%reactor%m_transformed
+        me%m_dissolved = me%reactor%m_dissolved
+
+        ! Set the final concentrations based on the calculated mases [kg/m3]
+        me%C_np = divideCheckZero(me%m_np, me%volume)
+        me%C_transformed = divideCheckZero(me%m_transformed, me%volume)
+        me%C_dissolved = divideCheckZero(me%m_dissolved, me%volume)
+
+        ! Update the biota
+        do i = 1, me%nBiota
+            call rslt%addErrors(.errors. me%biota(i)%update( &
+                t, &
+                me%C_np, &
+                me%C_transformed, &
+                me%C_dissolved &
+            ))
+        end do
 
         ! Add what we're doing here to the error trace and trigger any errors there are
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
@@ -338,48 +326,6 @@ module RiverReachModule
         call ERROR_HANDLER%trigger(errors = .errors. rslt)
     end subroutine
 
-    !> If we're in calibration mode, this is the function that is called to run each
-    !! timestep's simulation.
-    subroutine updateCalibrationModeRiverReach(me, t, q_runoff, contributingArea)
-        class(RiverReach)  :: me
-        integer             :: t                    !! The current timestep index
-        real(dp)            :: q_runoff             !! Runoff on this timestep [m/timestep]
-        real(dp)            :: contributingArea     !! Area contributing to runoff [m2]
-        integer             :: i                    ! Iterator
-
-        ! Still do the hydrology
-        do i = 1, me%nInflows
-            me%obj_Q%inflow = me%obj_Q%inflow - me%inflows(i)%item%obj_Q%outflow
-        end do
-        ! Get the inflows from runoff and scale to this reach, then use this to set dimensions
-        me%obj_Q%runoff = q_runoff * contributingArea
-        me%Q_in_total = me%obj_Q%inflow + me%obj_Q%runoff
-        me%obj_Q%outflow = -me%Q_in_total           ! We can also use this to set the outflow (which is -ve)
-        call me%setDimensions(t)
-
-        ! Set SPM conc, which is got from a different place depending on whether we're in mean
-        ! or dynamic calibration mode
-        if (trim(C%calibrationMode) == 'mean') then
-            me%C_spm = me%boundary_C_spm * me%distributionSediment
-        else if (trim(C%calibrationMode) == 'dynamic') then
-            me%C_spm = me%boundary_C_spm_timeseries(i) * me%distributionSediment
-        end if
-
-        ! Set the mass and flux based on this
-        me%m_spm = flushToZero(me%C_spm * me%volume)
-        me%obj_j_spm%outflow = me%C_spm * me%Q_in_total
-        ! We're not modelling NM, so just set these to zero
-        me%m_np = 0.0_dp
-        me%C_np = 0.0_dp
-        call me%obj_j_nm%empty()
-        me%m_transformed = 0.0_dp
-        me%C_transformed = 0.0_dp
-        call me%obj_j_nm_transformed%empty()
-        me%m_dissolved = 0.0_dp
-        me%C_dissolved = 0.0_dp
-        call me%obj_j_dissolved%empty()
-    end subroutine
-
     !> Set the dimensions (width, depth, areas, volume) of the reach
     subroutine setDimensions(me, t)
         class(RiverReach)  :: me        !! This reach
@@ -393,20 +339,6 @@ module RiverReachModule
         me%volume = me%depth*me%width*me%length*me%f_m
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
     end subroutine
-
-    !> Check if we should be using observation data for this timestep and return true if so
-    function useObservationData(me, currentDate)
-        class(RiverReach)  :: me                        !! This river reach
-        type(datetime)      :: currentDate              !! The current simulation date
-        logical             :: useObservationData       !! Should we use observation data?
-        logical             :: isDynamicObservationDate ! Are we on a date with observation date?
-        if (allocated(me%boundary_dates)) then
-            if (any(me%boundary_dates == currentDate)) then
-                isDynamicObservationDate = .true.
-            end if
-        end if
-        useObservationData = me%isBoundary .and. ((C%calibrationMode == 'mean') .or. isDynamicObservationDate)
-    end function
 
     !> Parse data from the input file for this river reach
     function parseInputDataRiverReach(me) result(rslt)

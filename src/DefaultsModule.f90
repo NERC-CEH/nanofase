@@ -11,7 +11,6 @@ module DefaultsModule
     integer, parameter :: iouBatchConfig = 2
     ! Constants file IO units
     integer, parameter :: iouConstants = 10
-    integer, parameter :: iouCalibrationSites = 11
     ! Output file IO units
     integer, parameter :: iouOutputSummary = 100
     integer, parameter :: iouOutputWater = 101
@@ -29,7 +28,6 @@ module DefaultsModule
         logical             :: runToSteadyState = .false.
         character(len=50)   :: steadyStateMode = ''
         real(dp)            :: steadyStateDelta = 1e-5
-        character(len=7)    :: calibrationMode = 'mean'
         real                :: minStreamSlope = 0.0001                  ! [m/m]
         integer             :: minEstuaryTimestep = 3600                ! 1 hour [s] 
         logical             :: writeToLog = .true.

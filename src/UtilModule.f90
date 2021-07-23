@@ -4,6 +4,11 @@ module UtilModule
     use netcdf
     implicit none
 
+    interface printMatrix
+        module procedure printMatrix2D
+        module procedure printMatrix3D
+    end interface
+
     !> Return a string from an integer or real number
     interface str
         module procedure strFromInteger
@@ -68,10 +73,10 @@ module UtilModule
         end subroutine
 
         !> Print a 3D array as a set of 2D matrices to the console
-        subroutine printMatrix(m)
-            real(dp), allocatable :: m(:,:,:)                        !! The 3D array to print
-            real(dp), allocatable :: mm(:)                           ! 1D temproary array
-            integer :: i, j                                          ! Iterators 
+        subroutine printMatrix3D(m)
+            real(dp), allocatable :: m(:,:,:)                   !! The 3D array to print
+            real(dp), allocatable :: mm(:)                      ! 1D temproary array
+            integer :: i, j                                     ! Iterators 
             allocate(mm(size(m, 2)))             
             do j = 1, size(m, 3)
                 do i = 1, size(m, 1)
@@ -79,6 +84,18 @@ module UtilModule
                     print '(25f20.15)', mm
                 end do
                 print *, ""
+            end do
+        end subroutine
+
+        !> Print a 2D array as a matrix
+        subroutine printMatrix2D(m)
+            real(dp), allocatable :: m(:,:)                     !! The 2D array to print
+            real(dp), allocatable :: mm(:)                      ! 1D temproary array
+            integer :: i                                        ! Iterator
+            allocate(mm(size(m, 2)))             
+            do i = 1, size(m, 1)
+                mm = m(i, 1:size(m, 2))
+                print '(25f20.15)', mm
             end do
         end subroutine
 
@@ -456,16 +473,13 @@ module UtilModule
             integer :: j,k
             character(len=118) :: bar="\r???% |                                          "//&
                 "                                                          |"
-             
             ! Updates the fraction of calculation done
             write(unit=bar(2:4), fmt="(i3)") j
             do k = 1, j
                 bar(7+k:7+k)="*"
             end do
-             
             ! Print the progress bar.
             write(*,'(a)', advance='no') bar
-             
         end subroutine
 
 end module
