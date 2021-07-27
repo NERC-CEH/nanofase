@@ -48,6 +48,7 @@ module Globals
         logical             :: triggerWarnings                  !! Should error warnings be printed to the console?
         logical             :: hasSimulationMask = .false.      !! Are we meant to mask the simulation (i.e. only use a subset of the input dataset)?
         character(len=256)  :: simulationMaskPath = ""          !! Path to NetCDF simulation mask
+        logical             :: ignoreNM                         !! If .true., miss out costly NM calculations. Useful for sediment calibration, NM PECs will be invalid
 
         ! Checkpointing
         character(len=256)  :: checkpointFile                   !! Path to checkpoint file, to save to and/or read from
@@ -156,7 +157,7 @@ module Globals
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
             preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
             write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown, &
-            write_compartment_stats 
+            write_compartment_stats, ignore_nm
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_nm_size_classes, n_spm_size_classes, &
@@ -168,7 +169,7 @@ module Globals
             include_soil_erosion, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats, &
             write_netcdf, netcdf_write_mode
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description, trigger_warnings, simulation_mask, write_to_log, output_hash
+            description, trigger_warnings, simulation_mask, write_to_log, output_hash, ignore_nm
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
         namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment
@@ -210,6 +211,7 @@ module Globals
         min_estuary_timestep = configDefaults%minEstuaryTimestep
         include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown
         write_compartment_stats = configDefaults%writeCompartmentStats
+        ignore_nm = configDefaults%ignoreNM
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -320,6 +322,7 @@ module Globals
             C%hasSimulationMask = .true.
             C%simulationMaskPath = simulation_mask
         end if
+        C%ignoreNM = ignore_nm
         ! Checkpointing
         C%checkpointFile = checkpoint_file
         C%saveCheckpoint = save_checkpoint
@@ -400,8 +403,6 @@ module Globals
         ! File operations
         errors(2) = ErrorInstance(code=200, message="File not found.")
         errors(3) = ErrorInstance(code=201, message="Variable not found in input file.")
-        errors(4) = ErrorInstance(code=202, message="Group not found in input file.")
-        errors(5) = ErrorInstance(code=203, message="Unknown config file option.")
         ! Numerical calculations
         errors(6) = ErrorInstance(code=300, message="Newton's method failed to converge.")
         ! Grid and geography

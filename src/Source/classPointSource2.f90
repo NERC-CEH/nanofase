@@ -56,7 +56,7 @@ module classPointSource2
         if (C%includePointSources .and. t .ge. C%warmUpPeriod) then
             ! There are only point sources to water (for the moment)
             if (trim(me%compartment) == 'water') then
-                ! Pristine
+                ! Pristine - assumed to be core (form index = 1)
                     if (.not. DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) == nf90_fill_double) then
                     me%j_np_pointSource(:,1,1) = DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) &
                         * DATASET%defaultNMSizeDistribution

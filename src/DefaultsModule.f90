@@ -45,6 +45,7 @@ module DefaultsModule
         character(len=5)    :: sedimentPECUnits = 'kg/kg'               ! Should sediment PECs be kg/kg or kg/m3?
         ! Run
         character(len=32)   :: outputHash = ''                          ! Hash to append to output file names
+        logical             :: ignoreNM = .false.                       ! If .true., costly NM calculations are missed out. Useful for sediment calibation
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults

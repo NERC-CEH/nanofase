@@ -83,16 +83,16 @@ module WaterBodyModule
         integer :: nBiota = 0
         integer, allocatable :: biotaIndices(:)
         ! Flow objects
-        type(WaterFlows) :: obj_Q
-        type(SPMFlows) :: obj_j_spm
-        type(NMFlows) :: obj_j_nm
-        type(NMFlows) :: obj_j_nm_transformed
-        type(DissolvedFlows) :: obj_j_dissolved
-        type(WaterFlows) :: obj_Q_final
-        type(SPMFlows) :: obj_j_spm_final
-        type(NMFlows) :: obj_j_nm_final
-        type(NMFlows) :: obj_j_nm_transformed_final
-        type(DissolvedFlows) :: obj_j_dissolved_final
+        type(WaterFlows) :: Q
+        type(SPMFlows) :: j_spm
+        type(NMFlows) :: j_nm
+        type(NMFlows) :: j_nm_transformed
+        type(DissolvedFlows) :: j_dissolved
+        type(WaterFlows) :: Q_final
+        type(SPMFlows) :: j_spm_final
+        type(NMFlows) :: j_nm_final
+        type(NMFlows) :: j_nm_transformed_final
+        type(DissolvedFlows) :: j_dissolved_final
       contains
         ! Create
         procedure :: create => createWaterBody
@@ -137,16 +137,16 @@ module WaterBodyModule
         allocate(me%pointSources(0))
 
         ! Initialise the flow objects
-        call me%obj_Q%init()
-        call me%obj_j_SPM%init()
-        call me%obj_j_nm%init()
-        call me%obj_j_nm_transformed%init()
-        call me%obj_j_dissolved%init()
-        call me%obj_Q_final%init()
-        call me%obj_j_spm_final%init()
-        call me%obj_j_nm_final%init()
-        call me%obj_j_nm_transformed_final%init()
-        call me%obj_j_dissolved_final%init()
+        call me%Q%init()
+        call me%j_spm%init()
+        call me%j_nm%init()
+        call me%j_nm_transformed%init()
+        call me%j_dissolved%init()
+        call me%Q_final%init()
+        call me%j_spm_final%init()
+        call me%j_nm_final%init()
+        call me%j_nm_transformed_final%init()
+        call me%j_dissolved_final%init()
     end function
 
     !> Perform creation operations that required routing and point source snapping
@@ -174,11 +174,11 @@ module WaterBodyModule
     !! every timestep
     subroutine emptyFlows(me)
         class(WaterBody1) :: me
-        call me%obj_Q%empty()
-        call me%obj_j_SPM%empty()
-        call me%obj_j_nm%empty()
-        call me%obj_j_nm_transformed%empty()
-        call me%obj_j_dissolved%empty() 
+        call me%Q%empty()
+        call me%j_spm%empty()
+        call me%j_nm%empty()
+        call me%j_nm_transformed%empty()
+        call me%j_dissolved%empty() 
     end subroutine
 
     !> Allocate memory for arrays generic to any water body. Individual water bodies
@@ -243,11 +243,11 @@ module WaterBodyModule
     !! water bodies such that the avoid using the wrong timestep's values, in particular as inflows.
     subroutine finaliseUpdate(me)
         class(WaterBody1) :: me
-        me%obj_Q_final = me%obj_Q
-        me%obj_j_spm_final = me%obj_j_spm
-        me%obj_j_nm_final = me%obj_j_nm
-        me%obj_j_nm_transformed_final = me%obj_j_nm_transformed
-        me%obj_j_dissolved = me%obj_j_dissolved
+        me%Q_final = me%Q
+        me%j_spm_final = me%j_spm
+        me%j_nm_final = me%j_nm
+        me%j_nm_transformed_final = me%j_nm_transformed
+        me%j_dissolved = me%j_dissolved
         me%C_spm_final = me%C_spm
         me%C_np_final = me%C_np
         me%C_transformed_final = me%C_transformed

@@ -186,13 +186,13 @@ module DataOutputModule
                             trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
                             trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
                             trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
-                            trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
-                            trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
-                            trim(str(sum(reach%obj_j_nm%resuspension))) // "," // &
-                            trim(str(sum(reach%obj_j_nm_transformed%resuspension))) // "," // &
-                            trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
-                            trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
-                            trim(str(reach%obj_j_dissolved%outflow)) // "," // &
+                            trim(str(sum(reach%j_nm%deposition))) // "," // &
+                            trim(str(sum(reach%j_nm_transformed%deposition))) // "," // &
+                            trim(str(sum(reach%j_nm%resuspension))) // "," // &
+                            trim(str(sum(reach%j_nm_transformed%resuspension))) // "," // &
+                            trim(str(sum(reach%j_nm%outflow))) // "," // &
+                            trim(str(sum(reach%j_nm_transformed%outflow))) // "," // &
+                            trim(str(reach%j_dissolved%outflow)) // "," // &
                             trim(str(sum(reach%m_spm))) // "," // &
                             trim(str(sum(reach%C_spm))) // ","
                         if (C%includeSpmSizeClassBreakdown) then
@@ -200,14 +200,14 @@ module DataOutputModule
                                 trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
                         end if
                         if (C%includeSedimentFluxes) then
-                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%j_spm%soilErosion))) // "," // &
+                                trim(str(sum(reach%j_spm%deposition))) // "," // &
+                                trim(str(sum(reach%j_spm%resuspension))) // "," // &
+                                trim(str(sum(reach%j_spm%inflow))) // "," // trim(str(sum(reach%j_spm%outflow))) // "," // &
+                                trim(str(sum(reach%j_spm%bankErosion))) // ","
                         end if
                         write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
-                            trim(str(reach%obj_Q%outflow / C%timeStep))
+                            trim(str(reach%Q%outflow / C%timeStep))
                     end associate
                 end do
             else

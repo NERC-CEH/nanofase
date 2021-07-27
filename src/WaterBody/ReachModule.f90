@@ -153,8 +153,8 @@ module ReachModule
         ! real(dp), allocatable :: tmp_j(:,:,:,:)
         ! real(dp), allocatable :: tmp_j_dissolved(:)
         ! NM
-        ! call move_alloc(me%obj_j_nm, tmp_j_nm)
-        ! allocate(me%obj_j_nm(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
+        ! call move_alloc(me%j_nm, tmp_j_nm)
+        ! allocate(me%j_nm(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
         !     C%npDim(1), C%npDim(2), C%npDim(3)))
         ! me%j_np = 0.0_dp
         ! me%j_np(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:)         ! Only copy over stuff that isn't sources, as those will be changed anyway
@@ -274,19 +274,19 @@ module ReachModule
         ! Diffuse sources converted from kg/m2/timestep to kg/reach/timestep
         do i = 1, me%nDiffuseSources
             call me%diffuseSources(i)%update(t)
-            me%obj_j_NM%diffuseSources = me%obj_j_NM%diffuseSources + me%diffuseSources(i)%j_np_diffuseSource * me%surfaceArea
-            me%obj_j_nm_transformed%diffuseSources = me%obj_j_nm_transformed%diffuseSources &
+            me%j_nm%diffuseSources = me%j_nm%diffuseSources + me%diffuseSources(i)%j_np_diffuseSource * me%surfaceArea
+            me%j_nm_transformed%diffuseSources = me%j_nm_transformed%diffuseSources &
                                                      + me%diffuseSources(i)%j_transformed_diffuseSource * me%surfaceArea
-            me%obj_j_dissolved%diffuseSources = me%obj_j_dissolved%diffuseSources &
+            me%j_dissolved%diffuseSources = me%j_dissolved%diffuseSources &
                                                 + me%diffuseSources(i)%j_dissolved_diffuseSource * me%surfaceArea
         end do
         ! Point sources are kg/point
         do i = 1, me%nPointSources
             call me%pointSources(i)%update(t)
-            me%obj_j_nm%pointSources = me%obj_j_NM%pointSources + me%pointSources(i)%j_np_pointSource
-            me%obj_j_nm_transformed%pointSources = me%obj_j_nm_transformed%pointSources &
+            me%j_nm%pointSources = me%j_nm%pointSources + me%pointSources(i)%j_np_pointSource
+            me%j_nm_transformed%pointSources = me%j_nm_transformed%pointSources &
                                                  + me%pointSources(i)%j_transformed_pointSource
-            me%obj_j_dissolved%pointSources = me%obj_j_dissolved%pointSources &
+            me%j_dissolved%pointSources = me%j_dissolved%pointSources &
                                             + me%pointSources(i)%j_dissolved_pointSource
         end do 
     end subroutine
@@ -303,13 +303,13 @@ module ReachModule
         real(dp) :: ratio                                   ! Ratio of unscaled to scaled, to scale NM by
         ! We need to use the sediment transport capacity to scale eroded sediment. Sediment transport
         ! capacity is stored in me%sedimentTransportCapacity and has units of kg/m2/timestep
-        me%obj_j_SPM%soilErosion = me%scaleErosionBySedimentTransportCapacity(soilErosionYield, q_overland, contributingArea)
-        ratio = divideCheckZero(sum(me%obj_j_SPM%soilErosion), sum(soilErosionYield))
-        me%obj_j_NM%soilErosion = flushToZero(ratio * NMYield)
-        me%obj_j_nm_transformed%soilErosion = flushToZero(ratio * NMTransformedYield)
+        me%j_spm%soilErosion = me%scaleErosionBySedimentTransportCapacity(soilErosionYield, q_overland, contributingArea)
+        ratio = divideCheckZero(sum(me%j_spm%soilErosion), sum(soilErosionYield))
+        me%j_nm%soilErosion = flushToZero(ratio * NMYield)
+        me%j_nm_transformed%soilErosion = flushToZero(ratio * NMTransformedYield)
         ! TODO transformed and dissolved
         ! Calculate bank erosion based on the flow and use the sediment distribution to split
-        me%obj_j_SPM%bankErosion = me%calculateBankErosionRate( &
+        me%j_spm%bankErosion = me%calculateBankErosionRate( &
             ! abs(divideCheckZero(me%Q_in_total, C%timeStep)), &
             abs(me%Q_in_total), &
             DATASET%bankErosionAlpha(me%x, me%y), &
@@ -583,172 +583,172 @@ module ReachModule
     function Q_outflow_finalReach(me) result(Q_outflow_final)
         class(Reach1) :: me
         real(dp) :: Q_outflow_final
-        Q_outflow_final = me%obj_Q_final%outflow
+        Q_outflow_final = me%Q_final%outflow
     end function
 
     !> Return the SPM discahrge.
     function j_spm_outflow_finalReach(me) result(j_spm_outflow_final)
         class(Reach1) :: me
         real(dp) :: j_spm_outflow_final(C%nSizeClassesSpm)
-        j_spm_outflow_final = me%obj_j_spm_final%outflow
+        j_spm_outflow_final = me%j_spm_final%outflow
     end function
 
     !> Return the SPM discahrge.
     function j_np_outflow_finalReach(me) result(j_np_outflow_final)
         class(Reach1) :: me
         real(dp) :: j_np_outflow_final(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_outflow_final = me%obj_j_nm_final%outflow
+        j_np_outflow_final = me%j_nm_final%outflow
     end function
 
     function Q_outflow(me)
         class(Reach1) :: me
         real(dp) :: Q_outflow
-        Q_outflow = me%obj_Q%outflow
+        Q_outflow = me%Q%outflow
     end function
 
     function Q_inflows(me)
         class(Reach1) :: me
         real(dp) :: Q_inflows
-        Q_inflows = me%obj_Q%inflow
+        Q_inflows = me%Q%inflow
     end function
 
     function Q_runoff(me)
         class(Reach1) :: me
         real(dp) :: Q_runoff
-        Q_runoff = me%obj_Q%runoff
+        Q_runoff = me%Q%runoff
     end function
 
     function Q_transfers(me)
         class(Reach1) :: me
         real(dp) :: Q_transfers
-        Q_transfers = me%obj_Q%transfers
+        Q_transfers = me%Q%transfers
     end function
 
     function j_spm_outflow(me)
         class(Reach1) :: me
         real(dp) :: j_spm_outflow(C%nSizeClassesSpm)
-        j_spm_outflow = me%obj_j_spm%outflow
+        j_spm_outflow = me%j_spm%outflow
     end function
 
     function j_spm_inflows(me)
         class(Reach1) :: me
         real(dp) :: j_spm_inflows(C%nSizeClassesSpm)
-        j_spm_inflows = me%obj_j_spm%inflow
+        j_spm_inflows = me%j_spm%inflow
     end function
 
     function j_spm_runoff(me)
         class(Reach1) :: me
         real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
-        j_spm_runoff = me%obj_j_spm%soilErosion
+        j_spm_runoff = me%j_spm%soilErosion
     end function
 
     function j_spm_transfers(me)
         class(Reach1) :: me
         real(dp) :: j_spm_transfers(C%nSizeClassesSpm)
-        j_spm_transfers = me%obj_j_spm%transfers
+        j_spm_transfers = me%j_spm%transfers
     end function
 
     function j_spm_deposit(me)
         class(Reach1) :: me
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
-        j_spm_deposit = me%obj_j_spm%deposition + me%obj_j_spm%resuspension
+        j_spm_deposit = me%j_spm%deposition + me%j_spm%resuspension
     end function
 
     !> Get the outflow from NM flux array
     function j_np_outflow(me)
         class(Reach1) :: me
         real(dp) :: j_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_outflow = me%obj_j_nm%outflow
+        j_np_outflow = me%j_nm%outflow
     end function
 
     !> Get the inflowing NM from NM flux array
     function j_np_inflows(me)
         class(Reach1) :: me
         real(dp) :: j_np_inflows(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_inflows = me%obj_j_nm%inflow
+        j_np_inflows = me%j_nm%inflow
     end function
 
     !> Get the total runoff from NM flux array
     function j_np_runoff(me)
         class(Reach1) :: me
         real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_runoff = me%obj_j_nm%soilErosion 
+        j_np_runoff = me%j_nm%soilErosion 
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
     function j_np_transfer(me)
         class(Reach1) :: me
         real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_transfer = me%obj_j_nm%transfers
+        j_np_transfer = me%j_nm%transfers
     end function
 
     !> Get the total deposited NM (settling + resus) from NM flux array
     function j_np_deposit(me)
         class(Reach1) :: me
         real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_deposit = me%obj_j_nm%deposition + me%obj_j_nm%resuspension
+        j_np_deposit = me%j_nm%deposition + me%j_nm%resuspension
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
     function j_np_diffusesource(me)
         class(Reach1) :: me
         real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_diffuseSource = me%obj_j_nm%diffuseSources
+        j_np_diffuseSource = me%j_nm%diffuseSources
     end function
 
     !> Get the total point source fluxes from NM flux array
     function j_np_pointsource(me)
         class(Reach1) :: me
         real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_pointSource = me%obj_j_nm%pointSources
+        j_np_pointSource = me%j_nm%pointSources
     end function
 
     !> Get the outflow from transformed flux array
     function j_transformed_outflow(me)
         class(Reach1) :: me
         real(dp) :: j_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_outflow = me%obj_j_nm_transformed%outflow
+        j_transformed_outflow = me%j_nm_transformed%outflow
     end function
 
     function j_transformed_deposit(me)
         class(Reach1) :: me
         real(dp) :: j_transformed_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_deposit = me%obj_j_nm_transformed%deposition + me%obj_j_nm_transformed%resuspension
+        j_transformed_deposit = me%j_nm_transformed%deposition + me%j_nm_transformed%resuspension
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
     function j_transformed_diffusesource(me)
         class(Reach1) :: me
         real(dp) :: j_transformed_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_diffusesource = me%obj_j_nm_transformed%diffuseSources
+        j_transformed_diffusesource = me%j_nm_transformed%diffuseSources
     end function
 
     !> Get the total point source fluxes from NM flux array
     function j_transformed_pointsource(me)
         class(Reach1) :: me
         real(dp) :: j_transformed_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_pointSource = me%obj_j_nm_transformed%pointSources
+        j_transformed_pointSource = me%j_nm_transformed%pointSources
     end function
 
     !> Get the outflow from dissolved flux array
     function j_dissolved_outflow(me)
         class(Reach1) :: me
         real(dp) :: j_dissolved_outflow
-        j_dissolved_outflow = me%obj_j_dissolved%outflow
+        j_dissolved_outflow = me%j_dissolved%outflow
     end function
 
     !> Get the total diffuse source fluxes from NM flux array
     function j_dissolved_diffusesource(me)
         class(Reach1) :: me
         real(dp) :: j_dissolved_diffusesource
-        j_dissolved_diffusesource = me%obj_j_dissolved%diffuseSources
+        j_dissolved_diffusesource = me%j_dissolved%diffuseSources
     end function
 
     !> Get the total point source fluxes from NM flux array
     function j_dissolved_pointsource(me)
         class(Reach1) :: me
         real(dp) :: j_dissolved_pointsource
-        j_dissolved_pointSource = me%obj_j_dissolved%pointSources
+        j_dissolved_pointSource = me%j_dissolved%pointSources
     end function
 
 !-------------!

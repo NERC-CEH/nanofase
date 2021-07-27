@@ -477,7 +477,7 @@ module classGridCell2
         ! Loop through the reaches and sum up the outflow from those that are a grid cell outflow
         do i = 1, me%nReaches
             if (me%colRiverReaches(i)%item%isGridCellOutflow) then
-                Q_outflow = Q_outflow + me%colRiverReaches(i)%item%obj_Q%outflow
+                Q_outflow = Q_outflow + me%colRiverReaches(i)%item%Q%outflow
             end if
         end do
     end function
@@ -491,7 +491,7 @@ module classGridCell2
         ! Loop through reaches and sum the SPM outflow for the grid cell outflows
         do i = 1, me%nReaches
             if (me%colRiverReaches(i)%item%isGridCellOutflow) then
-                j_spm_outflow = j_spm_outflow + me%colRiverReaches(i)%item%obj_Q%outflow
+                j_spm_outflow = j_spm_outflow + me%colRiverReaches(i)%item%Q%outflow
             end if
         end do
     end function
@@ -517,7 +517,7 @@ module classGridCell2
         ! Loop through the inflows and sum the inflowing SPM
         do i = 1, me%nReaches
             if (me%colRiverReaches(i)%item%isGridCellInflow) then
-                j_spm_inflow = j_spm_inflow + me%colRiverReaches(i)%item%obj_Q%inflow
+                j_spm_inflow = j_spm_inflow + me%colRiverReaches(i)%item%Q%inflow
             end if
         end do
     end function
@@ -532,7 +532,7 @@ module classGridCell2
         j_spm_soilErosion = 0.0_dp
         ! Loop through water bodies and sum the eroded soil
         do i = 1, me%nReaches
-            j_spm_soilErosion = j_spm_soilErosion + me%colRiverReaches(i)%item%obj_j_spm%soilErosion
+            j_spm_soilErosion = j_spm_soilErosion + me%colRiverReaches(i)%item%j_spm%soilErosion
         end do
     end function
 
@@ -544,7 +544,7 @@ module classGridCell2
         j_spm_bankErosion = 0.0_dp
         ! Loop through water bodies and sum the bank erosion
         do i = 1, me%nReaches
-            j_spm_bankErosion = j_spm_bankErosion + me%colRiverReaches(i)%item%obj_j_spm%bankErosion
+            j_spm_bankErosion = j_spm_bankErosion + me%colRiverReaches(i)%item%j_spm%bankErosion
         end do
     end function
 
@@ -556,7 +556,7 @@ module classGridCell2
         j_spm_deposition = 0.0_dp
         ! Loop through water bodies and sum the deposited SPM 
         do i = 1, me%nReaches
-            j_spm_deposition = j_spm_deposition + me%colRiverReaches(i)%item%obj_j_spm%deposition
+            j_spm_deposition = j_spm_deposition + me%colRiverReaches(i)%item%j_spm%deposition
         end do
     end function
 
@@ -568,7 +568,7 @@ module classGridCell2
         j_spm_resuspension = 0.0_dp
         ! Loop through water bodies and sum the resuspended SPM 
         do i = 1, me%nReaches
-            j_spm_resuspension = j_spm_resuspension + me%colRiverReaches(i)%item%obj_j_spm%resuspension
+            j_spm_resuspension = j_spm_resuspension + me%colRiverReaches(i)%item%j_spm%resuspension
         end do
     end function
 
@@ -886,7 +886,7 @@ module classGridCell2
         j_nm_deposition = 0.0_dp
         ! Loop over the water bodies and sum up the deposited NM 
         do i = 1, me%nReaches
-            j_nm_deposition = j_nm_deposition + me%colRiverReaches(i)%item%obj_j_nm%deposition
+            j_nm_deposition = j_nm_deposition + me%colRiverReaches(i)%item%j_nm%deposition
         end do
     end function
 
@@ -899,7 +899,7 @@ module classGridCell2
         j_transformed_deposition = 0.0_dp
         ! Loop over the water bodies and sum up the deposited transformed NM 
         do i = 1, me%nReaches
-            j_transformed_deposition = j_transformed_deposition + me%colRiverReaches(i)%item%obj_j_nm_transformed%deposition
+            j_transformed_deposition = j_transformed_deposition + me%colRiverReaches(i)%item%j_nm_transformed%deposition
         end do
     end function
 
@@ -912,7 +912,7 @@ module classGridCell2
         j_nm_resuspension = 0.0_dp
         ! Loop over the water bodies in this cell sum the resuspended NM 
         do i = 1, me%nReaches
-            j_nm_resuspension = j_nm_resuspension + me%colRiverReaches(i)%item%obj_j_nm%resuspension
+            j_nm_resuspension = j_nm_resuspension + me%colRiverReaches(i)%item%j_nm%resuspension
         end do
     end function
 
@@ -925,7 +925,7 @@ module classGridCell2
         j_transformed_resuspension = 0.0_dp
         ! Loop over the water bodies in this cell sum the resuspended transformed NM 
         do i = 1, me%nReaches
-            j_transformed_resuspension = j_transformed_resuspension + me%colRiverReaches(i)%item%obj_j_nm_transformed%resuspension
+            j_transformed_resuspension = j_transformed_resuspension + me%colRiverReaches(i)%item%j_nm_transformed%resuspension
         end do
     end function
 
@@ -940,7 +940,7 @@ module classGridCell2
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
                 if (reach%isGridCellOutflow) then
-                    j_nm_outflow = j_nm_outflow + reach%obj_j_nm%outflow
+                    j_nm_outflow = j_nm_outflow + reach%j_nm%outflow
                 end if
             end associate
         end do
@@ -957,7 +957,7 @@ module classGridCell2
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
                 if (reach%isGridCellOutflow) then
-                    j_transformed_outflow = j_transformed_outflow + reach%obj_j_nm_transformed%outflow
+                    j_transformed_outflow = j_transformed_outflow + reach%j_nm_transformed%outflow
                 end if
             end associate
         end do
@@ -973,7 +973,7 @@ module classGridCell2
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
                 if (reach%isGridCellOutflow) then
-                    j_dissolved_outflow = j_dissolved_outflow + reach%obj_j_dissolved%outflow
+                    j_dissolved_outflow = j_dissolved_outflow + reach%j_dissolved%outflow
                 end if
             end associate
         end do

@@ -1136,14 +1136,22 @@ module classDatabase
         end if
         if (any(me%resuspensionAlpha < 0.0_dp)) then
             call rslt%addError(ErrorInstance( &
-                message="Value provided from resuspension_alpha must be greater than or equal to zero. " // &
+                message="Value provided for resuspension_alpha must be greater than or equal to zero. " // &
                     "At least one value provided is less than zero." &
             ))
         end if
         if (any(me%resuspensionBeta < 0.0_dp)) then
             call rslt%addError(ErrorInstance( &
-                message="Value provided from resuspension_beta must be greater than or equal to zero. " // &
+                message="Value provided for resuspension_beta must be greater than or equal to zero. " // &
                     "At least one value provided is less than zero." &
+            ))
+        end if
+
+        ! Does sediment fractional composition sum to unity?
+        if (.not. isZero(1.0_dp - sum(me%sedimentFractionalComposition))) then
+            call rslt%addError(ErrorInstance( &
+                message="Values provided for fractional_composition_distribution must sum to unity. " // &
+                    "Value found: " // str(sum(me%sedimentFractionalComposition)) &
             ))
         end if
     end function

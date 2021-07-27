@@ -3,7 +3,7 @@
     n_default_nm_size_distribution = 5
     n_default_spm_size_distribution = 5
     n_estuary_mouth_coords = 2
-    n_fractional_composition_distribution = 4
+    n_fractional_composition_distribution = 2
     n_initial_mass = 5
     n_porosity = 4
     n_spm_density_by_size_class = 5
@@ -29,7 +29,7 @@
 &sediment
     default_matrixembedded_distribution_to_spm = 20, 20, 20, 20, 20
     default_spm_size_distribution = 50, 30, 10, 7, 3
-    fractional_composition_distribution = 0.3, 0.3, 0.3, 0.1
+    fractional_composition_distribution = 0.5, 0.5
     initial_mass = 0.00863, 0.019537, 0.323944, 0.323944, 0.323944
     porosity = 0.8, 0.6, 0.4, 0.2
     spm_density_by_size_class = 1700, 2600, 2600, 1700, 1300

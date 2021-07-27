@@ -53,20 +53,13 @@ module classReactor1
         ! States: 1. free, 2. bound to solid, 3+ heteroaggreated (per SPM size class). 
         ! Forms: 1. core, 2. shell, 3. coating, 4. corona.
         allocate(me%m_np( &
-            C%nSizeClassesNM, &             ! Number of NP size classes
-            4, &                            ! Number of different forms
-            C%nSizeClassesSpm + 2 &         ! Number of different states
+            C%npDim(1), &         ! Number of NM size classes
+            C%npDim(2), &         ! Number of different forms
+            C%npDim(3)  &         ! Number of different states
         ))
+        ! Same from transformed NM
         allocate(me%m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)))
 
-        ! Set the mass of individual particles (used for converting between
-        ! particle concentrations and masses)
-        ! TODO: Maybe set NP individual masses in globals?? Actually, don't think it's needed...
-        !do n = 1, C%nSizeClassesNM
-        !    me%individualNPMass(n) = me%rho_np * (4/3)*C%pi*(C%d_spm(n)/2)**3
-        !end do
-        
-        
     end function
     
     !> Run the `Reactor`'s simulation for the current time step
@@ -122,7 +115,6 @@ module classReactor1
     !> Perform the heteroaggregation calculation for this time step
     function heteroaggregationReactor1(me) result(r)
         class(Reactor1) :: me                               !! This `Reactor1` instance
-        !real(dp) :: beta(4,C%nSizeClassesSpm + 2) 
         type(Result) :: r                                   !! The `Result` object to return any errors in
         real(dp) :: k_coll(C%nSizeClassesNM,C%nSizeClassesSpm)  ! Collision frequency [s-1]
         integer :: s, n                                     ! Iterators for NM and SPM size classes
@@ -161,10 +153,10 @@ module classReactor1
             
             ! Transformed NM
             dm_hetero = min(sum(me%k_hetero(n,:))*C%timeStep*me%m_transformed(n,1,1), me%m_transformed(n,1,1))
-            me%m_transformed(n,1,1) = me%m_transformed(n,1,1) - dm_hetero             ! Remove heteroaggregated mass from free NPs
+            me%m_transformed(n,1,1) = me%m_transformed(n,1,1) - dm_hetero               ! Remove heteroaggregated mass from free NPs
             do s = 1, C%nSizeClassesSpm
                 if (.not. isZero(me%k_hetero(n,s))) then
-                    dm_hetero = dm_hetero*(me%k_hetero(n,s)/sum(me%k_hetero(n,:)))  ! Fraction of heteroaggregated mass to add to this SPM size class
+                    dm_hetero = dm_hetero*(me%k_hetero(n,s)/sum(me%k_hetero(n,:)))      ! Fraction of heteroaggregated mass to add to this SPM size class
                     me%m_transformed(n,1,s+2) = me%m_transformed(n,1,s+2) + dm_hetero
                 else
                     dm_hetero = 0.0_dp
