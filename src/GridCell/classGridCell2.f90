@@ -235,13 +235,14 @@ module classGridCell2
     end function
 
     !> Perform the simulations required for an individual time step
-    subroutine updateGridCell2(me, t)
-        class(GridCell2) :: me                                  !! The `GridCell` instance
-        integer :: t                                            !! The timestep we're on
-        type(Result) :: r                                       ! `Result` object
-        integer :: i                                            ! Iterator
-        real(dp) :: j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: j_dissolved_diffuseSource
+    subroutine updateGridCell2(me, t, isWarmUp)
+        class(GridCell2) :: me              !! The `GridCell` instance
+        integer         :: t                !! The timestep we're on
+        logical         :: isWarmUp         !! Are we in a warm up period?
+        type(Result)    :: r                ! `Result` object
+        integer         :: i                ! Iterator
+        real(dp)        :: j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp)        :: j_dissolved_diffuseSource
 
         ! Check that the GridCell is not empty before simulating anything
         if (.not. me%isEmpty) then
@@ -251,12 +252,15 @@ module classGridCell2
             j_transformed_diffuseSource = 0.0_dp
             j_dissolved_diffuseSource = 0.0_dp
 
-            do i = 1, size(me%diffuseSources)
-                call me%diffuseSources(i)%update(t)
-                me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
-                j_transformed_diffuseSource = j_transformed_diffuseSource + me%diffuseSources(i)%j_transformed_diffuseSource
-                j_dissolved_diffuseSource = j_dissolved_diffuseSource + me%diffuseSources(i)%j_dissolved_diffuseSource
-            end do
+            ! Only input NM if we're not in a warm up period
+            if (.not. isWarmUp) then
+                do i = 1, size(me%diffuseSources)
+                    call me%diffuseSources(i)%update(t)
+                    me%j_np_diffuseSource = me%j_np_diffuseSource + me%diffuseSources(i)%j_np_diffuseSource     ! [kg/m2/timestep]
+                    j_transformed_diffuseSource = j_transformed_diffuseSource + me%diffuseSources(i)%j_transformed_diffuseSource
+                    j_dissolved_diffuseSource = j_dissolved_diffuseSource + me%diffuseSources(i)%j_dissolved_diffuseSource
+                end do
+            end if
 
             ! Demands and transfers
             call r%addErrors([ &

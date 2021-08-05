@@ -81,6 +81,19 @@ program main
         call checkpt%reinstate(preserve_timestep=C%preserveTimestep)
     end if
 
+    ! Check if we've been asked to run a warm up period, which runs the first N timesteps' worth
+    ! of data, excluding NM inputs, through the model, where N is specified by C%warmUpPeriod
+    if (C%warmUpPeriod > 0) then
+        ! Log some info about it
+        call LOGR%add("Running for warm up period of " // trim(str(C%warmUpPeriod)) // " time steps", "lightblue")
+        ! Run the model with the warmUp flag
+        do t = 1, C%warmUpPeriod
+            call env%update(t, t, .true.)
+        end do
+        ! Log that we're finished warming up and on to the real model
+        call LOGR%add("Finished warm up period", "lightblue")
+    end if
+
     ! Loop until steady state is reached, if we're in run to steady state mode. Otherwise, we'll
     ! trip out of this loop after the first iteration
     i = 1
@@ -88,8 +101,7 @@ program main
 
         ! If we're running to steady state, log some info about it
         if (C%runToSteadyState) then
-            call LOGR%toFile("Model iteration #" // trim(str(i)))
-            call LOGR%toConsole("\x1B[94mModel iteration #" // trim(str(i)) // "\x1B[0m")
+            call LOGR%add("Model iteration #" // trim(str(i)), "lightblue")
         end if
 
         ! Loop through each chunk in the batch run. There will only be one if this isn't a batch run
@@ -105,7 +117,7 @@ program main
             ! the fact we might be in a batch run and so the timestep within the chunk, t, can be used
             do t = 1, C%nTimeSteps
                 ! Update the environment for this timestep, which in turn updates all compartments
-                call env%update(t, t + tPreviousChunk)
+                call env%update(t, t + tPreviousChunk, .false.)
                 ! Check for any errors returned from updated, and log/trigger them
                 call LOGR%toFile(errors=.errors.r)
                 call ERROR_HANDLER%trigger(errors=.errors.r)
@@ -130,9 +142,8 @@ program main
                 ! Check if we've met the criteria set in config to have reached steady state
                 if (delta_max <= C%steadyStateDelta) then
                     steadyStateReached = .true.
-                    call LOGR%toFile("Steady state reached after " // trim(str(i)) // " " // trim(pluralize("iteration", i)))
-                    call LOGR%toConsole("\x1B[94mSteady state reached after " // trim(str(i)) // &
-                                        " " // trim(pluralize("iteration", i)) // "\x1B[0m")
+                    call LOGR%add("Steady state reached after " // trim(str(i)) // " " // &
+                                  trim(pluralize("iteration", i)), "lightblue")
                 end if
                 ! Increment the iterator to the next model run
                 i = i + 1
@@ -149,14 +160,16 @@ program main
         call checkpt%save(tPreviousChunk)
     end if
 
-    ! Write the simulation summary to file and close output data files. Pass the steady state
-    ! iterator in to give number of iterations until steady state
+    ! Write the simulation summary to file, close output data files and report that it was a successful
+    ! model run. Pass the steady state iterator in to give number of iterations until steady state
     call output%finalise(i-1)
+    call LOGR%add("Model run completeled successfully", "green")
     
     ! Timings
     call cpu_time(finish)
     call system_clock(finish_wall, clock_rate)
-    call LOGR%add("CPU time taken to run simulation (s): " // trim(str(finish - start)))
-    call LOGR%add("Wall time taken to run simulation (s): " // trim(str(real(finish_wall - start_wall) / real(clock_rate))))
+    call LOGR%add("CPU time taken to run simulation (s): " // trim(str(finish - start)), "yellow")
+    call LOGR%add("Wall time taken to run simulation (s): " // &
+                  trim(str(real(finish_wall - start_wall) / real(clock_rate))), "yellow")
 
 end program

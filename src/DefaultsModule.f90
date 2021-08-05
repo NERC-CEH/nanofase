@@ -31,6 +31,8 @@ module DefaultsModule
         real                :: minStreamSlope = 0.0001                  ! [m/m]
         integer             :: minEstuaryTimestep = 3600                ! 1 hour [s] 
         logical             :: writeToLog = .true.
+        integer             :: warmUpPeriod = 0                         ! How many time steps to warm the model up for
+        logical             :: bashColors = .true.                      ! Should we print colored output to the console?
         ! Output
         logical             :: writeCSV = .true.                        ! Should output data be written to CSV files?
         logical             :: writeNetCDF = .false.                    ! Should output data be written to NetCDF?
@@ -46,6 +48,8 @@ module DefaultsModule
         ! Run
         character(len=32)   :: outputHash = ''                          ! Hash to append to output file names
         logical             :: ignoreNM = .false.                       ! If .true., costly NM calculations are missed out. Useful for sediment calibation
+        ! Water
+        logical             :: includeEstuary = .true.                  ! Should we model estuaries, or treat them as rivers?
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults

@@ -146,11 +146,12 @@ module classEnvironment1
     end function
 
     !> Perform simulations for the `Environment`
-    subroutine updateEnvironment1(me, t, tInBatch)
+    subroutine updateEnvironment1(me, t, tInBatch, isWarmUp)
         use omp_lib
         class(Environment1), target :: me                           !! This `Environment` instance
         integer                     :: t                            !! Current time step
         integer                     :: tInBatch                     !! Current time step in full batch run
+        logical                     :: isWarmUp                     !! Are we in a warm up period?
         integer                     :: i, x, y                      ! Iterators
         type(datetime)              :: currentDate                  ! Current simulation date
         real(dp), allocatable       :: tmp_C_np(:,:,:,:)            ! Temporary array
@@ -158,15 +159,19 @@ module classEnvironment1
         
         ! Get the current date and log it
         currentDate = C%startDate + timedelta(t-1)
-        call LOGR%add("Performing simulation for " // trim(currentDate%strftime('%Y-%m-%d')) // &
-                      " (time step #" // trim(str(tInBatch)) // ")...")
+        if (isWarmUp) then
+            call LOGR%add("Warm up period (time step #" // trim(str(tInBatch)) // ")...")
+        else
+            call LOGR%add("Performing simulation for " // trim(currentDate%strftime('%Y-%m-%d')) // &
+                        " (time step #" // trim(str(tInBatch)) // ")...")
+        end if
         
         !!$omp parallel do private(y,x)
         do y = 1, DATASET%gridShape(2)
             do x = 1, DATASET%gridShape(1)
                 ! Only update if this cell isn't masked
                 if (DATASET%simulationMask(x,y)) then
-                    call me%colGridCells(x,y)%item%update(t)
+                    call me%colGridCells(x,y)%item%update(t, isWarmUp)
                 end if
             end do
         end do
@@ -174,7 +179,7 @@ module classEnvironment1
         
         ! Loop through the routed reaches array (which is in the correct order) and update each reach
         do i = 1, me%nWaterbodies
-           call me%updateReach(t, me%routedReaches(i))
+           call me%updateReach(t, me%routedReaches(i), isWarmUp)
         end do
         
         ! Finalise the routing by setting outflows to temporary outflows that were stored
@@ -211,10 +216,11 @@ module classEnvironment1
     
     !> Update an individual reach, also updating the containng grid cell, if it hasn't
     !! already been updated.
-    subroutine updateReachEnvironment1(me, t, reach)
+    subroutine updateReachEnvironment1(me, t, reach, isWarmUp)
         class(Environment1), target :: me                               !! This `Environment1` instance
         integer                     :: t                                !! Time step
         type(ReachPointer)          :: reach                            !! Pointer to the reach to update
+        logical                     :: isWarmUp                         !! Are we in a warm up period?
         type(GridCellPointer)       :: cell                             ! Pointer to this reach's grid cell
         real(dp)                    :: lengthRatio                      ! Length ratio of this reach to the total reach length in cell
         real(dp)                    :: j_spm_runoff(C%nSizeClassesSpm)  ! Sediment runoff [kg/timestep]
@@ -234,13 +240,14 @@ module classEnvironment1
 
             ! Update the reach for this timestep
             call reach%item%update( &
-                t = t, &
-                q_runoff = cell%item%q_runoff_timeSeries(t), &
-                q_overland = real(DATASET%quickflow(cell%item%x, cell%item%y, t), 8), &
-                j_spm_runoff = j_spm_runoff, &
-                j_np_runoff = j_np_runoff, &
-                j_transformed_runoff = j_transformed_runoff, &
-                contributingArea = cell%item%area * lengthRatio &
+                t=t, &
+                q_runoff=cell%item%q_runoff_timeSeries(t), &
+                q_overland=real(DATASET%quickflow(cell%item%x, cell%item%y, t), 8), &
+                j_spm_runoff=j_spm_runoff, &
+                j_np_runoff=j_np_runoff, &
+                j_transformed_runoff=j_transformed_runoff, &
+                contributingArea=cell%item%area * lengthRatio, &
+                isWarmUp=isWarmUp &
             )
         end if
     end subroutine

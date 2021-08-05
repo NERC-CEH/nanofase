@@ -26,7 +26,7 @@ output_path = "data/output/"                            ! Path to store the outp
 ! Various options related to what data to output. Generally speaking, the more of the include_ flags that are set to true,
 ! the more data that is output and the larger the output data file sizes
 &output
-write_csv = .false.                                     ! Should we write output data to CSV files?
+write_csv = .true.                                     ! Should we write output data to CSV files?
 write_netcdf = .true.                                   ! Should we write output data to a NetCDF file?
 netcdf_write_mode = 'end'                               ! When should we write to the NetCDF file? Every time step ('itr') or at the end of the run ('end'). Every time step is slower, end uses much more memory
 write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comments at top of CSV files?
@@ -52,7 +52,8 @@ error_output = .true.                                   ! Should error handling 
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
 output_hash = ""                                        ! Append all output file names with this value. Useful for parallel model runs. Max 32 characters (e.g. hex string).
-ignore_nm = .true.                                      ! If .true., this tells the model we're not interested in NM and misses out costly computations. Useful for sediment calibration, NM PECs will be invalid
+ignore_nm = .false.                                     ! If .true., this tells the model we're not interested in NM and misses out costly computations. Useful for sediment calibration, NM PECs will be invalid
+warm_up_period = 0
 /
 
 ! Checkpointing is the ability to save a model run so that it can be reinstated from file. This is useful if, for example,
@@ -87,6 +88,7 @@ sediment_particle_densities = 1500, 2600                ! Density of sediment pa
 &water
 min_stream_slope = 0.0001                               ! Impose a minimum stream slope. Defaults to 0.0001, must be greater than 0
 min_estuary_timestep = 3600                             ! Minimum timestep length to use when modelling estuarine dynamics [s]. Defaults to 1 hour
+include_estuary = .true.                               ! Should we model estuaries, or treat them as rivers?
 /
 
 &sources

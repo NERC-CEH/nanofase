@@ -42,7 +42,7 @@ module EstuaryReachModule
         integer :: i, j                         ! Iterator
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area
-        call rslt%addErrors(.errors. me%WaterBody1%create(x, y, w, distributionSediment))
+        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, distributionSediment))
         me%ref = trim(ref("EstuaryReach", x, y, w))
 
         ! Parse input data and allocate/initialise variables
@@ -81,7 +81,8 @@ module EstuaryReachModule
 
 
     !> Run the estuary reach simulation for this timestep
-    subroutine updateEstuaryReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributingArea)
+    subroutine updateEstuaryReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, &
+                                 j_transformed_runoff, contributingArea, isWarmUp)
         class(EstuaryReach) :: me
         integer :: t
         real(dp) :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
@@ -90,6 +91,7 @@ module EstuaryReachModule
         real(dp) :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         real(dp) :: j_transformed_runoff(:,:,:)       !! Eroded NP runoff to this reach [kg/timestep]
         real(dp) :: contributingArea                  !! Area contributing to this reach (e.g. the soil profile) [m2]
+        logical :: isWarmUp
         type(Result) :: rslt
         real(dp) :: Q_outflow
         real(dp) :: changeInVolume, previousVolume
@@ -161,7 +163,9 @@ module EstuaryReachModule
         ! TODO transfers and demands
 
         ! Inflows from point and diffuse sources, updates the NM flow object
-        call me%updateSources(t)
+        if (.not. C%ignoreNM .and. .not. isWarmUp) then
+            call me%updateSources(t)
+        end if
 
         ! Set the reach dimensions (using the timestep in hours for tidal harmonics) and calculate the change in volume 
         call me%setDimensions((t-1) * C%timeStep / C%minEstuaryTimestep)

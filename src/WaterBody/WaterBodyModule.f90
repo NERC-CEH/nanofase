@@ -1,4 +1,4 @@
-!> Module containing definition of base class `WaterBody1`, which provides the primitive
+!> Module containing definition of base class `WaterBody`, which provides the primitive
 !! functionality to all environmental compartments that are water bodies.
 module WaterBodyModule
     use Globals
@@ -11,32 +11,32 @@ module WaterBodyModule
     use FlowModule
     implicit none
     
-    !> `WaterBodyPointer` used for `WaterBody1` inflows array, so the elements within can
+    !> `WaterBodyPointer` used for `WaterBody` inflows array, so the elements within can
     !! point to other `GridCell`'s colWaterBody elements
-    type WaterBodyPointer1
-        class(WaterBody1), pointer :: item => null()                  !! Pointer to polymorphic `WaterBody1` object
+    type WaterBodyPointer
+        class(WaterBody), pointer :: item => null()                  !! Pointer to polymorphic `WaterBody` object
     end type
     
-    !> An internal user-defined type, defining a reference to a `WaterBody1`.
+    !> An internal user-defined type, defining a reference to a `WaterBody`.
     !! Comprises row (x) and column (y) references to the `GridCell` containing the
-    !! `WaterBody1` and the in-cell `WaterBody1` reference number
+    !! `WaterBody` and the in-cell `WaterBody` reference number
     type WaterBodyRef
         integer :: x                                                !! `GridCell` x reference
         integer :: y                                                !! `GridCell` y reference
-        integer :: w                                                !! `WaterBody1` reference
+        integer :: w                                                !! `WaterBody` reference
     end type
 
-    !> Abstract base class for `WaterBody1`. Defines properties and procedures
+    !> Abstract base class for `WaterBody`. Defines properties and procedures
     !! required in any implementation of this class.
-    type, public :: WaterBody1
+    type, public :: WaterBody
         ! Reference
         character(len=100) :: ref                                   !! Reference for this object, of the form WaterBody_x_y_w
         integer :: x                                                !! `GridCell` x position
         integer :: y                                                !! `GridCell` y position
-        integer :: w                                                !! `WaterBody1` reference
+        integer :: w                                                !! `WaterBody` reference
         ! Physical properties
-        real(dp) :: depth                                           !! Depth of the `WaterBody1` [m]
-        real(dp) :: surfaceArea                                     !! Surface area of the `WaterBody1` [m2]
+        real(dp) :: depth                                           !! Depth of the `WaterBody` [m]
+        real(dp) :: surfaceArea                                     !! Surface area of the `WaterBody` [m2]
         real(dp) :: bedArea                                         !! Area of the contained `BedSediment` [m2]
         real(dp) :: volume                                          !! Volume of water in the body [m3]
         real :: T_water(366)                                        !! Water temperature [C]
@@ -55,7 +55,7 @@ module WaterBodyModule
         real(dp) :: C_dissolved_final                               !! Final dissolved NM concentration [kg/m3]
         ! Flows and fluxes
         integer, allocatable :: neighboursArray(:,:)                !! Neighbouring waterbodies, as array of indices
-        type(WaterBodyPointer1), allocatable :: neighbours(:)        !! Neighbouring waterbodies
+        type(WaterBodyPointer), allocatable :: neighbours(:)        !! Neighbouring waterbodies
         real(dp) :: Q_in_total                                      !! Total inflow of water [m3/timestep]
         real(dp), allocatable :: k_resus(:)                         !! Resuspension rate for a given timestep [s-1]
         real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
@@ -77,7 +77,7 @@ module WaterBodyModule
         integer :: nDiffuseSources                                  !! How many diffuse sources this water body has
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
         logical :: isTidalLimit = .false.                           !! Is this water body at the tidal limit?
-        logical :: isUpdated = .false.                              !! Has the WaterBody1 been updated on this time step yet?
+        logical :: isUpdated = .false.                              !! Has the WaterBody been updated on this time step yet?
         ! Biota
         type(BiotaWater), allocatable :: biota(:)                  !! Contained `Biota` object
         integer :: nBiota = 0
@@ -108,19 +108,19 @@ module WaterBodyModule
         procedure :: parseNewBatchData => parseNewBatchDataWaterBody
     end type
       
-    !> Container type for `class(WaterBody1)`, the actual type of the `WaterBody1` class.
+    !> Container type for `class(WaterBody)`, the actual type of the `WaterBody` class.
     !! a variable of type `WaterBodyElement` can be of any object type inheriting from the
-    !! `WaterBody1` abstract base class.
+    !! `WaterBody` abstract base class.
     type WaterBodyElement                                          
-        class(WaterBody1), allocatable :: item                      !! Polymorphic `WaterBody1` object
+        class(WaterBody), allocatable :: item                      !! Polymorphic `WaterBody` object
     end type
 
   contains
 
-    !> Create this `WaterBody1`
+    !> Create this `WaterBody`
     function createWaterBody(me, x, y, w, distributionSediment) result(rslt)
-        class(WaterBody1) :: me                                  !! The `WaterBody1` instance
-        integer :: x, y, w                                      !! `GridCell` and `WaterBody1` identifiers
+        class(WaterBody) :: me                                  !! The `WaterBody` instance
+        integer :: x, y, w                                      !! `GridCell` and `WaterBody` identifiers
         real(dp) :: distributionSediment(C%nSizeClassesSPM)     !! Distribution to split sediment across size classes
         type(Result) :: rslt                                    !! The Result object
         ! Set reach indices and grid cell area
@@ -152,15 +152,16 @@ module WaterBodyModule
     !> Perform creation operations that required routing and point source snapping
     !! to reaches to be done.
     subroutine finaliseCreateWaterBody(me)
-        class(WaterBody1) :: me
+        class(WaterBody) :: me
         ! We can't allocate j_nm until we know the number of point sources, which
         ! is calculated during GridCell%finaliseCreate. Hence this is done here
         call me%allocateAndInitialise()
     end subroutine
 
-    !> Update this `WaterBody1` on given time step
-    subroutine updateWaterBody(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributingArea)
-        class(WaterBody1)   :: me                               !! This `WaterBody1` instance
+    !> Update this `WaterBody` on given time step
+    subroutine updateWaterBody(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, &
+                               j_transformed_runoff, contributingArea, isWarmUp)
+        class(WaterBody)   :: me                               !! This `WaterBody` instance
         integer             :: t                                !! What time step are we on?
         real(dp)            :: q_runoff                         !! Runoff from the hydrological model [m/timestep]
         real(dp)            :: q_overland                       !! Overland flow [m3/m2/timestep]
@@ -168,12 +169,13 @@ module WaterBodyModule
         real(dp)            :: j_np_runoff(:,:,:)               !! Eroded NP runoff to this water body [kg/timestep]
         real(dp)            :: j_transformed_runoff(:,:,:)      !! Eroded transformed NP runoff to this water body [kg/timestep]
         real(dp)            :: contributingArea                 !! Area contributing to this reach (e.g. the soil profile) [m2]
+        logical             :: isWarmUp                         !! Are we in a warm up period?
     end subroutine
 
     !> Set all flow object properties to zero. Useful for the start of 
     !! every timestep
     subroutine emptyFlows(me)
-        class(WaterBody1) :: me
+        class(WaterBody) :: me
         call me%Q%empty()
         call me%j_spm%empty()
         call me%j_nm%empty()
@@ -184,7 +186,7 @@ module WaterBodyModule
     !> Allocate memory for arrays generic to any water body. Individual water bodies
     !! may extend this routine to allocate their own body specific variables
     subroutine allocateAndInitialiseWaterBody(me)
-        class(WaterBody1) :: me
+        class(WaterBody) :: me
         allocate(me%C_spm(C%nSizeClassesSpm), &
             me%C_spm_final(C%nSizeClassesSpm), &
             me%m_spm(C%nSizeClassesSpm), &
@@ -216,7 +218,7 @@ module WaterBodyModule
     end subroutine
 
     subroutine addPointSourceWaterBody(me, index)
-        class(WaterBody1)    :: me       !! This WaterBody1
+        class(WaterBody)    :: me       !! This WaterBody
         integer             :: index    !! Point source index
         type(PointSource2)  :: newSource
         type(PointSource2), allocatable :: oldPointSources(:)
@@ -229,20 +231,20 @@ module WaterBodyModule
         me%nPointSources = size(me%pointSources)
     end subroutine
 
-    !> Parse input data for this `WaterBody1`
+    !> Parse input data for this `WaterBody`
     function parseInputDataWaterBody(me) result(rslt)
-        class(WaterBody1) :: me
+        class(WaterBody) :: me
         type(Result) :: rslt
     end function
 
     subroutine parseNewBatchDataWaterBody(me)
-        class(WaterBody1) :: me
+        class(WaterBody) :: me
     end subroutine
 
     !> Set the final flow arrays for this water body. These final arrays are used by other linked
     !! water bodies such that the avoid using the wrong timestep's values, in particular as inflows.
     subroutine finaliseUpdate(me)
-        class(WaterBody1) :: me
+        class(WaterBody) :: me
         me%Q_final = me%Q
         me%j_spm_final = me%j_spm
         me%j_nm_final = me%j_nm

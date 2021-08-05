@@ -252,9 +252,16 @@ module classDatabase
         me%isHeadwater = ulgcl(isHeadwaterInt)      ! Convert uint1 to logical
         var = me%nc%getVariable('n_waterbodies')
         call var%getData(me%nWaterbodies)
-        var = me%nc%getVariable('is_estuary')
-        call var%getData(isEstuaryInt)
-        me%isEstuary = ulgcl(isEstuaryInt)          ! Convert uint1 to logical
+        ! If we're meant to be including the estuary, then get the is_estuary variable
+        if (C%includeEstuary) then
+            var = me%nc%getVariable('is_estuary')
+            call var%getData(isEstuaryInt)
+            me%isEstuary = ulgcl(isEstuaryInt)          ! Convert uint1 to logical
+        ! Otherwise, just set isEstuary to false everywhere
+        else
+            allocate(me%isEstuary(me%gridShape(1), me%gridShape(2)))
+            me%isEstuary = .false.
+        end if
 
         ! Use the nWaterbodies array to set the grid mask
         allocate(me%gridMask(me%gridShape(1), me%gridShape(2)))

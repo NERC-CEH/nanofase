@@ -18,7 +18,7 @@ module ReachModule
 
     !> Abstract base class for `Reach`, which represents any flowing water body
     !! (rivers, estuaries).
-    type, abstract, public, extends(WaterBody1) :: Reach1
+    type, abstract, public, extends(WaterBody) :: Reach1
         ! Linking water bodies
         integer, allocatable :: inflowsArr(:,:)
         integer :: outflowArr(3)
@@ -107,7 +107,7 @@ module ReachModule
     subroutine allocateAndInitialiseReach(me)
         class(Reach1) :: me
         ! WaterBody initialises the variables common to all water bodies
-        call me%WaterBody1%allocateAndInitialise()
+        call me%WaterBody%allocateAndInitialise()
         ! Allocate flow arrays, which depend on the number of inflows and sources.The 1st dimension of
         ! the flow arrays represent the compartment the flow is to/from, and for reaches this is indexed as so:
         !   1. outflow

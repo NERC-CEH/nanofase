@@ -141,11 +141,12 @@ module spcGridCell
             class(GridCell) :: me                   !! This `GridCell` instance
         end subroutine
         
-        !> Run the `GridCell`'s simulation for this time step
-        subroutine updateGridCell(me, t)
+        !> Run the GridCell's simulation for this time step
+        subroutine updateGridCell(me, t, isWarmUp)
             import GridCell
             class(GridCell) :: me                   !! The `GridCell` instance
-            integer :: t                            !! The current time step
+            integer         :: t                    !! The current time step
+            logical         :: isWarmUp             !! Are we in a warm up period?
         end subroutine
         
         !> Finalise the `GridCell`'s state variables for this time step

@@ -51,19 +51,21 @@ module spcEnvironment
         end function
         
         !> Interface to perform simulations in `Environment`
-        subroutine updateEnvironment(me, t, tInBatch)
+        subroutine updateEnvironment(me, t, tInBatch, isWarmUp)
             import Environment
             class(Environment), target :: me            !! This `Environment` instance
             integer :: t                                !! The current time step
             integer :: tInBatch                         !! The current time step in the batch run
+            logical :: isWarmUp                         !! Are we in the warm up period?
         end subroutine
 
-        subroutine updateReachEnvironment(me, t, reach)
+        subroutine updateReachEnvironment(me, t, reach, isWarmUp)
             use ReachModule, only: ReachPointer
             import Environment
-            class(Environment), target :: me        !! This Environment instance
-            integer :: t                            !! The current timestep
-            type(ReachPointer) :: reach             !! The reach to update
+            class(Environment), target  :: me           !! This Environment instance
+            integer                     :: t            !! The current timestep
+            type(ReachPointer)          :: reach        !! The reach to update
+            logical                     :: isWarmUp     !! Are we in a warm up period?
         end subroutine
         
         !> Interface to import and parse input data for the `Environment` object

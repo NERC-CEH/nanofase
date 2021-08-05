@@ -43,7 +43,7 @@ module RiverReachModule
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area.
         ! Diffuse and point sources are created in WaterBody%create
-        call rslt%addErrors(.errors. me%WaterBody1%create(x, y, w, distributionSediment))
+        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, distributionSediment))
         me%ref = trim(ref("RiverReach", x, y, w))
 
         ! Parse input data and allocate/initialise variables. The order here is important:
@@ -83,26 +83,28 @@ module RiverReachModule
     end function
 
     !> Run the river reach simulation for this timestep
-    subroutine updateRiverReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributingArea)
-        class(RiverReach) :: me                                 !! This `RiverReach` instance
-        integer :: t                                            !! The current timestep
-        real(dp) :: q_runoff                                    !! Runoff from the hydrological model [m3/m2/timestep]
-        real(dp) :: q_overland                                  !! Overland runoff [m3/m2/timestep]
-        real(dp) :: j_spm_runoff(:)                             !! Eroded sediment runoff to this reach [kg/timestep]
-        real(dp) :: j_np_runoff(:,:,:)                          !! Eroded NP runoff to this reach [kg/timestep]
-        real(dp) :: j_transformed_runoff(:,:,:)                 !! Eroded transformed NP runoff to this reach [kg/timestep]
-        real(dp) :: contributingArea                            !! Area contributing to this reach (e.g. the soil profile) [m2]
-        type(Result) :: rslt                                    ! Result object to store errors in
-        integer :: i                                            ! Iterator
-        integer :: nDisp                                        ! Number of displacements to split this time step into
-        real(dp) :: dt                                          ! Length of each displacement [s]
-        real(dp) :: dQ                                          ! Water flow for each displacement
-        real(dp) :: dj_spm(C%nSizeClassesSpm)                   ! SPM inflows for each displacement
-        real(dp) :: dj_nm(C%npDim(1), C%npDim(2), C%npDim(3))   ! NM inflows for each displacement
-        real(dp) :: dj_nm_transformed(C%npDim(1), C%npDim(2), C%npDim(3))   ! Transformed NM inflows for each displacement
-        real(dp) :: dj_dissolved                                ! Dissolved species inflows for each displacement
-        type(datetime) :: currentDate                           ! The current timestep's date
-        real :: T_water_t                                       ! Water temperature on this timestep [deg C]
+    subroutine updateRiverReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, &
+                                j_transformed_runoff, contributingArea, isWarmUp)
+        class(RiverReach)   :: me                                   !! This `RiverReach` instance
+        integer             :: t                                    !! The current timestep
+        real(dp)            :: q_runoff                             !! Runoff from the hydrological model [m3/m2/timestep]
+        real(dp)            :: q_overland                           !! Overland runoff [m3/m2/timestep]
+        real(dp)            :: j_spm_runoff(:)                      !! Eroded sediment runoff to this reach [kg/timestep]
+        real(dp)            :: j_np_runoff(:,:,:)                   !! Eroded NP runoff to this reach [kg/timestep]
+        real(dp)            :: j_transformed_runoff(:,:,:)          !! Eroded transformed NP runoff to this reach [kg/timestep]
+        real(dp)            :: contributingArea                     !! Area contributing to this reach (e.g. the soil profile) [m2]
+        logical             :: isWarmUp                             !! Are we in a warm up period?
+        type(Result)        :: rslt                                 ! Result object to store errors in
+        integer             :: i                                    ! Iterator
+        integer             :: nDisp                                ! Number of displacements to split this time step into
+        real(dp)            :: dt                                   ! Length of each displacement [s]
+        real(dp)            :: dQ                                   ! Water flow for each displacement
+        real(dp)            :: dj_spm(C%nSizeClassesSpm)            ! SPM inflows for each displacement
+        real(dp)            :: dj_nm(C%npDim(1), C%npDim(2), C%npDim(3)) ! NM inflows for each displacement
+        real(dp)            :: dj_nm_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) ! Transformed NM inflows for each displacement
+        real(dp)            :: dj_dissolved                         ! Dissolved species inflows for each displacement
+        type(datetime)      :: currentDate                          ! The current timestep's date
+        real                :: T_water_t                            ! Water temperature on this timestep [deg C]
 
         ! Reset all flows to zero, which is needed as flows are added to iteratively in the displacement loop
         call me%emptyFlows()
@@ -110,7 +112,6 @@ module RiverReachModule
         ! Get the current date and use the day of year to get the water temp
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = me%T_water(currentDate%yearday())
-
             
         ! Get the inflows from upstream water bodies
         do i = 1, me%nInflows
@@ -132,7 +133,7 @@ module RiverReachModule
 
         ! TODO transfers and demands
 
-        if (.not. C%ignoreNM) then
+        if (.not. C%ignoreNM .and. .not. isWarmUp) then
             ! Inflows from point and diffuse sources, updates the NM flow object
             call me%updateSources(t)
         end if
