@@ -169,18 +169,14 @@ module classFineSediment1
                 ))
             end if
         end subroutine
-        !> **Function purpose**                                     <br>
-        !! Return the fine sediment volume [m3 m-2] as a derived property
-        !!                                                          <br>
-        !! **Function outputs/outcomes**                            <br>
-        !! Fine sediment volume [m3 m-2]
-        function getFSVol1(Me) result(Vf)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
-            real(dp) :: Vf                                           !! The return value
-                                                                     ! function to return the fine sediment volume [m3 m-2]
-                                                                     ! Output: Vf = Fine sediment volume
+
+        !> Return the fine sediment volume [m3 m-2] as a derived property
+        function getFSVol1(me) result(Vf)
+            class(FineSediment1), intent(in) :: me                   !! Self-reference
+            real(dp) :: Vf                                           !! Fine sediment volumen [m3 m-2]
             Vf = divideCheckZero(me%M_f_l, me%rho_part())
         end function
+
         !> **Function purpose**                                     <br>
         !! PropertyGet: return the fine sediment mass [kg m-2]
         !!                                                          <br>
@@ -231,16 +227,14 @@ module classFineSediment1
                 Vw = Me%V_w_l
             end if
         end function
-        !> **Function purpose**                                     <br>
-        !! Returns fine sediment particle density as a derived property
-        !!                                                          <br>
-        !! **Function outputs/outcomes**                            <br>
-        !! Fine sediment particle density [kg m-3]
-        function pdens1(Me) result(rho_part)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
-            real(dp) :: rho_part                                     !! Return value: the particle density [kg m-3]
+
+        !> Returns fine sediment particle density as a derived property
+        function pdens1(me) result(rho_part)
+            class(FineSediment1), intent(in) :: me                   !! Self-reference
+            real(dp) :: rho_part                                     !! Fine sediment particle density [kg m-3]
             rho_part = sum(me%f_comp * me%pd_comp)
         end function
+
         !> **Function purpose**                                     <br>
         !! Check that the array of fractional compositions sums to unity
         !!                                                          <br>
@@ -251,13 +245,13 @@ module classFineSediment1
         function audit_fcomp1(Me) result(er)
             class(FineSediment1), intent(in) :: Me                   !! Self-reference
             type(ErrorInstance) :: er                                !! `ErrorInstance` object, returns error if `t_fcomp /= 1`
-            integer :: F                                             ! LOCAL loop counter
+            integer :: i                                             ! LOCAL loop counter
             real(dp) :: t_fcomp                                      ! LOCAL sum of fractional compositions
             t_fcomp = 0                                              ! Initialise to zero
-            do F = 1, Me%NFComp
-                t_fcomp = t_fcomp + Me%f_comp(F)                     ! summing fractional compositions
+            do i = 1, Me%NFComp
+                t_fcomp = t_fcomp + Me%f_comp(i)                     ! summing fractional compositions
             end do
-            if (t_fcomp < (1.0_dp-1.0d-5) .or. t_fcomp > (1.0_dp+1.0d-5)) then
+            if (.not. isZero(1.0_dp - t_fcomp)) then
                 er = ErrorInstance( &
                     code = 106, &
                     message = "Fractional composition does &

@@ -42,12 +42,8 @@ module spcBedSedimentLayer
         destroy                                                     ! finaliser method
         procedure(AddSedimentToLayer), public, deferred :: &
         AddSediment                                                 ! add fine sediment to the layer, outputting via intent(inout)
-        procedure(AddSedimentToLayer2), public, deferred :: &
-        AddSediment_alt                                             ! add fine sediment to the layer, outputting to Result object
         procedure(RemoveSedimentFromLayer), public, deferred :: &
         RemoveSediment                                              ! remove fine sediment from layer, outputting via intent(inout)
-        procedure(RemoveSedimentFromLayer2), public, deferred :: &
-        RemoveSediment_alt                                          ! remove fine sediment from layer, outputting to Result object
         procedure(clearAllFromLayer), public, deferred :: clearAll  ! set all fine sediment masses, all water volume and all fractional compositions to zero
         procedure(ReportMassesToConsole), public, deferred :: &
             repmass                                                 ! report all fine sediment masses to the console
@@ -70,11 +66,10 @@ module spcBedSedimentLayer
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! No specific outputs: results are initialisation of variables and objects
-        function createBedSedimentLayer(Me, Parent, l) result(r)
+        function createBedSedimentLayer(Me, l) result(r)
             use ResultModule, only: Result
             import BedSedimentLayer, NcGroup
             class(BedSedimentLayer) :: Me                           !! The `BedSedimentLayer` instance
-            character(len=*) :: Parent                              !! Name of parent object
             integer :: l                                            !! Index for this bed sediment layer
             type(Result) :: r                                       !! The `Result` object.
         end function
@@ -107,23 +102,7 @@ module spcBedSedimentLayer
             type(FineSediment1), intent(inout) :: F                  !! `FineSediment` - holds material to be added, returns material that could not be added
             type(Result) :: r                                        !! The `Result` object. Return data type = `FineSediment1`
         end function
-        !> **Function purpose**                                     <br>
-        !!  Add fine sediment of a specified size fraction, and associated water,
-        !!  to a bed sediment layer
-        !!                                                          <br>
-        !! **Function inputs**                                      <br>
-        !! `S (integer)`:       the size class to which sediment is to be added
-        !! `F (FineSediment1)`: object representing the FineSediment to be added
-        !!                                                          <br>
-        !! **Function outputs/outcomes**                            <br>
-        !! `r (FineSediment1)`: Returns the amounts of sediment and water that could not be added
-        function addSedimentToLayer2(Me, S, F) result(r)
-            import BedSedimentLayer, FineSediment1, ResultFineSediment0D
-            class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
-            integer, intent(in) :: S                                 !! The particle size class
-            type(FineSediment1), intent(inout) :: F                     !! `FineSediment` - holds material to be added
-            type(ResultFineSediment0D) :: r                          !! The `Result` object. Return data type = `FineSediment1`
-        end function
+
         !> **Function purpose**                                     
         !! ALTERNATIVE REMOVESEDIMENT
         !! Remove sediment of a specified size fraction, and associated water,
@@ -146,24 +125,6 @@ module spcBedSedimentLayer
             type(FineSediment1), intent(inout) :: G                  !! Fine sediment to be removed, returns fine sediment that could not be removed
             type(FineSediment1), intent(inout) :: H                  !! Returns fine sediment that was removed
             type(Result) :: r                                        !! The Result object = fine sediment that was removed AND fine sediment that could not be removed
-        end function
-        !> **Function purpose**                                     <br>
-        !! Remove sediment of a specified size fraction, and associated water,
-        !! from a bed sediment layer
-        !!                                                          <br>
-        !! **Function inputs**                                      <br>
-        !! `S (integer)`:       the size class from which sediment is to be removed
-        !! `G (FineSediment1)`: sediment to be removed
-        !!                                                          
-        !! **Function outputs/outcomes**                            
-        !! `r(1) (FineSediment1)` returns the sediment that was removed 
-        !! `r(2) (FineSediment1)` returns the sediment that could not be removed
-        function RemoveSedimentFromLayer2(Me, S, G) result(r)
-            import BedSedimentLayer, FineSediment1, ResultFineSediment1D
-            class(BedSedimentLayer) :: Me                            !! The `BedSedimentLayer` instance
-            integer, intent(in) :: S                                 !! The particle size class
-            type(FineSediment1), intent(in) :: G                     !! Fine sediment to be removed
-            type(ResultFineSediment1D) :: r                          !! The `Result` object = fine sediment that was removed AND fine sediment that could not be rmeoved
         end function
         !> **Subroutine purpose**                                   <br>
         !! Remove sediment of a specified size fraction, and associated water,
@@ -302,23 +263,18 @@ module spcBedSedimentLayer
             real(dp) :: volSLR                                       ! LOCAL internal storage
             volSLR = Me%C_f_l(S) / Me%C_w_l(S)                   ! compute ratio
         end function
-        !> **Function purpose**                                     <br>
-        !! Return the sediment mass in the layer across all size fractions
-        !!                                                          <br>
-        !! **Function inputs**                                      <br>
-        !! `S (integer)`: the size class
-        !!
-        !! **Function outputs/outcomes**                            <br>
-        !! `r (Result0D)` returns the result
+
+        !> Return the sediment mass in the layer across all size fractions
         function GetMflayer(me) result(Mf_layer)
             class(BedSedimentLayer), intent(in) :: me                !! The `BedSedimentLayer` instance
             real(dp) :: Mf_layer                                     !! Sediment mass in this layer
-            integer :: i                                             ! LOCAL loop counter
+            integer :: i                                             ! Iterator over SPM size classes
             Mf_layer = 0
             do i = 1, me%nSizeClasses
                 Mf_layer = Mf_layer + Me%colFineSediment(i)%M_f_l
             end do
         end function
+
         !> **Function purpose**                                     <br>
         !! Return the sediment capacity in the layer across all size fractions
         !!                                                          <br>

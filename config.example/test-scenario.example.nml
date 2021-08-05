@@ -26,7 +26,7 @@ output_path = "data/output/"                            ! Path to store the outp
 &output
 write_csv = .true.                                      ! Should we write output data to CSV files?
 write_netcdf = .true.                                   ! Should we write output data to a NetCDF file?
-netcdf_write_mode = 'itr'
+netcdf_write_mode = 'end'
 write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comment at top of CSV file?
 include_waterbody_breakdown = .false.
 include_sediment_layer_breakdown = .true.               ! Include breakdown of data over sediment layers?
@@ -47,7 +47,12 @@ epsilon = 1e-50,                                        ! Precision for numerica
 error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
-warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
+warm_up_period = 10                                      ! Warm up period before main simulation begin. *Not yet implemented.*
+/
+
+&checkpoint
+save_checkpoint_after_warm_up = .false.
+reinstate_checkpoint = .true.
 /
 
 &soil
@@ -61,6 +66,10 @@ sediment_layer_depth = 0.01, 0.01, 0.01, 0.01           ! Depth of each sediment
 spm_size_classes = 0.002e-3, 0.06e-3, 0.2e-3, 0.6e-3, 2.0e-3    ! Diameter of SPM in each binned size class [m]
 include_bed_sediment = .true.                           ! Should bed sediment be modelled?
 sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
+/
+
+&waterbody
+include_estuary = .true.
 /
 
 &sources

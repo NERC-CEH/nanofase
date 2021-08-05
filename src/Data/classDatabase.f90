@@ -252,9 +252,16 @@ module classDatabase
         me%isHeadwater = ulgcl(isHeadwaterInt)      ! Convert uint1 to logical
         var = me%nc%getVariable('n_waterbodies')
         call var%getData(me%nWaterbodies)
-        var = me%nc%getVariable('is_estuary')
-        call var%getData(isEstuaryInt)
-        me%isEstuary = ulgcl(isEstuaryInt)          ! Convert uint1 to logical
+        ! If we're meant to be including the estuary, then get the is_estuary variable
+        if (C%includeEstuary) then
+            var = me%nc%getVariable('is_estuary')
+            call var%getData(isEstuaryInt)
+            me%isEstuary = ulgcl(isEstuaryInt)          ! Convert uint1 to logical
+        ! Otherwise, just set isEstuary to false everywhere
+        else
+            allocate(me%isEstuary(me%gridShape(1), me%gridShape(2)))
+            me%isEstuary = .false.
+        end if
 
         ! Use the nWaterbodies array to set the grid mask
         allocate(me%gridMask(me%gridShape(1), me%gridShape(2)))
@@ -1136,14 +1143,22 @@ module classDatabase
         end if
         if (any(me%resuspensionAlpha < 0.0_dp)) then
             call rslt%addError(ErrorInstance( &
-                message="Value provided from resuspension_alpha must be greater than or equal to zero. " // &
+                message="Value provided for resuspension_alpha must be greater than or equal to zero. " // &
                     "At least one value provided is less than zero." &
             ))
         end if
         if (any(me%resuspensionBeta < 0.0_dp)) then
             call rslt%addError(ErrorInstance( &
-                message="Value provided from resuspension_beta must be greater than or equal to zero. " // &
+                message="Value provided for resuspension_beta must be greater than or equal to zero. " // &
                     "At least one value provided is less than zero." &
+            ))
+        end if
+
+        ! Does sediment fractional composition sum to unity?
+        if (.not. isZero(1.0_dp - sum(me%sedimentFractionalComposition))) then
+            call rslt%addError(ErrorInstance( &
+                message="Values provided for fractional_composition_distribution must sum to unity. " // &
+                    "Value found: " // str(sum(me%sedimentFractionalComposition)) &
             ))
         end if
     end function

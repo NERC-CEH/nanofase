@@ -11,7 +11,6 @@ module DefaultsModule
     integer, parameter :: iouBatchConfig = 2
     ! Constants file IO units
     integer, parameter :: iouConstants = 10
-    integer, parameter :: iouCalibrationSites = 11
     ! Output file IO units
     integer, parameter :: iouOutputSummary = 100
     integer, parameter :: iouOutputWater = 101
@@ -29,15 +28,16 @@ module DefaultsModule
         logical             :: runToSteadyState = .false.
         character(len=50)   :: steadyStateMode = ''
         real(dp)            :: steadyStateDelta = 1e-5
-        character(len=7)    :: calibrationMode = 'mean'
         real                :: minStreamSlope = 0.0001                  ! [m/m]
         integer             :: minEstuaryTimestep = 3600                ! 1 hour [s] 
         logical             :: writeToLog = .true.
+        integer             :: warmUpPeriod = 0                         ! How many time steps to warm the model up for
+        logical             :: bashColors = .true.                      ! Should we print colored output to the console?
         ! Output
         logical             :: writeCSV = .true.                        ! Should output data be written to CSV files?
         logical             :: writeNetCDF = .false.                    ! Should output data be written to NetCDF?
         character(len=3)    :: netCDFWriteMode = 'end'                  ! When to write the NetCDF file - every time step ('itr') or at the end ('end')
-        logical             :: writeCompartmentStats = .true.           ! Should a summary stats file for each compartment be written?
+        logical             :: writeCompartmentStats = .false.          ! Should a summary stats file for each compartment be written?
         logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included
         logical             :: includeSedimentFluxes = .false.
         logical             :: includeSoilErosion = .false.
@@ -45,6 +45,15 @@ module DefaultsModule
         logical             :: includeClayEnrichment = .false.
         character(len=5)    :: soilPECUnits = 'kg/kg'                   ! Should soil PECS be kg/kg or kg/m3?
         character(len=5)    :: sedimentPECUnits = 'kg/kg'               ! Should sediment PECs be kg/kg or kg/m3?
+        ! Checkpoint
+        logical             :: saveCheckpoint = .false.                 ! Should we save a checkpoint file after the model run?
+        logical             :: saveCheckpointAfterWarmUp = .false.      ! Should we save a checkpoint file after the warm up period?
+        character(len=256)  :: checkpointFile = './checkpoint.dat'      ! Where to save the checkpoint
+        ! Run
+        character(len=32)   :: outputHash = ''                          ! Hash to append to output file names
+        logical             :: ignoreNM = .false.                       ! If .true., costly NM calculations are missed out. Useful for sediment calibation
+        ! Water
+        logical             :: includeEstuary = .true.                  ! Should we model estuaries, or treat them as rivers?
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults

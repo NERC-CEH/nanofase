@@ -170,8 +170,8 @@ module classSoilLayer1
         me%m_dissolved = me%m_dissolved - me%m_dissolved_perc   ! Get rid of dissovled species
         me%V_w = me%V_w - me%V_perc                             ! Get rid of the percolated water
         me%C_np = divideCheckZero(me%m_np, me%depth * me%area * me%bulkDensity)
-        me%C_transformed = me%m_transformed / (me%depth * me%area * me%bulkDensity)
-        me%C_dissolved = me%m_dissolved / (me%depth * me%area * me%bulkDensity)
+        me%C_transformed = divideCheckZero(me%m_transformed, (me%depth * me%area * me%bulkDensity))
+        me%C_dissolved = divideCheckZero(me%m_dissolved, (me%depth * me%area * me%bulkDensity))
 
         ! Emit a warning if all water removed
         if (isZero(me%V_w) .and. initial_V_w > 0) then

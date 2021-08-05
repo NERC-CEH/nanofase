@@ -42,7 +42,7 @@ module EstuaryReachModule
         integer :: i, j                         ! Iterator
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area
-        call rslt%addErrors(.errors. me%WaterBody1%create(x, y, w, distributionSediment))
+        call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, distributionSediment))
         me%ref = trim(ref("EstuaryReach", x, y, w))
 
         ! Parse input data and allocate/initialise variables
@@ -81,7 +81,8 @@ module EstuaryReachModule
 
 
     !> Run the estuary reach simulation for this timestep
-    subroutine updateEstuaryReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, j_transformed_runoff, contributingArea)
+    subroutine updateEstuaryReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, &
+                                 j_transformed_runoff, contributingArea, isWarmUp)
         class(EstuaryReach) :: me
         integer :: t
         real(dp) :: q_runoff                          !! Runoff (slow + quick flow) from the hydrological model [m/timestep]
@@ -90,6 +91,7 @@ module EstuaryReachModule
         real(dp) :: j_np_runoff(:,:,:)                !! Eroded NP runoff to this reach [kg/timestep]
         real(dp) :: j_transformed_runoff(:,:,:)       !! Eroded NP runoff to this reach [kg/timestep]
         real(dp) :: contributingArea                  !! Area contributing to this reach (e.g. the soil profile) [m2]
+        logical :: isWarmUp
         type(Result) :: rslt
         real(dp) :: Q_outflow
         real(dp) :: changeInVolume, previousVolume
@@ -147,41 +149,43 @@ module EstuaryReachModule
         ! Get the inflows from upstream water bodies
         ! TODO sort out routing and get rid of _final flow objects
         do i = 1, me%nInflows
-            me%obj_Q%inflow = me%obj_Q%inflow - me%inflows(i)%item%obj_Q_final%outflow
-            me%obj_j_SPM%inflow = me%obj_j_SPM%inflow - me%inflows(i)%item%obj_j_SPM_final%outflow
-            me%obj_j_NM%inflow = me%obj_j_NM%inflow - me%inflows(i)%item%obj_j_NM_final%outflow
-            me%obj_j_NM_transformed%inflow = me%obj_j_NM_transformed%inflow &
-                                           - me%inflows(i)%item%obj_j_NM_transformed_final%outflow
-            me%obj_j_dissolved%inflow = me%obj_j_dissolved%inflow - me%inflows(i)%item%obj_j_dissolved_final%outflow
+            me%Q%inflow = me%Q%inflow - me%inflows(i)%item%Q_final%outflow
+            me%j_spm%inflow = me%j_spm%inflow - me%inflows(i)%item%j_spm_final%outflow
+            me%j_nm%inflow = me%j_nm%inflow - me%inflows(i)%item%j_nm_final%outflow
+            me%j_nm_transformed%inflow = me%j_nm_transformed%inflow &
+                                           - me%inflows(i)%item%j_nm_transformed_final%outflow
+            me%j_dissolved%inflow = me%j_dissolved%inflow - me%inflows(i)%item%j_dissolved_final%outflow
         end do 
         
         ! Get the inflows from runoff and scale to this reach
-        me%obj_Q%runoff = q_runoff * contributingArea 
+        me%Q%runoff = q_runoff * contributingArea 
 
         ! TODO transfers and demands
 
         ! Inflows from point and diffuse sources, updates the NM flow object
-        call me%updateSources(t)
+        if (.not. C%ignoreNM .and. .not. isWarmUp) then
+            call me%updateSources(t)
+        end if
 
         ! Set the reach dimensions (using the timestep in hours for tidal harmonics) and calculate the change in volume 
         call me%setDimensions((t-1) * C%timeStep / C%minEstuaryTimestep)
         changeInVolume = me%changeInVolume((t-1)*24, t*24)
         ! Calculate the outflow based on the change in volume and inflows. +ve outflow indicates upstream tidal flow,
         ! -ve outflow indicates downstream tidal flow. This is used to determine what classes as "input" SPM/NM
-        Q_outflow = changeInVolume - me%obj_Q%inflow - me%obj_Q%runoff - me%obj_Q%transfers
+        Q_outflow = changeInVolume - me%Q%inflow - me%Q%runoff - me%Q%transfers
         ! Input will always be from runoff, transfers and sources
-        me%Q_in_total = me%obj_Q%runoff + me%obj_Q%transfers
+        me%Q_in_total = me%Q%runoff + me%Q%transfers
         ! j_spm_input_total = me%j_spm_runoff() + me%j_spm_transfers()
         ! j_np_input_total = me%j_np_runoff() + me%j_np_transfers() + me%j_np_pointsource() + me%j_np_diffusesource()
         ! If outflow is positive (incoming tide) then some input will be provided by the inflowing outflow (which will be +ve)
         if (Q_outflow > 0) then
-            me%Q_in_total = me%Q_in_total + me%obj_Q%outflow
+            me%Q_in_total = me%Q_in_total + me%Q%outflow
             ! j_spm_input_total = j_spm_input_total + me%j_spm_outflow()
             ! j_np_input_total = j_np_input_total + me%j_np_outflow()
         end if
         ! If inflow is positive, input will also be from inflows (tide might still be incoming for this particular reach)
-        if (me%obj_Q%inflow > 0.0_dp) then
-            me%Q_in_total = me%Q_in_total + me%obj_Q%inflow
+        if (me%Q%inflow > 0.0_dp) then
+            me%Q_in_total = me%Q_in_total + me%Q%inflow
             ! j_spm_input_total = j_spm_input_total + me%j_spm_inflows()
             ! j_np_input_total = j_np_input_total + me%j_np_inflows()
         end if
@@ -207,17 +211,17 @@ module EstuaryReachModule
         end if
         dt = C%timeStep / nDisp                             ! Length of each displacement [s]
         dQ_in = me%Q_in_total / nDisp
-        dj_SPM_erosion = (me%obj_j_SPM%soilErosion + me%obj_j_SPM%bankErosion) / nDisp
-        dj_spm_inflow = me%obj_j_spm%inflow / nDisp
-        dj_nm_erosion_sources = (me%obj_j_NM%soilErosion + me%obj_j_NM%pointSources &
-                              + me%obj_j_NM%diffuseSources) / nDisp
-        dj_nm_inflow = me%obj_j_nm%inflow / nDisp
-        dj_NM_transformed_erosion_sources = (me%obj_j_NM_transformed%soilErosion &
-                                          + me%obj_j_NM_transformed%pointSources &
-                                          + me%obj_j_NM_transformed%diffuseSources) / nDisp
-        dj_nm_transformed_inflow = me%obj_j_nm_transformed%inflow / nDisp
-        dj_dissolved_sources = (me%obj_j_dissolved%pointSources + me%obj_j_dissolved%diffuseSources) / nDisp
-        dj_dissolved_inflow = me%obj_j_dissolved%inflow / nDisp
+        dj_SPM_erosion = (me%j_spm%soilErosion + me%j_spm%bankErosion) / nDisp
+        dj_spm_inflow = me%j_spm%inflow / nDisp
+        dj_nm_erosion_sources = (me%j_nm%soilErosion + me%j_nm%pointSources &
+                              + me%j_nm%diffuseSources) / nDisp
+        dj_nm_inflow = me%j_nm%inflow / nDisp
+        dj_NM_transformed_erosion_sources = (me%j_nm_transformed%soilErosion &
+                                          + me%j_nm_transformed%pointSources &
+                                          + me%j_nm_transformed%diffuseSources) / nDisp
+        dj_nm_transformed_inflow = me%j_nm_transformed%inflow / nDisp
+        dj_dissolved_sources = (me%j_dissolved%pointSources + me%j_dissolved%diffuseSources) / nDisp
+        dj_dissolved_inflow = me%j_dissolved%inflow / nDisp
 
         do i = 1, nDisp
             ! Calculate the timestep in hours from the displacement length, and pass to setDimensions
@@ -326,15 +330,15 @@ module EstuaryReachModule
 
             ! Add the calculated fluxes (outflow and deposition) to the total. Don't update inflows
             ! (inflows, runoff, sources) as they've already been correctly before the disp loop
-            me%obj_Q%outflow = me%obj_Q%outflow + dQ_out
-            me%obj_j_spm%outflow = me%obj_j_spm%outflow + dj_spm_outflow                    ! dj_spm_outflow should already be -ve
-            me%obj_j_nm%outflow = me%obj_j_nm%outflow + dj_nm_outflow
-            me%obj_j_nm_transformed%outflow = me%obj_j_nm_transformed%outflow + dj_nm_transformed_outflow
-            me%obj_j_dissolved%outflow = me%obj_j_dissolved%outflow + dj_dissolved_outflow
-            me%obj_j_spm%deposition = me%obj_j_spm%deposition - dj_spm_deposit              ! Deposition is -ve
-            me%obj_j_spm%resuspension = me%obj_j_spm%resuspension + dj_spm_resus
-            me%obj_j_nm%deposition = me%obj_j_nm%deposition - dj_nm_deposit
-            me%obj_j_nm_transformed%deposition = me%obj_j_nm_transformed%deposition - dj_nm_transformed_deposit
+            me%Q%outflow = me%Q%outflow + dQ_out
+            me%j_spm%outflow = me%j_spm%outflow + dj_spm_outflow                    ! dj_spm_outflow should already be -ve
+            me%j_nm%outflow = me%j_nm%outflow + dj_nm_outflow
+            me%j_nm_transformed%outflow = me%j_nm_transformed%outflow + dj_nm_transformed_outflow
+            me%j_dissolved%outflow = me%j_dissolved%outflow + dj_dissolved_outflow
+            me%j_spm%deposition = me%j_spm%deposition - dj_spm_deposit              ! Deposition is -ve
+            me%j_spm%resuspension = me%j_spm%resuspension + dj_spm_resus
+            me%j_nm%deposition = me%j_nm%deposition - dj_nm_deposit
+            me%j_nm_transformed%deposition = me%j_nm_transformed%deposition - dj_nm_transformed_deposit
 
             ! Deposit SPM and NM to bed, and pull out resuspended NM mass
             dj_spm_resus_perArea = divideCheckZero(dj_spm_resus, me%bedArea) 
@@ -355,15 +359,17 @@ module EstuaryReachModule
                 if (rslt%hasCriticalError()) return
                 ! Fill bedSediment%delta_sed mass transfer matrix based on this passed deposition and resuspension
 
-                call me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea)
-                ! The above must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
-                ! Now actually transfer the NM between the layers (only if there is NM to deposit)
-                if (.not. any(dj_nm_deposit_perArea == 0.0_dp)) then
-                    call me%bedSediment%transferNM(dj_nm_deposit_perArea)
+                if (.not. C%ignoreNM) then
+                    call me%bedSediment%getmatrix(dj_spm_deposit_perArea, dj_spm_resus_perArea)
+                    ! The above must be called before transferNM so that delta_sed is set. TODO change this to be internal to bed sediment
+                    ! Now actually transfer the NM between the layers (only if there is NM to deposit)
+                    if (.not. any(dj_nm_deposit_perArea == 0.0_dp)) then
+                        call me%bedSediment%transferNM(dj_nm_deposit_perArea)
+                    end if
+                    ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices
+                    dj_nm_resus = me%bedSediment%M_np(2,:,:,:) * me%bedArea
+                    me%j_nm%resuspension = me%j_nm%resuspension + dj_nm_resus
                 end if
-                ! Now we've computed transfers in bed sediment, we need to pull the resuspended NM out and add to mass balance matrices
-                dj_nm_resus = me%bedSediment%M_np(2,:,:,:) * me%bedArea
-                me%obj_j_nm%resuspension = me%obj_j_nm%resuspension + dj_nm_resus
             end if
 
             ! Concentrations

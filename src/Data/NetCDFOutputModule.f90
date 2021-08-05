@@ -187,26 +187,26 @@ module NetCDFOutputModule
                     me%output_water__C_nm(w,x,y,tInChunk) = sum(reach%C_np)
                     me%output_water__C_transformed(w,x,y,tInChunk) = sum(reach%C_transformed)
                     me%output_water__C_dissolved(w,x,y,tInChunk) = reach%C_dissolved
-                    me%output_water__m_nm_outflow(w,x,y,tInChunk) = sum(reach%obj_j_nm%outflow)
-                    me%output_water__m_transformed_outflow(w,x,y,tInChunk) = sum(reach%obj_j_nm_transformed%outflow)
-                    me%output_water__m_dissolved_outflow(w,x,y,tInChunk) = reach%obj_j_dissolved%outflow
-                    me%output_water__m_nm_deposited(w,x,y,tInChunk) = sum(reach%obj_j_nm%deposition)
-                    me%output_water__m_transformed_deposited(w,x,y,tInChunk) = sum(reach%obj_j_nm_transformed%deposition)
-                    me%output_water__m_nm_resuspended(w,x,y,tInChunk) = sum(reach%obj_j_nm%resuspension)
-                    me%output_water__m_transformed_resuspended(w,x,y,tInChunk) = sum(reach%obj_j_nm_transformed%resuspension)
+                    me%output_water__m_nm_outflow(w,x,y,tInChunk) = sum(reach%j_nm%outflow)
+                    me%output_water__m_transformed_outflow(w,x,y,tInChunk) = sum(reach%j_nm_transformed%outflow)
+                    me%output_water__m_dissolved_outflow(w,x,y,tInChunk) = reach%j_dissolved%outflow
+                    me%output_water__m_nm_deposited(w,x,y,tInChunk) = sum(reach%j_nm%deposition)
+                    me%output_water__m_transformed_deposited(w,x,y,tInChunk) = sum(reach%j_nm_transformed%deposition)
+                    me%output_water__m_nm_resuspended(w,x,y,tInChunk) = sum(reach%j_nm%resuspension)
+                    me%output_water__m_transformed_resuspended(w,x,y,tInChunk) = sum(reach%j_nm_transformed%resuspension)
                     me%output_water__m_spm(w,x,y,tInChunk) = sum(reach%m_spm)
                     me%output_water__C_spm(w,x,y,tInChunk) = sum(reach%C_spm)
                     if (C%includeSedimentFluxes) then
-                        me%output_water__m_spm_erosion(w,x,y,tInChunk) = sum(reach%obj_j_spm%soilErosion)
-                        me%output_water__m_spm_deposition(w,x,y,tInChunk) = sum(reach%obj_j_spm%deposition)
-                        me%output_water__m_spm_resuspended(w,x,y,tInChunk) = sum(reach%obj_j_spm%resuspension)
-                        me%output_water__m_spm_inflow(w,x,y,tInChunk) = sum(reach%obj_j_spm%inflow)
-                        me%output_water__m_spm_outflow(w,x,y,tInChunk) = sum(reach%obj_j_spm%outflow)
-                        me%output_water__m_spm_bank_erosion(w,x,y,tInChunk) = sum(reach%obj_j_spm%bankErosion)
+                        me%output_water__m_spm_erosion(w,x,y,tInChunk) = sum(reach%j_spm%soilErosion)
+                        me%output_water__m_spm_deposition(w,x,y,tInChunk) = sum(reach%j_spm%deposition)
+                        me%output_water__m_spm_resuspended(w,x,y,tInChunk) = sum(reach%j_spm%resuspension)
+                        me%output_water__m_spm_inflow(w,x,y,tInChunk) = sum(reach%j_spm%inflow)
+                        me%output_water__m_spm_outflow(w,x,y,tInChunk) = sum(reach%j_spm%outflow)
+                        me%output_water__m_spm_bank_erosion(w,x,y,tInChunk) = sum(reach%j_spm%bankErosion)
                     end if
                     me%output_water__volume(w,x,y,tInChunk) = reach%volume
                     me%output_water__depth(w,x,y,tInChunk) = reach%depth
-                    me%output_water__flow(w,x,y,tInChunk) = reach%obj_Q%outflow / C%timeStep
+                    me%output_water__flow(w,x,y,tInChunk) = reach%Q%outflow / C%timeStep
                 ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
                 ! by the whole batch, not just this chunk
                 else if (C%netCDFWriteMode == 'itr') then
@@ -216,27 +216,27 @@ module NetCDFOutputModule
                     call me%nc__water__C_nm%setData(sum(reach%C_np), start=[w,x,y,t]) 
                     call me%nc__water__C_transformed%setData(sum(reach%C_transformed), start=[w,x,y,t]) 
                     call me%nc__water__C_dissolved%setData(reach%C_dissolved, start=[w,x,y,t]) 
-                    call me%nc__water__m_nm_outflow%setData(sum(reach%obj_j_nm%outflow), start=[w,x,y,t]) 
-                    call me%nc__water__m_transformed_outflow%setData(sum(reach%obj_j_nm_transformed%outflow), start=[w,x,y,t]) 
-                    call me%nc__water__m_dissolved_outflow%setData(reach%obj_j_dissolved%outflow, start=[w,x,y,t]) 
-                    call me%nc__water__m_nm_deposited%setData(sum(reach%obj_j_nm%deposition), start=[w,x,y,t]) 
-                    call me%nc__water__m_transformed_deposited%setData(sum(reach%obj_j_nm_transformed%deposition), start=[w,x,y,t]) 
-                    call me%nc__water__m_nm_resuspended%setData(sum(reach%obj_j_nm%resuspension), start=[w,x,y,t]) 
-                    call me%nc__water__m_transformed_resuspended%setData(sum(reach%obj_j_nm_transformed%resuspension), &
+                    call me%nc__water__m_nm_outflow%setData(sum(reach%j_nm%outflow), start=[w,x,y,t]) 
+                    call me%nc__water__m_transformed_outflow%setData(sum(reach%j_nm_transformed%outflow), start=[w,x,y,t]) 
+                    call me%nc__water__m_dissolved_outflow%setData(reach%j_dissolved%outflow, start=[w,x,y,t]) 
+                    call me%nc__water__m_nm_deposited%setData(sum(reach%j_nm%deposition), start=[w,x,y,t]) 
+                    call me%nc__water__m_transformed_deposited%setData(sum(reach%j_nm_transformed%deposition), start=[w,x,y,t]) 
+                    call me%nc__water__m_nm_resuspended%setData(sum(reach%j_nm%resuspension), start=[w,x,y,t]) 
+                    call me%nc__water__m_transformed_resuspended%setData(sum(reach%j_nm_transformed%resuspension), &
                                                                          start=[w,x,y,t]) 
                     call me%nc__water__m_spm%setData(sum(reach%m_spm), start=[w,x,y,t]) 
                     call me%nc__water__C_spm%setData(sum(reach%C_spm), start=[w,x,y,t]) 
                     if (C%includeSedimentFluxes) then
-                        call me%nc__water__m_spm_erosion%setData(sum(reach%obj_j_spm%soilErosion), start=[w,x,y,t]) 
-                        call me%nc__water__m_spm_deposited%setData(sum(reach%obj_j_spm%deposition), start=[w,x,y,t]) 
-                        call me%nc__water__m_spm_resuspended%setData(sum(reach%obj_j_spm%resuspension), start=[w,x,y,t]) 
-                        call me%nc__water__m_spm_inflow%setData(sum(reach%obj_j_spm%inflow), start=[w,x,y,t]) 
-                        call me%nc__water__m_spm_outflow%setData(sum(reach%obj_j_spm%outflow), start=[w,x,y,t]) 
-                        call me%nc__water__m_spm_bank_erosion%setData(sum(reach%obj_j_spm%bankErosion), start=[w,x,y,t])
+                        call me%nc__water__m_spm_erosion%setData(sum(reach%j_spm%soilErosion), start=[w,x,y,t]) 
+                        call me%nc__water__m_spm_deposited%setData(sum(reach%j_spm%deposition), start=[w,x,y,t]) 
+                        call me%nc__water__m_spm_resuspended%setData(sum(reach%j_spm%resuspension), start=[w,x,y,t]) 
+                        call me%nc__water__m_spm_inflow%setData(sum(reach%j_spm%inflow), start=[w,x,y,t]) 
+                        call me%nc__water__m_spm_outflow%setData(sum(reach%j_spm%outflow), start=[w,x,y,t]) 
+                        call me%nc__water__m_spm_bank_erosion%setData(sum(reach%j_spm%bankErosion), start=[w,x,y,t])
                     end if 
                     call me%nc__water__volume%setData(reach%volume, start=[w,x,y,t])
                     call me%nc__water__depth%setData(reach%depth, start=[w,x,y,t])
-                    call me%nc__water__flow%setData(reach%obj_Q%outflow / C%timeStep, start=[w,x,y,t])
+                    call me%nc__water__flow%setData(reach%Q%outflow / C%timeStep, start=[w,x,y,t])
                 end if
             end associate
         end do
@@ -272,11 +272,11 @@ module NetCDFOutputModule
                 ! by the whole batch, not just this chunk
                 else if (C%netCDFWriteMode == 'itr') then
                     call me%nc__sediment__m_nm_total%setData(sum(reach%bedSediment%get_m_np()) * reach%bedArea, &
-                                                     start=[w,x,y,t])
+                                                             start=[w,x,y,t])
                     call me%nc__sediment__C_nm_total%setData(sum(reach%bedSediment%get_C_np_byMass()), start=[w,x,y,t])
                     do l = 1, C%nSedimentLayers
                         call me%nc__sediment__C_nm_layers%setData(sum(reach%bedSediment%get_C_np_l_byMass(l)), &
-                                                          start=[l,w,x,y,t])
+                                                                  start=[l,w,x,y,t])
                     end do
                     call me%nc__sediment__m_nm_buried%setData(sum(reach%bedSediment%get_m_np_buried()) * reach%bedArea, &
                                                               start=[w,x,y,t])
@@ -390,7 +390,7 @@ module NetCDFOutputModule
         integer             :: waterbodyType(DATASET%gridShape(1), DATASET%gridShape(2))    ! Waterbody type
 
         ! Create the NetCDF file
-        me%nc = NcDataset(trim(C%outputPath) // 'output.nc', 'w')
+        me%nc = NcDataset(trim(C%outputPath) // 'output' // trim(C%outputHash) // '.nc', 'w')
 
         ! Metadata to describe the NetCDF file
         call me%nc%setAttribute('title', 'NanoFASE model output data: ' // trim(C%runDescription))

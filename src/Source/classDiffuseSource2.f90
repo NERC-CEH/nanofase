@@ -49,11 +49,11 @@ module classDiffuseSource2
         ! data and impose the default NM size distribution on it. Data already kg/m2/timestep.
         ! If data doesn't exist, classDatabase has already created array filled with nf90_fill_double
         if (trim(me%compartment) == 'soil') then
-            ! Pristine NM
+            ! Pristine NM - assumed to be core (form index = 1)
             if (.not. DATASET%emissionsArealSoilPristine(me%x, me%y) >= nf90_fill_double) then
                 me%j_np_diffuseSource(:,1,1) = DATASET%emissionsArealSoilPristine(me%x, me%y) * DATASET%defaultNMSizeDistribution
             end if
-            ! Matrix-embedded NM
+            ! Matrix-embedded NM - add to form=core (index=1) and state=attached (index=2) 
             if (.not. DATASET%emissionsArealSoilMatrixEmbedded(me%x, me%y) >= nf90_fill_double) then
                 me%j_np_diffuseSource(:,1,2) = DATASET%emissionsArealSoilMatrixEmbedded(me%x, me%y) &
                     * DATASET%defaultNMSizeDistribution
@@ -72,7 +72,7 @@ module classDiffuseSource2
             if (.not. DATASET%emissionsArealWaterPristine(me%x, me%y) >= nf90_fill_double) then
                 me%j_np_diffuseSource(:,1,1) = DATASET%emissionsArealWaterPristine(me%x, me%y) * DATASET%defaultNMSizeDistribution
             end if
-            ! Matrix-embedded NM
+            ! Matrix-embedded NM - add to form=core (index=1) and state=attached (index=2)
             if (.not. DATASET%emissionsArealWaterMatrixEmbedded(me%x, me%y) >= nf90_fill_double) then
                 do i = 1, C%nSizeClassesNM
                     me%j_np_diffuseSource(i,1,3:) = DATASET%emissionsArealWaterMatrixEmbedded(me%x, me%y) &

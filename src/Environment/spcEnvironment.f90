@@ -4,7 +4,6 @@ module spcEnvironment
     use ResultModule
     use spcGridCell
     use mo_netcdf
-    use classSampleSite, only: SampleSite
     implicit none
     private
 
@@ -22,9 +21,6 @@ module spcEnvironment
         integer                             :: nHeadwaters = 0          !! The number of headwaters in the Environment
         integer                             :: nWaterbodies = 0         !! The number of waterbodies in the Environment
         type(NcGroup)                       :: ncGroup                  !! NetCDF group for this `Environment` object
-        type(SampleSite), allocatable :: sites(:)                       !! Sample sites for calibrating with
-        type(SampleSite), pointer :: startSite, endSite                 !! Start and end calibration sites
-        type(SampleSite), allocatable :: otherSites(:)
         ! Summary statistics
         real(dp), allocatable               :: C_np_water_t(:,:,:,:)    !! Water NM conc spatial mean on each timestep [kg/m3]
         real(dp), allocatable               :: C_np_sediment_t(:,:,:,:) !! Sediment NM conc spatial mean on each timestep [kg/kg]
@@ -55,19 +51,21 @@ module spcEnvironment
         end function
         
         !> Interface to perform simulations in `Environment`
-        subroutine updateEnvironment(me, t, tInBatch)
+        subroutine updateEnvironment(me, t, tInBatch, isWarmUp)
             import Environment
             class(Environment), target :: me            !! This `Environment` instance
             integer :: t                                !! The current time step
             integer :: tInBatch                         !! The current time step in the batch run
+            logical :: isWarmUp                         !! Are we in the warm up period?
         end subroutine
 
-        subroutine updateReachEnvironment(me, t, reach)
+        subroutine updateReachEnvironment(me, t, reach, isWarmUp)
             use ReachModule, only: ReachPointer
             import Environment
-            class(Environment), target :: me        !! This Environment instance
-            integer :: t                            !! The current timestep
-            type(ReachPointer) :: reach             !! The reach to update
+            class(Environment), target  :: me           !! This Environment instance
+            integer                     :: t            !! The current timestep
+            type(ReachPointer)          :: reach        !! The reach to update
+            logical                     :: isWarmUp     !! Are we in a warm up period?
         end subroutine
         
         !> Interface to import and parse input data for the `Environment` object

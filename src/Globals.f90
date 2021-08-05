@@ -14,12 +14,13 @@ module Globals
 
     type, public :: GlobalsType
         ! Model info
-        character(len=5)    :: modelVersion = '0.0.2'
+        character(len=5)    :: modelVersion = '0.0.3'
         ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
         ! Data output 
         character(len=256)  :: outputPath                       !! Path to directory to store output data
+        character(len=32)   :: outputHash                       !! Hash to append to output file names. Useful for parallel runs.
         logical             :: writeCSV                         !! Should output data be written as CSV file?
         logical             :: writeNetCDF                      !! Should output data be written as NetCDF file?
         character(len=3)    :: netCDFWriteMode                  !! Should NetCDF output be written on each timestep or at the end of the chunk?
@@ -47,10 +48,13 @@ module Globals
         logical             :: triggerWarnings                  !! Should error warnings be printed to the console?
         logical             :: hasSimulationMask = .false.      !! Are we meant to mask the simulation (i.e. only use a subset of the input dataset)?
         character(len=256)  :: simulationMaskPath = ""          !! Path to NetCDF simulation mask
+        logical             :: ignoreNM                         !! If .true., miss out costly NM calculations. Useful for sediment calibration, NM PECs will be invalid
+        logical             :: bashColors                       !! Should output to the console use ANSI color codes?
 
         ! Checkpointing
         character(len=256)  :: checkpointFile                   !! Path to checkpoint file, to save to and/or read from
         logical             :: saveCheckpoint                   !! Should a checkpoint be saved when the run finishes?
+        logical             :: saveCheckpointAfterWarmUp        !! Should a checkpoint be saved after the warm up period?
         logical             :: reinstateCheckpoint              !! Should a checkpoint be reinstated before the run starts?
         logical             :: preserveTimestep                 !! Should the final timestep from the checkpoint be used to start the reinstated run?
 
@@ -71,14 +75,7 @@ module Globals
         integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
         real                :: minStreamSlope                   !! Minimum stream slope, imposed where calculated stream slope is less than this value [m/m]
         integer             :: minEstuaryTimestep               !! Minimum timestep (displacement) length for modelling estuarine dynamics [s]
-        
-        ! Calibration
-        logical             :: calibrationRun                   !! Is this model run a calibration run from/to given site?
-        character(len=7)    :: calibrationMode                  !! What mode to run the calibration in
-        character(len=256)  :: siteData                         !! Where is the data about the sampling sites stored?
-        character(len=20)   :: startSite                        !! Where does the calibration start from?
-        character(len=20)   :: endSite                          !! Where does the calibration end?
-        character(len=20), allocatable :: otherSites(:)          !! List of other sites to use from the site data file
+        logical             :: includeEstuary                   !! Should we simulate an estuary, or treat everything as a river?
 
         ! Batch run
         integer                         :: nChunks = 1          !! Numbers of chunks to run
@@ -144,33 +141,30 @@ module Globals
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
-            startDateStr, site_data, description, checkpoint_file, batch_description, simulation_mask
+            startDateStr, description, checkpoint_file, batch_description, simulation_mask
         character(len=50) :: mode
         character(len=256), allocatable :: input_files(:), constants_files(:), start_dates(:)
-        character(len=20) :: start_site, end_site
-        character(len=7) :: calibration_mode
-        character(len=20), allocatable :: other_sites(:)
         character(len=5) :: soil_pec_units, sediment_pec_units
         character(len=3) :: netcdf_write_mode
+        character(len=32) :: output_hash
         integer, allocatable :: n_timesteps_per_chunk(:)
         integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
             n_fractional_compositions, n_chunks
-        integer :: timestep, n_timesteps, n_soil_layers, n_other_sites, n_sediment_layers, min_estuary_timestep
+        integer :: timestep, n_timesteps, n_soil_layers, n_sediment_layers, min_estuary_timestep
         real :: min_stream_slope
         real(dp) :: epsilon, delta
         real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
             sediment_particle_densities(:), sediment_layer_depth(:)
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
-            calibration_run, write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
+            write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
             preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
             write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown, &
-            write_compartment_stats 
+            write_compartment_stats, ignore_nm, include_estuary, bash_colors, save_checkpoint_after_warm_up
         
         ! Config file namelists
-        namelist /allocatable_array_sizes/ n_soil_layers, n_other_sites, n_nm_size_classes, n_spm_size_classes, &
+        namelist /allocatable_array_sizes/ n_soil_layers, n_nm_size_classes, n_spm_size_classes, &
             n_fractional_compositions, n_sediment_layers
-        namelist /calibrate/ calibration_run, site_data, start_site, end_site, other_sites, calibration_mode
         namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
@@ -178,12 +172,13 @@ module Globals
             include_soil_erosion, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats, &
             write_netcdf, netcdf_write_mode
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description, trigger_warnings, simulation_mask, write_to_log
-        namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
+            description, trigger_warnings, simulation_mask, write_to_log, output_hash, ignore_nm, bash_colors
+        namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep, &
+            save_checkpoint_after_warm_up
         namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
-        namelist /water/ min_stream_slope, min_estuary_timestep
+        namelist /water/ min_stream_slope, min_estuary_timestep, include_estuary
         namelist /sources/ include_point_sources
 
         ! Batch config namelists
@@ -196,6 +191,7 @@ module Globals
         write_csv = configDefaults%writeCSV                                     ! True
         write_netcdf = configDefaults%writeNetCDF                               ! False
         netcdf_write_mode = configDefaults%netCDFWriteMode                      ! 'end'
+        output_hash = configDefaults%outputHash                                 ! ''
         description = ""
         batch_description = ""
         write_metadata_as_comment = .true.
@@ -208,20 +204,23 @@ module Globals
         include_clay_enrichment = configDefaults%includeClayEnrichment
         soil_pec_units = configDefaults%soilPECUnits                            ! kg/kg
         sediment_pec_units = configDefaults%sedimentPECUnits                    ! kg/kg
-        save_checkpoint = .false.
+        save_checkpoint = configDefaults%saveCheckpoint                         ! False
+        save_checkpoint_after_warm_up = configDefaults%saveCheckpointAfterWarmUp ! False
+        checkpoint_file = configDefaults%checkpointFile
         reinstate_checkpoint = .false.
         preserve_timestep = .false.
         run_to_steady_state = configDefaults%runToSteadyState                   ! False
         delta = configDefaults%steadyStateDelta
         mode = configDefaults%steadyStateMode
-        calibration_run = .false.
-        calibration_mode = configDefaults%calibrationMode
-        n_other_sites = 0
         simulation_mask = ""
         min_stream_slope = configDefaults%minStreamSlope
         min_estuary_timestep = configDefaults%minEstuaryTimestep
         include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown
         write_compartment_stats = configDefaults%writeCompartmentStats
+        ignore_nm = configDefaults%ignoreNM
+        include_estuary = configDefaults%includeEstuary                         ! True
+        warm_up_period = configDefaults%warmUpPeriod                            ! 0
+        bash_colors = configDefaults%bashColors                                 ! True
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -271,13 +270,8 @@ module Globals
         allocate(nm_size_classes(n_nm_size_classes))
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(sediment_particle_densities(n_fractional_compositions))
-        allocate(other_sites(n_other_sites))
         ! Carry on reading in the different config groups
         read(iouConfig, nml=nanomaterial); rewind(iouConfig)
-        read(iouConfig, nml=calibrate, iostat=nmlIOStat); rewind(iouConfig)
-        if (nmlIOStat .ge. 0) then
-            read(iouConfig, nml=calibrate); rewind(iouConfig)
-        end if
         read(iouConfig, nml=data); rewind(iouConfig)
         read(iouConfig, nml=output); rewind(iouConfig)
         read(iouConfig, nml=run); rewind(iouConfig)
@@ -303,6 +297,7 @@ module Globals
         C%inputFile = input_file
         C%constantsFile = constants_file
         C%outputPath = output_path
+        C%outputHash = output_hash
         ! Output
         C%writeCSV = write_csv
         C%writeNetCDF = write_netcdf
@@ -336,24 +331,19 @@ module Globals
             C%hasSimulationMask = .true.
             C%simulationMaskPath = simulation_mask
         end if
+        C%ignoreNM = ignore_nm
+        C%warmUpPeriod = warm_up_period
+        C%bashColors = bash_colors
         ! Checkpointing
         C%checkpointFile = checkpoint_file
         C%saveCheckpoint = save_checkpoint
+        C%saveCheckpointAfterWarmUp = save_checkpoint_after_warm_up
         C%reinstateCheckpoint = reinstate_checkpoint
         C%preserveTimestep = preserve_timestep
         ! Steady state
         C%runToSteadyState = run_to_steady_state
         C%steadyStateMode = mode
         C%steadyStateDelta = delta
-        ! Calibration
-        C%calibrationRun = calibration_run
-        if (C%calibrationRun) then
-            C%calibrationMode = calibration_mode
-            C%siteData = site_data
-            C%startSite = start_site
-            C%endSite = end_site
-            C%otherSites = other_sites
-        end if
         ! Sediment
         C%sedimentLayerDepth = sediment_layer_depth
         C%nSizeClassesSpm = n_spm_size_classes
@@ -365,13 +355,13 @@ module Globals
         ! Soil
         C%nSoilLayers = n_soil_layers
         C%soilLayerDepth = soil_layer_depth
-        C%warmUpPeriod = warm_up_period
         C%includeBioturbation = include_bioturbation
         C%includeAttachment = include_attachment
         C%includeClayEnrichment = include_clay_enrichment
         ! Water
         C%minStreamSlope = min_stream_slope
         C%minEstuaryTimestep = min_estuary_timestep
+        C%includeEstuary = include_estuary
         ! Sources
         C%includePointSources = include_point_sources
 
@@ -425,8 +415,6 @@ module Globals
         ! File operations
         errors(2) = ErrorInstance(code=200, message="File not found.")
         errors(3) = ErrorInstance(code=201, message="Variable not found in input file.")
-        errors(4) = ErrorInstance(code=202, message="Group not found in input file.")
-        errors(5) = ErrorInstance(code=203, message="Unknown config file option.")
         ! Numerical calculations
         errors(6) = ErrorInstance(code=300, message="Newton's method failed to converge.")
         ! Grid and geography
@@ -470,6 +458,7 @@ module Globals
         class(GlobalsType), intent(in)  :: me
         type(Result)                    :: rslt
 
+        ! Steady state mode
         if (me%runToSteadyState) then
             if (trim(me%steadyStateMode) /= 'sediment_size_distribution') then
                 call rslt%addError(ErrorInstance( &
@@ -477,11 +466,22 @@ module Globals
                 ))
             end if
         end if
-
+        ! NetCDF write mode must be itr or end
         if (me%netCDFWriteMode /= 'itr' .and. me%netCDFWriteMode /= 'end') then
             call rslt%addError(ErrorInstance( &
-                message='Invalid config file value for &output > netcdf_write_mode. Should be "itr" or "end"' &
-            ))
+                message='Invalid config file value for &output > netcdf_write_mode. Should be "itr" or "end"'))
+        end if
+        ! Warm up period must be smaller than number of time steps
+        if (me%warmUpPeriod > me%nTimeSteps) then
+            call rslt%addError(ErrorInstance(message='Warm up period must be less than or equal to the number of ' // &
+                'time steps in the model run (or first chunk).'))
+        end if
+
+        ! CHECKPOINT
+        ! Add warning if saving checkpoint at warm up and end of run
+        if (C%saveCheckpoint .and. C%saveCheckpointAfterWarmUp) then
+            call rslt%addError(ErrorInstance(message='You have specified to save a checkpoint after warm up ' // &
+                'and at the end of the model run. Only the latter will be saved to file.', isCritical=.false.))
         end if
         
         ! Trigger the errors, if there were any

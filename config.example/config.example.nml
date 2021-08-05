@@ -7,19 +7,14 @@ n_soil_layers = 3                                       ! Number of soil layers 
 n_sediment_layers = 4                                   ! Number of sediment layers to model
 n_nm_size_classes = 5                                   ! Number of NM size classes
 n_spm_size_classes = 5                                  ! Number of SPM size classes
-n_fractional_compositions = 4                           ! Number of fractional compositions for sediment
+n_fractional_compositions = 2                           ! Number of fractional compositions for sediment
 /
 
 &nanomaterial
 nm_size_classes = 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ! Diameter of NM in each binned size class [m]
-n_nm_forms = 4                                          ! Number of NM forms (free, matrix-embedded, etc)
+n_nm_forms = 1                                          ! Number of NM forms (core, shell, coating, corona etc)
 n_nm_extra_states = 2                                   ! Number of extra NM states, other than heteroaggregated to SPM
 / 
-
-! Run the model in calibration mode? Documentation here: [doc/calibration.md](../doc/calibration.md)
-&calibrate
-calibration_run = .false.                               ! Run in calibration mode or not? Following variables only required if this is true
-/
 
 ! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
 &data
@@ -31,7 +26,7 @@ output_path = "data/output/"                            ! Path to store the outp
 ! Various options related to what data to output. Generally speaking, the more of the include_ flags that are set to true,
 ! the more data that is output and the larger the output data file sizes
 &output
-write_csv = .true.                                      ! Should we write output data to CSV files (n.b. turning this off currently suppresses all output, except for runs to steady state)
+write_csv = .true.                                     ! Should we write output data to CSV files?
 write_netcdf = .true.                                   ! Should we write output data to a NetCDF file?
 netcdf_write_mode = 'end'                               ! When should we write to the NetCDF file? Every time step ('itr') or at the end of the run ('end'). Every time step is slower, end uses much more memory
 write_metadata_as_comment = .true.                      ! Should output data metadata (e.g. column descriptions) be included as comments at top of CSV files?
@@ -56,7 +51,9 @@ epsilon = 1e-20,                                        ! Precision for numerica
 error_output = .true.                                   ! Should error handling be turned on? Be careful if not, things might go wrong!
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
-warm_up_period = 0                                      ! Warm up period before main simulation begin. *Not yet implemented.*
+output_hash = ""                                        ! Append all output file names with this value. Useful for parallel model runs. Max 32 characters (e.g. hex string).
+ignore_nm = .false.                                     ! If .true., this tells the model we're not interested in NM and misses out costly computations. Useful for sediment calibration, NM PECs will be invalid
+warm_up_period = 0
 /
 
 ! Checkpointing is the ability to save a model run so that it can be reinstated from file. This is useful if, for example,
@@ -85,12 +82,13 @@ include_attachment = .true.                             ! Should attachment be m
 sediment_layer_depth = 0.01, 0.01, 0.01, 0.01           ! Depth of each sediment layer. Array of length &allocatable_array_sizes > n_sediment_layers
 spm_size_classes = 0.002e-3, 0.06e-3, 0.2e-3, 0.6e-3, 2.0e-3    ! Upper bound of SPM diameter in each binned size class [m]
 include_bed_sediment = .true.                           ! Should bed sediment be modelled?
-sediment_particle_densities = 1500, 2600, 2600, 2600    ! Density of sediment particles in each fractional composition class [kg/m3]
+sediment_particle_densities = 1500, 2600                ! Density of sediment particles in each fractional composition class [kg/m3]
 /
 
 &water
 min_stream_slope = 0.0001                               ! Impose a minimum stream slope. Defaults to 0.0001, must be greater than 0
 min_estuary_timestep = 3600                             ! Minimum timestep length to use when modelling estuarine dynamics [s]. Defaults to 1 hour
+include_estuary = .true.                               ! Should we model estuaries, or treat them as rivers?
 /
 
 &sources

@@ -6,6 +6,7 @@ module spcBedSediment
     use ErrorInstanceModule                                          ! generation of trace error messages
     use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
     use classFineSediment1
+    use Spoof
     implicit none                                                    ! force declaration of all variables
     !> Type definition for polymorphic `BedSedimentLayer` container,
     !! which stores a polymorphic class(BedSedimentLayer) in derived
@@ -18,33 +19,25 @@ module spcBedSediment
     !! shared by all `BedSediment` objects. Objects of this class cannot be instantiated,
     !! only objects of its subclasses
     type, abstract, public :: BedSediment
-        character(len=256) :: name                                   !! Name for this object, of the form *BedSediment_x_y_s_r*
+        character(len=256)      :: name                                 !! Name for this object, of the form *BedSediment_x_y_s_r*
         class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:) !! Collection of `BedSedimentLayer` objects
-        integer :: nSizeClasses                                      !! Number of fine sediment size classes
-        real(dp), allocatable :: delta_sed(:,:,:)                    !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
-        integer :: nfComp                                            !! number of fractional composition terms for sediment
-        type(NcGroup) :: ncGroup                                     !! The NETCDF group for this `BedSediment`
+        integer :: nSizeClasses                                         !! Number of fine sediment size classes
+        real(dp), allocatable   :: delta_sed(:,:,:)                     !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
+        integer                 :: n_delta_sed                          !! The order of delta_sed
+        type(CSRMatrix), allocatable :: delta_sed_csr(:)                !! CSR matrix storage for delta_sed. dim=spm size classes
+        integer :: nfComp                                               !! number of fractional composition terms for sediment
         ! Nanomaterials
         real(dp), allocatable :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
         real(dp), allocatable :: C_np_byMass(:,:,:,:)               !! Concentration of NM across sediment layers [kg/kg dw]
     contains
                                                                      ! deferred methods: must be defined in all subclasses
-        procedure(createBedSediment), public, deferred :: &
-            create                                                   ! constructor method
-        procedure(destroyBedSediment), public, deferred :: &
-            destroy                                                  ! finaliser method
-        procedure(DepositSediment), public, deferred :: &
-            deposit                                                  ! deposit sediment from water column
-        procedure(ResuspendSediment), public, deferred :: &
-            resuspend                                                ! resuspend sediment to water column
-        procedure(ReportBedMassToConsole), public, deferred :: &
-            repMass                                                  ! report fine sediment masses to the console
-        ! procedure(InitialiseMTCMatrix), public, deferred :: &
-        !     initMatrix                                               ! initialise mass transfer coefficient matrix
-        procedure(FinaliseMTCMatrix), public, deferred :: &
-            getMatrix                                                ! finalise mass transfer coefficient matrix
-        procedure(transferNMBedSediment), public, deferred :: transferNM        ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
-                                                                     ! non-deferred methods: defined here. Can be overwritten in subclasses
+        procedure(createBedSediment), public, deferred :: create            ! constructor method
+        procedure(destroyBedSediment), public, deferred :: destroy          ! finaliser method
+        procedure(DepositSediment), public, deferred :: deposit             ! deposit sediment from water column
+        procedure(ResuspendSediment), public, deferred :: resuspend         ! resuspend sediment to water column
+        procedure(ReportBedMassToConsole), public, deferred :: repMass      ! report fine sediment masses to the console
+        procedure(FinaliseMTCMatrix), public, deferred :: getMatrix         ! finalise mass transfer coefficient matrix
+        procedure(transferNMBedSediment), public, deferred :: transferNM    ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
         procedure, public :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
         procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
         procedure, public :: Aw_sediment => Get_Aw_sediment          ! water available capacity for size class
@@ -52,7 +45,8 @@ module spcBedSediment
         procedure, public :: Mf_bed_one_size => Get_Mf_bed_one_size  ! fine sediment mass in bed for a single size class
         procedure, public :: Mf_bed_all => Get_Mf_bed_all            ! fine sediment mass in all size classes (single value)
         procedure, public :: Mf_bed_by_size => Get_Mf_bed_by_size    ! fine sediment mass in all size classes (1D array by size)
-        procedure, public :: Mf_bed_by_layer => get_Mf_bed_by_layer  ! fine sediment mass as an array of all layers
+        procedure, public :: Mf_bed_by_layer => get_Mf_bed_by_layer  ! Fine sediment mass for an individual layer
+        procedure, public :: Mf_bed_layer_array => get_Mf_bed_layer_array  ! Fine sediment mass as an array of all layers
         procedure, public :: V_w_by_layer => get_V_w_by_layer        ! total water volume in each layer
         ! Getters
         procedure, public :: get_m_np
@@ -468,6 +462,16 @@ contains
         integer                         :: l
         real(dp)                        :: Mf
         Mf = me%colBedSedimentLayers(l)%item%M_f_layer()
+    end function
+
+    !> Get mass of fine sediment as array of layers [kg/m2]
+    function get_Mf_bed_layer_array(me) result(Mf)
+        class(BedSediment), intent(in)  :: me
+        integer                         :: l            ! Layer
+        real(dp)                        :: Mf(C%nSedimentLayers)
+        do l = 1, C%nSedimentLayers 
+            Mf(l) = me%colBedSedimentLayers(l)%item%M_f_layer()
+        end do
     end function
 
     function get_V_w_by_layer(me) result(V_w)

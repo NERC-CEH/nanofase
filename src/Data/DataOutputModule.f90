@@ -66,14 +66,18 @@ module DataOutputModule
         end if
 
         ! Open the files to write to
-        open(iouOutputSummary, file=trim(C%outputPath) // 'summary.md')
+        open(iouOutputSummary, file=trim(C%outputPath) // 'summary' // trim(C%outputHash) // '.md')
         if (C%writeCSV) then
-            open(iouOutputWater, file=trim(C%outputPath) // 'output_water.csv')
-            open(iouOutputSediment, file=trim(C%outputPath) // 'output_sediment.csv')
-            open(iouOutputSoil, file=trim(C%outputPath) // 'output_soil.csv')
+            open(iouOutputWater, &
+                 file=trim(C%outputPath) // 'output_water' // trim(C%outputHash) // '.csv')
+            open(iouOutputSediment, &
+                 file=trim(C%outputPath) // 'output_sediment' // trim(C%outputHash) // '.csv')
+            open(iouOutputSoil, &
+                 file=trim(C%outputPath) // 'output_soil' // trim(C%outputHash) // '.csv')
         end if
         if (C%writeCompartmentStats) then
-            open(iouOutputStats, file=trim(C%outputPath) // 'stats.csv')
+            open(iouOutputStats, &
+                 file=trim(C%outputPath) // 'stats' // trim(C%outputHash) // '.csv')
         end if
 
         ! Write the headers for the files
@@ -93,7 +97,7 @@ module DataOutputModule
         end do
 
         ! Open the SSD file and write the headers
-        open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd.csv')
+        open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd' // trim(C%outputHash) // '.csv')
         if (C%writeMetadataAsComment) then
             write(iouOutputSSD, '(a)') "# NanoFASE model output data - SEDIMENT SIZE DISTRIBUTION."
             write(iouOutputSSD, '(a)') "# Output file for when running the model until sediment size " // &
@@ -182,13 +186,13 @@ module DataOutputModule
                             trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
                             trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
                             trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
-                            trim(str(sum(reach%obj_j_nm%deposition))) // "," // &
-                            trim(str(sum(reach%obj_j_nm_transformed%deposition))) // "," // &
-                            trim(str(sum(reach%obj_j_nm%resuspension))) // "," // &
-                            trim(str(sum(reach%obj_j_nm_transformed%resuspension))) // "," // &
-                            trim(str(sum(reach%obj_j_nm%outflow))) // "," // &
-                            trim(str(sum(reach%obj_j_nm_transformed%outflow))) // "," // &
-                            trim(str(reach%obj_j_dissolved%outflow)) // "," // &
+                            trim(str(sum(reach%j_nm%deposition))) // "," // &
+                            trim(str(sum(reach%j_nm_transformed%deposition))) // "," // &
+                            trim(str(sum(reach%j_nm%resuspension))) // "," // &
+                            trim(str(sum(reach%j_nm_transformed%resuspension))) // "," // &
+                            trim(str(sum(reach%j_nm%outflow))) // "," // &
+                            trim(str(sum(reach%j_nm_transformed%outflow))) // "," // &
+                            trim(str(reach%j_dissolved%outflow)) // "," // &
                             trim(str(sum(reach%m_spm))) // "," // &
                             trim(str(sum(reach%C_spm))) // ","
                         if (C%includeSpmSizeClassBreakdown) then
@@ -196,14 +200,14 @@ module DataOutputModule
                                 trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
                         end if
                         if (C%includeSedimentFluxes) then
-                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%obj_j_spm%soilErosion))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%deposition))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%resuspension))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%inflow))) // "," // trim(str(sum(reach%obj_j_spm%outflow))) // "," // &
-                                trim(str(sum(reach%obj_j_spm%bankErosion))) // ","
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%j_spm%soilErosion))) // "," // &
+                                trim(str(sum(reach%j_spm%deposition))) // "," // &
+                                trim(str(sum(reach%j_spm%resuspension))) // "," // &
+                                trim(str(sum(reach%j_spm%inflow))) // "," // trim(str(sum(reach%j_spm%outflow))) // "," // &
+                                trim(str(sum(reach%j_spm%bankErosion))) // ","
                         end if
                         write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
-                            trim(str(reach%obj_Q%outflow / C%timeStep))
+                            trim(str(reach%Q%outflow / C%timeStep))
                     end associate
                 end do
             else

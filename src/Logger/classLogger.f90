@@ -54,11 +54,21 @@ module classLogger
     end subroutine
 
     !> Log to file (if enabled) and console
-    subroutine addLogger(me, message)
-        class(Logger)       :: me
-        character(*)        :: message
-        if (me%logToConsole) write(*,'(A)') message
-        if (me%logToFile) write(me%fileUnit, '(A)') timestamp() // ": " // message
+    subroutine addLogger(me, message, color)
+        class(Logger)           :: me               !! This Logger instance
+        character(*)            :: message          !! The message to log
+        character(*), optional  :: color            !! Color to log to console
+        character(8)            :: colorCode        ! The color code for the specified colour
+        character(7)            :: resetCode
+        if (present(color) .and. C%bashColors) then
+            colorCode = getCodeForColor(color)
+            resetCode = "\x1B[0m"
+        else
+            colorCode = ""
+            resetCode = ""
+        end if
+        if (me%logToConsole) write(*,'(A)') trim(colorCode) // message // trim(resetCode)
+        if (me%logToFile) write(me%fileUnit, '(A)') timestamp() // ": " // trim(message)
     end subroutine
 
     !> Log just to file. Takes either a message or any array of ErrorInstanaces.
@@ -112,6 +122,21 @@ module classLogger
         call date_and_time(values=values)
         write(timestamp, "(I4.4, A, I2.2, A, I2.2, A, I2.2, A, I2.2, A, I2.2)") &
             values(1), "-", values(2), "-", values(3), "_", values(5), ".", values(6), ".", values(7)
+    end function
+
+    function getCodeForColor(color) result(code)
+        character(*)    :: color
+        character(8)    :: code
+        select case (color)
+            case ("lightblue")
+                code = "\x1B[94m"
+            case ("yellow")
+                code = "\x1B[33m"
+            case ("green")
+                code = "\x1B[32m"
+            case default
+                code = ""
+        end select
     end function
 
 end module

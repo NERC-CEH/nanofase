@@ -1,19 +1,20 @@
-!---------------------------------------------------------------!
-!> NanoFASE model                                               !
-!> --------------                                               !
-!> Nanomaterial Fate And Speciation in the Environment          !
-!>                                                              !
-!> Authors: Sam Harrison (sharrison@ceh.ac.uk)                  !
-!>          Stephen Lofts                                       !
-!>          Virginie Keller                                     !
-!>          Michael Hutchins                                    !
-!>          Richard Williams                                    !
-!> Institute: UK Centre for Ecology & Hydrology                 !
-!> Repository: https://github.com/nerc-ceh/nanofase             !
-!> Documentation: *                                             !
-!> Changelog: *                                                 !
-!> License: *                                                   !
-!---------------------------------------------------------------!
+!-------------------------------------------------------------------------------!
+!> NanoFASE model                                                               !
+!> --------------                                                               !
+!> Nanomaterial Fate And Speciation in the Environment                          !
+!>                                                                              !
+!> Authors: Sam Harrison (sharrison@ceh.ac.uk)                                  !
+!>          Stephen Lofts                                                       !
+!>          Virginie Keller                                                     !
+!>          Michael Hutchins                                                    !
+!>          Richard Williams                                                    !
+!> Institute: UK Centre for Ecology & Hydrology                                 !
+!> Repository: https://github.com/nerc-ceh/nanofase                             !
+!> Documentation: *                                                             !
+!> Changelog: https://github.com/NERC-CEH/nanofase/blob/develop/CHANGELOG.md    !
+!> License: BSD 3-Clause,                                                       !
+!>          https://github.com/NERC-CEH/nanofase/blob/develop/LICENSE           !
+!-------------------------------------------------------------------------------!
 program main
     use Globals
     use UtilModule
@@ -29,19 +30,21 @@ program main
     use datetime_module
     implicit none
 
-    real                :: start, finish                    !! Simulation start and finish times
-    type(Environment1)  :: env                              !! Environment object
-    type(Result)        :: r                                !! Result object
-    type(DataOutput)    :: output                           !! Data output class
-    type(Checkpoint)    :: checkpt                          !! Checkpoint module
-    integer             :: t, k                             !! Loop iterators
-    integer             :: tPreviousChunk = 0               !! Timestep at end of previous batch
-    integer             :: i                                !! If running to steady state, this is the iterator
-    logical             :: steadyStateReached = .false.     !! Has steady state been reached?
-    real(dp)            :: delta_max                        !! Maximum difference between the same size classes on separate runs
+    real                :: start, finish                        !! Simulation start and finish CPU times
+    integer(i64)        :: start_wall, finish_wall, clock_rate  !! Simulation start and finish wall times, and clock rate
+    type(Environment1)  :: env                                  !! Environment object
+    type(Result)        :: r                                    !! Result object
+    type(DataOutput)    :: output                               !! Data output class
+    type(Checkpoint)    :: checkpt                              !! Checkpoint module
+    integer             :: t, k                                 !! Loop iterators
+    integer             :: tPreviousChunk = 0                   !! Timestep at end of previous batch
+    integer             :: i                                    !! If running to steady state, this is the iterator
+    logical             :: steadyStateReached = .false.         !! Has steady state been reached?
+    real(dp)            :: delta_max                            !! Maximum difference between the same size classes on separate runs
 
-    ! Get the CPU time at the start of the model run
+    ! Get the CPU and wall time at the start of the model run
     call cpu_time(start)
+    call system_clock(start_wall, clock_rate)
 
     ! Set up global vars/constants and initialise the logger
     call GLOBALS_INIT()
@@ -52,10 +55,11 @@ program main
         logFilePath=C%logFilePath, &
         fileUnit=iouLog &
     )
-    ! Welcome!
+
+    ! Welcome, good to have you here!
     call printWelcome()
 
-    ! Pull in the input data
+    ! Load the input data
     call DATASET%init(C%inputFile, C%constantsFile)
 
     ! Create the Environment object and deal with any errors that arise
@@ -77,6 +81,23 @@ program main
         call checkpt%reinstate(preserve_timestep=C%preserveTimestep)
     end if
 
+    ! Check if we've been asked to run a warm up period, which runs the first N timesteps' worth
+    ! of data, excluding NM inputs, through the model, where N is specified by C%warmUpPeriod
+    if (C%warmUpPeriod > 0) then
+        ! Log some info about it
+        call LOGR%add("Running for warm up period of " // trim(str(C%warmUpPeriod)) // " time steps", "lightblue")
+        ! Run the model with the warmUp flag
+        do t = 1, C%warmUpPeriod
+            call env%update(t, t, .true.)
+        end do
+        ! Log that we're finished warming up and on to the real model
+        call LOGR%add("Finished warm up period", "lightblue")
+        ! Have we been asked to create a checkpoint after the warm up period?
+        if (C%saveCheckpointAfterWarmUp) then
+            call checkpt%save(0)
+        end if
+    end if
+
     ! Loop until steady state is reached, if we're in run to steady state mode. Otherwise, we'll
     ! trip out of this loop after the first iteration
     i = 1
@@ -84,8 +105,7 @@ program main
 
         ! If we're running to steady state, log some info about it
         if (C%runToSteadyState) then
-            call LOGR%toFile("Model iteration #" // trim(str(i)))
-            call LOGR%toConsole("\x1B[94mModel iteration #" // trim(str(i)) // "\x1B[0m")
+            call LOGR%add("Model iteration #" // trim(str(i)), "lightblue")
         end if
 
         ! Loop through each chunk in the batch run. There will only be one if this isn't a batch run
@@ -101,7 +121,7 @@ program main
             ! the fact we might be in a batch run and so the timestep within the chunk, t, can be used
             do t = 1, C%nTimeSteps
                 ! Update the environment for this timestep, which in turn updates all compartments
-                call env%update(t, t + tPreviousChunk)
+                call env%update(t, t + tPreviousChunk, .false.)
                 ! Check for any errors returned from updated, and log/trigger them
                 call LOGR%toFile(errors=.errors.r)
                 call ERROR_HANDLER%trigger(errors=.errors.r)
@@ -126,9 +146,8 @@ program main
                 ! Check if we've met the criteria set in config to have reached steady state
                 if (delta_max <= C%steadyStateDelta) then
                     steadyStateReached = .true.
-                    call LOGR%toFile("Steady state reached after " // trim(str(i)) // " " // trim(pluralize("iteration", i)))
-                    call LOGR%toConsole("\x1B[94mSteady state reached after " // trim(str(i)) // &
-                                        " " // trim(pluralize("iteration", i)) // "\x1B[0m")
+                    call LOGR%add("Steady state reached after " // trim(str(i)) // " " // &
+                                  trim(pluralize("iteration", i)), "lightblue")
                 end if
                 ! Increment the iterator to the next model run
                 i = i + 1
@@ -145,12 +164,16 @@ program main
         call checkpt%save(tPreviousChunk)
     end if
 
-    ! Write the simulation summary to file and close output data files. Pass the steady state
-    ! iterator in to give number of iterations until steady state
+    ! Write the simulation summary to file, close output data files and report that it was a successful
+    ! model run. Pass the steady state iterator in to give number of iterations until steady state
     call output%finalise(i-1)
+    call LOGR%add("Model run completeled successfully", "green")
     
     ! Timings
     call cpu_time(finish)
-    call LOGR%add("CPU time taken to run simulation (s): " // str(finish - start))
+    call system_clock(finish_wall, clock_rate)
+    call LOGR%add("CPU time taken to run simulation (s): " // trim(str(finish - start)), "yellow")
+    call LOGR%add("Wall time taken to run simulation (s): " // &
+                  trim(str(real(finish_wall - start_wall) / real(clock_rate))), "yellow")
 
 end program

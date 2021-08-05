@@ -104,6 +104,10 @@ You need to update the `LD_LIBRARY_PATH` variable again, to include the NetCDF F
 export LD_LIBRARY_PATH=~/software/netcdff/lib:~/software/gcc/install/lib64:~/software/gcc/install/lib/gcc/x86_64-pc-linux-gnu/9.2.0:~/software/gcc/install/libexec/gcc/x86_64-pc-linux-gnu/9.2.0:$LD_LIBRARY_PATH
 ```
 
+### Issues with Jaspy
+
+Loading Jaspy (e.g via `module load jaspy`) can cause issues. For example, it is likely that your `$PATH` environment variable gets modified to include Jaspy directories first, thus overiding the changes you made to point it towards your `GCC` installation. The easiest way around this is to compile the model *before* loading Jaspy, or after you have unloaded it (`module unload jaspy`).
+
 ## Compiling the model
 
 The model Makefile needs to be edited to point to the correct version of NetCDF. Change the variable `NETCDF` to point to the directories you just installed NetCDF Fortran in. For example, if you installed to `~/software/netcdff`, then:
