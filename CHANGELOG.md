@@ -53,6 +53,6 @@ All notable changes to the model will be documented in this file. Breaking chang
 - This changelog.
 
 [unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.3...HEAD
-[0.0.2]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.3
+[0.0.3]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.3
 [0.0.2]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.2
 [0.0.1]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.1
