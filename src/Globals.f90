@@ -14,7 +14,7 @@ module Globals
 
     type, public :: GlobalsType
         ! Model info
-        character(len=5)    :: modelVersion = '0.0.2'
+        character(len=5)    :: modelVersion = '0.0.3'
         ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile

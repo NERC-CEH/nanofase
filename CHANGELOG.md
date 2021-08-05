@@ -4,6 +4,8 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ## [Unreleased]
 
+## [0.0.3] - 2021-08-05
+
 ### Added
 
 - Warm up period: You can now run the model before inputting NM using the `&run > warm_up_period` config option, which runs the model for the number of time steps specified. The data that is used is sliced from the start of the dataset (e.g. `warm_up_period = 10` would use the first 10 time steps' data), but no NM is input to the environment. The warm up period must be fewer time steps than the model run (or the first chunk of the run, if running in batch mode).
@@ -50,6 +52,7 @@ All notable changes to the model will be documented in this file. Breaking chang
 - Added option to aggregate CSV output for waterbodies at grid cell level, rather than breaking it down to waterbody level. Internal functions for aggregating to grid cell added (e.g. weighted means, fetching outflow reaches). This option can be used by specifying `&output > include_waterbody_breakdown = .false.` in the [model config file](./config.example/config.example.nml). Default is `.true.`.
 - This changelog.
 
-[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.2...HEAD
+[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.3...HEAD
+[0.0.2]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.3
 [0.0.2]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.2
 [0.0.1]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.1
