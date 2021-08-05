@@ -54,6 +54,7 @@ module Globals
         ! Checkpointing
         character(len=256)  :: checkpointFile                   !! Path to checkpoint file, to save to and/or read from
         logical             :: saveCheckpoint                   !! Should a checkpoint be saved when the run finishes?
+        logical             :: saveCheckpointAfterWarmUp        !! Should a checkpoint be saved after the warm up period?
         logical             :: reinstateCheckpoint              !! Should a checkpoint be reinstated before the run starts?
         logical             :: preserveTimestep                 !! Should the final timestep from the checkpoint be used to start the reinstated run?
 
@@ -159,7 +160,7 @@ module Globals
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
             preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
             write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown, &
-            write_compartment_stats, ignore_nm, include_estuary, bash_colors
+            write_compartment_stats, ignore_nm, include_estuary, bash_colors, save_checkpoint_after_warm_up
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_nm_size_classes, n_spm_size_classes, &
@@ -172,7 +173,8 @@ module Globals
             write_netcdf, netcdf_write_mode
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
             description, trigger_warnings, simulation_mask, write_to_log, output_hash, ignore_nm, bash_colors
-        namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep
+        namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep, &
+            save_checkpoint_after_warm_up
         namelist /steady_state/ run_to_steady_state, mode, delta
         namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
@@ -202,7 +204,9 @@ module Globals
         include_clay_enrichment = configDefaults%includeClayEnrichment
         soil_pec_units = configDefaults%soilPECUnits                            ! kg/kg
         sediment_pec_units = configDefaults%sedimentPECUnits                    ! kg/kg
-        save_checkpoint = .false.
+        save_checkpoint = configDefaults%saveCheckpoint                         ! False
+        save_checkpoint_after_warm_up = configDefaults%saveCheckpointAfterWarmUp ! False
+        checkpoint_file = configDefaults%checkpointFile
         reinstate_checkpoint = .false.
         preserve_timestep = .false.
         run_to_steady_state = configDefaults%runToSteadyState                   ! False
@@ -333,6 +337,7 @@ module Globals
         ! Checkpointing
         C%checkpointFile = checkpoint_file
         C%saveCheckpoint = save_checkpoint
+        C%saveCheckpointAfterWarmUp = save_checkpoint_after_warm_up
         C%reinstateCheckpoint = reinstate_checkpoint
         C%preserveTimestep = preserve_timestep
         ! Steady state
@@ -470,6 +475,13 @@ module Globals
         if (me%warmUpPeriod > me%nTimeSteps) then
             call rslt%addError(ErrorInstance(message='Warm up period must be less than or equal to the number of ' // &
                 'time steps in the model run (or first chunk).'))
+        end if
+
+        ! CHECKPOINT
+        ! Add warning if saving checkpoint at warm up and end of run
+        if (C%saveCheckpoint .and. C%saveCheckpointAfterWarmUp) then
+            call rslt%addError(ErrorInstance(message='You have specified to save a checkpoint after warm up ' // &
+                'and at the end of the model run. Only the latter will be saved to file.', isCritical=.false.))
         end if
         
         ! Trigger the errors, if there were any

@@ -92,6 +92,10 @@ program main
         end do
         ! Log that we're finished warming up and on to the real model
         call LOGR%add("Finished warm up period", "lightblue")
+        ! Have we been asked to create a checkpoint after the warm up period?
+        if (C%saveCheckpointAfterWarmUp) then
+            call checkpt%save(0)
+        end if
     end if
 
     ! Loop until steady state is reached, if we're in run to steady state mode. Otherwise, we'll

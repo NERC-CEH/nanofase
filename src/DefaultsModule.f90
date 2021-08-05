@@ -45,6 +45,10 @@ module DefaultsModule
         logical             :: includeClayEnrichment = .false.
         character(len=5)    :: soilPECUnits = 'kg/kg'                   ! Should soil PECS be kg/kg or kg/m3?
         character(len=5)    :: sedimentPECUnits = 'kg/kg'               ! Should sediment PECs be kg/kg or kg/m3?
+        ! Checkpoint
+        logical             :: saveCheckpoint = .false.                 ! Should we save a checkpoint file after the model run?
+        logical             :: saveCheckpointAfterWarmUp = .false.      ! Should we save a checkpoint file after the warm up period?
+        character(len=256)  :: checkpointFile = './checkpoint.dat'      ! Where to save the checkpoint
         ! Run
         character(len=32)   :: outputHash = ''                          ! Hash to append to output file names
         logical             :: ignoreNM = .false.                       ! If .true., costly NM calculations are missed out. Useful for sediment calibation

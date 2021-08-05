@@ -58,30 +58,27 @@ module CheckpointModule
         ! Waterbodies
         real(dp) :: water_volume(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
         real(dp) :: water_bedArea(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies)) 
-        real(dp) :: water_Q(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 5)
-        real(dp) :: water_Q_final(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 5)
-        real(dp) :: water_j_spm(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 8, C%nSizeClassesSPM)
-        real(dp) :: water_j_spm_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 8, C%nSizeClassesSPM)
-        real(dp) :: water_j_np(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_j_np_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_j_transformed(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_j_transformed_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_j_dissolved(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 6)
-        real(dp) :: water_j_dissolved_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 6)
-        real(dp) :: water_m_spm(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), C%nSizeClassesSPM)
-        real(dp) :: water_m_np(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_m_transformed(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_m_dissolved(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
+        real(dp) :: water_Q(5, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_Q_final(5, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_spm(8, C%nSizeClassesSPM, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_spm_final(8, C%nSizeClassesSPM, maxval(DATASET%nWaterbodies), &
+                                      DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_np(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                               DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_np_final(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                     DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_transformed(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                        DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_transformed_final(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                              DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_dissolved(6, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_dissolved_final(6, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_m_spm(C%nSizeClassesSpm, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_m_np(C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                               DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_m_transformed(C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                        DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_m_dissolved(maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
         ! Sediment
         real(dp) :: sediment_m_np(DATASET%gridShape(1), DATASET%gridShape(2), &
             maxval(DATASET%nWaterbodies), C%nSedimentLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3))
@@ -154,20 +151,20 @@ module CheckpointModule
                             ! Waterbody dynamic properties
                             water_volume(i,j,k) = water%volume
                             water_bedArea(i,j,k) = water%bedArea
-                            water_Q(i,j,k,:) = water%Q%asArray()
-                            water_Q_final(i,j,k,:) = water%Q_final%asArray()
-                            water_j_spm(i,j,k,:,:) = water%j_spm%asArray()
-                            water_j_spm_final(i,j,k,:,:) = water%j_spm_final%asArray()
-                            water_j_np(i,j,k,:,:,:,:) = water%j_nm%asArray()
-                            water_j_np_final(i,j,k,:,:,:,:) = water%j_nm_final%asArray()
-                            water_j_transformed(i,j,k,:,:,:,:) = water%j_nm_transformed%asArray()
-                            water_j_transformed_final(i,j,k,:,:,:,:) = water%j_nm_transformed_final%asArray()
-                            water_j_dissolved(i,j,k,:) = water%j_dissolved%asArray()
-                            water_j_dissolved_final(i,j,k,:) = water%j_dissolved_final%asArray()
-                            water_m_spm(i,j,k,:) = water%m_spm
-                            water_m_np(i,j,k,:,:,:) = water%m_np
-                            water_m_transformed(i,j,k,:,:,:) = water%m_transformed
-                            water_m_dissolved(i,j,k) = water%m_dissolved
+                            water_Q(:,k,i,j) = water%Q%asArray()
+                            water_Q_final(:,k,i,j) = water%Q_final%asArray()
+                            water_j_spm(:,:,k,i,j) = water%j_spm%asArray()
+                            water_j_spm_final(:,:,k,i,j) = water%j_spm_final%asArray()
+                            water_j_np(:,:,:,:,k,i,j) = water%j_nm%asArray()
+                            water_j_np_final(:,:,:,:,k,i,j) = water%j_nm_final%asArray()
+                            water_j_transformed(:,:,:,:,k,i,j) = water%j_nm_transformed%asArray()
+                            water_j_transformed_final(:,:,:,:,k,i,j) = water%j_nm_transformed_final%asArray()
+                            water_j_dissolved(:,k,i,j) = water%j_dissolved%asArray()
+                            water_j_dissolved_final(:,k,i,j) = water%j_dissolved_final%asArray()
+                            water_m_spm(:,k,i,j) = water%m_spm
+                            water_m_np(:,:,:,k,i,j) = water%m_np
+                            water_m_transformed(:,:,:,k,i,j) = water%m_transformed
+                            water_m_dissolved(k,i,j) = water%m_dissolved
 
                             ! Sediment
                             associate (sediment => water%bedSediment)
@@ -234,30 +231,29 @@ module CheckpointModule
         ! Water
         real(dp) :: water_volume(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
         real(dp) :: water_bedArea(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies)) 
-        real(dp) :: water_Q(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 5)
-        real(dp) :: water_Q_final(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 5)
-        real(dp) :: water_j_spm(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies), 8, C%nSizeClassesSPM)
-        real(dp) :: water_j_spm_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 8, C%nSizeClassesSPM)
-        real(dp) :: water_j_np(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_j_np_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_j_transformed(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_j_transformed_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 10, C%npDim(1), C%npDim(2), C%npDim(3))
+        real(dp) :: water_Q(5, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_Q_final(5, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_spm(8, C%nSizeClassesSPM, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_spm_final(8, C%nSizeClassesSPM, maxval(DATASET%nWaterbodies), &
+                                      DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_np(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                               DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_np_final(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                     DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_transformed(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                        DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_j_transformed_final(10, C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                              DATASET%gridShape(1), DATASET%gridShape(2))
         real(dp) :: water_j_dissolved(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 6)
+                                      maxval(DATASET%nWaterbodies), 6)
         real(dp) :: water_j_dissolved_final(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), 6)
-        real(dp) :: water_m_spm(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), C%nSizeClassesSPM)
-        real(dp) :: water_m_np(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_m_transformed(DATASET%gridShape(1), DATASET%gridShape(2), &
-            maxval(DATASET%nWaterbodies), C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp) :: water_m_dissolved(DATASET%gridShape(1), DATASET%gridShape(2), maxval(DATASET%nWaterbodies))
+                                            maxval(DATASET%nWaterbodies), 6)
+        real(dp) :: water_m_spm(C%nSizeClassesSPM, maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_m_np(C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                               DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_m_transformed(C%npDim(1), C%npDim(2), C%npDim(3), maxval(DATASET%nWaterbodies), &
+                                        DATASET%gridShape(1), DATASET%gridShape(2))
+        real(dp) :: water_m_dissolved(maxval(DATASET%nWaterbodies), DATASET%gridShape(1), DATASET%gridShape(2))
         ! Sediment
         real(dp) :: sediment_m_np(DATASET%gridShape(1), DATASET%gridShape(2), &
             maxval(DATASET%nWaterbodies), C%nSedimentLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3))
@@ -351,20 +347,20 @@ module CheckpointModule
                             ! Waterbody dynamic properties
                             water%volume = water_volume(i,j,k)
                             water%bedArea = water_bedArea(i,j,k)
-                            water%Q = water_Q(i,j,k,:) 
-                            water%Q_final = water_Q_final(i,j,k,:) 
-                            water%j_spm = water_j_spm(i,j,k,:,:) 
-                            water%j_spm_final = water_j_spm_final(i,j,k,:,:) 
-                            water%j_nm = water_j_np(i,j,k,:,:,:,:) 
-                            water%j_nm_final = water_j_np_final(i,j,k,:,:,:,:)  
-                            water%j_nm_transformed = water_j_transformed(i,j,k,:,:,:,:)  
-                            water%j_nm_transformed_final =  water_j_transformed_final(i,j,k,:,:,:,:)  
-                            water%j_dissolved = water_j_dissolved(i,j,k,:)  
-                            water%j_dissolved_final = water_j_dissolved_final(i,j,k,:)  
-                            water%m_spm = water_m_spm(i,j,k,:) 
-                            water%m_np = water_m_np(i,j,k,:,:,:) 
-                            water%m_transformed = water_m_transformed(i,j,k,:,:,:) 
-                            water%m_dissolved = water_m_dissolved(i,j,k) 
+                            water%Q = water_Q(:,k,i,j) 
+                            water%Q_final = water_Q_final(:,k,i,j) 
+                            water%j_spm = water_j_spm(:,:,k,i,j) 
+                            water%j_spm_final = water_j_spm_final(:,:,k,i,j) 
+                            water%j_nm = water_j_np(:,:,:,:,k,i,j) 
+                            water%j_nm_final = water_j_np_final(:,:,:,:,k,i,j)  
+                            water%j_nm_transformed = water_j_transformed(:,:,:,:,k,i,j)  
+                            water%j_nm_transformed_final =  water_j_transformed_final(:,:,:,:,k,i,j)  
+                            water%j_dissolved = water_j_dissolved(:,k,i,j)  
+                            water%j_dissolved_final = water_j_dissolved_final(:,k,i,j)  
+                            water%m_spm = water_m_spm(:,k,i,j) 
+                            water%m_np = water_m_np(:,:,:,k,i,j) 
+                            water%m_transformed = water_m_transformed(:,:,:,k,i,j) 
+                            water%m_dissolved = water_m_dissolved(k,i,j) 
 
                             ! Sediment
                             associate (sediment => water%bedSediment)

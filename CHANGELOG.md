@@ -6,6 +6,8 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ### Added
 
+- Warm up period: You can now run the model before inputting NM using the `&run > warm_up_period` config option, which runs the model for the number of time steps specified. The data that is used is sliced from the start of the dataset (e.g. `warm_up_period = 10` would use the first 10 time steps' data), but no NM is input to the environment. The warm up period must be fewer time steps than the model run (or the first chunk of the run, if running in batch mode).
+- Checkpointing now has the ability to save a checkpoint after the warm up period, specified by the `&checkpoint > save_checkpoint_after_warm_up` option. If both `save_checkpoint` and `save_checkpoint_after_warm_up` are specified, the checkpoint at the end of the model run will overwrite the checkpoint file saved after the warm up.
 - Documentation for running the model for different time periods.
 - Added `output_hash` config option. The value specified here will be appended to output file names (e.g. "output_water.csv" will become "output_water{output_hash}.csv"). Particularly useful when performing parallel model runs to avoid multiple model runs writing to the same file.
 - `make fast` target added to example Makefile, which turns on `-Ofast -march=native -mtune=native` flags. Use with caution.
