@@ -72,17 +72,17 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/BedSedimentLayer/classBedSedimentLayer1.o \
 	src/BedSediment/spcBedSediment.o \
 	src/BedSediment/classBedSediment1.o \
-	src/Source/classDiffuseSource2.o \
-	src/Source/classPointSource2.o \
+	src/Source/DiffuseSourceModule.o \
+	src/Source/PointSourceModule.o \
 	src/WaterBody/FlowModule.o \
 	src/WaterBody/WaterBodyModule.o \
 	src/WaterBody/ReachModule.o \
 	src/RiverReachModule.o \
 	src/EstuaryReachModule.o \
-	src/Soil/spcSoilLayer.o \
-	src/Soil/classSoilLayer1.o \
-	src/Soil/spcSoilProfile.o \
-	src/Soil/classSoilProfile1.o \
+	src/Soil/AbstractSoilLayerModule.o \
+	src/Soil/SoilLayerModule.o \
+	src/Soil/AbstractSoilProfileModule.o \
+	src/Soil/SoilProfileModule.o \
 	src/GridCell/classCrop.o \
 	src/GridCell/spcGridCell.o \
 	src/GridCell/classGridCell2.o \

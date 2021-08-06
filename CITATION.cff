@@ -29,3 +29,5 @@ authors:
     affiliation: UK Centre for Ecology & Hydrology
     orcid: https://orcid.org/0000-0002-3627-851X
 date-released: 2021-08-05
+license: BSD-3-Clause
+url: https://github.com/nerc-ceh/nanofase.git

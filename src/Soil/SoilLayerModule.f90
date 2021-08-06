@@ -1,32 +1,32 @@
-!> Module containing definition of `SoilLayer1` class.
-module classSoilLayer1
+!> Module containing definition of `SoilLayer` class.
+module SoilLayerModule
     use Globals
     use UtilModule
-    use spcSoilLayer
+    use AbstractSoilLayerModule
     use classDatabase, only: DATASET
     use classBiotaSoil
     use datetime_module
     implicit none
 
-    !> `SoilLayer1` is responsible for routing percolated water through
+    !> `SoilLayer` is responsible for routing percolated water through
     !! the `SoilProfile` in which it is contained.
-    type, public, extends(SoilLayer) :: SoilLayer1
+    type, public, extends(AbstractSoilLayer) :: SoilLayer
       contains
-        procedure :: create => createSoilLayer1
-        procedure :: update => updateSoilLayer1
-        procedure :: addPooledWater => addPooledWaterSoilLayer1
-        procedure :: erode => erodeSoilLayer1
-        procedure :: attachment => attachmentSoilLayer1
-        procedure :: calculateAttachmentRate => calculateAttachmentRateSoilLayer1
-        procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer1
-        procedure :: parseInputData => parseInputDataSoilLayer1
-        procedure :: parseNewBatchData => parseNewBatchDataSoilLayer1
+        procedure :: create => createSoilLayer
+        procedure :: update => updateSoilLayer
+        procedure :: addPooledWater => addPooledWaterSoilLayer
+        procedure :: erode => erodeSoilLayer
+        procedure :: attachment => attachmentSoilLayer
+        procedure :: calculateAttachmentRate => calculateAttachmentRateSoilLayer
+        procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer
+        procedure :: parseInputData => parseInputDataSoilLayer
+        procedure :: parseNewBatchData => parseNewBatchDataSoilLayer
     end type
 
   contains
     !> Create this `SoilLayer` and call the input data parsing procedure
-    function createSoilLayer1(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity, earthwormDensity) result(r)
-        class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
+    function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity, earthwormDensity) result(r)
+        class(SoilLayer) :: me                          !! This `SoilLayer` instance
         integer, intent(in) :: x                        !! Containing `GridCell` x index
         integer, intent(in) :: y                        !! Containing `GridCell` y index
         integer, intent(in) :: p                        !! Containing `SoilProfile` index
@@ -108,11 +108,11 @@ module classSoilLayer1
         call r%addToTrace("Creating " // trim(me%ref))
     end function
 
-    !> Update the `SoilLayer1` on a given time step, based on specified inflow.
+    !> Update the `SoilLayer` on a given time step, based on specified inflow.
     !! Calculate percolation to next layer and, if saturated, the amount
     !! to pool to the above layer (or surface runoff, if this is the top layer)
-    function updateSoilLayer1(me, t, q_in, m_np_in, m_transformed_in, m_dissolved_in) result(r)
-        class(SoilLayer1) :: me                         !! This `SoilLayer1` instance
+    function updateSoilLayer(me, t, q_in, m_np_in, m_transformed_in, m_dissolved_in) result(r)
+        class(SoilLayer) :: me                          !! This `SoilLayer` instance
         integer :: t                                    !! The current time step [s]
         real(dp) :: q_in                                !! Water into the layer on this time step, from percolation and pooling [m/timestep]
         real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step, from percolation and pooling [kg/timestep]
@@ -194,8 +194,8 @@ module classSoilLayer1
 
     !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
     !! No percolation occurs as pooled water never really leaves the `SoilLayer`.
-    function addPooledWaterSoilLayer1(me, V_pool) result(r)
-        class(SoilLayer1) :: me                         !! This SoilLayer1 instance
+    function addPooledWaterSoilLayer(me, V_pool) result(r)
+        class(SoilLayer) :: me                         !! This SoilLayer instance
         real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
         type(Result) :: r                               !! The Result object to return, with no data
 
@@ -204,8 +204,8 @@ module classSoilLayer1
     end function
 
     !> TODO move this to a Reactor of some sort
-    subroutine attachmentSoilLayer1(me, T_water_t)
-        class(SoilLayer1)   :: me
+    subroutine attachmentSoilLayer(me, T_water_t)
+        class(SoilLayer)   :: me
         real                :: T_water_t
         integer             :: i
         real(dp)            :: dm_att
@@ -233,8 +233,8 @@ module classSoilLayer1
 
     !> Erode NM from this soil layer
     !! TODO bulk density could be stored in this object, not passed, probably same with area
-    function erodeSoilLayer1(me, erodedSediment, bulkDensity, area) result(r)
-        class(SoilLayer1)   :: me
+    function erodeSoilLayer(me, erodedSediment, bulkDensity, area) result(r)
+        class(SoilLayer)    :: me
         real(dp)            :: erodedSediment(:)        ! [kg/m2/day] TODO make sure changed to kg/m2/timestep
         real(dp)            :: bulkDensity              ! [kg/m3]
         real(dp)            :: area                     ! [m2]
@@ -255,8 +255,8 @@ module classSoilLayer1
         me%m_transformed_eroded(:,1,2) = erodedNP
     end function
 
-    function calculateBioturbationRateSoilLayer1(me) result(bioturbationRate)
-        class(SoilLayer1) :: me
+    function calculateBioturbationRateSoilLayer(me) result(bioturbationRate)
+        class(SoilLayer) :: me
         real(dp) :: bioturbationRate
         real(dp) :: earthwormDensity_perVolume              ! [individuals/m3]
         real(dp) :: bioturb_alpha = 3.56e-9                ! Bioturbation fitting parameter [m4/s]
@@ -270,8 +270,8 @@ module classSoilLayer1
     !! coloid filtration theory. References:
     !!  - Meesters et al. 2014 (SI): https://doi.org/10.1021/es500548h
     !!  - Tufenkji et al. 2004: https://doi.org/10.1021/es034049r
-    function calculateAttachmentRateSoilLayer1(me, T_water_t) result(k_att)
-        class(SoilLayer1)   :: me
+    function calculateAttachmentRateSoilLayer(me, T_water_t) result(k_att)
+        class(SoilLayer)    :: me
         real                :: T_water_t
         real                :: k_att(C%nSizeClassesNM)
         integer             :: i
@@ -302,15 +302,15 @@ module classSoilLayer1
     !> Get the data from the input file and set object properties
     !! accordingly, including allocation of arrays that depend on
     !! input data
-    function parseInputDataSoilLayer1(me) result(r)
-        class(SoilLayer1) :: me         !! This SoilLayer1 instance
+    function parseInputDataSoilLayer(me) result(r)
+        class(SoilLayer) :: me          !! This SoilLayer instance
         type(Result) :: r               !! The Result object to return any errors relating to the input data file
         me%k_att(:) = DATASET%soilAttachmentRate(me%x, me%y)
         me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
     end function
 
-    subroutine parseNewBatchDataSoilLayer1(me)
-        class(SoilLayer1) :: me
+    subroutine parseNewBatchDataSoilLayer(me)
+        class(SoilLayer) :: me
         me%k_att(:) = DATASET%soilAttachmentRate(me%x, me%y)
         me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
     end subroutine

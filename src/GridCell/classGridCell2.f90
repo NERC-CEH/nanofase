@@ -5,10 +5,8 @@ module classGridCell2
     use classLogger
     use ResultModule
     use spcGridCell
-    use classSoilProfile1
-    ! use classRiverReach
+    use SoilProfileModule
     use RiverReachModule
-    ! use classEstuaryReach
     use EstuaryReachModule
     use classCrop
     implicit none
@@ -74,11 +72,11 @@ module classGridCell2
 
     !> Create a GridCell with coordinates x and y.
     function createGridCell2(me, x, y, isEmpty) result(rslt)
-        class(GridCell2), target :: me              !! The `GridCell2` instance.
-        type(Result)          :: rslt               !! The `Result` object to return.
-        integer               :: x, y               !! Spatial index of the grid cell
-        logical, optional     :: isEmpty            !! Is anything to be simulated in this `GridCell`?
-        type(SoilProfile1)    :: soilProfile        ! The soil profile contained in this GridCell
+        class(GridCell2), target :: me                  !! The `GridCell2` instance.
+        type(Result)            :: rslt                 !! The `Result` object to return.
+        integer                 :: x, y                 !! Spatial index of the grid cell
+        logical, optional       :: isEmpty              !! Is anything to be simulated in this `GridCell`?
+        type(SoilProfile)       :: soilProfile          ! The soil profile contained in this GridCell
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%colSoilProfiles(1))
@@ -120,7 +118,7 @@ module classGridCell2
                 ) &
             )
             allocate(me%colSoilProfiles(1)%item, source=soilProfile)
-            me%distributionSediment = me%colSoilProfiles(1)%item%distributionSediment
+            allocate(me%distributionSediment, source=me%colSoilProfiles(1)%item%distributionSediment)
 
             ! Only proceed if there are no critical errors (which might be caused by parseInputData())
             if (.not. rslt%hasCriticalError()) then

@@ -6,7 +6,8 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ### Changed
 
-- Model version number is now obtained from the `src/VersionModule.f90` file. This is dynamically updated at build time by the [example Makefile](./Makefile.example) or [CMakeLists.txt](./CMakeLists.txt) file, and if you are not using one of these build processes, should ensure that yours does the same. In short, the output of `git describe --tags` should be used for the `modelVersion` variable in `src/VersionModule.f90`. For example, this can be achieved in a Makefile by the use of `sed`: `sed -i "s/\".*\"/\"${git describe --tags}\"/g" src/VersionModule.f90`. Note that the version number in this file and the [CITATION.cff](./CITATION.cff) file still needs bumping on each release.
+- ⚠️ Model version number is now obtained from the `src/VersionModule.f90` file. This is dynamically updated at build time by the [example Makefile](./Makefile.example) or [CMakeLists.txt](./CMakeLists.txt) file, and if you are not using one of these build processes, should ensure that yours does the same. In short, the output of `git describe --tags` should be used for the `modelVersion` variable in `src/VersionModule.f90`. For example, this can be achieved in a Makefile by the use of `sed`: `sed -i "s/\".*\"/\"${git describe --tags}\"/g" src/VersionModule.f90`. Note that the version number in this file and the [CITATION.cff](./CITATION.cff) file still needs bumping on each release. Build process will need updating.
+- Lots of file, module and type names have been updated to follow a coherent convention. See the updated [Makefile.example](./Makefile.example).
 
 ## [0.0.3] - 2021-08-05
 

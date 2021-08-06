@@ -4,8 +4,8 @@ module spcGridCell
     use mo_netcdf
     use ResultModule
     use ReachModule
-    use spcSoilProfile
-    use classDiffuseSource2
+    use AbstractSoilProfileModule
+    use DiffuseSourceModule
     use classCrop
     implicit none
 
@@ -34,7 +34,7 @@ module spcGridCell
             !! 1st dimension: Branches. 2nd dimension: RiverReaches in that branch
         type(SoilProfileElement), allocatable :: colSoilProfiles(:)     !! Array of `SoilProfileElement` objects to hold the soil profiles
             ! NOTE current plan is to have single soil profile per Grid Cell. Declaring as an array for possible future flexibility.
-        type(DiffuseSource2), allocatable :: diffuseSources(:)          !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
+        type(DiffuseSource), allocatable :: diffuseSources(:)           !! Diffuse source object to provide, e.g., atmospheric deposition for this `GridCell`
         logical :: hasDiffuseSource = .false.                           !! Does this `GridCell` have a `DiffuseSource`?
         integer :: nReaches = 0                                         !! Number of `Reach`es in this cell
         integer :: nSoilProfiles = 0                                    !! Number of contained `SoilProfile`s

@@ -1,4 +1,4 @@
-module classDiffuseSource2
+module DiffuseSourceModule
     use Globals
     use ResultModule
     use netcdf, only: nf90_fill_double
@@ -6,7 +6,7 @@ module classDiffuseSource2
     implicit none
     private
 
-    type, public :: DiffuseSource2
+    type, public :: DiffuseSource
         integer :: x                                                    !! Grid cell x reference
         integer :: y                                                    !! Grid cell y reference
         integer :: s                                                    !! Diffuse source reference
@@ -15,36 +15,36 @@ module classDiffuseSource2
         real(dp), allocatable :: j_transformed_diffuseSource(:,:,:)     !! Transformed input for given timestep [kg/m2/timestep]
         real(dp) :: j_dissolved_diffuseSource                           !! Dissolved input for given timestep [kg/m2/timestep]
       contains
-        procedure :: create => createDiffuseSource2
-        procedure :: update => updateDiffuseSource2
+        procedure :: create => createDiffuseSource
+        procedure :: update => updateDiffuseSource
     end type
 
   contains
 
-    subroutine createDiffuseSource2(me, x, y, s, compartment)
-        class(DiffuseSource2) :: me
-        integer :: x
-        integer :: y
-        integer :: s
-        character(len=*) :: compartment
-        ! Allocate and initialise
+    !> Create the diffuse source
+    subroutine createDiffuseSource(me, x, y, s, compartment)
+        class(DiffuseSource)    :: me                   !! This diffuse source
+        integer                 :: x                    !! Grid cell x index
+        integer                 :: y                    !! Grid cell y index
+        integer                 :: s                    !! Source index
+        character(len=*)        :: compartment          !! Soil, water or atmospheric
         me%x = x
         me%y = y
         me%s = s
         me%compartment = compartment
         allocate(me%j_np_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
+                 me%j_transformed_diffuseSource(C%npDim(1), C%npDim(2), C%npDim(3)))
     end subroutine
 
-    subroutine updateDiffuseSource2(me, t)
-        class(DiffuseSource2)   :: me       !! This diffuse source
+    !> Update the diffuse source on time step t
+    subroutine updateDiffuseSource(me, t)
+        class(DiffuseSource)    :: me       !! This diffuse source
         integer                 :: t        !! Current time step
         integer                 :: i        ! Iterator
         ! Default to zero
         me%j_np_diffuseSource = 0.0_dp
         me%j_dissolved_diffuseSource = 0.0_dp
         me%j_transformed_diffuseSource = 0.0_dp
-
         ! Check the environmental compartment we're in, get the corresponding areal source
         ! data and impose the default NM size distribution on it. Data already kg/m2/timestep.
         ! If data doesn't exist, classDatabase has already created array filled with nf90_fill_double

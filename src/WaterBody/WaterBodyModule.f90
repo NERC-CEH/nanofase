@@ -2,8 +2,8 @@
 !! functionality to all environmental compartments that are water bodies.
 module WaterBodyModule
     use Globals
-    use classPointSource2
-    use classDiffuseSource2
+    use PointSourceModule
+    use DiffuseSourceModule
     use classDatabase, only: DATASET
     use spcBedSediment
     use spcReactor
@@ -70,10 +70,10 @@ module WaterBodyModule
         ! Contained objects
         class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
         class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
-        type(PointSource2), allocatable :: pointSources(:)          !! Contained `PointSource` objects
+        type(PointSource), allocatable :: pointSources(:)           !! Contained `PointSource` objects
         logical :: hasPointSource = .false.                         !! Does this water body have any point sources?
         integer :: nPointSources = 0                                !! How many point sources this water body has
-        type(DiffuseSource2), allocatable :: diffuseSources(:)      !! Contained `DiffuseSource` objects
+        type(DiffuseSource), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
         integer :: nDiffuseSources                                  !! How many diffuse sources this water body has
         logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
         logical :: isTidalLimit = .false.                           !! Is this water body at the tidal limit?
@@ -217,11 +217,12 @@ module WaterBodyModule
         me%volume = 0.0_dp
     end subroutine
 
+    !> Add a point source to this WaterBody 
     subroutine addPointSourceWaterBody(me, index)
-        class(WaterBody)    :: me       !! This WaterBody
-        integer             :: index    !! Point source index
-        type(PointSource2)  :: newSource
-        type(PointSource2), allocatable :: oldPointSources(:)
+        class(WaterBody)                :: me                       !! This WaterBody
+        integer                         :: index                    !! Point source index
+        type(PointSource)               :: newSource                ! The new point source to add
+        type(PointSource), allocatable  :: oldPointSources(:)       ! The old point sources
         ! Create the new source
         call newSource%create(me%x, me%y, index, 'water')
         ! Store old point sources
@@ -231,12 +232,13 @@ module WaterBodyModule
         me%nPointSources = size(me%pointSources)
     end subroutine
 
-    !> Parse input data for this `WaterBody`
+    !> Parse input data for this WaterBody
     function parseInputDataWaterBody(me) result(rslt)
-        class(WaterBody) :: me
-        type(Result) :: rslt
+        class(WaterBody)    :: me           !! This WaterBody
+        type(Result)        :: rslt         !! The Result object
     end function
 
+    !> Parse new batch input data for this WaterBody
     subroutine parseNewBatchDataWaterBody(me)
         class(WaterBody) :: me
     end subroutine
