@@ -15,6 +15,7 @@ Simply clone this repo, making sure to specify `--recurse-submodules` to pull in
 
 ```shell
 $ git clone https://github.com/nerc-ceh/nanofase.git --recurse-submodules
+$ cd nanofase
 ```
 
 If you forget the `--recurse-submodule` flag, then run the following from the repo directory:
@@ -25,24 +26,40 @@ $ git submodule update --init --recursive
 
 ## Compiling
 
-The model code is regularly compiled using the latest version of gfortran (9.2.1 at the time of writing), and periodically using ifort 18. We recommend using gfortran to avoid complications (`sudo apt-get install gcc gfortran`). An example makefile ([Makefile.example](./Makefile.example)) is provided. If you already have NetCDF installed, then compiling the model is as simple as making the `bin` directory to place your exectuble in, then running `make`:
+The model code is regularly compiled using the latest version of GFortran (9.2.1 at the time of writing), and periodically using ifort 18. We recommend using GFortran and one of the following build procedures to avoid complications. The only dependency is NetCDF, which must be installed prior to building (see the Dependencies section below).
+
+### Using `make`
+
+An example makefile ([Makefile.example](./Makefile.example)) is provided. If you already have NetCDF installed, then compiling the model is as simple as making the `bin` directory to place your exectuble in, then running `make`:
 
 ```shell
 $ cp Makefile.example Makefile
-$ mkdir ./bin
+$ mkdir bin
 $ make
 ```
 
-### Debug vs release
-
-The [example makefile](./Makefile.example) provides targets for both debug and release compilation. The main make target builds the debug version, whilst the `release` target builds an optimised release version. Run times can be significantly improved using the `release` target, and so unless you need detailed debugging or profiling, then it is recommended to use the `release` target.
+The [example makefile](./Makefile.example) provides targets for debug, release and "fast" compilation. The main make target builds the debug version, whilst the `release` and `fast` targets build optimised release versions (`release` uses `-O3`, `fast` uses `-Ofast -march=native -mtune=native`). Run times can be significantly improved using the `release` and `fast` targets, and so unless you need detailed debugging or profiling, then it is recommended to use one of these.
 
 ```shell
 # Build the debug version
 $ make
 # OR, build the release version
 $ make release
+# OR the fast version, with non-standard optimizations
+$ make fast
 ```
+
+### Using `cmake`
+
+The model can also be built using `cmake`, using the [CMakeLists.txt](./CMakeLists.txt) file. Use the standard `cmake` procedure to compile the model:
+
+```shell
+$ mkdir build && cd build
+$ cmake ..
+$ make
+```
+
+Use the `-DCMAKE_BUILD_TYPE=Debug|Release` flag to control whether you want to build the debug (default) or release version.
 
 ### Dependencies
 
@@ -53,9 +70,9 @@ $ sudo apt-get install libnetcdf-dev
 $ sudo apt-get install libnetcdff-dev
 ```
 
-If your system has multiple versions of gfortran, make sure that the NetCDF libraries are compiled using the same compiler version. Issues can occur if, for instance, you have an older version of gfortran installed that is run using the `gfortran` command, and version 9 installed that is run using `gfortran-9`. `apt-get` will default to compiling NetCDF using the `gfortran` command, and thus the compiled libraries will not be compatible with NanoFASE model code compiled using `gfortran-9`. Updating your operating system to a recent version (e.g. Ubuntu 18 or 20) should solve these issues.
+If your system has multiple versions of gfortran, make sure that the NetCDF libraries are compiled using the same compiler version. Issues can occur if, for instance, you have an older version of gfortran installed that is run using the `gfortran` command, and version 9 installed that is run using `gfortran-9`. `apt-get` will default to compiling NetCDF using the `gfortran` command, and thus the compiled libraries will not be compatible with NanoFASE model code compiled using `gfortran-9`.
 
-If you're on Windows and not using Cygwin or MinGW, it's likely you will have to build from source. Good luck.
+If you're on Windows, it is highly recommended to use Cygwin or a Linux container (e.g. using Docker) and install NetCDF using these. Otherwise, you will likely have to compile NetCDF Fortran from source.
 
 ## Running
 
@@ -87,7 +104,7 @@ Output data is [documented here](./doc/output.md).
 
 ## Batch runs and checkpointing
 
-The model allow for multiple simulations to be chained together into batch runs, and model simulations to be saved and reinstated by use of checkpointing. See the following for more details:
+The model allows for multiple simulations to be chained together into batch runs, and model simulations to be saved and reinstated by use of checkpointing. See the following for more details:
 - [Batch runs](./doc/batch.md)
 - [Checkpointing](./doc/checkpointing.md)
 

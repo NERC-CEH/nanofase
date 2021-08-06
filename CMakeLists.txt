@@ -5,14 +5,16 @@ enable_language(Fortran)
 
 # GFortran compiler
 if (CMAKE_Fortran_COMPILER_ID MATCHES GNU)
-    set(debug_flags "-Wall -O1 -fcheck=all -fbackslash -g -ffpe-trap=zero,invalid,overflow,underflow -pg")
-    set(release_flags "-O3 -fbackslash")
+    set(common_flags "-fcheck=all -fbackslash -ffpe-trap=zero,invalid,overflow,underflow")
+    set(debug_flags "-Wall -Og -g -pg ${common_flags}")
+    set(release_flags "-Ofast -march=native -mtune=native ${common_flags}")
 endif()
 
 # Intel Fortran compiler
 if (CMAKE_Fortran_COMPILER_ID MATCHES Intel)
-    set(debug_flags "/assume:bscc /fpe:0 /check:bounds /traceback /check:stack /debug:full /Od")
-    set(release_flags "/O3 /assume:bscc")
+    set(common_flags "/fpe:0 /check:bounds /assume:bscc")
+    set(debug_flags "/traceback /check:stack /debug:full /Od ${common_flags}")
+    set(release_flags "/O3 ${common_flags}")
 endif()
 
 # Find NetCDF Fortran
@@ -31,6 +33,13 @@ list(FILTER sources EXCLUDE REGEX ".*vendor/feh/tests/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/datetime-fortran/src/tests/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/mo_netcdf/examples/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/mo_netcdf/tests/.*f90$")
+list(FILTER sources EXCLUDE REGEX ".*vendor/spoof/example/.*f90$")
+
+# Modify the version number
+execute_process(COMMAND git describe --tags OUTPUT_VARIABLE model_version OUTPUT_STRIP_TRAILING_WHITESPACE)
+file(READ "src/VersionModule.f90" version_file)
+string(REGEX REPLACE "\".*\"" "\"${model_version}\"" version_file_new "${version_file}")
+file(WRITE "src/VersionModule.f90" ${version_file_new})
 
 # Compile to executable and link to NetCDF
 add_executable(nanofase ${sources})

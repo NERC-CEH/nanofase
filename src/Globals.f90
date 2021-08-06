@@ -2,7 +2,8 @@ module Globals
     use mo_netcdf
     use datetime_module
     use mod_strptime, only: f_strptime
-    use DefaultsModule, only: iouConfig, iouBatchConfig, configDefaults
+    use VersionModule
+    use DefaultsModule, only: iouConfig, iouBatchConfig, iouVersion, configDefaults
     use ErrorCriteriaModule
     use ErrorInstanceModule
     use ResultModule, only: Result
@@ -13,8 +14,8 @@ module Globals
     integer, parameter :: qp = selected_real_kind(33, 4931)
 
     type, public :: GlobalsType
-        ! Model info
-        character(len=5)    :: modelVersion = '0.0.3'
+        ! Get model version from the version module (which our build script should modify)
+        character(len=16)   :: modelVersion = modelVersion
         ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile

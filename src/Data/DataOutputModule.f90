@@ -500,6 +500,7 @@ module DataOutputModule
         write(iouOutputSummary, '(a)') "# NanoFASE model simulation summary"
         write(iouOutputSummary, '(a)') " - Description: " // trim(C%runDescription)
         write(iouOutputSummary, '(a)') " - Simulation datetime: " // simDatetime%isoformat()
+        write(iouOutputSummary, '(a)') " - Model version: " // C%modelVersion
         write(iouOutputSummary, '(a)') " - Is batch run? " // trim(str(C%isBatchRun))
         write(iouOutputSummary, '(a)') " - Number of batches: " // trim(str(C%nChunks))
         write(iouOutputSummary, '(a)', advance='no') " - Is steady state run? " // trim(str(C%runToSteadyState))

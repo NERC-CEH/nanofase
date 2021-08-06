@@ -52,7 +52,7 @@ warm_up_period = 10                                      ! Warm up period before
 
 &checkpoint
 save_checkpoint_after_warm_up = .false.
-reinstate_checkpoint = .true.
+reinstate_checkpoint = .false.
 /
 
 &soil

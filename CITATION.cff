@@ -1,0 +1,31 @@
+cff-version: 1.1.0
+message: If you use this software, please cite it using these metadata.
+title: NanoFASE model
+version: 0.0.3
+abstract: >-
+  The NanoFASE model is a multimedia, spatiotemporal model of nanomaterial fate and
+  speciation in terrestrial and aquatic environments, covering soil, surface water
+  and sediment.
+authors:
+  - family-names: Harrison
+    given-names: Sam
+    affiliation: UK Centre for Ecology & Hydrology
+    orcid: https://orcid.org/0000-0001-8491-4720
+    email: sharrison@ceh.ac.uk
+  - family-names: Keller
+    given-names: Virginie D
+    affiliation: UK Centre for Ecology & Hydrology
+    orcid: https://orcid.org/0000-0003-4489-5363
+  - family-names: Williams
+    given-names: Richard J
+    affiliation: UK Centre for Ecology & Hydrology
+    orcid: https://orcid.org/0000-0002-9876-0491
+  - family-names: Hutchins
+    given-names: Michael
+    affiliation: UK Centre for Ecology & Hydrology
+    orcid: https://orcid.org/0000-0003-3764-5331
+  - family-names: Lofts
+    given-names: Stephen
+    affiliation: UK Centre for Ecology & Hydrology
+    orcid: https://orcid.org/0000-0002-3627-851X
+date-released: 2021-08-05

@@ -9,6 +9,7 @@ module DefaultsModule
     ! Config file IO units
     integer, parameter :: iouConfig = 1
     integer, parameter :: iouBatchConfig = 2
+    integer, parameter :: iouVersion = 3
     ! Constants file IO units
     integer, parameter :: iouConstants = 10
     ! Output file IO units
