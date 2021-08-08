@@ -1,7 +1,7 @@
 module PointSourceModule
     use Globals
     use ResultModule
-    use classDatabase
+    use DataInputModule, only: DATASET
     implicit none
    
     !> PointSource objects are used to input point source emissions to the environment

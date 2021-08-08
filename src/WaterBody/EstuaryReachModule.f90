@@ -3,10 +3,9 @@ module EstuaryReachModule
     use ReachModule
     use UtilModule
     use ResultModule
-    use classBedSediment1
-    use classLogger, only: LOGR
-    use classReactor1
-    ! use classBiota1
+    use BedSedimentModule
+    use LoggerModule, only: LOGR
+    use ReactorModule
     implicit none
 
     type, public, extends(Reach1) :: EstuaryReach
@@ -52,8 +51,8 @@ module EstuaryReachModule
         call me%setDimensions(0)
 
         ! Create the bed sediment and reactor for this reach
-        allocate(BedSediment1 :: me%bedSediment)
-        allocate(Reactor1 :: me%reactor)
+        allocate(BedSediment :: me%bedSediment)
+        allocate(Reactor :: me%reactor)
         call rslt%addErrors([ &
             .errors. me%bedSediment%create(me%x, me%y, me%w), &
             .errors. me%reactor%create(me%x, me%y, me%alpha_hetero) &

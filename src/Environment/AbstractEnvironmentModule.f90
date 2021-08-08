@@ -1,18 +1,18 @@
-!> Module container for the `Environment` abstract base class
-module spcEnvironment
+!> Module container for the `AbstractEnvironment` abstract base class
+module AbstractEnvironmentModule
     use Globals
     use ResultModule
-    use spcGridCell
+    use AbstractGridCellModule
     use mo_netcdf
     implicit none
     private
 
     type, public :: EnvironmentPointer
-        class(Environment), pointer :: item => null()                   !! Pointer to polymorphic Environment object
+        class(AbstractEnvironment), pointer :: item => null()                   !! Pointer to polymorphic AbstractEnvironment object
     end type
 
-    !> Abstract base class definition for `Environment`.
-    type, public, abstract :: Environment
+    !> Abstract base class definition for `AbstractEnvironment`.
+    type, public, abstract :: AbstractEnvironment
         integer, allocatable                :: gridDimensions(:)        !! Size of the grid as defined in input data file (must be allocatable for mo_netcdf)
         type(GridCellElement), allocatable  :: colGridCells(:,:)        !! Array of `GridCellElement` objects to hold polymorphic `GridCell`s
         integer                             :: nGridCells = 0           !! Number of grid cells in the Environment
@@ -42,18 +42,18 @@ module spcEnvironment
 
     abstract interface
     
-        !> Interface to create an `Environment` object
+        !> Interface to create an `AbstractEnvironment` object
         function createEnvironment(me) result(r)
             use ResultModule, only: Result
-            import Environment
-            class(Environment), target :: me            !! This `Environment` instance
+            import AbstractEnvironment
+            class(AbstractEnvironment), target :: me            !! This `AbstractEnvironment` instance
             type(Result) :: r                           !! `Result` object containing any errors
         end function
         
-        !> Interface to perform simulations in `Environment`
+        !> Interface to perform simulations in `AbstractEnvironment`
         subroutine updateEnvironment(me, t, tInBatch, isWarmUp)
-            import Environment
-            class(Environment), target :: me            !! This `Environment` instance
+            import AbstractEnvironment
+            class(AbstractEnvironment), target :: me            !! This `AbstractEnvironment` instance
             integer :: t                                !! The current time step
             integer :: tInBatch                         !! The current time step in the batch run
             logical :: isWarmUp                         !! Are we in the warm up period?
@@ -61,71 +61,71 @@ module spcEnvironment
 
         subroutine updateReachEnvironment(me, t, reach, isWarmUp)
             use ReachModule, only: ReachPointer
-            import Environment
-            class(Environment), target  :: me           !! This Environment instance
+            import AbstractEnvironment
+            class(AbstractEnvironment), target  :: me           !! This AbstractEnvironment instance
             integer                     :: t            !! The current timestep
             type(ReachPointer)          :: reach        !! The reach to update
             logical                     :: isWarmUp     !! Are we in a warm up period?
         end subroutine
         
-        !> Interface to import and parse input data for the `Environment` object
+        !> Interface to import and parse input data for the `AbstractEnvironment` object
         function parseInputDataEnvironment(me) result(r)
             use ResultModule, only: Result
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
             type(Result) :: r
         end function
 
-        !> Determine the stream order of water bodies in the Environment
+        !> Determine the stream order of water bodies in the AbstractEnvironment
         subroutine determineStreamOrderEnvironment(me)
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
         end subroutine
 
         subroutine parseNewBatchDataEnvironment(me)
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
         end subroutine
         
         function get_m_npEnvironment(me) result(m_np)
             use Globals
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
             real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
         end function
 
         function get_C_np_soilEnvironment(me) result(C_np_soil)
             use Globals, only: C, dp
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
             real(dp), allocatable :: C_np_soil(:,:,:)
         end function
 
         function get_C_np_waterEnvironment(me) result(C_np_water)
             use Globals, only: C, dp
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
             real(dp), allocatable :: C_np_water(:,:,:)
         end function
 
         function get_C_np_sedimentEnvironment(me) result(C_np_sediment)
             use Globals, only: C, dp
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
             real(dp), allocatable :: C_np_sediment(:,:,:)
         end function
 
         function getBedSedimentAreaEnvironment(me) result(bedArea)
             use Globals, only: dp
-            import Environment
-            class(Environment) :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment) :: me
             real(dp) :: bedArea
         end function
 
         function get_m_sediment_byLayerEnvironment(me) result(m_sediment_byLayer)
             use Globals, only: dp, C
-            import Environment
-            class(Environment)      :: me
+            import AbstractEnvironment
+            class(AbstractEnvironment)      :: me
             real(dp), allocatable   :: m_sediment_byLayer(:,:)
         end function
 

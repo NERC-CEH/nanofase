@@ -3,8 +3,8 @@ module SoilLayerModule
     use Globals
     use UtilModule
     use AbstractSoilLayerModule
-    use classDatabase, only: DATASET
-    use classBiotaSoil
+    use DataInputModule, only: DATASET
+    use BiotaSoilModule
     use datetime_module
     implicit none
 

@@ -4,9 +4,8 @@ module ReachModule
     use ResultModule, only: Result
     use ErrorInstanceModule
     use WaterBodyModule
-    ! use mo_netcdf               ! See below TODO re me%ncGroup
     use netcdf
-    use classDatabase, only: DATASET
+    use DataInputModule, only: DATASET
     use DefaultsModule, only: defaultSlope
     implicit none
 
@@ -108,34 +107,6 @@ module ReachModule
         class(Reach1) :: me
         ! WaterBody initialises the variables common to all water bodies
         call me%WaterBody%allocateAndInitialise()
-        ! Allocate flow arrays, which depend on the number of inflows and sources.The 1st dimension of
-        ! the flow arrays represent the compartment the flow is to/from, and for reaches this is indexed as so:
-        !   1. outflow
-        !   2 -> 1+nInflows: inflows
-        !   2+nInflows: runoff
-        !   3+nInflows: transfers
-        !   (SPM & NM only) 4+nInflows: settling & resuspension
-        !   (NM only)   5+nInflows -> 4+nInflows+nDiffuseSources: diffuse sources
-        !   (NM only)   5+nInflows+nDiffuseSources -> 4+nInflows+nDiffuseSources+nPointSources: point sources
-        ! allocate(me%Q(me%nInflows + 3), &
-        !     me%Q_final(me%nInflows + 3), &
-        !     me%j_spm(me%nInflows + 4, C%nSizeClassesSpm), &
-        !     me%j_spm_final(me%nInflows + 4, C%nSizeClassesSpm), &
-        !     me%j_np(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
-        !     me%j_np_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, C%npDim(1), C%npDim(2), C%npDim(3)), &
-        !     me%j_transformed(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
-        !         C%npDim(1), C%npDim(2), C%npDim(3)), &
-        !     me%j_transformed_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
-        !         C%npDim(1), C%npDim(2), C%npDim(3)), &
-        !     me%j_dissolved(me%nInflows + me%nPointSources + me%nDiffuseSources + 4), &
-        !     me%j_dissolved_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4) &
-        ! )
-        ! me%Q = 0.0_dp
-        ! me%Q_final = 0.0_dp
-        ! me%j_spm = 0.0_dp
-        ! me%j_spm_final = 0.0_dp
-        ! me%j_np = 0.0_dp
-        ! me%j_np_final = 0.0_dp
         ! Defaults
         me%n = C%n_river
     end subroutine
@@ -145,47 +116,6 @@ module ReachModule
     subroutine parseNewBatchDataReach(me)
         class(Reach1) :: me
 
-        ! New flow objects don't need reallocating between batches as they don't
-        ! split NM into point and diffuse sources (which may vary between batches)
-
-        ! type(NMFlows) :: tmp_j_nm
-        ! type(DissolvedFlows) :: tmp_j_dissolved
-        ! real(dp), allocatable :: tmp_j(:,:,:,:)
-        ! real(dp), allocatable :: tmp_j_dissolved(:)
-        ! NM
-        ! call move_alloc(me%j_nm, tmp_j_nm)
-        ! allocate(me%j_nm(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
-        !     C%npDim(1), C%npDim(2), C%npDim(3)))
-        ! me%j_np = 0.0_dp
-        ! me%j_np(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:)         ! Only copy over stuff that isn't sources, as those will be changed anyway
-        ! ! Transformed
-        ! call move_alloc(me%j_transformed, tmp_j)
-        ! allocate(me%j_transformed(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
-        !     C%npDim(1), C%npDim(2), C%npDim(3)))
-        ! me%j_transformed = 0.0_dp
-        ! me%j_transformed(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:) 
-        ! ! Dissolved
-        ! call move_alloc(me%j_dissolved, tmp_j_dissolved)
-        ! allocate(me%j_dissolved(me%nInflows + me%nPointSources + me%nDiffuseSources + 4))
-        ! me%j_dissolved = 0.0_dp
-        ! me%j_dissolved(:4+me%nInflows) = tmp_j_dissolved(:4+me%nInflows)
-        ! ! Final NM
-        ! call move_alloc(me%j_np_final, tmp_j)
-        ! allocate(me%j_np_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
-        !     C%npDim(1), C%npDim(2), C%npDim(3)))
-        ! me%j_np_final = 0.0_dp
-        ! me%j_np_final(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:)
-        ! ! Final transformed
-        ! call move_alloc(me%j_transformed_final, tmp_j)
-        ! allocate(me%j_transformed_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4, &
-        !     C%npDim(1), C%npDim(2), C%npDim(3)))
-        ! me%j_transformed_final = 0.0_dp
-        ! me%j_transformed_final(:4+me%nInflows,:,:,:) = tmp_j(:4+me%nInflows,:,:,:) 
-        ! ! Final dissolved
-        ! call move_alloc(me%j_dissolved_final, tmp_j_dissolved)
-        ! allocate(me%j_dissolved_final(me%nInflows + me%nPointSources + me%nDiffuseSources + 4))
-        ! me%j_dissolved_final = 0.0_dp
-        ! me%j_dissolved_final(:4+me%nInflows) = tmp_j_dissolved(:4+me%nInflows)
     end subroutine
 
     !> Set the settling rate [/s]
@@ -320,21 +250,21 @@ module ReachModule
     end subroutine
 
     function depositToBedReach(me, spmDep) result(rslt)
-        class(Reach1)        :: me                           !! This Reach instance
+        class(Reach1)        :: me                          !! This Reach instance
         real(dp)            :: spmDep(C%nSizeClassesSpm)    !! The SPM to deposit [kg]
         type(Result)        :: rslt                         !! The data object to return any errors in
         real(dp)            :: spmDep_perArea(C%nSizeClassesSpm)    ! The SPM to deposit, per unit area [kg/m2]
         type(Result0D)      :: depositRslt                  !! Result from the bed sediment's deposit procedure
         real(dp)            :: V_water_toDeposit            !! Volume of water to deposit to bed sediment [m3/m2]
-        type(FineSediment1) :: fineSediment(C%nSizeClassesSpm) ! FineSediment object to pass to BedSediment
+        type(FineSediment)  :: fineSed(C%nSizeClassesSpm)   ! FineSediment object to pass to BedSediment
         integer             :: n                            ! Loop iterator
         ! Create the FineSediment object and add deposited SPM to it
         ! (converting units of Mf_in to kg/m2), then give that object
         ! to the BedSediment
         spmDep_perArea = divideCheckZero(spmDep, me%bedArea)
         do n = 1, C%nSizeClassesSpm
-            call fineSediment(n)%create("FS", C%nFracCompsSpm)
-            call fineSediment(n)%set( &
+            call fineSed(n)%create("FS", C%nFracCompsSpm)
+            call fineSed(n)%set( &
                 Mf_in=spmDep_perArea(n), &
                 f_comp_in=real(DATASET%sedimentFractionalComposition, 8) &
             )
@@ -342,7 +272,7 @@ module ReachModule
 
         if (C%includeBedSediment) then
             ! Deposit the fine sediment to the bed sediment
-            depositRslt = Me%bedSediment%deposit(fineSediment)
+            depositRslt = Me%bedSediment%deposit(fineSed)
             call rslt%addErrors(.errors. depositRslt)
             if (rslt%hasCriticalError()) then
                 return

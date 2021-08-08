@@ -1,98 +1,98 @@
-!> Module containing definition of base class `WaterBody`, which provides the primitive
+!> Module containing definition of base class WaterBody, which provides the primitive
 !! functionality to all environmental compartments that are water bodies.
 module WaterBodyModule
     use Globals
     use PointSourceModule
     use DiffuseSourceModule
-    use classDatabase, only: DATASET
-    use spcBedSediment
-    use spcReactor
-    use classBiotaWater
+    use DataInputModule, only: DATASET
+    use AbstractBedSedimentModule
+    use AbstractReactorModule
+    use BiotaWaterModule
     use FlowModule
     implicit none
     
-    !> `WaterBodyPointer` used for `WaterBody` inflows array, so the elements within can
-    !! point to other `GridCell`'s colWaterBody elements
+    !> WaterBodyPointer used for WaterBody inflows array, so the elements within can
+    !! point to other GridCell's colWaterBody elements
     type WaterBodyPointer
-        class(WaterBody), pointer :: item => null()                  !! Pointer to polymorphic `WaterBody` object
+        class(WaterBody), pointer :: item => null()                  !! Pointer to polymorphic WaterBody object
     end type
     
-    !> An internal user-defined type, defining a reference to a `WaterBody`.
-    !! Comprises row (x) and column (y) references to the `GridCell` containing the
-    !! `WaterBody` and the in-cell `WaterBody` reference number
+    !> An internal user-defined type, defining a reference to a WaterBody.
+    !! Comprises row (x) and column (y) references to the GridCell containing the
+    !! WaterBody and the in-cell WaterBody reference number
     type WaterBodyRef
-        integer :: x                                                !! `GridCell` x reference
-        integer :: y                                                !! `GridCell` y reference
-        integer :: w                                                !! `WaterBody` reference
+        integer :: x                !! GridCell x reference
+        integer :: y                !! GridCell y reference
+        integer :: w                !! WaterBody reference
     end type
 
     !> Abstract base class for `WaterBody`. Defines properties and procedures
     !! required in any implementation of this class.
     type, public :: WaterBody
         ! Reference
-        character(len=100) :: ref                                   !! Reference for this object, of the form WaterBody_x_y_w
-        integer :: x                                                !! `GridCell` x position
-        integer :: y                                                !! `GridCell` y position
-        integer :: w                                                !! `WaterBody` reference
+        character(len=100)      :: ref                              !! Reference for this object, of the form WaterBody_x_y_w
+        integer                 :: x                                !! `GridCell` x position
+        integer                 :: y                                !! `GridCell` y position
+        integer                 :: w                                !! `WaterBody` reference
         ! Physical properties
-        real(dp) :: depth                                           !! Depth of the `WaterBody` [m]
-        real(dp) :: surfaceArea                                     !! Surface area of the `WaterBody` [m2]
-        real(dp) :: bedArea                                         !! Area of the contained `BedSediment` [m2]
-        real(dp) :: volume                                          !! Volume of water in the body [m3]
-        real :: T_water(366)                                        !! Water temperature [C]
+        real(dp)                :: depth                            !! Depth of the `WaterBody` [m]
+        real(dp)                :: surfaceArea                      !! Surface area of the `WaterBody` [m2]
+        real(dp)                :: bedArea                          !! Area of the contained `BedSediment` [m2]
+        real(dp)                :: volume                           !! Volume of water in the body [m3]
+        real                    :: T_water(366)                     !! Water temperature [C]
         ! Concentrations
-        real(dp), allocatable :: C_spm(:)                           !! Sediment concentration [kg/m3]
-        real(dp), allocatable :: C_spm_final(:)                     !! Sediment concentration [kg/m3]
-        real(dp), allocatable :: m_spm(:)                           !! Sediment mass [kg/m3]
-        real(dp), allocatable :: C_np(:,:,:)                        !! NM mass concentration [kg/m3]
-        real(dp), allocatable :: C_np_final(:,:,:)                  !! Final NM mass concentration [kg/m3]
-        real(dp), allocatable :: m_np(:,:,:)                        !! NM mass mass [kg]
-        real(dp), allocatable :: m_transformed(:,:,:)               !! Transformed NM mass [kg]
-        real(dp), allocatable :: C_transformed(:,:,:)               !! Transformed NM concentration [kg/m3]
-        real(dp), allocatable :: C_transformed_final(:,:,:)         !! Final transformed NM concentration [kg/m3]
-        real(dp) :: m_dissolved                                     !! Dissolved NM mass [kg]
-        real(dp) :: C_dissolved                                     !! Dissolved NM concentration [kg/m3]
-        real(dp) :: C_dissolved_final                               !! Final dissolved NM concentration [kg/m3]
+        real(dp), allocatable   :: C_spm(:)                         !! Sediment concentration [kg/m3]
+        real(dp), allocatable   :: C_spm_final(:)                   !! Sediment concentration [kg/m3]
+        real(dp), allocatable   :: m_spm(:)                         !! Sediment mass [kg/m3]
+        real(dp), allocatable   :: C_np(:,:,:)                      !! NM mass concentration [kg/m3]
+        real(dp), allocatable   :: C_np_final(:,:,:)                !! Final NM mass concentration [kg/m3]
+        real(dp), allocatable   :: m_np(:,:,:)                      !! NM mass mass [kg]
+        real(dp), allocatable   :: m_transformed(:,:,:)             !! Transformed NM mass [kg]
+        real(dp), allocatable   :: C_transformed(:,:,:)             !! Transformed NM concentration [kg/m3]
+        real(dp), allocatable   :: C_transformed_final(:,:,:)       !! Final transformed NM concentration [kg/m3]
+        real(dp)                :: m_dissolved                      !! Dissolved NM mass [kg]
+        real(dp)                :: C_dissolved                      !! Dissolved NM concentration [kg/m3]
+        real(dp)                :: C_dissolved_final                !! Final dissolved NM concentration [kg/m3]
         ! Flows and fluxes
-        integer, allocatable :: neighboursArray(:,:)                !! Neighbouring waterbodies, as array of indices
+        integer, allocatable    :: neighboursArray(:,:)             !! Neighbouring waterbodies, as array of indices
         type(WaterBodyPointer), allocatable :: neighbours(:)        !! Neighbouring waterbodies
-        real(dp) :: Q_in_total                                      !! Total inflow of water [m3/timestep]
-        real(dp), allocatable :: k_resus(:)                         !! Resuspension rate for a given timestep [s-1]
-        real(dp), allocatable :: k_settle(:)                        !! Sediment settling rate on a given timestep [s-1]
-        real(dp), allocatable :: W_settle_spm(:)                    !! SPM settling velocity [m/s]
-        real(dp), allocatable :: W_settle_np(:)                     !! NP settling velocity [m/s]
-        real(dp) :: sedimentTransportCapacity                       !! Sediment transport capacity, to limit erosion [kg/m2/timestep]
-        real(dp) :: a_stc                                           !! Sediment transport scaling factor[kg/m2/km2]
-        real(dp) :: b_stc                                           !! Sediment transport direct runoff (overland flow) threshold [m2/s]
-        real(dp) :: c_stc                                           !! Sediment transport non-linear coefficient [-]
-        real(dp), allocatable :: distributionSediment(:)            !! Distribution to use to split sediment yields with
-        real :: waterTemperature_t(366)                             !! Water temperature timeseries across a year [deg C]
+        real(dp)                :: Q_in_total                       !! Total inflow of water [m3/timestep]
+        real(dp), allocatable   :: k_resus(:)                       !! Resuspension rate for a given timestep [s-1]
+        real(dp), allocatable   :: k_settle(:)                      !! Sediment settling rate on a given timestep [s-1]
+        real(dp), allocatable   :: W_settle_spm(:)                  !! SPM settling velocity [m/s]
+        real(dp), allocatable   :: W_settle_np(:)                   !! NP settling velocity [m/s]
+        real(dp)                :: sedimentTransportCapacity        !! Sediment transport capacity, to limit erosion [kg/m2/timestep]
+        real(dp)                :: a_stc                            !! Sediment transport scaling factor[kg/m2/km2]
+        real(dp)                :: b_stc                            !! Sediment transport direct runoff (overland flow) threshold [m2/s]
+        real(dp)                :: c_stc                            !! Sediment transport non-linear coefficient [-]
+        real(dp), allocatable   :: distributionSediment(:)          !! Distribution to use to split sediment yields with
+        real                    :: waterTemperature_t(366)          !! Water temperature timeseries across a year [deg C]
         ! Contained objects
-        class(BedSediment), allocatable :: bedSediment              !! Contained `BedSediment` object
-        class(Reactor), allocatable :: reactor                      !! Contained `Reactor` object
-        type(PointSource), allocatable :: pointSources(:)           !! Contained `PointSource` objects
-        logical :: hasPointSource = .false.                         !! Does this water body have any point sources?
-        integer :: nPointSources = 0                                !! How many point sources this water body has
+        class(AbstractBedSediment), allocatable :: bedSediment      !! Contained BedSediment object
+        class(AbstractReactor), allocatable :: reactor              !! Contained Reactor object
+        type(PointSource), allocatable :: pointSources(:)           !! Contained PointSource objects
+        logical                 :: hasPointSource = .false.         !! Does this water body have any point sources?
+        integer                 :: nPointSources = 0                !! How many point sources this water body has
         type(DiffuseSource), allocatable :: diffuseSources(:)       !! Contained `DiffuseSource` objects
-        integer :: nDiffuseSources                                  !! How many diffuse sources this water body has
-        logical :: hasDiffuseSource = .false.                       !! Does this water body have any diffuse sources?
-        logical :: isTidalLimit = .false.                           !! Is this water body at the tidal limit?
-        logical :: isUpdated = .false.                              !! Has the WaterBody been updated on this time step yet?
+        integer                 :: nDiffuseSources                  !! How many diffuse sources this water body has
+        logical                 :: hasDiffuseSource = .false.       !! Does this water body have any diffuse sources?
+        logical                 :: isTidalLimit = .false.           !! Is this water body at the tidal limit?
+        logical                 :: isUpdated = .false.              !! Has the WaterBody been updated on this time step yet?
         ! Biota
-        type(BiotaWater), allocatable :: biota(:)                  !! Contained `Biota` object
-        integer :: nBiota = 0
-        integer, allocatable :: biotaIndices(:)
+        type(BiotaWater), allocatable :: biota(:)                   !! Contained `Biota` object
+        integer                 :: nBiota = 0
+        integer, allocatable    :: biotaIndices(:)
         ! Flow objects
-        type(WaterFlows) :: Q
-        type(SPMFlows) :: j_spm
-        type(NMFlows) :: j_nm
-        type(NMFlows) :: j_nm_transformed
-        type(DissolvedFlows) :: j_dissolved
-        type(WaterFlows) :: Q_final
-        type(SPMFlows) :: j_spm_final
-        type(NMFlows) :: j_nm_final
-        type(NMFlows) :: j_nm_transformed_final
-        type(DissolvedFlows) :: j_dissolved_final
+        type(WaterFlows)        :: Q
+        type(SPMFlows)          :: j_spm
+        type(NMFlows)           :: j_nm
+        type(NMFlows)           :: j_nm_transformed
+        type(DissolvedFlows)    :: j_dissolved
+        type(WaterFlows)        :: Q_final
+        type(SPMFlows)          :: j_spm_final
+        type(NMFlows)           :: j_nm_final
+        type(NMFlows)           :: j_nm_transformed_final
+        type(DissolvedFlows)    :: j_dissolved_final
       contains
         ! Create
         procedure :: create => createWaterBody

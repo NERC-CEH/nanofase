@@ -3,7 +3,7 @@ module AbstractSoilLayerModule
     use Globals                                                     ! Global definitions and constants
     use mo_netcdf                                                   ! NetCDF input/output
     use ResultModule, only: Result                                  ! Result object to pass errors
-    use classBiotaSoil
+    use BiotaSoilModule
     implicit none
 
     !> Abstract base class for \1 object. Defines properties and

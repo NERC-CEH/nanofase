@@ -2,9 +2,9 @@ module NetCDFAggregatedOutputModule
     use Globals, only: C, dp
     use UtilModule
     use mo_netcdf, only: NcDataset, NcVariable, NcDimension, nf90_fill_int, nf90_fill_double
-    use classDatabase, only: DATASET
-    use classEnvironment1
-    use spcEnvironment, only: EnvironmentPointer
+    use DataInputModule, only: DATASET
+    use EnvironmentModule
+    use AbstractEnvironmentModule, only: EnvironmentPointer
     use datetime_module
     use NetCDFOutputModule
 
@@ -60,7 +60,7 @@ module NetCDFAggregatedOutputModule
     !! for the output variables (if we're in write-at-end mode and it's needed)
     subroutine initNetCDFAggregatedOutput(me, env, k)
         class(NetCDFAggregatedOutput)   :: me           !! This NetCDFAggregatedOutput class
-        type(Environment1), target      :: env          !! The environment, with model run variable stored in it
+        type(Environment), target       :: env          !! The environment, with model run variable stored in it
         integer                         :: k            !! Chunk index
         
         ! Point the Environment object to that passed in

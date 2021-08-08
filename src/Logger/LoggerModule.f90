@@ -1,4 +1,4 @@
-module classLogger
+module LoggerModule
     use UtilModule
     use ErrorInstanceModule
     use Globals

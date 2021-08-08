@@ -1,6 +1,6 @@
 !> Module for class definition for class representing an area of a crop.
 !! TODO: What crop info do we need from demands data? 
-module classCrop
+module CropModule
     use Globals
     implicit none
     private

@@ -3,10 +3,10 @@ module DataOutputModule
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
         iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
     use Globals, only: C, dp
-    use classDatabase, only: DATASET
-    use spcEnvironment
-    use classEnvironment1
-    use spcGridCell
+    use DataInputModule, only: DATASET
+    use AbstractEnvironmentModule
+    use EnvironmentModule
+    use AbstractGridCellModule
     use RiverReachModule
     use EstuaryReachModule
     use UtilModule
@@ -49,7 +49,7 @@ module DataOutputModule
     !! their headers and metadata
     subroutine initDataOutput(me, env)
         class(DataOutput)           :: me
-        type(Environment1), target  :: env
+        type(Environment), target   :: env
         
         ! Point the Environment object to that passed in
         me%env%item => env

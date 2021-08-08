@@ -8,7 +8,7 @@ module SoilProfileModule
     use ResultModule, only: Result
     use AbstractSoilProfileModule
     use SoilLayerModule
-    use classDatabase, only: DATASET
+    use DataInputModule, only: DATASET
     implicit none
 
     !> A SoilProfile class acts as a container for a collection of SoilLayer objects,

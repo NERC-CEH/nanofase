@@ -2,7 +2,7 @@ module DiffuseSourceModule
     use Globals
     use ResultModule
     use netcdf, only: nf90_fill_double
-    use classDatabase
+    use DataInputModule
     implicit none
     private
 
@@ -47,7 +47,7 @@ module DiffuseSourceModule
         me%j_transformed_diffuseSource = 0.0_dp
         ! Check the environmental compartment we're in, get the corresponding areal source
         ! data and impose the default NM size distribution on it. Data already kg/m2/timestep.
-        ! If data doesn't exist, classDatabase has already created array filled with nf90_fill_double
+        ! If data doesn't exist, DataInputModule has already created array filled with nf90_fill_double
         if (trim(me%compartment) == 'soil') then
             ! Pristine NM - assumed to be core (form index = 1)
             if (.not. DATASET%emissionsArealSoilPristine(me%x, me%y) >= nf90_fill_double) then

@@ -1,12 +1,12 @@
-!> Module container for `FineSediment1` class. Nonpolymorphic.
-module classFineSediment1
+!> Module container for `FineSediment` class. Nonpolymorphic.
+module FineSedimentModule
     use Globals
     use ErrorInstanceModule
     use ResultModule, only: Result, Result0D, Result1D, Result2D
     use UtilModule
     implicit none                                                    ! force declaration of all variables
-    !> Definition of `FineSediment1` class. Nonpolymorphic.
-    type, public :: FineSediment1
+    !> Definition of `FineSediment` class. Nonpolymorphic.
+    type, public :: FineSediment
         character(len=256) :: name = "Undefined FineSediment"        !! A name for the object
         real(dp), public :: M_f_l                                       !! LOCAL fine sediment mass [kg m-2]
         real(dp), private :: M_f_l_backup                            !! LOCAL backup copy of fine sediment mass [kg m-2]
@@ -16,22 +16,22 @@ module classFineSediment1
         integer :: nfComp                                            !! LOCAL number of fractional composition terms
         logical :: isCreated = .false.                               !! LOCAL has this object been created?
     contains
-        procedure, public :: create => createFineSediment1           ! sets up by reading variables required for computations
-        procedure, public :: destroy => destroyFineSediment1         ! finalises by doing all necessary deallocations
-        procedure, public :: set => setFS1                           ! set properties, using either fine sediment volume or mass
-        procedure, public :: V_f => getFSVol1                        ! returns the fine sediment volume [m3 m-2]
-        procedure, public :: M_f => getFSMass1                       ! returns the fine sediment mass [kg m-2]
-        procedure, public :: M_f_backup => getFSMassBackup1          ! returns the backup fine sediment mass [kg m-2]
-        procedure, public :: backup_M_f => setFSMassBackup1          ! back up the fine sediment mass [kg m-2]
-        procedure, public :: V_w => getWVol1                         ! returns the water volume [kg m-2]
-        procedure, public :: rho_part => pdens1                      ! returns the fine sediment particle density [kg m-3]
-        procedure, public :: audit_comp => audit_fcomp1              ! check the fractional composition
-        procedure, public :: IsEmpty => empty1                       ! check for presence of sediment and water
-        procedure, public :: IsNotEmpty => notempty1                 ! check for presence of sediment and water
-        procedure, public :: ClearAll => ClearAll1                   ! clear all fine sediment and water from the object
-        procedure, public :: mix => Mix1                             ! mix this sediment into another
-        procedure, public :: repstat => ReportStatusToConsole1       ! report the properties of this sediment to the console
-        procedure, public :: repmass => ReportMassToConsole1         ! report the fine sediment mass of this sediment to the console
+        procedure, public :: create => createFineSediment           ! sets up by reading variables required for computations
+        procedure, public :: destroy => destroyFineSediment         ! finalises by doing all necessary deallocations
+        procedure, public :: set => setFS                           ! set properties, using either fine sediment volume or mass
+        procedure, public :: V_f => getFSVol                        ! returns the fine sediment volume [m3 m-2]
+        procedure, public :: M_f => getFSMass                       ! returns the fine sediment mass [kg m-2]
+        procedure, public :: M_f_backup => getFSMassBackup          ! returns the backup fine sediment mass [kg m-2]
+        procedure, public :: backup_M_f => setFSMassBackup          ! back up the fine sediment mass [kg m-2]
+        procedure, public :: V_w => getWVol                         ! returns the water volume [kg m-2]
+        procedure, public :: rho_part => pdens                      ! returns the fine sediment particle density [kg m-3]
+        procedure, public :: audit_comp => audit_fcomp              ! check the fractional composition
+        procedure, public :: IsEmpty => empty                       ! check for presence of sediment and water
+        procedure, public :: IsNotEmpty => notempty                 ! check for presence of sediment and water
+        procedure, public :: ClearAll => ClearAll                   ! clear all fine sediment and water from the object
+        procedure, public :: mix => Mix                             ! mix this sediment into another
+        procedure, public :: repstat => ReportStatusToConsole       ! report the properties of this sediment to the console
+        procedure, public :: repmass => ReportMassToConsole         ! report the fine sediment mass of this sediment to the console
     end type
 
     !> Result object with operator for FineSediment scalar data
@@ -68,10 +68,10 @@ module classFineSediment1
         !! `n (character)`: a name unambiguously identifying the object
         !!                                                          
         !! **Function outputs/outcomes**                            
-        !! Initialised `FineSediment1` object. Returns `Result` object containing
+        !! Initialised `FineSediment` object. Returns `Result` object containing
         !! `ErrorInstance` if no object name has been provided.
-        subroutine createFineSediment1(Me, n, nfC)
-            class(FineSediment1) :: Me                               !! Self-reference
+        subroutine createFineSediment(Me, n, nfC)
+            class(FineSediment) :: Me                               !! Self-reference
             character(len=*) :: n                                    !! A name identifier for the object; identifies this object uniquely
             integer :: nfC                                           !! number of compositional fractions to be created 
             ! Realloate particle density a fractional compositions, set an object name and allocate memory
@@ -87,10 +87,10 @@ module classFineSediment1
         !! Finalise a `FineSediment` object. Deallocate all class-level allocated variables
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
-        !! finalised `FineSediment1` object. Returns `Result` object containing
+        !! finalised `FineSediment` object. Returns `Result` object containing
         !! `ErrorInstance` if deallocation causes error(s).
-        function destroyFineSediment1(Me) result (r)
-            class(FineSediment1) :: Me                               !! Self-reference
+        function destroyFineSediment(Me) result (r)
+            class(FineSediment) :: Me                               !! Self-reference
             type(Result) :: r                                        !! `Result` object
             character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
             character(len=18), parameter :: &
@@ -103,7 +103,7 @@ module classFineSediment1
             ! No notes.
             ! -------------------------------------------------------------------------------
             tr = Me%name // &
-                "%destroyFineSediment1"                              ! trace message
+                "%destroyFineSediment"                              ! trace message
             deallocate(Me%pd_comp, stat = allst)                     ! deallocate pd_comp
             if (allst /= 0) then
                 er = ErrorInstance(1, &
@@ -124,7 +124,7 @@ module classFineSediment1
             end if
         end function
         !> **Function purpose**                                     <br>
-        !! Set one or more of the fundamental properties of a FineSediment1 object
+        !! Set one or more of the fundamental properties of a FineSediment object
         !! these properties are:
         !! <ol>
         !!  <li>the sediment mass [kg] - which can be set either directly
@@ -143,8 +143,8 @@ module classFineSediment1
         !! Fine sediment mass, volume of water and/or fractional composition
         !! are set. If fine sediment mass and fine sediment volume are both
         !! specified, the volume is used preferentially to set the mass
-        subroutine setFS1(me, Mf_in, Vf_in, Vw_in, f_comp_in)
-            class(FineSediment1)            :: me           !! Self-reference
+        subroutine setFS(me, Mf_in, Vf_in, Vw_in, f_comp_in)
+            class(FineSediment)            :: me           !! Self-reference
             real(dp), intent(in), optional  :: Mf_in        !! The fine sediment mass
             real(dp), intent(in), optional  :: Vf_in        !! The fine sediment volume
             real(dp), intent(in), optional  :: Vw_in        !! The water volume. Optional; if not present, stored composition is used
@@ -171,8 +171,8 @@ module classFineSediment1
         end subroutine
 
         !> Return the fine sediment volume [m3 m-2] as a derived property
-        function getFSVol1(me) result(Vf)
-            class(FineSediment1), intent(in) :: me                   !! Self-reference
+        function getFSVol(me) result(Vf)
+            class(FineSediment), intent(in) :: me                   !! Self-reference
             real(dp) :: Vf                                           !! Fine sediment volumen [m3 m-2]
             Vf = divideCheckZero(me%M_f_l, me%rho_part())
         end function
@@ -182,8 +182,8 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! Fine sediment mass [kg m-2]
-        function getFSMass1(Me) result(Mf)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+        function getFSMass(Me) result(Mf)
+            class(FineSediment), intent(in) :: Me                   !! Self-reference
             real(dp) :: Mf                                           !! The return value
                                                                      ! function to return the fine sediment mass [kg m-2]
                                                                      ! Output: Mf = Fine sediment mass
@@ -194,8 +194,8 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! Fine sediment mass [kg m-2]
-        function getFSMassBackup1(Me) result(Mf)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+        function getFSMassBackup(Me) result(Mf)
+            class(FineSediment), intent(in) :: Me                   !! Self-reference
             real(dp) :: Mf                                           !! The return value
                                                                      ! function to return the fine sediment mass [kg m-2]
                                                                      ! Output: Mf = Fine sediment mass
@@ -206,8 +206,8 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! none
-        subroutine setFSMassBackup1(Me)
-            class(FineSediment1), intent(inout) :: Me                !! Self-reference
+        subroutine setFSMassBackup(Me)
+            class(FineSediment), intent(inout) :: Me                !! Self-reference
                                                                      ! function to return the fine sediment mass [kg m-2]
             Me%M_f_l_backup = Me%M_f_l                               ! fine sediment mass backup
         end subroutine
@@ -216,8 +216,8 @@ module classFineSediment1
         !!                                                          <br>
         !! **Function outputs/outcomes**                            <br>
         !! water volume [m3 m-2]
-        function getWVol1(Me) result(Vw)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+        function getWVol(Me) result(Vw)
+            class(FineSediment), intent(in) :: Me                   !! Self-reference
             real(dp) :: Vw                                           !! The return value
                                                                      ! function to return the water volume [m3 m-2]
                                                                      ! Output: Vw = water volume
@@ -229,8 +229,8 @@ module classFineSediment1
         end function
 
         !> Returns fine sediment particle density as a derived property
-        function pdens1(me) result(rho_part)
-            class(FineSediment1), intent(in) :: me                   !! Self-reference
+        function pdens(me) result(rho_part)
+            class(FineSediment), intent(in) :: me                   !! Self-reference
             real(dp) :: rho_part                                     !! Fine sediment particle density [kg m-3]
             rho_part = sum(me%f_comp * me%pd_comp)
         end function
@@ -242,8 +242,8 @@ module classFineSediment1
         !! Function returns ErrorInstance with values
         !! 106: if fractional composition does not sum to unity <br>
         !! 0: otherwise
-        function audit_fcomp1(Me) result(er)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+        function audit_fcomp(Me) result(er)
+            class(FineSediment), intent(in) :: Me                   !! Self-reference
             type(ErrorInstance) :: er                                !! `ErrorInstance` object, returns error if `t_fcomp /= 1`
             integer :: i                                             ! LOCAL loop counter
             real(dp) :: t_fcomp                                      ! LOCAL sum of fractional compositions
@@ -267,8 +267,8 @@ module classFineSediment1
         !! **Function outputs/outcomes**                            <br>
         !! Function returns .true. if no sediment or water present, 
         !! Function returns .false. otherwise
-        function Empty1(Me) result(t)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+        function Empty(Me) result(t)
+            class(FineSediment), intent(in) :: Me                   !! Self-reference
             logical :: t
                 !! Return value. True: `V_f/M_f = V_w = 0`. False: `V_f/M_f > 0 .or. V_w > 0`
             t = .false.
@@ -282,8 +282,8 @@ module classFineSediment1
         !! ABSENT or not
         !! Function returns .true. if sediment or water present, 
         !! Function returns .false. otherwise
-        function NotEmpty1(Me) result(t)
-            class(FineSediment1), intent(in) :: Me                   !! Self-reference
+        function NotEmpty(Me) result(t)
+            class(FineSediment), intent(in) :: Me                   !! Self-reference
             logical :: t
                 !! Return value. True: `V_f/M_f = V_w = 0`. False: `V_f/M_f > 0 .or. V_w > 0`
             t = .true.
@@ -295,8 +295,8 @@ module classFineSediment1
         !! **Subroutine outputs/outcomes**                          <br>
         !! Subroutine sets fine sediment mass, water volume and all fractional
         !! compositions to zero. No outputs.
-        subroutine ClearAll1(Me)
-            class(FineSediment1) :: Me                               !! The `FineSediment` instance
+        subroutine ClearAll(Me)
+            class(FineSediment) :: Me                               !! The `FineSediment` instance
             integer :: X                                             ! LOCAL loop counter
             Me%M_f_l = 0                                             ! clear fine sediment mass
             !Me%M_f_l_backup = 0                                      ! clear backup fine sediment mass
@@ -322,9 +322,9 @@ module classFineSediment1
         !!      <li>any particle density in FS <= 0.</li>
         !!      <li>allocation of f_comp_mix fails.</li>
         !! </ol>
-        function Mix1(Me, FS) result(r)
-            class(FineSediment1) :: Me                               !! Self-reference
-            type(FineSediment1), intent(in) :: FS                    !! `FineSediment1` to be mixed with this one
+        function Mix(Me, FS) result(r)
+            class(FineSediment) :: Me                               !! Self-reference
+            type(FineSediment), intent(in) :: FS                    !! `FineSediment` to be mixed with this one
             type(ResultFineSediment0D) :: r                          !! `Result` object
             type(ErrorInstance) :: er                                ! LOCAL error instance object
             integer :: x                                             ! LOCAL loop counter
@@ -332,11 +332,7 @@ module classFineSediment1
             real(dp) :: V_w_mix                                      ! LOCAL mixed water volume
             real(dp), allocatable :: f_comp_mix(:)                   ! LOCAL mixed fractional composition
             integer :: allst                                         ! LOCAL allocation status
-            !
-            ! Notes
-            ! -------------------------------------------------------------------------------
-            ! No notes.
-            ! -------------------------------------------------------------------------------
+
             if (FS%M_f() <= 0) then                                  ! mixing sediment mass is invalid
                 er = ErrorInstance( &
                     code = 103, &
@@ -402,10 +398,11 @@ module classFineSediment1
             )                                                       ! set the properties of the returned FineSediment object
             r = ResultFS(data = FS)                                  ! feed FineSediment object into Result
         end function
+
        !> **Sub purpose**
        !! Report the properties of this object to the console
-       subroutine ReportStatusToConsole1(Me, title)
-            class(FineSediment1) :: Me                               !! Self-reference
+       subroutine ReportStatusToConsole(Me, title)
+            class(FineSediment) :: Me                               !! Self-reference
             character(len=*), intent(in) :: title                    !! Title string, providing context
             integer :: x                                             ! LOCAL loop counter
             print *, "!"                                             ! new message marker
@@ -424,8 +421,8 @@ module classFineSediment1
             end do
        end subroutine
 
-       subroutine ReportMassToConsole1(Me, title)
-            class(FineSediment1) :: Me                               !! Self-reference
+       subroutine ReportMassToConsole(Me, title)
+            class(FineSediment) :: Me                               !! Self-reference
             character(len=*), intent(in) :: title                    !! Title string, providing context
             print *, title                                           ! print the title
             print *, "fine sediment mass [kg/m2]:   ", Me%M_f_l
@@ -436,7 +433,7 @@ module classFineSediment1
         !> Initialise the result object with 0D `FineSediment` data.
         function init0DFS(data, error, errors) result(Me)
             type(ResultFineSediment0D)                  :: Me           !! This `Result` object
-            type(FineSediment1), intent(in)             :: data         !! 0D data to store
+            type(FineSediment), intent(in)             :: data         !! 0D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
             type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
 
@@ -448,7 +445,7 @@ module classFineSediment1
         !> Initialise the result object with 1D `FineSediment` data.
         function init1DFS(data, error, errors) result(Me)
             type(ResultFineSediment1D)                  :: Me           !! This Result object
-            type(FineSediment1), intent(in)             :: data(:)      !! 1D data to store
+            type(FineSediment), intent(in)             :: data(:)      !! 1D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
             type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
 
@@ -460,7 +457,7 @@ module classFineSediment1
         !> Initialise the result object with 2D `FineSediment` data.
         function init2DFS(data, error, errors) result(Me)
             type(ResultFineSediment2D)                  :: Me           !! This Result object
-            type(FineSediment1), intent(in)             :: data(:,:)    !! 2D data to store
+            type(FineSediment), intent(in)             :: data(:,:)    !! 2D data to store
             type(ErrorInstance), intent(in), optional   :: error        !! An error to store
             type(ErrorInstance), intent(in), optional   :: errors(:)    !! Any errors to store
 
@@ -469,40 +466,40 @@ module classFineSediment1
             call Me%setErrors(error, errors)
         end function
 
-       !> Attempt to return the data as a scalar FineSediment1 object
+       !> Attempt to return the data as a scalar FineSediment object
         function getDataAsFineSediment0D(Me) result(data)
             class(ResultFineSediment0D), intent(in) :: Me       !! This Result object
-            type(FineSediment1)                     :: data     !! The data as a `FineSediment1` object
+            type(FineSediment)                     :: data     !! The data as a `FineSediment` object
             select type (d => Me%data)
-                type is (FineSediment1)
+                type is (FineSediment)
                     data = d
                 class default
-                    error stop "Error trying to return 0D data as FineSediment1. Are you sure the data is of type FineSediment1?"
+                    error stop "Error trying to return 0D data as FineSediment. Are you sure the data is of type FineSediment?"
             end select
         end function
 
-        !> Attempt to return the data as a 1D FineSediment1 object array
+        !> Attempt to return the data as a 1D FineSediment object array
         function getDataAsFineSediment1D(Me) result(data)
             class(ResultFineSediment1D), intent(in) :: Me                     !! This Result object
-            type(FineSediment1)                     :: data(size(Me%data))    !! The data as a 1D `FineSediment1` array
+            type(FineSediment)                     :: data(size(Me%data))    !! The data as a 1D `FineSediment` array
             select type (d => Me%data)
-                type is (FineSediment1)
+                type is (FineSediment)
                     data = d
                 class default
-                    error stop "Error trying to return 1D data as FineSediment1. Are you sure the data is of type FineSediment1?"
+                    error stop "Error trying to return 1D data as FineSediment. Are you sure the data is of type FineSediment?"
             end select
         end function
 
-        !> Attempt to return the data as a 2D FineSediment1 object array
+        !> Attempt to return the data as a 2D FineSediment object array
         function getDataAsFineSediment2D(Me) result(data)
             class(ResultFineSediment2D), intent(in) :: Me                           !! This Result object
-            type(FineSediment1)                     :: data(size(Me%data,1), &
-                                                            size(Me%data,2))        !! The data as a 1D `FineSediment1` array
+            type(FineSediment)                     :: data(size(Me%data,1), &
+                                                            size(Me%data,2))        !! The data as a 1D `FineSediment` array
             select type (d => Me%data)
-                type is (FineSediment1)
+                type is (FineSediment)
                     data = d
                 class default
-                    error stop "Error trying to return 2D data as FineSediment1. Are you sure the data is of type FineSediment1?"
+                    error stop "Error trying to return 2D data as FineSediment. Are you sure the data is of type FineSediment?"
             end select
         end function
 end module

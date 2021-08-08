@@ -4,11 +4,11 @@ module RiverReachModule
     use ReachModule
     use UtilModule
     use ResultModule
-    use classBedSediment1
-    use classLogger, only: LOGR
-    use classDatabase, only: DATASET
-    use classReactor1
-    use classBiotaWater
+    use BedSedimentModule
+    use LoggerModule, only: LOGR
+    use DataInputModule, only: DATASET
+    use ReactorModule
+    use BiotaWaterModule
     implicit none
 
     !> The RiverReach type represents a segment of river within a grid cell
@@ -52,8 +52,8 @@ module RiverReachModule
 
         ! Create the BedSediment for this RiverReach
         ! TODO: Get the type of BedSediment from the data file, and check for allst
-        allocate(BedSediment1 :: me%bedSediment)
-        allocate(Reactor1 :: me%reactor)
+        allocate(BedSediment :: me%bedSediment)
+        allocate(Reactor :: me%reactor)
 
         ! Allocate and create the correct number of biota objects for this reach
         ! TODO move all this to database

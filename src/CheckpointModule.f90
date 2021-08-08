@@ -1,10 +1,10 @@
 module CheckpointModule
-    use spcEnvironment, only: EnvironmentPointer
-    use classEnvironment1
+    use AbstractEnvironmentModule, only: EnvironmentPointer
+    use EnvironmentModule
     use DefaultsModule, only: iouCheckpoint
     use Globals, only: dp, C, ERROR_HANDLER
-    use classDatabase, only: DATASET
-    use classLogger, only: LOGR
+    use DataInputModule, only: DATASET
+    use LoggerModule, only: LOGR
     use FlowModule
     use ErrorInstanceModule
     use ResultModule
@@ -27,7 +27,7 @@ module CheckpointModule
     !> Initialise the Checkpoint module
     subroutine init(me, env, checkpointFile)
         class(Checkpoint)           :: me               !! This Checkpoint instance
-        type(Environment1), target  :: env              !! Pointer to the Environment object
+        type(Environment), target   :: env              !! Pointer to the Environment object
         character(len=*)            :: checkpointFile   !! Path to the checkpoint file
         ! Point to the environment object
         me%env%item => env
