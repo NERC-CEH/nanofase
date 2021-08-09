@@ -1,0 +1,1 @@
+NETCDF = -I/home/users/harrison/software/netcdff/include -L/home/users/harrison/software/netcdff/lib -lnetcdff -lnetcdf

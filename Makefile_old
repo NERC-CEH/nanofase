@@ -1,0 +1,117 @@
+# Example Makefile for NanoFASE model. Usage:
+# 	`make`          Compile the Fortran source code with maximum debugging and minimal optimisations
+#	`make release`	Compile the Fortran source code with maximum optimisations and minimal debugging
+# 	`make run`      Run this executable
+# 	`make profile`  Run with the profiler gprof
+# 	`make debug`    Run in debug mode with gdb. Make sure -g flag is present in DEBUGFLAGS
+#	`make clean`    Clean compilation files
+
+# What compiler to use? gfortran recommended
+FC = gfortran
+# Flags for debug (main) build. Caution using -O0 due to this issue: https://stackoverflow.com/questions/44385909/adding-to-an-array-of-characters-in-fortran
+DEBUG_FLAGS = -O1 -pg -g -Wall
+# Flags for release build
+RELEASE_FLAGS = -O3
+# Flags common to both builds
+COMMON_FLAGS = -ffpe-trap=zero,invalid,overflow,underflow -fcheck=all -fbackslash -fopenmp
+# Default to debug flags
+FLAGS = ${DEBUG_FLAGS} ${COMMON_FLAGS}
+# Executable file name and path
+EXEC_FILE = main
+EXEC_PATH = ./bin/
+# NetCDF config, assuming you have the nf-config utility installed
+NETCDF = -I/home/users/harrison/software/netcdff/include -L/home/users/harrison/software/netcdff/lib -lnetcdff -lnetcdf
+# Config file name and path. Used when running `make run`.
+CONFIG_PATH = ./config/
+CONFIG_FILE = config.example.nml
+# The following variables generate a unique compilation metadata file to be placed in EXEC_PATH,
+# which includes the current Git commit, branch and compilation time
+GIT_HASH = `git rev-parse HEAD`
+COMPILE_TIME = `date -u +'%Y-%m-%d %H:%M:%S UTC'`
+GIT_BRANCH = `git rev-parse --abbrev-ref HEAD`
+COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_BRANCH)
+
+OBJ = vendor/feh/src/ErrorInstance.o \
+	vendor/feh/src/Result.o \
+	vendor/feh/src/ErrorHandler.o \
+	vendor/feh/src/ErrorCriteria.o \
+	vendor/mo_netcdf/src/mo_types.o \
+	vendor/mo_netcdf/src/mo_netcdf.o \
+	vendor/datetime-fortran/mod_timedelta.o \
+	vendor/datetime-fortran/mod_strftime.o \
+	vendor/datetime-fortran/mod_constants.o \
+	vendor/datetime-fortran/mod_datetime.o \
+	vendor/datetime-fortran/mod_clock.o \
+	vendor/datetime-fortran/datetime.o \
+	src/mod_strptime.o \
+	src/DefaultsModule.o \
+	src/Globals.o \
+	src/UtilModule.o \
+	src/Logger/classLogger.o \
+	src/Data/classDatabase.o \
+	src/Biota/spcBiota.o \
+	src/Biota/classBiotaSoil.o \
+	src/Biota/classBiotaWater.o \
+	src/Reactor/spcReactor.o \
+	src/Reactor/classReactor1.o \
+	src/BedSedimentLayer/classFineSediment1.o \
+	src/BedSedimentLayer/spcBedSedimentLayer.o \
+	src/BedSedimentLayer/classBedSedimentLayer1.o \
+	src/BedSediment/spcBedSediment.o \
+	src/BedSediment/classBedSediment1.o \
+	src/Source/classDiffuseSource2.o \
+	src/Source/classPointSource2.o \
+	src/WaterBody/FlowModule.o \
+	src/WaterBody/WaterBodyModule.o \
+	src/WaterBody/ReachModule.o \
+	src/RiverReachModule.o \
+	src/EstuaryReachModule.o \
+	src/classSampleSite.o \
+	src/Soil/spcSoilLayer.o \
+	src/Soil/classSoilLayer1.o \
+	src/Soil/spcSoilProfile.o \
+	src/Soil/classSoilProfile1.o \
+	src/GridCell/classCrop.o \
+	src/GridCell/spcGridCell.o \
+	src/GridCell/classGridCell2.o \
+	src/Environment/spcEnvironment.o \
+	src/Environment/classEnvironment1.o \
+	src/Data/NetCDFOutputModule.o \
+	src/Data/NetCDFAggregatedOutputModule.o \
+	src/Data/DataOutputModule.o \
+	src/CheckpointModule.o \
+	src/main.o 
+
+OBJECTS = $(notdir $(OBJ))
+
+VPATH = vendor/feh/src \
+	vendor/mo_netcdf/src \
+	vendor/datetime-fortran/src/lib \
+	src \
+	src/Data \
+	src/Logger \
+	src/Biota \
+	src/Reactor \
+	src/BedSedimentLayer \
+	src/BedSediment \
+	src/Source \
+	src/WaterBody \
+	src/Soil \
+	src/GridCell \
+	src/Environment
+
+$(EXEC_FILE): $(OBJECTS)
+	$(FC) $(FLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
+	echo $(COMP_META) > $(EXEC_PATH)comp_meta
+%.o: %.f90
+	$(FC) -c $(FLAGS) $< $(NETCDF)
+release: FLAGS = ${RELEASE_FLAGS} ${COMMON_FLAGS}
+release: $(EXEC_FILE)
+run:
+	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
+profile:
+	gprof $(EXEC_PATH)$(EXEC_FILE) gmon.out
+debug:
+	gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
+clean:
+	rm -f *.mod *.o *.stackdump Debug/*.* *.out
