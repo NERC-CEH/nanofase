@@ -2,7 +2,7 @@ module Globals
     use mo_netcdf
     use datetime_module
     use mod_strptime, only: f_strptime
-    use VersionModule
+    use VersionModule, only: MODEL_VERSION
     use DefaultsModule, only: iouConfig, iouBatchConfig, iouVersion, configDefaults
     use ErrorCriteriaModule
     use ErrorInstanceModule
@@ -15,10 +15,12 @@ module Globals
 
     type, public :: GlobalsType
         ! Get model version from the version module (which our build script should modify)
-        character(len=16)   :: modelVersion = modelVersion
+        character(len=16)   :: modelVersion = MODEL_VERSION
+
         ! Data input
         character(len=256)  :: inputFile
         character(len=256)  :: constantsFile
+        
         ! Data output 
         character(len=256)  :: outputPath                       !! Path to directory to store output data
         character(len=32)   :: outputHash                       !! Hash to append to output file names. Useful for parallel runs.
@@ -35,7 +37,8 @@ module Globals
         logical             :: includeSoilStateBreakdown        !! Should the breakdown of NM state (free vs attached) be included?
         logical             :: includeSedimentFluxes            !! Should sediment fluxes to/from waterbodies be included?
         logical             :: includeSpmSizeClassBreakdown     !! Should the breakdown of SPM size classes be included?
-        logical             :: includeSoilErosion               !! Should sediment fluxes to/from waterbodies be included?
+        logical             :: includeSoilErosionYields         !! Should sediment fluxes to/from waterbodies be included?
+
         ! Run
         character(len=256)  :: runDescription                   !! Short description of model run
         character(len=256)  :: logFilePath                      !! Log file path
@@ -71,12 +74,14 @@ module Globals
         logical             :: includePointSources              !! Should point sources be included?
         logical             :: includeBedSediment               !! Should the bed sediment be included?
         logical             :: includeAttachment                !! Should attachment to soil be included?
+        logical             :: includeSoilErosion               !! Should soil erosion be included?
         logical             :: includeClayEnrichment            !! Should clay enrichment be included?
         integer             :: nSoilLayers                      !! Number of soil layers to be modelled
         integer             :: nSedimentLayers                  !! Number of sediment layers to be modelled
         real                :: minStreamSlope                   !! Minimum stream slope, imposed where calculated stream slope is less than this value [m/m]
         integer             :: minEstuaryTimestep               !! Minimum timestep (displacement) length for modelling estuarine dynamics [s]
         logical             :: includeEstuary                   !! Should we simulate an estuary, or treat everything as a river?
+        logical             :: includeBankErosion               !! Should we simulate the inflow of sediment from bank erosion?
 
         ! Batch run
         integer                         :: nChunks = 1          !! Numbers of chunks to run
@@ -159,9 +164,10 @@ module Globals
         logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
             write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
             include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
-            preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion, &
+            preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion_yields, &
             write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown, &
-            write_compartment_stats, ignore_nm, include_estuary, bash_colors, save_checkpoint_after_warm_up
+            write_compartment_stats, ignore_nm, include_estuary, bash_colors, save_checkpoint_after_warm_up, include_bank_erosion, &
+            include_soil_erosion
         
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_nm_size_classes, n_spm_size_classes, &
@@ -170,16 +176,16 @@ module Globals
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv, include_sediment_fluxes, &
-            include_soil_erosion, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats, &
+            include_soil_erosion_yields, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats, &
             write_netcdf, netcdf_write_mode
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
             description, trigger_warnings, simulation_mask, write_to_log, output_hash, ignore_nm, bash_colors
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep, &
             save_checkpoint_after_warm_up
         namelist /steady_state/ run_to_steady_state, mode, delta
-        namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment
+        namelist /soil/ soil_layer_depth, include_bioturbation, include_attachment, include_clay_enrichment, include_soil_erosion
         namelist /sediment/ spm_size_classes, include_bed_sediment, sediment_particle_densities, sediment_layer_depth
-        namelist /water/ min_stream_slope, min_estuary_timestep, include_estuary
+        namelist /water/ min_stream_slope, min_estuary_timestep, include_estuary, include_bank_erosion
         namelist /sources/ include_point_sources
 
         ! Batch config namelists
@@ -201,7 +207,7 @@ module Globals
         include_soil_state_breakdown = .false.
         include_sediment_fluxes = configDefaults%includeSedimentFluxes          ! False
         include_spm_size_class_breakdown = configDefaults%includeSpmSizeClassBreakdown  ! False
-        include_soil_erosion = configDefaults%includeSoilErosion                ! False
+        include_soil_erosion_yields = configDefaults%includeSoilErosionYields   ! False
         include_clay_enrichment = configDefaults%includeClayEnrichment
         soil_pec_units = configDefaults%soilPECUnits                            ! kg/kg
         sediment_pec_units = configDefaults%sedimentPECUnits                    ! kg/kg
@@ -216,12 +222,14 @@ module Globals
         simulation_mask = ""
         min_stream_slope = configDefaults%minStreamSlope
         min_estuary_timestep = configDefaults%minEstuaryTimestep
-        include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown
-        write_compartment_stats = configDefaults%writeCompartmentStats
-        ignore_nm = configDefaults%ignoreNM
+        include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown  ! True
+        write_compartment_stats = configDefaults%writeCompartmentStats          ! False
+        ignore_nm = configDefaults%ignoreNM                                     ! False
         include_estuary = configDefaults%includeEstuary                         ! True
+        include_bank_erosion = configDefaults%includeBankErosion                ! True
         warm_up_period = configDefaults%warmUpPeriod                            ! 0
         bash_colors = configDefaults%bashColors                                 ! True
+        include_soil_erosion = configDefaults%includeSoilErosion                ! True
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -312,7 +320,7 @@ module Globals
         C%sedimentPECUnits = sediment_pec_units
         C%includeSoilStateBreakdown = include_soil_state_breakdown
         C%includeSedimentFluxes = include_sediment_fluxes
-        C%includeSoilErosion = include_soil_erosion
+        C%includeSoilErosionYields = include_soil_erosion_yields
         C%includeSpmSizeClassBreakdown = include_spm_size_class_breakdown
         ! Run
         if (.not. C%isBatchRun) then
@@ -359,10 +367,12 @@ module Globals
         C%includeBioturbation = include_bioturbation
         C%includeAttachment = include_attachment
         C%includeClayEnrichment = include_clay_enrichment
+        C%includeSoilErosion = include_soil_erosion
         ! Water
         C%minStreamSlope = min_stream_slope
         C%minEstuaryTimestep = min_estuary_timestep
         C%includeEstuary = include_estuary
+        C%includeBankErosion = include_bank_erosion
         ! Sources
         C%includePointSources = include_point_sources
 

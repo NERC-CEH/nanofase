@@ -251,22 +251,28 @@ module SoilProfileModule
         integer             :: julianDay
         integer             :: i
 
-        ! TODO This function only works with daily timesteps
+        ! Only calculate erosion yield if we're meant to be
+        if (C%includeSoilErosion) then
+            ! TODO This function only works with daily timesteps
 
-        ! Convert the current date to Julian day number (https://en.wikipedia.org/wiki/Julian_day).
-        ! date2num converts to number of days since 0001-01-01, and 1721423 is the Julian day
-        ! number of 0001-01-01.
-        currentDate = C%startDate + timedelta(days=t-1)
-        julianDay = currentDate%yearday()
-        ! Then calculate the kinetic energy [J/m2/day]. Precip needs converting to [mm/day] from [m/timestep].
-        E_k = (me%erosivity_a1 + me%erosivity_a2 * cos(julianDay * (2*C%pi/365) + me%erosivity_a3)) &
-                * (me%q_precip_timeSeries(t)*1.0e3)**me%erosivity_b
-        ! Now the modified MMF version of K, dependent on sand, silt and clay content [g/J]
-        K_MMF = 0.1*(me%clayContent/100.0_dp) + 0.3*(me%sandContent/100.0_dp) + 0.5*(me%siltContent/100.0_dp)
-        ! Total eroded sediment [g/m2/day]
-        erodedSedimentTotal = E_k * K_MMF * me%usle_C * me%usle_P * me%usle_LS
-        ! Split this into a size distribution and convert to [kg/m2/day]
-        me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
+            ! Convert the current date to Julian day number (https://en.wikipedia.org/wiki/Julian_day).
+            ! date2num converts to number of days since 0001-01-01, and 1721423 is the Julian day
+            ! number of 0001-01-01.
+            currentDate = C%startDate + timedelta(days=t-1)
+            julianDay = currentDate%yearday()
+            ! Then calculate the kinetic energy [J/m2/day]. Precip needs converting to [mm/day] from [m/timestep].
+            E_k = (me%erosivity_a1 + me%erosivity_a2 * cos(julianDay * (2*C%pi/365) + me%erosivity_a3)) &
+                    * (me%q_precip_timeSeries(t)*1.0e3)**me%erosivity_b
+            ! Now the modified MMF version of K, dependent on sand, silt and clay content [g/J]
+            K_MMF = 0.1*(me%clayContent/100.0_dp) + 0.3*(me%sandContent/100.0_dp) + 0.5*(me%siltContent/100.0_dp)
+            ! Total eroded sediment [g/m2/day]
+            erodedSedimentTotal = E_k * K_MMF * me%usle_C * me%usle_P * me%usle_LS
+            ! Split this into a size distribution and convert to [kg/m2/day]
+            me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
+        else
+            ! If we're not meant to be modelling erosion, then set yield to zero
+            me%erodedSediment = 0.0_dp
+        end if
 
         ! The top soil layer deals with eroding NM
         call rslt%addErrors(.errors. me%colSoilLayers(1)%item%erode(me%erodedSediment, me%bulkDensity, me%area))
@@ -283,6 +289,7 @@ module SoilProfileModule
         me%m_transformed_eroded(:,1,2) = me%colSoilLayers(1)%item%m_transformed_eroded(:,1,2)
         me%m_np(:,1,2) = me%m_np(:,1,2) - me%m_np_eroded(:,1,2)     ! Remove the eroded NM from the soil
         me%m_transformed(:,1,2) = me%m_transformed(:,1,2) - me%m_transformed_eroded(:,1,2) 
+
     end function
 
     !> Perform bioturbation on a time step by mixing calculated depth of two layers together

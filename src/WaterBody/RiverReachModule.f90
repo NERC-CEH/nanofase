@@ -12,7 +12,7 @@ module RiverReachModule
     implicit none
 
     !> The RiverReach type represents a segment of river within a grid cell
-    type, public, extends(Reach1) :: RiverReach
+    type, public, extends(Reach) :: RiverReach
       contains
         ! Create
         procedure :: create => createRiverReach
@@ -373,9 +373,7 @@ module RiverReachModule
         )
 
         ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
-        call rslt%addErrors( &
-            .errors. me%setReachLengthAndSlope() &
-        )
+        call me%setReachLengthAndSlope()
 
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function

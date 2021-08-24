@@ -8,7 +8,7 @@ module EstuaryReachModule
     use ReactorModule
     implicit none
 
-    type, public, extends(Reach1) :: EstuaryReach
+    type, public, extends(Reach) :: EstuaryReach
         real(dp) :: meanDepth               !! Mean estuary depth for use in tidal depth calculations [m]
         real(dp) :: distanceToMouth         !! Distance to the mouth of the estuary [m]
         real(dp) :: tidalM2                 !! Tidal harmonic coefficient M2 [-]
@@ -485,9 +485,7 @@ module EstuaryReachModule
             .errors. me%parseInflowsAndOutflow() &
         )
          ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
-        call rslt%addErrors( &
-            .errors. me%setReachLengthAndSlope() &
-        )
+        call me%setReachLengthAndSlope()
 
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function

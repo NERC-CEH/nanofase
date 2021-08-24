@@ -467,7 +467,7 @@ module NetCDFAggregatedOutputModule
                 allocate(me%output_soil__C_transformed_att_layers, source=empty4DArraySoil)
             end if
         end if
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             allocate(me%output_soil__m_soil_eroded, source=empty3DArray)
             allocate(me%output_soil__m_nm_eroded, source=empty3DArray)
             allocate(me%output_soil__m_transformed_eroded, source=empty3DArray)
@@ -551,7 +551,7 @@ module NetCDFAggregatedOutputModule
                 call me%nc__soil__C_transformed_att_layers%setData(me%output_soil__C_transformed_att_layers, start=[1,1,1,tStart])
             end if
         end if
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             call me%nc__soil__m_soil_eroded%setData(me%output_soil__m_soil_eroded, start=[1,1,tStart])
             call me%nc__soil__m_nm_eroded%setData(me%output_soil__m_nm_eroded, start=[1,1,tStart])
             call me%nc__soil__m_transformed_eroded%setData(me%output_soil__m_transformed_eroded, start=[1,1,tStart])
@@ -616,7 +616,7 @@ module NetCDFAggregatedOutputModule
                 deallocate(me%output_soil__C_transformed_att_layers)
             end if
         end if
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             deallocate(me%output_soil__m_soil_eroded)
             deallocate(me%output_soil__m_nm_eroded)
             deallocate(me%output_soil__m_transformed_eroded)

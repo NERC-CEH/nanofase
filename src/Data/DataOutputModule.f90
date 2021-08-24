@@ -369,7 +369,7 @@ module DataOutputModule
                     end if
                 end if
                 ! Should we include soil erosion?
-                if (C%includeSoilErosion) then
+                if (C%includeSoilErosionYields) then
                     write(iouOutputSoil, '(a)', advance='no') trim(str(sum(profile%erodedSediment) * profile%area)) &
                         // "," // trim(str(sum(profile%m_np_eroded(:,:,2)))) // "," // &
                         trim(str(sum(profile%m_transformed_eroded(:,:,2)))) // ","
@@ -671,7 +671,7 @@ module DataOutputModule
                         C%soilPECUnits//"): attached NM concentration for layer i"
                 end if
             end if
-            if (C%includeSoilErosion) then
+            if (C%includeSoilErosionYields) then
                 write(iouOutputSoil, '(a)') "#\tm_soil_eroded(kg), m_np_eroded(kg), m_transformed_eroded(kg): " // &
                     "mass of soil and NM eroded on this timestep"
             end if
@@ -704,7 +704,7 @@ module DataOutputModule
             end if
         end if
         ! Should we include eroded soil and NM?
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             write(iouOutputSoil, '(a)', advance='no') "m_soil_eroded(kg),m_np_eroded(kg),m_transformed_eroded(kg),"
         end if
         write(iouOutputSoil, '(a)', advance='no') "m_np_buried(kg),m_transformed_buried(kg),"

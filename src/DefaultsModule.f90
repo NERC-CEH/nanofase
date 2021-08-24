@@ -41,7 +41,7 @@ module DefaultsModule
         logical             :: writeCompartmentStats = .false.          ! Should a summary stats file for each compartment be written?
         logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included
         logical             :: includeSedimentFluxes = .false.
-        logical             :: includeSoilErosion = .false.
+        logical             :: includeSoilErosionYields = .false.       ! Should we output soil erosion yields?
         logical             :: includeSpmSizeClassBreakdown = .false.
         logical             :: includeClayEnrichment = .false.
         character(len=5)    :: soilPECUnits = 'kg/kg'                   ! Should soil PECS be kg/kg or kg/m3?
@@ -55,6 +55,9 @@ module DefaultsModule
         logical             :: ignoreNM = .false.                       ! If .true., costly NM calculations are missed out. Useful for sediment calibation
         ! Water
         logical             :: includeEstuary = .true.                  ! Should we model estuaries, or treat them as rivers?
+        logical             :: includeBankErosion = .true.              ! Should we include the inflow of sediment from bank erosion?
+        ! Soil
+        logical             :: includeSoilErosion = .true.              ! Should we model soil erosion?
     end type
     ! Object to exposre the config defaults
     type(ConfigDefaultsType) :: configDefaults

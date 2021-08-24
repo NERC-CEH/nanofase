@@ -61,6 +61,8 @@ $ make
 
 Use the `-DCMAKE_BUILD_TYPE=Debug|Release` flag to control whether you want to build the debug (default) or release version.
 
+Note that, whilst `cmake` can be used to compile the model using the `ifort` or `ifx` compilers (e.g. by using the `-DCMAKE_Fortran_COMPILER=ifort` flag), issues can arise when the installed version of NetCDF that the `cmake` script finds isn't a version compiled by an Intel compiler. Therefore, we recommend compiling using the compiler that your NetCDF installation used. As a workaround, you can explicitly point `cmake` to the correct version of NetCDF by declaring `NETCDF_INCLUDES` (include directories) and `NETCDF_LIBRARIES_F90` (link libraries) (e.g. by specifying `-DNETCDF_INCLUDES=.. -DNETCDF_LIBRARIES_F90=..`).
+
 ### Dependencies
 
 The only dependency outside of the `vendor` directory (which are compiled from source when the model is compiled, so don't worry about these) is the [NetCDF Fortran](https://www.unidata.ucar.edu/software/netcdf/docs/building_netcdf_fortran.html) library, which must already be installed on your system. NetCDF4 is available on most default application repositories, such as those for Ubuntu and Red Hat, and this is the easiest way to install. For example, on Ubuntu:

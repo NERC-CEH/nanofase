@@ -328,7 +328,7 @@ module NetCDFOutputModule
                             end associate
                         end do
                     end if
-                    if (C%includeSoilErosion) then
+                    if (C%includeSoilErosionYields) then
                         me%output_soil__m_soil_eroded(x,y,tInChunk) = sum(profile%erodedSediment) * profile%area
                         me%output_soil__m_nm_eroded(x,y,tInChunk) = sum(profile%m_np_eroded(:,:,2))
                         me%output_soil__m_transformed_eroded(x,y,tInChunk) = sum(profile%m_transformed_eroded(:,:,2))
@@ -368,7 +368,7 @@ module NetCDFOutputModule
                             end associate
                         end do
                     end if
-                    if (C%includeSoilErosion) then
+                    if (C%includeSoilErosionYields) then
                         call me%nc__soil__m_soil_eroded%setData(sum(profile%erodedSediment) * profile%area, start=[x,y,t])
                         call me%nc__soil__m_nm_eroded%setData(sum(profile%m_np_eroded(:,:,2)), start=[x,y,t])
                         call me%nc__soil__m_transformed_eroded%setData(sum(profile%m_transformed_eroded(:,:,2)), start=[x,y,t])
@@ -510,7 +510,7 @@ module NetCDFOutputModule
         call me%nc__water__C_dissolved%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__C_dissolved%setAttribute('_FillValue', nf90_fill_double)
         ! NM flows
-        me%nc__water__m_nm_outflow = me%nc%setVariable('water__m_np_outflow','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
+        me%nc__water__m_nm_outflow = me%nc%setVariable('water__m_nm_outflow','f64', [me%w_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_nm_outflow%setAttribute('units', 'kg')
         call me%nc__water__m_nm_outflow%setAttribute('long_name', 'Mass of pristine NM outflowing downstream')
         call me%nc__water__m_nm_outflow%setAttribute('grid_mapping', 'spatial_ref')
@@ -764,7 +764,7 @@ module NetCDFOutputModule
                 call me%nc__soil__C_transformed_att_layers%setAttribute('_FillValue', nf90_fill_double)
             end if
         end if
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             me%nc__soil__m_soil_eroded = me%nc%setVariable('soil__m_soil_eroded', 'f64', [me%x_dim, me%y_dim, me%t_dim])
             call me%nc__soil__m_soil_eroded%setAttribute('units', 'kg')
             call me%nc__soil__m_soil_eroded%setAttribute('long_name', 'Mass of soil eroded')
@@ -899,7 +899,7 @@ module NetCDFOutputModule
                 allocate(me%output_soil__C_transformed_att_layers, source=empty4DArraySoil)
             end if
         end if
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             allocate(me%output_soil__m_soil_eroded, source=empty3DArray)
             allocate(me%output_soil__m_nm_eroded, source=empty3DArray)
             allocate(me%output_soil__m_transformed_eroded, source=empty3DArray)
@@ -983,7 +983,7 @@ module NetCDFOutputModule
                 call me%nc__soil__C_transformed_att_layers%setData(me%output_soil__C_transformed_att_layers, start=[1,1,1,tStart])
             end if
         end if
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             call me%nc__soil__m_soil_eroded%setData(me%output_soil__m_soil_eroded, start=[1,1,tStart])
             call me%nc__soil__m_nm_eroded%setData(me%output_soil__m_nm_eroded, start=[1,1,tStart])
             call me%nc__soil__m_transformed_eroded%setData(me%output_soil__m_transformed_eroded, start=[1,1,tStart])
@@ -1048,7 +1048,7 @@ module NetCDFOutputModule
                 deallocate(me%output_soil__C_transformed_att_layers)
             end if
         end if
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             deallocate(me%output_soil__m_soil_eroded)
             deallocate(me%output_soil__m_nm_eroded)
             deallocate(me%output_soil__m_transformed_eroded)

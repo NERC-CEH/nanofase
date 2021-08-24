@@ -70,7 +70,7 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	src/BedSedimentLayer/FineSedimentModule.o \
 	src/BedSedimentLayer/AbstractBedSedimentLayerModule.o \
 	src/BedSedimentLayer/BedSedimentLayerModule.o \
-	src/BedSediment/AbstractBedSedimentLayer.o \
+	src/BedSediment/AbstractBedSedimentModule.o \
 	src/BedSediment/BedSedimentModule.o \
 	src/Source/DiffuseSourceModule.o \
 	src/Source/PointSourceModule.o \

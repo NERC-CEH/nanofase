@@ -12,15 +12,17 @@ endif()
 
 # Intel Fortran compiler
 if (CMAKE_Fortran_COMPILER_ID MATCHES Intel)
-    set(common_flags "/fpe:0 /check:bounds /assume:bscc")
-    set(debug_flags "/traceback /check:stack /debug:full /Od ${common_flags}")
-    set(release_flags "/O3 ${common_flags}")
+    set(common_flags "-fpe0 -check bounds -assume bscc")
+    set(debug_flags "-traceback -check stack -debug full -Od ${common_flags}")
+    set(release_flags "-O3 ${common_flags}")
 endif()
 
 # Find NetCDF Fortran
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE INTERNAL "Location of CMake modules.")
 set(NETCDF_F90 "YES")
-find_package(NetCDF REQUIRED)
+if(NOT DEFINED NETCDF_INCLUDES)
+    find_package(NetCDF REQUIRED)
+endif()
 
 # Set debug and release flags
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_flags}")
