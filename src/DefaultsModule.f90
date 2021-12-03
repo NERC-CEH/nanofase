@@ -26,8 +26,9 @@ module DefaultsModule
     ! Defaults for config, encapsulated in a type
     type, public :: ConfigDefaultsType
         ! Run
+        character(len=256)  :: description = "NanoFASE model run"
         logical             :: runToSteadyState = .false.
-        character(len=50)   :: steadyStateMode = ''
+        character(len=50)   :: steadyStateMode = 'sediment_size_distribution'   ! Run to steady state of which variable?
         real(dp)            :: steadyStateDelta = 1e-5
         real                :: minStreamSlope = 0.0001                  ! [m/m]
         integer             :: minEstuaryTimestep = 3600                ! 1 hour [s] 
@@ -39,20 +40,27 @@ module DefaultsModule
         logical             :: writeNetCDF = .false.                    ! Should output data be written to NetCDF?
         character(len=3)    :: netCDFWriteMode = 'end'                  ! When to write the NetCDF file - every time step ('itr') or at the end ('end')
         logical             :: writeCompartmentStats = .false.          ! Should a summary stats file for each compartment be written?
-        logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included
-        logical             :: includeSedimentFluxes = .false.
+        logical             :: includeWaterbodyBreakdown = .true.       ! For surface water breakdown, should breakdown over waterbodies be included?
+        logical             :: includeSedimentFluxes = .false.          ! Include sediment fluxes in output?
+        logical             :: includeSedimentLayerBreakdown = .true.   ! Output breakdown across sediment layers?
+        logical             :: includeSoilLayerBreakdown = .true.       ! Output breakdown across soil layers?
+        logical             :: includeSoilStateBreakdown = .false.      ! Output breakdown of different soil states?
         logical             :: includeSoilErosionYields = .false.       ! Should we output soil erosion yields?
         logical             :: includeSpmSizeClassBreakdown = .false.
         logical             :: includeClayEnrichment = .false.
         character(len=5)    :: soilPECUnits = 'kg/kg'                   ! Should soil PECS be kg/kg or kg/m3?
         character(len=5)    :: sedimentPECUnits = 'kg/kg'               ! Should sediment PECs be kg/kg or kg/m3?
+        logical             :: writeMetadataAsComment = .true.          ! Should metadata be added to the top of CSV files as # comments
         ! Checkpoint
         logical             :: saveCheckpoint = .false.                 ! Should we save a checkpoint file after the model run?
         logical             :: saveCheckpointAfterWarmUp = .false.      ! Should we save a checkpoint file after the warm up period?
         character(len=256)  :: checkpointFile = './checkpoint.dat'      ! Where to save the checkpoint
+        logical             :: reinstateCheckpoint = .false.            ! Should we be reinstating a checkpoint file?
+        logical             :: preserveTimeStep = .false.               ! Should the time step be preserved when reinstating a checkpoint?
         ! Run
         character(len=32)   :: outputHash = ''                          ! Hash to append to output file names
         logical             :: ignoreNM = .false.                       ! If .true., costly NM calculations are missed out. Useful for sediment calibation
+        character(len=256)  :: simulationMask = ''                      ! Path to model simulation mask (or empty if there isn't one)
         ! Water
         logical             :: includeEstuary = .true.                  ! Should we model estuaries, or treat them as rivers?
         logical             :: includeBankErosion = .true.              ! Should we include the inflow of sediment from bank erosion?

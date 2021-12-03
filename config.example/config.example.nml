@@ -52,7 +52,8 @@ trigger_warnings = .false.                              ! Should errors that are
 log_file_path = "log/"                                  ! Where to place model logs
 output_hash = ""                                        ! Append all output file names with this value. Useful for parallel model runs. Max 32 characters (e.g. hex string).
 ignore_nm = .false.                                     ! If .true., this tells the model we're not interested in NM and misses out costly computations. Useful for sediment calibration, NM PECs will be invalid
-warm_up_period = 0
+warm_up_period = 0                                      ! Length of the warm up period for the model
+simulation_mask = ""                                    ! Path to simulation mask, if only running for part of the data's area (empty string indicates no mask)
 /
 
 ! Checkpointing is the ability to save a model run so that it can be reinstated from file. This is useful if, for example,

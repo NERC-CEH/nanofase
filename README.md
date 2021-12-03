@@ -2,12 +2,7 @@
 
 *This model is under active development. Use at your own risk!*
 
-Multimedia spatiotemporal environmental fate and exposure model for engineered nanomaterials.
-
-Project links:
- - [Project website](http://nanofase.eu/)
- - [Facebook](https://www.facebook.com/nanofase/)
- - [Twitter](https://twitter.com/NanoFASE_EU)
+Multimedia spatiotemporal environmental fate and exposure model for engineered nanomaterials. See the [project website](http://nanofase.eu/) for information about the EU Horizon 2020 project that led to the development of this model.
 
 ## Getting the code
 
@@ -78,19 +73,7 @@ If you're on Windows, it is highly recommended to use Cygwin or a Linux containe
 
 ## Running
 
-The model requires a config file to run. An example is placed at [config.example/config.example.nml](./config.example/config.example.nml). The example is commented and should be relatively self-explanatory. Copy this to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Edit the `CONFIG_PATH` and `CONFIG_FILE` variables in your Makefile to point to your config file. The model can then be run:
-
-```shell
-$ make run
-```
-
-Alternatively, pass the `CONFIG_PATH` and `CONFIG_FILE` explicility to the Makefile:
-
-```shell
-$ make run CONFIG_PATH=/path/to/config/ CONFIG_FILE=file.nml
-```
-
-If you wish to run without using `make`, the first command line argument is the path to the config file, which defaults to the root directory:
+The model requires a config file to run. An example is placed at [config.example/config.example.nml](./config.example/config.example.nml). The example is commented and should be relatively self-explanatory. Copy this to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Then pass this config file as the first argument when calling the model executable. For example, if you compiled the model to `./bin/main`:
 
 ```shell
 $ ./bin/main /path/to/config/file.nml
@@ -114,30 +97,6 @@ The model allows for multiple simulations to be chained together into batch runs
 
 A few example workflows are provided in the [example workflows](./doc/example-workflows.md) doc.
 
-## NanoFASE CLI tool
+## Acknowledgements
 
-The [nanofase.py](./nanofase.py) file is a very simple command line tool for compiling/editing data and compiling/running the model. It is simply a Python wrapper for these operations. It's requirements are the same as the respective operations, e.g. [these Python packages](https://github.com/NERC-CEH/nanofase-data/blob/develop/environment.yaml) for data compilation/editing.
-
-Compiling data:
-
-```shell
-$ ./nanofase.py compile-data /path/to/data/compilation/config.yaml
-```
-
-Editing data:
-
-```shell
-$ ./nanofase.py edit-data /path/to/data/editing/config.yaml
-```
-
-Compiling the model:
-
-```shell
-$ ./nanofase.py compile-model
-```
-
-Running the model
-
-```shell
-$ ./nanofase.py run-model /path/to/config.yaml
-```
+This model has received funding from the European Union's Horizon 2020 research and innovation programme under grant agreement numbers 646002 (NanoFASE), 814572 (NanoSolveIT), 862419 (SAbyNA), 862444 (ASINA) and 731032 (NanoCommons).
