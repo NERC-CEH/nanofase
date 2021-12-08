@@ -3,10 +3,10 @@ module DataOutputModule
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
         iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
     use Globals, only: C, dp
-    use classDatabase, only: DATASET
-    use spcEnvironment
-    use classEnvironment1
-    use spcGridCell
+    use DataInputModule, only: DATASET
+    use AbstractEnvironmentModule
+    use EnvironmentModule
+    use AbstractGridCellModule
     use RiverReachModule
     use EstuaryReachModule
     use UtilModule
@@ -49,7 +49,7 @@ module DataOutputModule
     !! their headers and metadata
     subroutine initDataOutput(me, env)
         class(DataOutput)           :: me
-        type(Environment1), target  :: env
+        type(Environment), target   :: env
         
         ! Point the Environment object to that passed in
         me%env%item => env
@@ -369,7 +369,7 @@ module DataOutputModule
                     end if
                 end if
                 ! Should we include soil erosion?
-                if (C%includeSoilErosion) then
+                if (C%includeSoilErosionYields) then
                     write(iouOutputSoil, '(a)', advance='no') trim(str(sum(profile%erodedSediment) * profile%area)) &
                         // "," // trim(str(sum(profile%m_np_eroded(:,:,2)))) // "," // &
                         trim(str(sum(profile%m_transformed_eroded(:,:,2)))) // ","
@@ -500,6 +500,7 @@ module DataOutputModule
         write(iouOutputSummary, '(a)') "# NanoFASE model simulation summary"
         write(iouOutputSummary, '(a)') " - Description: " // trim(C%runDescription)
         write(iouOutputSummary, '(a)') " - Simulation datetime: " // simDatetime%isoformat()
+        write(iouOutputSummary, '(a)') " - Model version: " // C%modelVersion
         write(iouOutputSummary, '(a)') " - Is batch run? " // trim(str(C%isBatchRun))
         write(iouOutputSummary, '(a)') " - Number of batches: " // trim(str(C%nChunks))
         write(iouOutputSummary, '(a)', advance='no') " - Is steady state run? " // trim(str(C%runToSteadyState))
@@ -670,7 +671,7 @@ module DataOutputModule
                         C%soilPECUnits//"): attached NM concentration for layer i"
                 end if
             end if
-            if (C%includeSoilErosion) then
+            if (C%includeSoilErosionYields) then
                 write(iouOutputSoil, '(a)') "#\tm_soil_eroded(kg), m_np_eroded(kg), m_transformed_eroded(kg): " // &
                     "mass of soil and NM eroded on this timestep"
             end if
@@ -703,7 +704,7 @@ module DataOutputModule
             end if
         end if
         ! Should we include eroded soil and NM?
-        if (C%includeSoilErosion) then
+        if (C%includeSoilErosionYields) then
             write(iouOutputSoil, '(a)', advance='no') "m_soil_eroded(kg),m_np_eroded(kg),m_transformed_eroded(kg),"
         end if
         write(iouOutputSoil, '(a)', advance='no') "m_np_buried(kg),m_transformed_buried(kg),"

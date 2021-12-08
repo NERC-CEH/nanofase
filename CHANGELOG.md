@@ -4,6 +4,17 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ## [Unreleased]
 
+## [0.0.4] - 2021-12-08
+
+### Added
+
+- Config option to include bank erosion or not: `&water > include_bank_erosion`. Defaults to true.
+
+### Changed
+
+- ⚠️ Model version number is now obtained from the `src/VersionModule.f90` file. This is dynamically updated at build time by the [example Makefile](./Makefile.example) or [CMakeLists.txt](./CMakeLists.txt) file, and if you are not using one of these build processes, should ensure that yours does the same. In short, the output of `git describe --tags` should be used for the `modelVersion` variable in `src/VersionModule.f90`. For example, this can be achieved in a Makefile by the use of `sed`: `sed -i "s/\".*\"/\"${git describe --tags}\"/g" src/VersionModule.f90`. Note that the version number in this file and the [CITATION.cff](./CITATION.cff) file still needs bumping on each release. Build process will need updating.
+- ️️️️Lots of file, module and type names have been updated to follow a coherent convention. See the updated [Makefile.example](./Makefile.example).
+
 ## [0.0.3] - 2021-08-05
 
 ### Added
@@ -52,7 +63,8 @@ All notable changes to the model will be documented in this file. Breaking chang
 - Added option to aggregate CSV output for waterbodies at grid cell level, rather than breaking it down to waterbody level. Internal functions for aggregating to grid cell added (e.g. weighted means, fetching outflow reaches). This option can be used by specifying `&output > include_waterbody_breakdown = .false.` in the [model config file](./config.example/config.example.nml). Default is `.true.`.
 - This changelog.
 
-[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.3...HEAD
-[0.0.2]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.3
+[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.4...HEAD
+[0.0.4]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.4
+[0.0.3]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.3
 [0.0.2]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.2
 [0.0.1]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.1

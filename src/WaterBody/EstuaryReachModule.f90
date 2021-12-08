@@ -3,13 +3,12 @@ module EstuaryReachModule
     use ReachModule
     use UtilModule
     use ResultModule
-    use classBedSediment1
-    use classLogger, only: LOGR
-    use classReactor1
-    ! use classBiota1
+    use BedSedimentModule
+    use LoggerModule, only: LOGR
+    use ReactorModule
     implicit none
 
-    type, public, extends(Reach1) :: EstuaryReach
+    type, public, extends(Reach) :: EstuaryReach
         real(dp) :: meanDepth               !! Mean estuary depth for use in tidal depth calculations [m]
         real(dp) :: distanceToMouth         !! Distance to the mouth of the estuary [m]
         real(dp) :: tidalM2                 !! Tidal harmonic coefficient M2 [-]
@@ -52,8 +51,8 @@ module EstuaryReachModule
         call me%setDimensions(0)
 
         ! Create the bed sediment and reactor for this reach
-        allocate(BedSediment1 :: me%bedSediment)
-        allocate(Reactor1 :: me%reactor)
+        allocate(BedSediment :: me%bedSediment)
+        allocate(Reactor :: me%reactor)
         call rslt%addErrors([ &
             .errors. me%bedSediment%create(me%x, me%y, me%w), &
             .errors. me%reactor%create(me%x, me%y, me%alpha_hetero) &
@@ -486,9 +485,7 @@ module EstuaryReachModule
             .errors. me%parseInflowsAndOutflow() &
         )
          ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
-        call rslt%addErrors( &
-            .errors. me%setReachLengthAndSlope() &
-        )
+        call me%setReachLengthAndSlope()
 
         call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
     end function

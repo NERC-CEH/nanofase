@@ -1,35 +1,35 @@
-!> Container module for class `Environment1`
-module classEnvironment1
+!> Container module for class `Environment`
+module EnvironmentModule
     use mo_netcdf
     use Globals
     use UtilModule
-    use spcEnvironment
+    use AbstractEnvironmentModule
     use ResultModule
-    use classGridCell2
-    use classDatabase, only: DATASET
+    use GridCellModule
+    use DataInputModule, only: DATASET
     use datetime_module
     use mod_datetime
     implicit none
     private
     
-    !> The `Environment1` class acts as a container for all other
+    !> The `Environment` class acts as a container for all other
     !! environmental compartments, triggering their creation, simulation
     !! and passing data between them
-    type, public, extends(Environment) :: Environment1
+    type, public, extends(AbstractEnvironment) :: Environment
 
       contains
-        procedure :: create => createEnvironment1
-        procedure :: update => updateEnvironment1
-        procedure :: updateReach => updateReachEnvironment1
-        procedure :: determineStreamOrder => determineStreamOrderEnvironment1
-        procedure :: parseNewBatchData => parseNewBatchDataEnvironment1
+        procedure :: create => createEnvironment
+        procedure :: update => updateEnvironment
+        procedure :: updateReach => updateReachEnvironment
+        procedure :: determineStreamOrder => determineStreamOrderEnvironment
+        procedure :: parseNewBatchData => parseNewBatchDataEnvironment
         ! Getters
-        procedure :: get_m_np => get_m_npEnvironment1
-        procedure :: get_C_np_soil => get_C_np_soilEnvironment1
-        procedure :: get_C_np_water => get_C_np_waterEnvironment1
-        procedure :: get_C_np_sediment => get_C_np_sedimentEnvironment1
-        procedure :: getBedSedimentArea => getBedSedimentAreaEnvironment1
-        procedure :: get_m_sediment_byLayer => get_m_sediment_byLayerEnvironment1
+        procedure :: get_m_np => get_m_npEnvironment
+        procedure :: get_C_np_soil => get_C_np_soilEnvironment
+        procedure :: get_C_np_water => get_C_np_waterEnvironment
+        procedure :: get_C_np_sediment => get_C_np_sedimentEnvironment
+        procedure :: getBedSedimentArea => getBedSedimentAreaEnvironment
+        procedure :: get_m_sediment_byLayer => get_m_sediment_byLayerEnvironment
     end type
 
   contains
@@ -38,8 +38,8 @@ module classEnvironment1
     !! The `Environment` instance must be a target so that `SubRiver` inflows
     !! can point to another `SubRiver` object:
     !! ([see here](https://stackoverflow.com/questions/45761050/pointing-to-a-objects-type-variable-fortran/))
-    function createEnvironment1(me) result(r)
-        class(Environment1), target :: me
+    function createEnvironment(me) result(r)
+        class(Environment), target :: me
             !! This `Environment` instace. Must be target so children can be pointed at.
         type(Result) :: r                                       !! `Result` object to return any error(s) in
         integer :: x, y, w, i, ix, iy, iw                       ! Iterators
@@ -51,16 +51,15 @@ module classEnvironment1
         ! Loop over grid and create cells
         do y = 1, DATASET%gridShape(2)
             do x = 1, DATASET%gridShape(1)
+                allocate(GridCell :: me%colGridCells(x,y)%item)
                 ! If this grid cell isn't masked, create it
                 if (.not. DATASET%gridMask(x,y)) then
-                    allocate(GridCell2::me%colGridCells(x,y)%item)
                     call r%addErrors(.errors. &
                         me%colGridCells(x,y)%item%create(x,y) &
                     )
                     me%nGridCells = me%nGridCells + 1
                 ! If it is masked, still create it but tell it that it's empty
                 else
-                    allocate(GridCell2::me%colGridCells(x,y)%item)
                     call r%addErrors(.errors. &
                         me%colGridCells(x,y)%item%create(x,y,isEmpty=.true.) &
                     )
@@ -146,9 +145,9 @@ module classEnvironment1
     end function
 
     !> Perform simulations for the `Environment`
-    subroutine updateEnvironment1(me, t, tInBatch, isWarmUp)
+    subroutine updateEnvironment(me, t, tInBatch, isWarmUp)
         use omp_lib
-        class(Environment1), target :: me                           !! This `Environment` instance
+        class(Environment), target :: me                           !! This `Environment` instance
         integer                     :: t                            !! Current time step
         integer                     :: tInBatch                     !! Current time step in full batch run
         logical                     :: isWarmUp                     !! Are we in a warm up period?
@@ -216,8 +215,8 @@ module classEnvironment1
     
     !> Update an individual reach, also updating the containng grid cell, if it hasn't
     !! already been updated.
-    subroutine updateReachEnvironment1(me, t, reach, isWarmUp)
-        class(Environment1), target :: me                               !! This `Environment1` instance
+    subroutine updateReachEnvironment(me, t, reach, isWarmUp)
+        class(Environment), target :: me                               !! This `Environment` instance
         integer                     :: t                                !! Time step
         type(ReachPointer)          :: reach                            !! Pointer to the reach to update
         logical                     :: isWarmUp                         !! Are we in a warm up period?
@@ -252,8 +251,8 @@ module classEnvironment1
         end if
     end subroutine
 
-    subroutine determineStreamOrderEnvironment1(me)
-        class(Environment1) :: me               !! This Environment instance
+    subroutine determineStreamOrderEnvironment(me)
+        class(Environment) :: me               !! This Environment instance
         integer             :: streamOrder      !! Index to keep track of stream order
         type(ReachPointer)  :: reach            ! Pointer to the reach we're updating
         logical             :: goDownstream     ! Flag to determine whether to go to next downstream reach
@@ -313,8 +312,8 @@ module classEnvironment1
 
     end subroutine
 
-    subroutine parseNewBatchDataEnvironment1(me)
-        class(Environment1) :: me
+    subroutine parseNewBatchDataEnvironment(me)
+        class(Environment) :: me
         integer :: x, y
         ! Loop through grid cells and parse their new batch data
         do y = 1, DATASET%gridShape(2)
@@ -326,8 +325,8 @@ module classEnvironment1
    
     !> Get the mass of NM in all waterbodies in the environment
     !! TODO is this used? If so, check it works
-    function get_m_npEnvironment1(me) result(m_np)
-        class(Environment1) :: me
+    function get_m_npEnvironment(me) result(m_np)
+        class(Environment) :: me
         real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
         integer :: x, y, rr
         m_np = 0
@@ -341,8 +340,8 @@ module classEnvironment1
     end function
 
     !> Calculate the mean soil PEC in the environment
-    function get_C_np_soilEnvironment1(me) result(C_np_soil)
-        class(Environment1)     :: me                                                               !! This Environment instance
+    function get_C_np_soilEnvironment(me) result(C_np_soil)
+        class(Environment)     :: me                                                               !! This Environment instance
         real(dp), allocatable   :: C_np_soil(:,:,:)                                                 !! Mass concentration of NM in environment [kg/kg soil]
         real(dp)                :: C_np_soil_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per grid NM conc [kg/kg soil]
         integer                 :: x, y, i                                                          ! Iterators
@@ -363,8 +362,8 @@ module classEnvironment1
 
     !> Get the mean water NM PEC at this moment in time, by looping over all grid cells
     !! and their water bodies and averaging.
-    function get_C_np_waterEnvironment1(me) result(C_np_water)
-        class(Environment1)     :: me                                                                   !! This Environment instance
+    function get_C_np_waterEnvironment(me) result(C_np_water)
+        class(Environment)     :: me                                                                   !! This Environment instance
         real(dp), allocatable   :: C_np_water(:,:,:)                                                    !! Mean water PEC [kg/m3]
         real(dp)                :: C_np_water_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))      ! Per cell mean water PEC [kg/m3]
         real(dp)                :: volumes(me%nGridCells)                                               ! Per cell sediment volumes, for weighted average [m3]
@@ -387,8 +386,8 @@ module classEnvironment1
 
     !> Get the mean sediment NM PEC [kg/kg] at this moment in time, by looping over all grid cells
     !! and their water bodies and getting the weighted average.
-    function get_C_np_sedimentEnvironment1(me) result(C_np_sediment)
-        class(Environment1)     :: me                                                                   !! This Environment instance
+    function get_C_np_sedimentEnvironment(me) result(C_np_sediment)
+        class(Environment)     :: me                                                                   !! This Environment instance
         real(dp), allocatable   :: C_np_sediment(:,:,:)                                                 !! Mean sediment PEC [kg/kg]
         real(dp)                :: C_np_sediment_i(me%nGridCells, C%npDim(1), C%npDim(2), C%npDim(3))   ! Per cell mean sediment PEC [kg/kg]
         real(dp)                :: sedimentMasses(me%nGridCells)                                        ! Per cell sediment masses, for weighted average [kg]
@@ -409,8 +408,8 @@ module classEnvironment1
         C_np_sediment = weightedAverage(C_np_sediment_i, sedimentMasses)
     end function
 
-    function getBedSedimentAreaEnvironment1(me) result(bedArea)
-        class(Environment1) :: me
+    function getBedSedimentAreaEnvironment(me) result(bedArea)
+        class(Environment) :: me
         real(dp)            :: bedArea
         integer             :: x, y
         bedArea = 0.0_dp
@@ -425,8 +424,8 @@ module classEnvironment1
 
     !> Get the mass of sediment [kg] in the environment, broken down by layer and sediment
     !! size class.
-    function get_m_sediment_byLayerEnvironment1(me) result(m_sediment_byLayer)
-        class(Environment1)     :: me                           !! This Environment instance
+    function get_m_sediment_byLayerEnvironment(me) result(m_sediment_byLayer)
+        class(Environment)     :: me                           !! This Environment instance
         real(dp), allocatable   :: m_sediment_byLayer(:,:)      !! Mass of sediment in the environment [kg]
         integer                 :: x, y, i, j, k                ! Iterators
         allocate(m_sediment_byLayer(C%nSedimentLayers, C%nSizeClassesSpm))

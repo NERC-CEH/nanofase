@@ -1,19 +1,20 @@
-module classPointSource2
+module PointSourceModule
     use Globals
     use ResultModule
-    use classDatabase
+    use DataInputModule, only: DATASET
     implicit none
-    
-    type, public :: PointSource2
-        integer :: x                        !! Grid cell x reference
-        integer :: y                        !! Grid cell y reference
-        integer :: s                        !! Point source reference
-        real :: x_coord                     !! Exact eastings of this point source
-        real :: y_coord                     !! Exact northings of this point source
-        character(len=11) :: compartment    !! Which environmental compartment is this source for?
-        real(dp), allocatable :: j_np_pointSource(:,:,:)            !! Nanomaterial inflow for a given timestep [kg/timestep]
-        real(dp), allocatable :: j_transformed_pointSource(:,:,:)
-        real(dp) :: j_dissolved_pointSource
+   
+    !> PointSource objects are used to input point source emissions to the environment
+    type, public :: PointSource
+        integer                     :: x                                !! Grid cell x reference
+        integer                     :: y                                !! Grid cell y reference
+        integer                     :: s                                !! Point source reference
+        real                        :: x_coord                          !! Exact eastings of this point source
+        real                        :: y_coord                          !! Exact northings of this point source
+        character(len=11)           :: compartment                      !! Which environmental compartment is this source for?
+        real(dp), allocatable       :: j_np_pointSource(:,:,:)          !! NM input for a given time step [kg/timestep]
+        real(dp), allocatable       :: j_transformed_pointSource(:,:,:) !! Transformed NM input for a given time step [kg/timestep]
+        real(dp)                    :: j_dissolved_pointSource          !! Dissolved species input for a given time step [kg/timestep]
       contains
         procedure :: create => createPointSource
         procedure :: update => updatePointSource
@@ -21,13 +22,13 @@ module classPointSource2
 
   contains
     
-    !> Initialise the PointSource object
+    !> Create the point source
     subroutine createPointSource(me, x, y, s, compartment)
-        class(PointSource2) :: me
-        integer :: x
-        integer :: y
-        integer :: s
-        character(len=*) :: compartment
+        class(PointSource)  :: me               !! This point source
+        integer             :: x                !! Grid cell x index
+        integer             :: y                !! Grid cell y index
+        integer             :: s                !! Point source index
+        character(len=*)    :: compartment      !! Compartment type (only water at the moment)
         ! Allocate and initialise
         me%x = x
         me%y = y
@@ -42,15 +43,15 @@ module classPointSource2
         end if
     end subroutine
     
+    !> Update the point source on this time step t
     subroutine updatePointSource(me, t)
-        class(PointSource2) :: me   ! This point source
-        integer :: t                ! Current time step
-        integer :: i                ! Iterator
+        class(PointSource)  :: me           !! This point source
+        integer             :: t            !! Current time step
+        integer             :: i            ! Iterator
         ! Default to zero
         me%j_np_pointSource = 0
         me%j_dissolved_pointSource = 0
         me%j_transformed_pointSource = 0
-
         ! Only include point sources if config says we're meant to, and we're not in the
         ! warm up period
         if (C%includePointSources .and. t .ge. C%warmUpPeriod) then

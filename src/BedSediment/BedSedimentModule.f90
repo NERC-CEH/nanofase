@@ -1,25 +1,24 @@
-!> Module containing definition of `BedSediment1`.
-module classBedSediment1
+!> Module containing definition of `BedSediment`.
+module BedSedimentModule
     use Globals
     use UtilModule
     use ResultModule
-    use spcBedSediment
-    use classBedSedimentLayer1
-    use classFineSediment1
+    use AbstractBedSedimentModule
+    use BedSedimentLayerModule
+    use FineSedimentModule
     use Spoof
     implicit none
     private
 
-    !> Class representing a `BedSediment1` object, which is an extension of the
+    !> Class representing a `BedSediment` object, which is an extension of the
     !! abstract superclass `BedSediment`.
-    type, public, extends(BedSediment) :: BedSediment1
+    type, public, extends(AbstractBedSediment) :: BedSediment
       contains
         procedure, public :: create => createBedSediment1            ! constructor method
         procedure, public :: destroy => destroyBedSediment1          ! finaliser method
         procedure, public :: deposit => DepositSediment1             ! deposit sediment from water column
         procedure, public :: resuspend => ResuspendSediment1         ! resuspend sediment to water column
         procedure, public :: repmass => ReportBedMassToConsole1      ! report mass of fine sediment in each layer to console [kg/m2]
-        ! procedure, public :: initmatrix => initialiseMatrix1         ! initialise mass transfer coefficient matrix
         procedure, public :: getmatrix => getMTCMatrix1              ! derives mass transfer coefficient matrix for sediment
         procedure, public :: transferNM => transferNMBedSediment1    ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
     end type
@@ -42,7 +41,7 @@ module classBedSediment1
     !! resuspension, layers and burial
     !! objects
     subroutine getMTCMatrix1(me, djdep, djres)
-        class(BedSediment1) :: me                                    !! Self-reference
+        class(BedSediment) :: me                                    !! Self-reference
         real(dp) :: djdep(:)                                         !! deposition fluxes by size class [kg/m2]
         real(dp) :: djres(:)                                         !! resuspension fluxes by size class [kg/m2]
         real(dp) :: ml                                               ! LOCAL holds initial sediment layer masses [kg/m2]
@@ -104,12 +103,12 @@ module classBedSediment1
     !! Initialised `BedSediment` object, including all layers and included `FineSediment`
     !! objects
     function createBedSediment1(me, x, y, w) result(r)
-        class(BedSediment1) :: me                                    !! Self-reference
+        class(BedSediment) :: me                                    !! Self-reference
         integer :: x                                                !! x index of the containing water body
         integer :: y                                                !! y index of the containing water body
         integer :: w                                                !! w index of the containing water body
         type(Result) :: r                                            !! Returned `Result` object
-        type(BedSedimentLayer1), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer1, for implementation of polymorphism
+        type(BedSedimentLayer), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer, for implementation of polymorphism
         integer :: L                                                 ! LOCAL loop counter
         integer :: allst                                             ! LOCAL array allocation status
         character(len=256) :: tr                                     ! LOCAL error trace
@@ -160,7 +159,7 @@ module classBedSediment1
     !! **Function outputs/outcomes**                                <br>
     !! Returns a warning if any deallocation throws an error
     function destroyBedSediment1(me) result(r)
-        class(BedSediment1) :: me                                    !! self-reference
+        class(BedSediment) :: me                                    !! self-reference
         type(Result) :: r                                            !! returned Result object
         type(ErrorInstance) :: er                                    ! LOCAL ErrorInstance object for error handling.
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
@@ -173,7 +172,7 @@ module classBedSediment1
                 me%colBedSedimentLayers(L)%item%destroy())           ! destroy enclosed BedSedimentLayers
         end do
         tr = trim(me%name) // &
-            "%destroyBedSedimentLayer1%colBedSedimentLayers"         ! trace message
+            "%destroyBedSedimentLayer%colBedSedimentLayers"         ! trace message
         deallocate(me%colBedSedimentLayers, stat = allst)            ! deallocate all allocatable variables
         if (allst /= 0) then
             er = ErrorInstance(code = 1, &
@@ -187,7 +186,7 @@ module classBedSediment1
     !> Transfer NM between sediment layers, based on the mass transfer coefficient
     !! matrix delta_sed, which should already have been set prior to calling this procedure
     subroutine transferNMBedSediment1(me, j_np_dep)
-        class(BedSediment1) :: me                               !! This BedSediment1 instance
+        class(BedSediment) :: me                               !! This BedSediment instance
         real(dp)            :: j_np_dep(:,:,:)                  !! Mass of NM deposited to bed sediment on this time step [kg/m2]
         integer             :: i, j, k, l                       ! Iterator
         real(dp)            :: M_f_byLayer(C%nSedimentLayers)   ! Mass of fine sediment by layer
@@ -248,12 +247,12 @@ module classBedSediment1
     !! Returns a warning if the resuspended mass in a size class exceeds the mass in the
     !! sediment bed. `r` returns resuspended fine sediments as type `ResultFineSediment2D`
     function resuspendSediment1(me, FS_resusp) result(r)
-        class(BedSediment1) :: me                                    !! Self-reference
+        class(BedSediment) :: me                                    !! Self-reference
         real(dp) :: FS_resusp(:)                                      !! Sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
         type(ResultFineSediment2D) :: r                              !! Returned `Result` object. Type = `FineSediment`
-        type(FineSediment1), allocatable :: FS(:,:)                  ! LOCAL resuspended fine sediment. Index 1 = size class, Index 2 = layer
-        type(FineSediment1) :: F                        ! LOCAL FineSediment object representing material to be resuspended
-        type(FineSediment1) :: G                        ! LOCAL FineSediment object representing material not (yet) resuspended
+        type(FineSediment), allocatable :: FS(:,:)                  ! LOCAL resuspended fine sediment. Index 1 = size class, Index 2 = layer
+        type(FineSediment) :: F                        ! LOCAL FineSediment object representing material to be resuspended
+        type(FineSediment) :: G                        ! LOCAL FineSediment object representing material not (yet) resuspended
         real(dp), allocatable :: delta_l_r(:,:)                      ! LOCAL deltas for layers to resuspension [-]. L x S array.
         integer :: S                                                 ! LOCAL loop counter for size classes
         integer :: L                                                 ! LOCAL counter for layers
@@ -264,7 +263,7 @@ module classBedSediment1
         ! Create fine sediment objects F and G
         call F%create("FineSediment", me%nfComp)
         call G%create("FineSediment", me%nfComp)
-        allocate(FS(me%nSizeClasses, C%nSedimentLayers))            ! set up FineSediment1 array FS
+        allocate(FS(me%nSizeClasses, C%nSedimentLayers))            ! set up FineSediment array FS
         allocate(delta_l_r(C%nSedimentLayers, me%nSizeClasses))     ! allocate delta_d-l
         me%delta_sed = 0.0_dp                                       ! Reset the matrix of mass transfer coefficients
         delta_l_r = 0.0_dp                                          ! initialise the delta_l_r values
@@ -336,17 +335,17 @@ module classBedSediment1
     !!                                                              <br>
     !! **Function inputs**                                          <br>
     !! Function takes as inputs:
-    !! `FS_dep (FineSediment1)`: 1D array of FineSediment1 objects containing the
+    !! `FS_dep (FineSediment)`: 1D array of FineSediment objects containing the
     !! depositing fine sediment per size class
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (real(dp))`: returns water requirement from the water column [m3 m-2] real(dp)
     function depositSediment1(me, FS_dep) result(r)
-        class(BedSediment1) :: me                                    !! Self-reference
-        type(FineSediment1) :: FS_dep(:)                             !! Depositing sediment by size class
+        class(BedSediment) :: me                                    !! Self-reference
+        type(FineSediment) :: FS_dep(:)                             !! Depositing sediment by size class
         type(Result0D) :: r                                          !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
-        type(FineSediment1) :: T                                    ! LOCAL object to receive sediment being buried
-        type(FineSediment1) :: U                                    ! LOCAL object to receive sediment that has been buried
+        type(FineSediment) :: T                                    ! LOCAL object to receive sediment being buried
+        type(FineSediment) :: U                                    ! LOCAL object to receive sediment that has been buried
         integer :: s                                                 ! LOCAL loop counter for size classes
         integer :: l                                                 ! LOCAL counter for layers
         integer :: ll                                                ! LOCAL second counter for layers
@@ -575,7 +574,7 @@ module classBedSediment1
     !! **Function outputs/outcomes**                            
     !! 
     subroutine ReportBedMassToConsole1(me)
-        class(BedSediment1) :: me                                    !! The `BedSediment` instance
+        class(BedSediment) :: me                                    !! The `BedSediment` instance
         integer :: n                                                 !! LOCAL loop counter 
         do n=1, C%nSedimentLayers
             call me%colBedSedimentLayers(n)%item%repMass()           !! print out mass of FS in each layer, by size class [kg/m2]

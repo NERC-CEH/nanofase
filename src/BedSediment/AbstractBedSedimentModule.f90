@@ -1,11 +1,11 @@
-!> Module containing definition of abstract superclass `BedSediment`.
-module spcBedSediment
-    use Globals                                                      !  global declarations
-    use mo_netcdf                                                    ! input/output handling
-    use ResultModule, only: Result, Result0D                         ! error handling classes, required for
-    use ErrorInstanceModule                                          ! generation of trace error messages
-    use spcBedSedimentLayer                                          ! uses the spcBedSedimentLayer superclass and subclasses
-    use classFineSediment1
+!> Module containing definition of abstract superclass `AbstractBedSediment`.
+module AbstractBedSedimentModule
+    use Globals
+    use mo_netcdf
+    use ResultModule, only: Result, Result0D
+    use ErrorInstanceModule
+    use AbstractBedSedimentLayerModule
+    use FineSedimentModule
     use Spoof
     implicit none                                                    ! force declaration of all variables
     !> Type definition for polymorphic `BedSedimentLayer` container,
@@ -13,50 +13,50 @@ module spcBedSediment
     !! type so that a collection of different extended types of `BedSedimentLayer`
     !! can be stored in an array.
     type BedSedimentLayerElement
-        class(BedSedimentLayer), allocatable :: item                !! The polymorphic `BedSedimentLayer` object
+        class(AbstractBedSedimentLayer), allocatable :: item            !! The polymorphic `BedSedimentLayer` object
     end type
-    !> Abstract superclass `BedSediment`. Defines the properties and methods
-    !! shared by all `BedSediment` objects. Objects of this class cannot be instantiated,
+    !> Abstract superclass `AbstractBedSediment`. Defines the properties and methods
+    !! shared by all `AbstractBedSediment` objects. Objects of this class cannot be instantiated,
     !! only objects of its subclasses
-    type, abstract, public :: BedSediment
-        character(len=256)      :: name                                 !! Name for this object, of the form *BedSediment_x_y_s_r*
+    type, abstract, public :: AbstractBedSediment
+        character(len=256)              :: name                                 !! Name for this object, of the form *BedSediment_x_y_s_r*
         class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:) !! Collection of `BedSedimentLayer` objects
-        integer :: nSizeClasses                                         !! Number of fine sediment size classes
-        real(dp), allocatable   :: delta_sed(:,:,:)                     !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
-        integer                 :: n_delta_sed                          !! The order of delta_sed
-        type(CSRMatrix), allocatable :: delta_sed_csr(:)                !! CSR matrix storage for delta_sed. dim=spm size classes
-        integer :: nfComp                                               !! number of fractional composition terms for sediment
+        integer                         :: nSizeClasses                                         !! Number of fine sediment size classes
+        real(dp), allocatable           :: delta_sed(:,:,:)                     !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
+        integer                         :: n_delta_sed                          !! The order of delta_sed
+        type(CSRMatrix), allocatable    :: delta_sed_csr(:)                !! CSR matrix storage for delta_sed. dim=spm size classes
+        integer                         :: nfComp                                               !! number of fractional composition terms for sediment
         ! Nanomaterials
-        real(dp), allocatable :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
-        real(dp), allocatable :: C_np_byMass(:,:,:,:)               !! Concentration of NM across sediment layers [kg/kg dw]
+        real(dp), allocatable           :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
+        real(dp), allocatable           :: C_np_byMass(:,:,:,:)               !! Concentration of NM across sediment layers [kg/kg dw]
     contains
-                                                                     ! deferred methods: must be defined in all subclasses
-        procedure(createBedSediment), public, deferred :: create            ! constructor method
-        procedure(destroyBedSediment), public, deferred :: destroy          ! finaliser method
-        procedure(DepositSediment), public, deferred :: deposit             ! deposit sediment from water column
-        procedure(ResuspendSediment), public, deferred :: resuspend         ! resuspend sediment to water column
-        procedure(ReportBedMassToConsole), public, deferred :: repMass      ! report fine sediment masses to the console
-        procedure(FinaliseMTCMatrix), public, deferred :: getMatrix         ! finalise mass transfer coefficient matrix
-        procedure(transferNMBedSediment), public, deferred :: transferNM    ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
-        procedure, public :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
-        procedure, public :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
-        procedure, public :: Aw_sediment => Get_Aw_sediment          ! water available capacity for size class
-        procedure, public :: Cw_sediment => Get_Cw_sediment          ! water capacity for size class
-        procedure, public :: Mf_bed_one_size => Get_Mf_bed_one_size  ! fine sediment mass in bed for a single size class
-        procedure, public :: Mf_bed_all => Get_Mf_bed_all            ! fine sediment mass in all size classes (single value)
-        procedure, public :: Mf_bed_by_size => Get_Mf_bed_by_size    ! fine sediment mass in all size classes (1D array by size)
-        procedure, public :: Mf_bed_by_layer => get_Mf_bed_by_layer  ! Fine sediment mass for an individual layer
-        procedure, public :: Mf_bed_layer_array => get_Mf_bed_layer_array  ! Fine sediment mass as an array of all layers
-        procedure, public :: V_w_by_layer => get_V_w_by_layer        ! total water volume in each layer
+        procedure(createBedSediment), deferred :: create            ! constructor method
+        procedure(destroyBedSediment), deferred :: destroy          ! finaliser method
+        procedure(DepositSediment), deferred :: deposit             ! deposit sediment from water column
+        procedure(ResuspendSediment), deferred :: resuspend         ! resuspend sediment to water column
+        procedure(ReportBedMassToConsole), deferred :: repMass      ! report fine sediment masses to the console
+        procedure(FinaliseMTCMatrix), deferred :: getMatrix         ! finalise mass transfer coefficient matrix
+        procedure(transferNMBedSediment), deferred :: transferNM    ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
+        procedure :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
+        procedure :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
+        procedure :: Aw_sediment => Get_Aw_sediment          ! water available capacity for size class
+        procedure :: Cw_sediment => Get_Cw_sediment          ! water capacity for size class
+        procedure :: Mf_bed_one_size => Get_Mf_bed_one_size  ! fine sediment mass in bed for a single size class
+        procedure :: Mf_bed_all => Get_Mf_bed_all            ! fine sediment mass in all size classes (single value)
+        procedure :: Mf_bed_by_size => Get_Mf_bed_by_size    ! fine sediment mass in all size classes (1D array by size)
+        procedure :: Mf_bed_by_layer => get_Mf_bed_by_layer  ! Fine sediment mass for an individual layer
+        procedure :: Mf_bed_layer_array => get_Mf_bed_layer_array  ! Fine sediment mass as an array of all layers
+        procedure :: V_w_by_layer => get_V_w_by_layer        ! total water volume in each layer
         ! Getters
-        procedure, public :: get_m_np
-        procedure, public :: get_C_np
-        procedure, public :: get_C_np_byMass => get_C_np_byMassBedSediment
-        procedure, public :: get_m_np_l => get_m_np_lBedSediment
-        procedure, public :: get_C_np_l => get_C_np_lBedSediment
-        procedure, public :: get_C_np_l_byMass => get_C_np_l_byMassBedSediment
-        procedure, public :: get_m_np_buried => get_m_np_buriedBedSediment
+        procedure :: get_m_np
+        procedure :: get_C_np
+        procedure :: get_C_np_byMass => get_C_np_byMassBedSediment
+        procedure :: get_m_np_l => get_m_np_lBedSediment
+        procedure :: get_C_np_l => get_C_np_lBedSediment
+        procedure :: get_C_np_l_byMass => get_C_np_l_byMassBedSediment
+        procedure :: get_m_np_buried => get_m_np_buriedBedSediment
     end type
+
     abstract interface
         !> **Function purpose**                                         <br>
         !! Derive a mass transfer coefficient matrix
@@ -75,26 +75,28 @@ module spcBedSediment
         !! objects
         subroutine FinaliseMTCMatrix(Me, djdep, djres)
             use Globals, only: dp
-            import BedSediment
-            class(BedSediment) :: me                                 !! Self-reference
+            import AbstractBedSediment
+            class(AbstractBedSediment) :: me                                 !! Self-reference
             real(dp) :: djdep(:)                                     !! deposition fluxes by size class [kg/m2]
             real(dp) :: djres(:)                                     !! resuspension fluxes by size class [kg/m2]
         end subroutine
+
         !> **Function purpose:** <br>
-        !! Initialise a `BedSediment` object.
+        !! Initialise a `AbstractBedSediment` object.
         !!                                                          <br>
         !! **Function outputs/outcomes:** <br>
-        !! Initialised `BedSediment` object, including all layers and included `FineSediment`
+        !! Initialised `AbstractBedSediment` object, including all layers and included `FineSediment`
         !! objects
         function createBedSediment(Me, x, y, w) result(r)
             use ResultModule, only: Result
-            import BedSediment, NcGroup
-            class(BedSediment) :: Me                                !! Self-reference
+            import AbstractBedSediment, NcGroup
+            class(AbstractBedSediment) :: Me                                !! Self-reference
             integer :: x                                            !! x index of the containing water body
             integer :: y                                            !! y index of the containing water body
             integer :: w                                            !! w index of the containing water body
             type(Result) :: r                                       !! Returned `Result` object
         end function
+
         !> **Function purpose** <br>
         !! Deallocate all allocatable variables and call destroy methods for all
         !! enclosed objects
@@ -103,18 +105,17 @@ module spcBedSediment
         !! Returns a warning if any deallocation throws an error
         function destroyBedSediment(Me) result(r)
             use ResultModule, only: Result
-            import BedSediment
-            class(BedSediment) :: Me                                !! Self-reference
+            import AbstractBedSediment
+            class(AbstractBedSediment) :: Me                                !! Self-reference
             type(Result) :: r                                       !! Returned `Result` object
         end function
 
         subroutine transferNMBedSediment(me, j_np_dep)
             use Globals, only: dp
-            import BedSediment
-            class(BedSediment) :: me
+            import AbstractBedSediment
+            class(AbstractBedSediment) :: me
             real(dp) :: j_np_dep(:,:,:)
         end subroutine
-
 
         !> **Function purpose**                                     <br>
         !! Deposit specified masses of fine sediment in each size class, and their
@@ -124,7 +125,7 @@ module spcBedSediment
         !! **Function inputs**                                      <br>
         !! Function takes as inputs:
         !! <ul><li>
-        !! `FS_dep (FineSediment1)`: 1D array of FineSediment1 objects containing the
+        !! `FS_dep (FineSediment)`: 1D array of FineSediment objects containing the
         !! depositing fine sediment per size class
         !! </li></ul>
         !!                                                          <br>
@@ -133,9 +134,9 @@ module spcBedSediment
         function depositSediment(Me, FS_dep) result (r)
             use Globals
             use ResultModule, only: Result0D
-            import BedSediment, FineSediment1
-            class(BedSediment) :: Me                                !! Self-reference
-            type(FineSediment1) :: FS_dep(:)                        !! Depositing sediment by size class
+            import AbstractBedSediment, FineSediment
+            class(AbstractBedSediment) :: Me                                !! Self-reference
+            type(FineSediment) :: FS_dep(:)                        !! Depositing sediment by size class
             type(Result0D) :: r                                     !! Returned `Result` object
             !
             ! Function purpose
@@ -166,6 +167,7 @@ module spcBedSediment
             !       do it is not a problem as it will be overwritten.
             ! -------------------------------------------------------------------------------
         end function
+
         !> Function purpose
         !! ----------------------------------------------------------------------------------
         !! Resuspend specified masses of fine sediment in each size class, and their
@@ -187,11 +189,12 @@ module spcBedSediment
         !! ----------------------------------------------------------------------------------
         function resuspendSediment(Me, FS_resusp) result(r)
             use Globals
-            import ResultFineSediment2D, BedSediment
-            class(BedSediment) :: Me                                     !! Self-reference
+            import ResultFineSediment2D, AbstractBedSediment
+            class(AbstractBedSediment) :: Me                                     !! Self-reference
             real(dp) :: FS_resusp(:)                                     !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]
             type(ResultFineSediment2D) :: r                              !! Returned `Result` object
         end function
+
         !> **Function purpose**                                   
         !! 1. Report the mass of fine sediment in each layer to the console
         !! 2. report the total mass of fine sediment in the sediment to the console
@@ -202,10 +205,11 @@ module spcBedSediment
         !! **Function outputs/outcomes**                            
         !! 
         subroutine ReportBedMassToConsole(Me)
-            import BedSediment
-            class(BedSediment) :: Me                                     !! The `BedSediment` instance
+            import AbstractBedSediment
+            class(AbstractBedSediment) :: Me                                     !! The `AbstractBedSediment` instance
             integer :: n                                                 !! LOCAL loop counter 
         end subroutine
+
         !> **Function purpose**
         !! initialise the matrix of mass transfer coefficients for sediment deposition and resuspension
         !!                                                          
@@ -216,12 +220,14 @@ module spcBedSediment
         !! delta_sed populated with initial values, all zero except for layer(x) ->layer(y) coefficients where x=y; these are set to unity
         function InitialiseMTCMatrix(Me) result(r)
             use ResultModule, only: Result
-            import BedSediment
-            class(BedSediment) :: Me                                     !! The `BedSediment` instance
+            import AbstractBedSediment
+            class(AbstractBedSediment) :: Me                                     !! The `AbstractBedSediment` instance
             type(Result) :: r                                            !! `Result` object. Returns water requirement from the water column [m3 m-2], real(dp)
         end function
     end interface
-contains
+
+  contains
+
     !> **Function purpose**                                             <br>
     !! Return available capacity for fine sediment of a specified size class in the whole
     !! sediment
@@ -232,7 +238,7 @@ contains
     !! **Function outputs/outcomes**                                    <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     function Get_Af_sediment(Me, S) result(Af_sediment)
-        class(BedSediment), intent(in) :: Me                         !! the BedSediment instance
+        class(AbstractBedSediment), intent(in) :: Me                         !! the AbstractBedSediment instance
         integer, intent(in) :: S                                     !! size class
         real(dp) :: Af_sediment                                      ! LOCAL internal storage
         integer :: L                                                 ! LOCAL loop counter
@@ -264,6 +270,7 @@ contains
             Af_sediment = Af_sediment + Me%colBedSedimentLayers(L)%item%A_f(S)  ! sum capacities for all layers
         end do
     end function
+
     !> **Function purpose**                                         <br>
     !! Return capacity for fine sediment of a specified size class in the whole
     !! sediment
@@ -274,7 +281,7 @@ contains
     !! **Function outputs/outcomes**
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     function Get_Cf_sediment(Me, S) result(Cf_sediment)
-        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        class(AbstractBedSediment), intent(in) :: Me                         !! The `AbstractBedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         ! type(Result0D) :: r                                          !! Return value
         real(dp) :: Cf_sediment                                      ! LOCAL internal storage
@@ -308,6 +315,7 @@ contains
         end do
         ! r = Result(data = Cf_sediment)
     end function
+
     !> **Function purpose**                                         <br>
     !! Return available capacity for water associated with a specified size class in the
     !! whole sediment
@@ -318,7 +326,7 @@ contains
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     function Get_Aw_sediment(Me, S) result(Aw_sediment)
-        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        class(AbstractBedSediment), intent(in) :: Me                         !! The `AbstractBedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         ! type(Result0D) :: r                                          !! Return value
         real(dp) :: Aw_sediment                                      ! LOCAL internal storage
@@ -352,6 +360,7 @@ contains
         end do
         ! r = Result(data = Aw_sediment)
     end function
+
     !> **Function purpose**                                         <br>
     !! Return capacity for water associated with a specified size class in the
     !! whole sediment
@@ -362,7 +371,7 @@ contains
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     function Get_Cw_sediment(Me, S) result(Cw_sediment)
-        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        class(AbstractBedSediment), intent(in) :: Me                         !! The `AbstractBedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         ! type(Result0D) :: r                                          !! Return value
         real(dp) :: Cw_sediment                                      ! LOCAL internal storage
@@ -396,6 +405,7 @@ contains
         end do
         ! r = Result(data = Cw_sediment)
     end function
+
     !> **Function purpose**                                         <br>
     !! Return fine sediment mass in a specified size class, in the whole sediment
     !!                                                              <br>
@@ -405,7 +415,7 @@ contains
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required. Throws critical error if size class is invalid
     function Get_Mf_bed_one_size(Me, S) result(r)
-        class(BedSediment), intent(in) :: Me                         !! The `BedSediment` instance
+        class(AbstractBedSediment), intent(in) :: Me                         !! The `AbstractBedSediment` instance
         integer, intent(in) :: S                                     !! Size class
         type(Result0D) :: r                                          !! Return value
         real(dp) :: Mf                                               ! LOCAL internal storage
@@ -441,13 +451,14 @@ contains
         end do
         r = Result(data = Mf)
     end function
+
     !> **Function purpose**                                         <br>
     !! Return fine sediment mass for all size classes, in the whole sediment, as a single value
     !!                                                              <br>
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required
     function Get_Mf_bed_all(Me) result(Mf)
-        class(BedSediment), intent(in) :: Me                         !! the `BedSediment` instance
+        class(AbstractBedSediment), intent(in) :: Me                         !! the `AbstractBedSediment` instance
         real(dp) :: Mf                                               ! LOCAL internal storage
         integer :: l                                                 ! LOCAL loop counter
         Mf = 0
@@ -458,7 +469,7 @@ contains
 
     !> Get mass of fine sediment for layer l [kg/m2]
     function get_Mf_bed_by_layer(me, l) result(Mf)
-        class(BedSediment), intent(in)  :: me
+        class(AbstractBedSediment), intent(in)  :: me
         integer                         :: l
         real(dp)                        :: Mf
         Mf = me%colBedSedimentLayers(l)%item%M_f_layer()
@@ -466,7 +477,7 @@ contains
 
     !> Get mass of fine sediment as array of layers [kg/m2]
     function get_Mf_bed_layer_array(me) result(Mf)
-        class(BedSediment), intent(in)  :: me
+        class(AbstractBedSediment), intent(in)  :: me
         integer                         :: l            ! Layer
         real(dp)                        :: Mf(C%nSedimentLayers)
         do l = 1, C%nSedimentLayers 
@@ -475,7 +486,7 @@ contains
     end function
 
     function get_V_w_by_layer(me) result(V_w)
-        class(BedSediment), intent(in) :: me
+        class(AbstractBedSediment), intent(in) :: me
         real(dp) :: V_w(C%nSedimentLayers)
         integer :: i
         do i = 1, C%nSedimentLayers
@@ -484,7 +495,7 @@ contains
     end function
     
     function Get_Mf_bed_by_size(Me) result(Mf_size)
-        class(BedSediment), intent(in) :: Me                         !! The BedSediment instance
+        class(AbstractBedSediment), intent(in) :: Me                         !! The AbstractBedSediment instance
         integer :: L                                                 ! LOCAL loop counter
         integer :: S                                                 ! LOCAL loop counter
         real(dp) :: Mf                                               ! LOCAL internal storage
@@ -502,7 +513,7 @@ contains
     
     !> Get the current mass of NM in all bed sediment layers
     function get_m_np(me) result(m_np)
-        class(BedSediment)  :: me                                       !! This BedSediment instance
+        class(AbstractBedSediment)  :: me                                       !! This AbstractBedSediment instance
         real(dp)            :: m_np(C%npDim(1),C%npDim(2),C%npDim(3))   !! NM mass in all bed sediment layers [kg/m2]
         ! Sum the layer mass from the bed sediment m_np array. The first two elements
         ! are ignored as they are deposited and resuspended NM
@@ -511,7 +522,7 @@ contains
 
     !> Get the NM mass in layer l [kg/m2]
     function get_m_np_lBedSediment(me, l) result(m_np_l)
-        class(BedSediment)  :: me                                           !! This BedSediment instance 
+        class(AbstractBedSediment)  :: me                                           !! This AbstractBedSediment instance 
         integer             :: l                                            !! Layer index to retrieve NM mass for
         real(dp)            :: m_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM mass in layer l
         m_np_l = me%m_np(2+l,:,:,:)
@@ -519,14 +530,14 @@ contains
 
     !> Get the current NM PEC [kg/m3] across all bed sediment layers
     function get_C_np(me) result(C_np)
-        class(BedSediment)  :: me                                           !! This BedSediment instance
+        class(AbstractBedSediment)  :: me                                           !! This AbstractBedSediment instance
         real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))     !! NM PEC across all bed sediment layers [kg/m3]
         C_np = me%get_m_np() / sum(C%sedimentLayerDepth)
     end function
 
     !> Get the current NM PEC by volume [kg/m3] in layer 1
     function get_C_np_lBedSediment(me, l) result(C_np_l)
-        class(BedSediment)  :: me                                           !! This BedSediment instance
+        class(AbstractBedSediment)  :: me                                           !! This AbstractBedSediment instance
         integer             :: l                                            !! Layer index to retrieve NM PEC for
         real(dp)            :: C_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM PEC in layer l [kg/m3]
         C_np_l = me%get_m_np_l(l) / C%sedimentLayerDepth(l)
@@ -534,7 +545,7 @@ contains
 
     !> Get the current NM PEC by mass [kg/kg] across all bed sediment layers
     function get_C_np_byMassBedSediment(me) result(C_np_byMass)
-        class(BedSediment)  :: me                                               !! This BedSediment instance
+        class(AbstractBedSediment)  :: me                                               !! This AbstractBedSediment instance
         real(dp)            :: C_np_byMass(C%npDim(1), C%npDim(2), C%npDim(3))  !! NM PEC across all bed layers [kg/kg]
         real(dp)            :: layerMasses(C%nSedimentLayers)                   !! Mass (per m2) of each layer to weight average NM PEC by [kg/m2]
         integer             :: i
@@ -548,7 +559,7 @@ contains
 
     !> Get the current NM PEC by mass [kg/kg] in layer l 
     function get_C_np_l_byMassBedSediment(me, l) result(C_np_l_byMass)
-        class(BedSediment)  :: me                                                   !! This BedSediment instance
+        class(AbstractBedSediment)  :: me                                                   !! This AbstractBedSediment instance
         integer             :: l                                                    !! Layer index to retrieve NM PEC for
         real(dp)            :: C_np_l_byMass(C%npDim(1), C%npDim(2), C%npDim(3))    !! NM PEC by mass for layer l [kg/kg]
         C_np_l_byMass = me%C_np_byMass(l,:,:,:)
@@ -556,7 +567,7 @@ contains
     
     !> Get the mass of NM buried on this timestep [kg/m2]
     function get_m_np_buriedBedSediment(me) result(m_np_buried)
-        class(BedSediment)  :: me                                                   !! This BedSediment instance
+        class(AbstractBedSediment)  :: me                                                   !! This AbstractBedSediment instance
         real(dp)            :: m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3))      !! Mass of buried NM [kg/m2]
         m_np_buried = me%m_np(C%nSedimentLayers+3,:,:,:)
     end function

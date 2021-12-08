@@ -1,31 +1,31 @@
-module classReactor1
+module ReactorModule
     use Globals
     use UtilModule
     use ResultModule
-    use spcReactor
-    use classDatabase, only: DATASET
+    use AbstractReactorModule
+    use DataInputModule, only: DATASET
 
     implicit none
     
-    type, public, extends(Reactor) :: Reactor1
+    type, public, extends(AbstractReactor) :: Reactor
         contains
-        procedure :: create => createReactor1
-        procedure :: update => updateReactor1
+        procedure :: create => createReactor
+        procedure :: update => updateReactor
         ! Processes
-        procedure :: heteroaggregation => heteroaggregationReactor1
-        procedure :: dissolution => dissolutionReactor1
-        procedure :: transformation => transformationReactor1
-        procedure :: parseInputData => parseInputDataReactor1
+        procedure :: heteroaggregation => heteroaggregationReactor
+        procedure :: dissolution => dissolutionReactor
+        procedure :: transformation => transformationReactor
+        procedure :: parseInputData => parseInputDataReactor
         ! Calculations
-        procedure :: calculateCollisionRate => calculateCollisionRateReactor1
-        procedure :: calculateParticleConcentration => calculateParticleConcentrationReactor1
+        procedure :: calculateCollisionRate => calculateCollisionRateReactor
+        procedure :: calculateParticleConcentration => calculateParticleConcentrationReactor
     end type
         
     contains
     
     !> Run initialising procedures for the `Reactor` object
-    function createReactor1(me, x, y, alpha_hetero) result(r)
-        class(Reactor1) :: me           !! This `Reactor1` object
+    function createReactor(me, x, y, alpha_hetero) result(r)
+        class(Reactor) :: me            !! This `Reactor` object
         integer :: x                    !! The containing `GridCell` x reference
         integer :: y                    !! The containing `GridCell` x reference
         real(dp) :: alpha_hetero        !! Attachment efficiency, 0-1 [-]
@@ -63,8 +63,8 @@ module classReactor1
     end function
     
     !> Run the `Reactor`'s simulation for the current time step
-    function updateReactor1(me, t, m_np, m_transformed, m_dissolved, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
-        class(Reactor1) :: me                                       !! This `Reactor1` object
+    function updateReactor(me, t, m_np, m_transformed, m_dissolved, C_spm, T_water, W_settle_np, W_settle_spm, G, volume) result(r)
+        class(Reactor) :: me                                       !! This `Reactor` object
         integer         :: t                                        !! The current time step
         real(dp)        :: m_np(C%npDim(1), C%npDim(2), C%npDim(3)) !! Mass of NM for this timestep [kg]
         real(dp)        :: m_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) !! Mass of NM for this timestep [kg]
@@ -113,8 +113,8 @@ module classReactor1
     end function
     
     !> Perform the heteroaggregation calculation for this time step
-    function heteroaggregationReactor1(me) result(r)
-        class(Reactor1) :: me                               !! This `Reactor1` instance
+    function heteroaggregationReactor(me) result(r)
+        class(Reactor) :: me                               !! This `Reactor` instance
         type(Result) :: r                                   !! The `Result` object to return any errors in
         real(dp) :: k_coll(C%nSizeClassesNM,C%nSizeClassesSpm)  ! Collision frequency [s-1]
         integer :: s, n                                     ! Iterators for NM and SPM size classes
@@ -166,8 +166,8 @@ module classReactor1
         end do
     end function
 
-    function dissolutionReactor1(me) result(rslt)
-        class(Reactor1) :: me
+    function dissolutionReactor(me) result(rslt)
+        class(Reactor) :: me
         type(Result)    :: rslt
         real(dp)        :: dm_diss(C%npDim(1), C%npDim(2), C%npDim(3))  ! Mass of NM dissolving on each time step [kg/timestep]
         ! Dissolution of pristine NM
@@ -180,8 +180,8 @@ module classReactor1
         me%m_dissolved = me%m_dissolved + sum(dm_diss)
     end function
 
-    function transformationReactor1(me) result(rslt)
-        class(Reactor1) :: me
+    function transformationReactor(me) result(rslt)
+        class(Reactor) :: me
         type(Result)    :: rslt
         real(dp)        :: dm_transform(C%npDim(1), C%npDim(2), C%npDim(3))
         
@@ -193,8 +193,8 @@ module classReactor1
     end function
     
     !> Parse the input data for this Reactor
-    function parseInputDataReactor1(me) result(r)
-        class(Reactor1) :: me
+    function parseInputDataReactor(me) result(r)
+        class(Reactor) :: me
         type(Result) :: r
         
         me%k_diss_pristine = DATASET%water_k_diss_pristine
@@ -206,8 +206,8 @@ module classReactor1
     
     !> Calculate the collision rate between NPs and SPM.
     !! Reference: [Praetorious et al, 2012](http://dx.doi.org/10.1021/es204530n)
-    function calculateCollisionRateReactor1(me, T_water, G, W_settle_np, W_settle_spm) result(k_coll)
-        class(Reactor1) :: me                       !! This `Reactor1` instance
+    function calculateCollisionRateReactor(me, T_water, G, W_settle_np, W_settle_spm) result(k_coll)
+        class(Reactor) :: me                       !! This `Reactor` instance
         real            :: T_water                  !! Temperature of the water [deg C]
         real            :: G                        !! Shear rate [/s]
         real(dp)        :: W_settle_np(:)           !! NP settling velocity [m/s]
@@ -228,8 +228,8 @@ module classReactor1
     end function
 
     !> Calculate a particle concentration from a mass concentration
-    function calculateParticleConcentrationReactor1(me, C_mass, rho_particle, d) result(C_particle)
-        class(Reactor1) :: me
+    function calculateParticleConcentrationReactor(me, C_mass, rho_particle, d) result(C_particle)
+        class(Reactor) :: me
         real(dp) :: C_mass
         real :: rho_particle
         real :: d

@@ -21,19 +21,19 @@ program main
     use ResultModule
     use RiverReachModule
     use EstuaryReachModule
-    use classEnvironment1
-    use classDatabase, only: DATASET
+    use EnvironmentModule
+    use DataInputModule, only: DATASET
     use CheckpointModule, only: Checkpoint
     use DataOutputModule
-    use classLogger, only: LOGR
+    use LoggerModule, only: LOGR
     use DefaultsModule, only: iouLog
     use datetime_module
     implicit none
 
     real                :: start, finish                        !! Simulation start and finish CPU times
     integer(i64)        :: start_wall, finish_wall, clock_rate  !! Simulation start and finish wall times, and clock rate
-    type(Environment1)  :: env                                  !! Environment object
-    type(Result)        :: r                                    !! Result object
+    type(Environment)   :: env                                  !! Environment object
+    type(Result)        :: rslt                                 !! Result object
     type(DataOutput)    :: output                               !! Data output class
     type(Checkpoint)    :: checkpt                              !! Checkpoint module
     integer             :: t, k                                 !! Loop iterators
@@ -63,9 +63,9 @@ program main
     call DATASET%init(C%inputFile, C%constantsFile)
 
     ! Create the Environment object and deal with any errors that arise
-    r = env%create()
-    call LOGR%toFile(errors=.errors.r)
-    call ERROR_HANDLER%trigger(errors=.errors.r)
+    rslt = env%create()
+    call LOGR%toFile(errors=.errors.rslt)
+    call ERROR_HANDLER%trigger(errors=.errors.rslt)
 
     ! Initialise the data output module, check if we're running to steady state
     call output%init(env)
@@ -123,8 +123,8 @@ program main
                 ! Update the environment for this timestep, which in turn updates all compartments
                 call env%update(t, t + tPreviousChunk, .false.)
                 ! Check for any errors returned from updated, and log/trigger them
-                call LOGR%toFile(errors=.errors.r)
-                call ERROR_HANDLER%trigger(errors=.errors.r)
+                call LOGR%toFile(errors=.errors.rslt)
+                call ERROR_HANDLER%trigger(errors=.errors.rslt)
                 ! Update the output files. Passing the "correct" timestep, taking into account previous
                 ! chunks, is important otherwise timestep indices will be incorrect in the data
                 call output%update(t + tPreviousChunk, t)

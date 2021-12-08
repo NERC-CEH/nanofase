@@ -100,10 +100,10 @@ module UtilModule
         end subroutine
 
         !> Convert a singular to a plural, if i is greater than 1
-        function pluralize(singular, i)
-            character(len=*)    :: singular
-            integer             :: i
-            character(len=256)  :: pluralize
+        pure function pluralize(singular, i)
+            character(len=*), intent(in) :: singular
+            integer, intent(in)          :: i
+            character(len=256)          :: pluralize
             if (i == 1) then
                 pluralize = singular
             else
@@ -112,7 +112,7 @@ module UtilModule
         end function
 
         !> Convert a signed integer to a logical value
-        elemental function lgcl(i)
+        pure elemental function lgcl(i)
             integer, intent(in) :: i
             logical :: lgcl
             if (i .le. 0) then
@@ -123,7 +123,7 @@ module UtilModule
         end function
 
         !> Convert an unsigned integer (uint1, ubyte) to a logical value
-        elemental function ulgcl(i)
+        pure elemental function ulgcl(i)
             integer, intent(in) :: i
             logical :: ulgcl
             if (i .le. 0 .or. i .ge. nf90_fill_uint1) then
@@ -134,7 +134,7 @@ module UtilModule
         end function
     
         !> Convert an integer to a string
-        function strFromInteger(i) result(str)
+        pure function strFromInteger(i) result(str)
             integer, intent(in) :: i        !! The integer to convert to a string
             character(len=256) :: str       !! The string to return
             write(str, *)i
@@ -142,7 +142,7 @@ module UtilModule
         end function
 
         !> Convert a real to a string
-        function strFromReal(r) result(str)
+        pure function strFromReal(r) result(str)
             real, intent(in) :: r           !! The real to convert to a string
             character(len=256) :: str       !! The string to return
             write(str, *)r
@@ -150,7 +150,7 @@ module UtilModule
         end function
         
         !> Convert a real 1D array to a string
-        function strFromReal1D(r) result(string)
+        pure function strFromReal1D(r) result(string)
             real, intent(in) :: r(:)        !! The integer to convert to a string
             character(len=256) :: string       !! The string to return
             integer         :: i
@@ -159,14 +159,14 @@ module UtilModule
         end function
 
         !> Convert a double-precision real to a string
-        function strFromDp(r) result(str)
+        pure function strFromDp(r) result(str)
             real(dp), intent(in) :: r           !! The dp real to convert to a string
             character(len=256) :: str           !! The string to return
             write(str, *)r
             str = trim(adjustl(str))
         end function
 
-        function strFromLogical(l) result(str)
+        pure function strFromLogical(l) result(str)
             logical, intent(in) :: l
             character(len=5) :: str
             if (l) then
@@ -468,18 +468,5 @@ module UtilModule
             real(dp)                :: heteroaggregated(C%nSizeClassesNM)
             heteroaggregated = sum(x(:,1,3:), dim=1)
         end function
-
-        subroutine progress(j)
-            integer :: j,k
-            character(len=118) :: bar="\r???% |                                          "//&
-                "                                                          |"
-            ! Updates the fraction of calculation done
-            write(unit=bar(2:4), fmt="(i3)") j
-            do k = 1, j
-                bar(7+k:7+k)="*"
-            end do
-            ! Print the progress bar.
-            write(*,'(a)', advance='no') bar
-        end subroutine
 
 end module

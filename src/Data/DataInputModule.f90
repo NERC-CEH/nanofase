@@ -2,14 +2,13 @@
 !! data input to the model, as well as a variable (DATASET) of type(Database), which
 !! can be imported into other modules, thus making the data parsed by the Database type
 !! accessible throughout the model.
-module classDatabase
+module DataInputModule
     use mo_netcdf
-    ! use netcdf
     use DefaultsModule
     use Globals
     use ResultModule, only: Result
     use ErrorInstanceModule, only: ErrorInstance
-    use classLogger, only: LOGR
+    use LoggerModule, only: LOGR
     use UtilModule
     implicit none
 
