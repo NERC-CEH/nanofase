@@ -1,3 +1,0 @@
-/home/sharrison/code/nanofase/cmake/CMakeFiles/rebuild_cache.dir
-/home/sharrison/code/nanofase/cmake/CMakeFiles/edit_cache.dir
-/home/sharrison/code/nanofase/cmake/CMakeFiles/nanofase.dir
