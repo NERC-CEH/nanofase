@@ -20,15 +20,15 @@ module AbstractBedSedimentModule
     !! only objects of its subclasses
     type, abstract, public :: AbstractBedSediment
         character(len=256)              :: name                                 !! Name for this object, of the form *BedSediment_x_y_s_r*
-        class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:) !! Collection of `BedSedimentLayer` objects
-        integer                         :: nSizeClasses                                         !! Number of fine sediment size classes
+        class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:)  !! Collection of `BedSedimentLayer` objects
+        integer                         :: nSizeClasses                         !! Number of fine sediment size classes
         real(dp), allocatable           :: delta_sed(:,:,:)                     !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
         integer                         :: n_delta_sed                          !! The order of delta_sed
-        type(CSRMatrix), allocatable    :: delta_sed_csr(:)                !! CSR matrix storage for delta_sed. dim=spm size classes
-        integer                         :: nfComp                                               !! number of fractional composition terms for sediment
+        type(CSRMatrix), allocatable    :: delta_sed_csr(:)                     !! CSR matrix storage for delta_sed. dim=spm size classes
+        integer                         :: nfComp                               !! number of fractional composition terms for sediment
         ! Nanomaterials
-        real(dp), allocatable           :: M_np(:,:,:,:)                      !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
-        real(dp), allocatable           :: C_np_byMass(:,:,:,:)               !! Concentration of NM across sediment layers [kg/kg dw]
+        real(dp), allocatable           :: M_np(:,:,:,:)                        !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
+        real(dp), allocatable           :: C_np_byMass(:,:,:,:)                 !! Concentration of NM across sediment layers [kg/kg dw]
     contains
         procedure(createBedSediment), deferred :: create            ! constructor method
         procedure(destroyBedSediment), deferred :: destroy          ! finaliser method
@@ -458,9 +458,9 @@ module AbstractBedSedimentModule
     !! **Function outputs/outcomes**                                <br>
     !! `r (Result 0D)`: returns value required
     function Get_Mf_bed_all(Me) result(Mf)
-        class(AbstractBedSediment), intent(in) :: Me                         !! the `AbstractBedSediment` instance
-        real(dp) :: Mf                                               ! LOCAL internal storage
-        integer :: l                                                 ! LOCAL loop counter
+        class(AbstractBedSediment), intent(in) :: Me                 !! The `AbstractBedSediment` instance
+        real(dp) :: Mf                                               ! Internal storage
+        integer :: l                                                 ! Iterator
         Mf = 0
         do l = 1, C%nSedimentLayers                                  ! loop through each layer
             Mf = Mf + me%colBedSedimentLayers(l)%item%M_f_layer()    ! sum masses across layers

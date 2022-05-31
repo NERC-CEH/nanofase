@@ -297,7 +297,8 @@ module DataOutputModule
                         end if
                         write(iouOutputSediment, '(a)') &
                             trim(str(sum(reach%bedSediment%get_m_np_buried()) * reach%bedArea)) // "," // &
-                            trim(str(reach%bedArea)) // "," // trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea))
+                            trim(str(reach%bedArea)) // "," // trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea)) &
+                            // "," // trim(str(reach%bedSediment%Mf_bed_all() / sum(C%sedimentLayerDepth)))
                     end associate
                 end do
             else
@@ -321,7 +322,9 @@ module DataOutputModule
                         end if
                         write(iouOutputSediment, '(a)') &
                             trim(str(sum(cell%get_m_np_buried_sediment()))) // "," // &
-                            trim(str(cell%getBedSedimentArea())) // "," // trim(str(cell%getBedSedimentMass()))
+                            trim(str(cell%getBedSedimentArea())) // "," // trim(str(cell%getBedSedimentMass())) &
+                            // "," // trim(str(cell%getBedSedimentMass() / &
+                                ((cell%getBedSedimentArea() * sum(C%sedimentLayerDepth)))))
                     end if
                 end associate
             end if
@@ -622,6 +625,7 @@ module DataOutputModule
             write(iouOutputSediment, '(a)') "#\tbed_area(m2): area of this bed sediment (m2)"
             write(iouOutputSediment, '(a)') "#\tsediment_mass(kg): total mass of fine sediment " // &
                 "in this bed sediment (kg, *not* kg/m2)"
+            write(iouOutputSediment, '(a)') "#\tsediment_density(kg): average density of the sediment (kg/m3)"
         end if
         ! Write the actual headers
         write(iouOutputSediment, '(a)', advance="no") "t,datetime,x,y,easts,norths," 
@@ -632,7 +636,7 @@ module DataOutputModule
             write(iouOutputSediment, '(*(a))', advance="no") &
                 ("C_np_l" // trim(str(i)) // "(kg/m3),C_np_l" // trim(str(i)) // "(kg/kg),", i = 1, C%nSedimentLayers) 
         end if
-        write(iouOutputSediment, '(a)') "m_np_buried(kg),bed_area(m2),sediment_mass(kg)"
+        write(iouOutputSediment, '(a)') "m_np_buried(kg),bed_area(m2),sediment_mass(kg),sediment_density(kg/m3)"
     end subroutine
 
     !> Write the headers for the soil output file

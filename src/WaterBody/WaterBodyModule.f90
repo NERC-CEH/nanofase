@@ -161,7 +161,7 @@ module WaterBodyModule
     !> Update this `WaterBody` on given time step
     subroutine updateWaterBody(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, &
                                j_transformed_runoff, contributingArea, isWarmUp)
-        class(WaterBody)   :: me                               !! This `WaterBody` instance
+        class(WaterBody)    :: me                               !! This `WaterBody` instance
         integer             :: t                                !! What time step are we on?
         real(dp)            :: q_runoff                         !! Runoff from the hydrological model [m/timestep]
         real(dp)            :: q_overland                       !! Overland flow [m3/m2/timestep]

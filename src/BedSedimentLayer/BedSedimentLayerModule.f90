@@ -144,7 +144,7 @@ module BedSedimentLayerModule
 
         if (r%hasCriticalError()) return                         ! exit if allocation has thrown an error
         do S = 1, Me%nSizeClasses
-            call me%colFineSediment(s)%create(trim(ref(me%name, "s", s)), me%nfComp)
+            call me%colFineSediment(S)%create(trim(ref(me%name, "s", s)), me%nfComp)
             call me%colFineSediment(S)%set(Mf_in=M_f(S), f_comp_in=f_comp(S,:))
             Me%C_f_l(S) = Me%colFineSediment(S)%V_f()            ! set the sediment capacities to the volumes
         end do

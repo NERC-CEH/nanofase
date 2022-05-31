@@ -41,13 +41,11 @@ module BedSedimentModule
     !! resuspension, layers and burial
     !! objects
     subroutine getMTCMatrix1(me, djdep, djres)
-        class(BedSediment) :: me                                    !! Self-reference
-        real(dp) :: djdep(:)                                         !! deposition fluxes by size class [kg/m2]
-        real(dp) :: djres(:)                                         !! resuspension fluxes by size class [kg/m2]
-        real(dp) :: ml                                               ! LOCAL holds initial sediment layer masses [kg/m2]
-        integer :: L                                                 ! LOCAL loop counter
-        integer :: LL                                                ! LOCAL loop counter
-        integer :: S                                                 ! LOCAL loop counter
+        class(BedSediment) :: me                            !! Self-reference
+        real(dp) :: djdep(:)                                !! deposition fluxes by size class [kg/m2]
+        real(dp) :: djres(:)                                !! resuspension fluxes by size class [kg/m2]
+        real(dp) :: ml                                      ! LOCAL holds initial sediment layer masses [kg/m2]
+        integer :: L, LL, S                                 ! Iterators
 
         do S = 1, me%nSizeClasses
             do L = 3, C%nSedimentLayers + 3 

@@ -128,7 +128,7 @@ module EnvironmentModule
 
         end if
 
-        ! Allocate the per timestep spatial mean water conc array. Being with 0 timesteps, as this array
+        ! Allocate the per timestep spatial mean water conc array. Begin with 0 timesteps, as this array
         ! is reallocated on each timestep (to account for batch runs)
         allocate(me%C_np_water_t(0, C%npDim(1), C%npDim(2), C%npDim(3)))
         allocate(me%C_np_sediment_t(0, C%npDim(1), C%npDim(2), C%npDim(3)))
