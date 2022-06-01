@@ -17,6 +17,7 @@ parts:
   - caption: Theory
     chapters:
     - file: theory/intro
+    - file: theory/conceptual-structure
   - caption: Developers
     chapters:
     - file: developers/conventions
