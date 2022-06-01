@@ -1,6 +1,6 @@
 # Checkpointing
 
-Checkpointing is the ability to "save" a computation so that it can be resumed later, rather than started again. The NanoFASE model offers limited checkpointing capability, in [CheckpointModule.f90](../../src/CheckpointModule.f90).
+Checkpointing is the ability to "save" a computation so that it can be resumed later, rather than started again. The NanoFASE model offers limited checkpointing capability, in [CheckpointModule.f90](../src/CheckpointModule.f90).
 
 ## Config file options
 

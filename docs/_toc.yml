@@ -1,0 +1,23 @@
+# Table of contents
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: intro
+parts:
+  - caption: Users
+    chapters:
+    - file: users/example-workflows
+    - file: users/output
+    - file: users/temporal-period
+    - file: users/batch
+    - file: users/checkpointing
+    - file: users/jasmin
+    - file: users/speeding-up-model-runs
+    - file: users/vs-ifort-setup
+  - caption: Theory
+    chapters:
+    - file: theory/intro
+  - caption: Developers
+    chapters:
+    - file: developers/conventions
+    - file: developers/io-units
