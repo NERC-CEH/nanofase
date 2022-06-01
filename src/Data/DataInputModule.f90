@@ -1,4 +1,4 @@
-!> The classDatabase module contains the Database type, which is responsible for
+!> The DataInputModule contains the Database type, which is responsible for
 !! data input to the model, as well as a variable (DATASET) of type(Database), which
 !! can be imported into other modules, thus making the data parsed by the Database type
 !! accessible throughout the model.
@@ -16,7 +16,9 @@ module DataInputModule
     !! from the NetCDF and constant namelist files.
     type, public :: Database
         type(NcDataset)     :: nc                               ! The NetCDF dataset
+
         ! CONSTANTS
+        ! ---------
         ! Nanomaterial
         real :: nmDensity                                       ! Density of the nanomaterial [kg/m3]
         real, allocatable :: nmSizeClasses(:)                   ! Diameter of each NM size class [m]
@@ -100,7 +102,9 @@ module DataInputModule
         real, allocatable :: sedimentPorosity(:)    ! Porosity of the bed sediment layers [-]
         real(dp), allocatable :: sedimentInitialMass(:) ! Initial mass of each sediment size class [kg/m2]
         real, allocatable :: sedimentFractionalComposition(:) ! Distribution of sediment amongst fractional compositions [-]
+
         ! NETCDF VARIABLES
+        ! ----------------
         ! Grid and coordinate variables
         integer, allocatable :: gridShape(:)        ! Number of grid cells along each grid axis [-]
         real, allocatable :: gridRes(:)             ! Resolution of grid cells [m]
@@ -124,6 +128,7 @@ module DataInputModule
         logical, allocatable :: isHeadwater(:,:)
         integer, allocatable :: nWaterbodies(:,:)
         logical, allocatable :: isEstuary(:,:)
+        integer :: maxNWaterbodies                  ! Maximum number of waterbodies per cell in the model domain
         ! Spatiotemporal variables
         real, allocatable :: runoff(:,:,:)
         real, allocatable :: quickflow(:,:,:)
@@ -152,6 +157,16 @@ module DataInputModule
         real(dp), allocatable :: sedimentTransport_a(:,:)                       ! Sediment transport capacity a parameter (scaling factor) [kg/m2/km2]
         real(dp), allocatable :: sedimentTransport_b(:,:)                       ! Sediment transport capacity b parameter (overland flow threshold) [m2/s]
         real(dp), allocatable :: sedimentTransport_c(:,:)                       ! Sediment transport capacity c parameter (non-linear coefficient) [-]
+        ! Initial concentrations
+        ! real(dp), allocatable :: initialNMConcsSoil(:,:,:)
+        ! real(dp), allocatable :: initialTransformedConcsSoil(:,:,;)
+        ! real(dp), allocatable :: initialDissolvedConcsSoil(:,:,;)
+        ! real(dp), allocatable :: initialNMConcsWater(:,:,;)
+        ! real(dp), allocatable :: initialTransformedConcsWater(:,:,;)
+        ! real(dp), allocatable :: initialDissolvedConcsWater(:,:,;)
+        ! real(dp), allocatable :: initialNMConcsSediment(:,:,;)
+        ! real(dp), allocatable :: initialTransformedConcsSediment(:,:,:)
+        ! real(dp), allocatable :: initialDissolvedConcsSediment(:,:,:)
         ! Emissions - areal
         real(dp), allocatable :: emissionsArealSoilPristine(:,:)
         real(dp), allocatable :: emissionsArealSoilMatrixEmbedded(:,:)
@@ -251,6 +266,7 @@ module DataInputModule
         me%isHeadwater = ulgcl(isHeadwaterInt)      ! Convert uint1 to logical
         var = me%nc%getVariable('n_waterbodies')
         call var%getData(me%nWaterbodies)
+        me%maxNWaterbodies = maxval(me%nWaterbodies)
         ! If we're meant to be including the estuary, then get the is_estuary variable
         if (C%includeEstuary) then
             var = me%nc%getVariable('is_estuary')
@@ -365,10 +381,10 @@ module DataInputModule
 
     !> Read variables in for the new chunk as part of a batch run
     subroutine readBatchVariablesDatabase(me)
-        class(Database)     :: me           ! This Database instance
-        type(NcVariable)    :: var          ! NetCDF variable
-        type(NcDimension)   :: p_dim        ! NetCDF dimensions for point sources
-        integer             :: x, y         ! Grid cell iterators
+        class(Database)     :: me               ! This Database instance
+        type(NcVariable)    :: var              ! NetCDF variable
+        type(NcDimension)   :: p_dim            ! NetCDF dimensions for point sources
+        integer             :: x, y             ! Grid cell iterators
 
         ! Spatial extent (grid setup, rivers etc) will stay the same between chunks,
         ! but the number of timesteps might not, so let's change that
@@ -550,6 +566,22 @@ module DataInputModule
             allocate(me%sedimentTransport_c(me%gridShape(1), me%gridShape(2)))
             me%sedimentTransport_c = me%sedimentTransport_cConstant
         end if
+
+        ! Initial concentrations                    [kg/volume]
+        ! if (me%nc%hasVariable('initial_nm_concs_soil')) then
+        !     var = me%nc%getVariable('initial_nm_concs_soil')
+        !     call var%getData(me%initialNMConcsSoil)
+        ! else
+        !     allocate(me%initialNMConcsSoil(me%maxNWaterbodies, me%gridShape(1), me%gridShape(2))))
+        !     me%initialNMConcsSoil = 0.0_dp
+        ! end if
+        ! if (me%nc%hasVariable('initial_transformed_concs_soil')) then
+        !     var = me%nc%getVariable('initial_transformed_concs_soil')
+        !     call var%getData(me%initialTransformedConcsSoil)
+        ! else
+        !     allocate(me%initialTransformedConcsSoil(me%maxNWaterbodies, me%gridShape(1), me%gridShape(2))))
+        !     me%initialTransformedConcsSoil = 0.0_dp
+        ! end if
 
         ! Emissions - areal                         [kg/m2/timestep]
         ! Soil

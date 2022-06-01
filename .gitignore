@@ -6,9 +6,6 @@ Makefile
 *.stackdump
 
 # Compilation directories and logs/cache
-doc/dist/
-doc/graph/
-doxygen/
 bin/
 build/
 release/
@@ -18,7 +15,7 @@ log/
 cache/
 dll/
 x64/
-scratch/
+docs/_build
 
 # Config, directory for personal code snippets and data files
 config/
