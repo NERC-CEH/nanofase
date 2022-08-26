@@ -394,8 +394,8 @@ module NetCDFOutputModule
 
         ! Metadata to describe the NetCDF file
         call me%nc%setAttribute('title', 'NanoFASE model output data: ' // trim(C%runDescription))
-        call me%nc%setAttribute('source', 'NanoFASE model v' // C%modelVersion // &
-                                ': https://github.com/nerc-ceh/nanofase/tree/' // C%modelVersion)
+        call me%nc%setAttribute('source', 'NanoFASE model v' // trim(C%modelVersion) // &
+                                ': https://github.com/nerc-ceh/nanofase/tree/' // trim(C%modelVersion))
         simDatetime = simDatetime%now()             ! Chaining functions doesn't work in Fortran...
         call me%nc%setAttribute('history', simDatetime%isoformat() // &
                                 ': File created and data written by NanoFASE model')
