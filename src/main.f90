@@ -71,8 +71,7 @@ program main
     call output%init(env)
     if (C%runToSteadyState .and. trim(C%steadyStateMode) == 'sediment_size_distribution') then
         call output%initSedimentSizeDistribution()
-        call LOGR%toFile("Running in steady state mode " // trim(C%steadyStateMode))
-        call LOGR%toConsole("\x1B[94mRunning in steady state mode '" // trim(C%steadyStateMode) // "'\x1B[39m")
+        call LOGR%add("Running in steady state mode " // trim(C%steadyStateMode), COLOR_BLUE)
     end if
     
     ! Set up checkpointing and check if we're meant to be reinstating a checkpoint now
@@ -85,13 +84,13 @@ program main
     ! of data, excluding NM inputs, through the model, where N is specified by C%warmUpPeriod
     if (C%warmUpPeriod > 0) then
         ! Log some info about it
-        call LOGR%add("Running for warm up period of " // trim(str(C%warmUpPeriod)) // " time steps", "lightblue")
+        call LOGR%add("Running for warm up period of " // trim(str(C%warmUpPeriod)) // " time steps", COLOR_BLUE)
         ! Run the model with the warmUp flag
         do t = 1, C%warmUpPeriod
             call env%update(t, t, .true.)
         end do
         ! Log that we're finished warming up and on to the real model
-        call LOGR%add("Finished warm up period", "lightblue")
+        call LOGR%add("Finished warm up period", COLOR_BLUE)
         ! Have we been asked to create a checkpoint after the warm up period?
         if (C%saveCheckpointAfterWarmUp) then
             call checkpt%save(0)
@@ -102,7 +101,6 @@ program main
     ! trip out of this loop after the first iteration
     i = 1
     do while (.not. steadyStateReached)
-
         ! If we're running to steady state, log some info about it
         if (C%runToSteadyState) then
             call LOGR%add("Model iteration #" // trim(str(i)), "lightblue")
@@ -147,7 +145,7 @@ program main
                 if (delta_max <= C%steadyStateDelta) then
                     steadyStateReached = .true.
                     call LOGR%add("Steady state reached after " // trim(str(i)) // " " // &
-                                  trim(pluralize("iteration", i)), "lightblue")
+                                  trim(pluralize("iteration", i)), COLOR_BLUE)
                 end if
                 ! Increment the iterator to the next model run
                 i = i + 1
@@ -167,13 +165,13 @@ program main
     ! Write the simulation summary to file, close output data files and report that it was a successful
     ! model run. Pass the steady state iterator in to give number of iterations until steady state
     call output%finalise(i-1)
-    call LOGR%add("Model run completeled successfully", "green")
+    call LOGR%add("Model run completeled successfully", COLOR_GREEN)
     
     ! Timings
     call cpu_time(finish)
     call system_clock(finish_wall, clock_rate)
-    call LOGR%add("CPU time taken to run simulation (s): " // trim(str(finish - start)), "yellow")
+    call LOGR%add("CPU time taken to run simulation (s): " // trim(str(finish - start)), COLOR_YELLOW)
     call LOGR%add("Wall time taken to run simulation (s): " // &
-                  trim(str(real(finish_wall - start_wall) / real(clock_rate))), "yellow")
+                  trim(str(real(finish_wall - start_wall) / real(clock_rate))), COLOR_YELLOW)
 
 end program

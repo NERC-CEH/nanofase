@@ -141,7 +141,7 @@ module EnvironmentModule
         call LOGR%toFile(errors=.errors.r)
         call ERROR_HANDLER%trigger(errors= .errors. r)          ! Trigger any errors present
         call r%clear()                                          ! Remove any errors so we don't trigger them twice
-        call LOGR%toConsole('Creating the Environment: \x1B[32msuccess\x1B[0m')
+        call LOGR%toConsole('Creating the Environment: '//COLOR_GREEN//'success'//COLOR_RESET)
     end function
 
     !> Perform simulations for the `Environment`

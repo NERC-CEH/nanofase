@@ -132,10 +132,10 @@ module GridCellModule
         call ERROR_HANDLER%trigger(errors = .errors. rslt)
         call rslt%clear()                  ! Clear errors from the Result object so they're not reported twice
         if (.not. me%isEmpty) then
-            call LOGR%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32msuccess\x1B[0m")
+            call LOGR%toConsole(" > Creating " // trim(me%ref) // ": "//COLOR_GREEN//"success"//COLOR_RESET)
             call LOGR%toFile("Creating " // trim(me%ref) // ": success")
         else
-            call LOGR%toConsole("\tCreating " // trim(me%ref) // ": \x1B[32mempty\x1B[0m")
+            call LOGR%toConsole(" > Creating " // trim(me%ref) // ": "//COLOR_GREEN//"empty"//COLOR_RESET)
             call LOGR%toFile("Creating " // trim(me%ref) // ": empty")
         end if
     end function

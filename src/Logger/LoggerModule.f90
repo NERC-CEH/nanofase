@@ -61,13 +61,11 @@ module LoggerModule
         character(8)            :: colorCode        ! The color code for the specified colour
         character(7)            :: resetCode
         if (present(color) .and. C%bashColors) then
-            colorCode = getCodeForColor(color)
-            resetCode = "\x1B[0m"
+            colorCode = color
         else
             colorCode = ""
-            resetCode = ""
         end if
-        if (me%logToConsole) write(*,'(A)') trim(colorCode) // message // trim(resetCode)
+        if (me%logToConsole) write(*,'(A)') trim(colorCode) // trim(message) // COLOR_RESET
         if (me%logToFile) write(me%fileUnit, '(A)') timestamp() // ": " // trim(message)
     end subroutine
 
@@ -122,21 +120,6 @@ module LoggerModule
         call date_and_time(values=values)
         write(timestamp, "(I4.4, A, I2.2, A, I2.2, A, I2.2, A, I2.2, A, I2.2)") &
             values(1), "-", values(2), "-", values(3), "_", values(5), ".", values(6), ".", values(7)
-    end function
-
-    function getCodeForColor(color) result(code)
-        character(*)    :: color
-        character(8)    :: code
-        select case (color)
-            case ("lightblue")
-                code = "\x1B[94m"
-            case ("yellow")
-                code = "\x1B[33m"
-            case ("green")
-                code = "\x1B[32m"
-            case default
-                code = ""
-        end select
     end function
 
 end module

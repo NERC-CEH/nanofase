@@ -9,9 +9,15 @@ module Globals
     use ResultModule, only: Result
     implicit none
     
-    type(ErrorCriteria) :: ERROR_HANDLER
-    integer, parameter :: dp = selected_real_kind(15, 307)
-    integer, parameter :: qp = selected_real_kind(33, 4931)
+    type(ErrorCriteria)             :: ERROR_HANDLER                        ! Global error handling
+    integer, parameter              :: dp = selected_real_kind(15, 307)     ! Double precision
+    character(len=*), parameter     :: ESC = char(27)                       ! Terminal escape character
+    character(len=*), parameter     :: COLOR_BLUE = ESC // "[94m"           ! Escape sequence for blue text
+    character(len=*), parameter     :: COLOR_LIGHT_BLUE = ESC // "[39m"     ! Escape sequence for light blue text
+    character(len=*), parameter     :: COLOR_GREEN = ESC // "[32m"          ! Escape sequence for green text
+    character(len=*), parameter     :: COLOR_YELLOW = ESC // "[33m"         ! Escape sequence for yellow text
+    character(len=*), parameter     :: COLOR_RED = ESC // "[91m"            ! Escape sequence for red text
+    character(len=*), parameter     :: COLOR_RESET = ESC // "[0m"           ! Escape sequence to reset text color
 
     type, public :: GlobalsType
         ! Get model version from the version module (which our build script should modify)

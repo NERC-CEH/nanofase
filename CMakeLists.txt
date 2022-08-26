@@ -5,14 +5,14 @@ enable_language(Fortran)
 
 # GFortran compiler
 if (CMAKE_Fortran_COMPILER_ID MATCHES GNU)
-    set(common_flags "-fcheck=all -fbackslash -ffpe-trap=zero,invalid,overflow,underflow")
+    set(common_flags "-fcheck=all -ffpe-trap=zero,invalid,overflow,underflow")
     set(debug_flags "-Wall -Og -g -pg ${common_flags}")
     set(release_flags "-Ofast -march=native -mtune=native ${common_flags}")
 endif()
 
 # Intel Fortran compiler
 if (CMAKE_Fortran_COMPILER_ID MATCHES Intel)
-    set(common_flags "-fpe0 -check bounds -assume bscc")
+    set(common_flags "-fpe0 -check bounds")
     set(debug_flags "-traceback -check stack -debug full -Od ${common_flags}")
     set(release_flags "-O3 ${common_flags}")
 endif()

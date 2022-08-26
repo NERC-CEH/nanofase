@@ -205,7 +205,7 @@ module CheckpointModule
         close(iouCheckpoint)
         
         ! Log that we've successfully created a checkpoint
-        call LOGR%toConsole('Saving checkpoint to '//trim(me%checkpointFile)//': \x1B[32msuccess\x1B[0m')
+        call LOGR%toConsole('Saving checkpoint to '//trim(me%checkpointFile)//': '//COLOR_GREEN//'success'//COLOR_RESET)
         call LOGR%toFile('Saving checkpoint to '//trim(me%checkpointFile)//': success')
 
     end subroutine
@@ -388,7 +388,7 @@ module CheckpointModule
         end do
 
         ! Log that we've successfully reinstated a checkpoint
-        call LOGR%toConsole('Reinstating checkpoint from '//trim(me%checkpointFile)//': \x1B[32msuccess\x1B[0m')
+        call LOGR%toConsole('Reinstating checkpoint from '//trim(me%checkpointFile)//': '//COLOR_GREEN//'success'//COLOR_RESET)
         call LOGR%toFile('Reinstating checkpoint from '//trim(me%checkpointFile)//': success')
 
     end subroutine

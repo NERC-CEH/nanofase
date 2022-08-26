@@ -4,6 +4,7 @@ module DataOutputModule
         iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
     use Globals, only: C, dp
     use DataInputModule, only: DATASET
+    use LoggerModule, only: LOGR
     use AbstractEnvironmentModule
     use EnvironmentModule
     use AbstractGridCellModule
@@ -447,6 +448,9 @@ module DataOutputModule
         ! Close the files
         close(iouOutputSummary); close(iouOutputWater); close(iouOutputSediment); close(iouOutputSoil)
         close(iouOutputSSD); close(iouOutputStats)
+        
+        ! Log that we've written output data files
+        call LOGR%add('Model output written to ' // trim(C%outputPath), COLOR_GREEN)
     end subroutine
 
     !> Tell the NetCDF output class to reallocate memory for the new chunk,
