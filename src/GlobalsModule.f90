@@ -1,4 +1,4 @@
-module Globals
+module GlobalsModule
     use mo_netcdf
     use datetime_module
     use mod_strptime, only: f_strptime

@@ -1,5 +1,5 @@
 module AbstractBiotaModule
-    use Globals, only: dp
+    use GlobalsModule, only: dp
     implicit none
 
     type, abstract, public :: AbstractBiota

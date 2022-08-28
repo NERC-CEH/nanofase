@@ -1,5 +1,5 @@
 module ReactorModule
-    use Globals
+    use GlobalsModule
     use UtilModule
     use ResultModule
     use AbstractReactorModule

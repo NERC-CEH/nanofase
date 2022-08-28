@@ -1,6 +1,6 @@
 !> Module containing definition of `BedSediment`.
 module BedSedimentModule
-    use Globals
+    use GlobalsModule
     use UtilModule
     use ResultModule
     use AbstractBedSedimentModule

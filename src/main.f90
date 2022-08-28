@@ -16,7 +16,7 @@
 !>          https://github.com/NERC-CEH/nanofase/blob/develop/LICENSE           !
 !-------------------------------------------------------------------------------!
 program main
-    use Globals
+    use GlobalsModule
     use UtilModule
     use ResultModule
     use RiverReachModule

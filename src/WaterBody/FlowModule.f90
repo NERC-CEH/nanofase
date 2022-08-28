@@ -1,7 +1,7 @@
 !> The FlowModule contains types which define material flows within the surface water network.
 !! Separate types are provided for water, SPM, NM and dissolved species flows.
 module FlowModule
-    use Globals, only: dp, C
+    use GlobalsModule, only: dp, C
     implicit none
 
     !> The WaterFlows object stores information on water flows in and out of a reach.

@@ -1,14 +1,13 @@
 !> Container module for class `Environment`
 module EnvironmentModule
     use mo_netcdf
-    use Globals
+    use GlobalsModule
     use UtilModule
     use AbstractEnvironmentModule
     use ResultModule
     use GridCellModule
     use DataInputModule, only: DATASET
-    use datetime_module
-    use mod_datetime
+    use datetime_module, only: datetime, timedelta
     implicit none
     private
     

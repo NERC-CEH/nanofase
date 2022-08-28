@@ -1,0 +1,20 @@
+name = "nanofase"
+version = "0.0.4"
+license = "BSD-3-Clause"
+author = "Sam Harrison"
+maintainer = "sharrison@ceh.ac.uk"
+copyright = "Copyright 2022, UKCEH"
+
+[dependencies]
+feh.path = "vendor/feh"
+spoof.path = "vendor/spoof"
+datetime.path = "vendor/datetime-fortran"
+mo_netcdf.path = "vendor/mo_netcdf"
+
+[[executable]]
+name = "nanofase"
+source-dir = "src"
+
+[build]
+external-modules = "netcdf"
+link = ["netcdf", "netcdff"]

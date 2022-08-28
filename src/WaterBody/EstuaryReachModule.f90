@@ -1,5 +1,5 @@
 module EstuaryReachModule
-    use Globals
+    use GlobalsModule
     use ReachModule
     use UtilModule
     use ResultModule

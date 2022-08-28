@@ -1,7 +1,7 @@
 module BiotaSoilModule
     use AbstractBiotaModule
     use ResultModule, only: Result
-    use Globals
+    use GlobalsModule
     use DataInputModule
     use datetime_module
     implicit none

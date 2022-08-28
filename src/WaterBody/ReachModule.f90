@@ -1,6 +1,6 @@
 !> Module containing definition of abstract base class `Reach`.
 module ReachModule
-    use Globals
+    use GlobalsModule
     use ResultModule, only: Result
     use ErrorInstanceModule
     use WaterBodyModule

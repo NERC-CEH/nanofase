@@ -1,6 +1,6 @@
 !> Module container for the `AbstractEnvironment` abstract base class
 module AbstractEnvironmentModule
-    use Globals
+    use GlobalsModule
     use ResultModule
     use AbstractGridCellModule
     use mo_netcdf
@@ -88,42 +88,42 @@ module AbstractEnvironmentModule
         end subroutine
         
         function get_m_npEnvironment(me) result(m_np)
-            use Globals
+            use GlobalsModule
             import AbstractEnvironment
             class(AbstractEnvironment) :: me
             real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
         end function
 
         function get_C_np_soilEnvironment(me) result(C_np_soil)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractEnvironment
             class(AbstractEnvironment) :: me
             real(dp), allocatable :: C_np_soil(:,:,:)
         end function
 
         function get_C_np_waterEnvironment(me) result(C_np_water)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractEnvironment
             class(AbstractEnvironment) :: me
             real(dp), allocatable :: C_np_water(:,:,:)
         end function
 
         function get_C_np_sedimentEnvironment(me) result(C_np_sediment)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractEnvironment
             class(AbstractEnvironment) :: me
             real(dp), allocatable :: C_np_sediment(:,:,:)
         end function
 
         function getBedSedimentAreaEnvironment(me) result(bedArea)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractEnvironment
             class(AbstractEnvironment) :: me
             real(dp) :: bedArea
         end function
 
         function get_m_sediment_byLayerEnvironment(me) result(m_sediment_byLayer)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractEnvironment
             class(AbstractEnvironment)      :: me
             real(dp), allocatable   :: m_sediment_byLayer(:,:)

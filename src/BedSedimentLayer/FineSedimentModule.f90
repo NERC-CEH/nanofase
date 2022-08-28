@@ -1,6 +1,6 @@
 !> Module container for `FineSediment` class. Nonpolymorphic.
 module FineSedimentModule
-    use Globals
+    use GlobalsModule
     use ErrorInstanceModule
     use ResultModule, only: Result, Result0D, Result1D, Result2D
     use UtilModule

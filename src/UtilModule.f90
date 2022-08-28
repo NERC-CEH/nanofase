@@ -1,6 +1,6 @@
 !> Module with a handful of useful globally-available procedures
 module UtilModule
-    use Globals
+    use GlobalsModule
     use netcdf
     implicit none
 

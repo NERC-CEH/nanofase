@@ -1,5 +1,5 @@
 module PointSourceModule
-    use Globals
+    use GlobalsModule
     use ResultModule
     use DataInputModule, only: DATASET
     implicit none

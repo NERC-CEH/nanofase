@@ -1,5 +1,5 @@
 module GridCellModule
-    use Globals
+    use GlobalsModule
     use UtilModule
     use DataInputModule, only: DATASET
     use LoggerModule, only: LOGR

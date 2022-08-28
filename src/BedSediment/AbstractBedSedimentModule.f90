@@ -1,6 +1,6 @@
 !> Module containing definition of abstract superclass `AbstractBedSediment`.
 module AbstractBedSedimentModule
-    use Globals
+    use GlobalsModule
     use mo_netcdf
     use ResultModule, only: Result, Result0D
     use ErrorInstanceModule
@@ -74,7 +74,7 @@ module AbstractBedSedimentModule
         !! resuspension, layers and burial
         !! objects
         subroutine FinaliseMTCMatrix(Me, djdep, djres)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractBedSediment
             class(AbstractBedSediment) :: me                                 !! Self-reference
             real(dp) :: djdep(:)                                     !! deposition fluxes by size class [kg/m2]
@@ -111,7 +111,7 @@ module AbstractBedSedimentModule
         end function
 
         subroutine transferNMBedSediment(me, j_np_dep)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractBedSediment
             class(AbstractBedSediment) :: me
             real(dp) :: j_np_dep(:,:,:)
@@ -132,7 +132,7 @@ module AbstractBedSedimentModule
         !! **Function outputs/outcomes**                            <br>
         !! `r (real(dp))` returns water requirement from the water column [m3 m-2]
         function depositSediment(Me, FS_dep) result (r)
-            use Globals
+            use GlobalsModule
             use ResultModule, only: Result0D
             import AbstractBedSediment, FineSediment
             class(AbstractBedSediment) :: Me                                !! Self-reference
@@ -188,7 +188,7 @@ module AbstractBedSedimentModule
         !!
         !! ----------------------------------------------------------------------------------
         function resuspendSediment(Me, FS_resusp) result(r)
-            use Globals
+            use GlobalsModule
             import ResultFineSediment2D, AbstractBedSediment
             class(AbstractBedSediment) :: Me                                     !! Self-reference
             real(dp) :: FS_resusp(:)                                     !! Array of sediment masses to be resuspended [kg m-2]. Index = size class[1,...,S]

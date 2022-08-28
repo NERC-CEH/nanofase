@@ -1,3 +1,4 @@
+
 # Example Makefile for NanoFASE model. Usage:
 # 	`make`          Compile the Fortran source code with maximum debugging and minimal optimisations
 #	`make release`	Compile the Fortran source code with maximum optimisations and minimal debugging
@@ -15,7 +16,7 @@ RELEASE_FLAGS = -O3 -pg -g
 # Fast flags - use with caution. The -march flag might result in the compiled model only working on your computer
 FAST_FLAGS = -Ofast -march=native -mtune=native
 # Flags common to both builds
-COMMON_FLAGS = -ffpe-trap=zero,invalid,overflow,underflow -fcheck=all -fbackslash
+COMMON_FLAGS = -ffpe-trap=zero,invalid,overflow,underflow -fcheck=all
 # Default to debug flags
 FLAGS = ${DEBUG_FLAGS} ${COMMON_FLAGS}
 # Executable file name and path
@@ -46,18 +47,13 @@ OBJ = vendor/feh/src/ErrorInstance.o \
 	vendor/feh/src/ErrorCriteria.o \
 	vendor/mo_netcdf/src/mo_types.o \
 	vendor/mo_netcdf/src/mo_netcdf.o \
-	vendor/datetime-fortran/mod_timedelta.o \
-	vendor/datetime-fortran/mod_strftime.o \
-	vendor/datetime-fortran/mod_constants.o \
-	vendor/datetime-fortran/mod_datetime.o \
-	vendor/datetime-fortran/mod_clock.o \
-	vendor/datetime-fortran/datetime.o \
-	vendor/spoof/sparskit.o \
-	vendor/spoof/Spoof.o \
+	vendor/datetime-fortran/src/datetime_module.o \
+	vendor/spoof/src/sparskit.o \
+	vendor/spoof/src/Spoof.o \
 	src/mod_strptime.o \
 	src/VersionModule.o \
 	src/DefaultsModule.o \
-	src/Globals.o \
+	src/GlobalsModule.o \
 	src/UtilModule.o \
 	src/Logger/LoggerModule.o \
 	src/Data/DataInputModule.o \
@@ -97,8 +93,8 @@ OBJECTS = $(notdir $(OBJ))
 
 VPATH = vendor/feh/src \
 	vendor/mo_netcdf/src \
-	vendor/datetime-fortran/src/lib \
-	vendor/spoof \
+	vendor/datetime-fortran/src \
+	vendor/spoof/src \
 	src \
 	src/Data \
 	src/Logger \
@@ -116,7 +112,6 @@ VPATH = vendor/feh/src \
 MODEL_VERSION := $(shell sed -i "s/\".*\"/\"${GIT_RELEASE}\"/g" src/VersionModule.f90)
 
 $(EXEC_FILE): $(OBJECTS)
-	sed -i "s/\".*\"/\"${GIT_RELEASE}\"/g" src/VersionModule.f90
 	$(FC) $(FLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
 	echo $(COMP_META) > $(EXEC_PATH)comp_meta
 %.o: %.f90
@@ -133,5 +128,3 @@ debug:
 	gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 clean:
 	rm -f *.mod *.o *.stackdump Debug/*.* *.out
-
-

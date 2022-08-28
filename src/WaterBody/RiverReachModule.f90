@@ -1,6 +1,6 @@
 !> Module containing RiverReach type definition.
 module RiverReachModule
-    use Globals
+    use GlobalsModule
     use ReachModule
     use UtilModule
     use ResultModule

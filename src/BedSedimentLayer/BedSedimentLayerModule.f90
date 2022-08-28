@@ -1,6 +1,6 @@
 !> Module container for `BedSedimentLayer` class
 module BedSedimentLayerModule
-    use Globals
+    use GlobalsModule
     use UtilModule
     use ErrorInstanceModule
     use ResultModule, only: Result, Result0D

@@ -1,6 +1,6 @@
 !> Module containing definition of `SoilLayer` class.
 module SoilLayerModule
-    use Globals
+    use GlobalsModule
     use UtilModule
     use AbstractSoilLayerModule
     use DataInputModule, only: DATASET

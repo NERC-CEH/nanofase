@@ -1,5 +1,5 @@
 module NetCDFAggregatedOutputModule
-    use Globals, only: C, dp
+    use GlobalsModule, only: C, dp
     use UtilModule
     use mo_netcdf, only: NcDataset, NcVariable, NcDimension, nf90_fill_int, nf90_fill_double
     use DataInputModule, only: DATASET

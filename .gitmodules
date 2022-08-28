@@ -1,7 +1,6 @@
 [submodule "feh"]
     path = vendor/feh
     url = https://github.com/samharrison7/fortran-error-handler
-	branch = ifort16
 
 [submodule "mo_netcdf"]
     path = vendor/mo_netcdf
@@ -9,7 +8,7 @@
 
 [submodule "vendor/datetime-fortran"]
 	path = vendor/datetime-fortran
-	url = https://github.com/samharrison7/datetime-fortran
+	url = https://github.com/wavebitscientific/datetime-fortran
 [submodule "vendor/nanofase-data"]
 	path = vendor/nanofase-data
 	url = https://github.com/NERC-CEH/nanofase-data.git

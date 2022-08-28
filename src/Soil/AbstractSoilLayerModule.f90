@@ -1,6 +1,6 @@
 !> Module containing definition of abstract base class AbstractSoilLayer
 module AbstractSoilLayerModule
-    use Globals                                                     ! Global definitions and constants
+    use GlobalsModule                                                     ! Global definitions and constants
     use mo_netcdf                                                   ! NetCDF input/output
     use ResultModule, only: Result                                  ! Result object to pass errors
     use BiotaSoilModule
@@ -75,7 +75,7 @@ module AbstractSoilLayerModule
         !> Create this AbstractSoilLayer
         function createAbstractSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, &
             bulkDensity, d_grain, porosity, earthwormDensity) result(r)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             use ResultModule, only: Result
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me                  !! This AbstractSoilLayer instance
@@ -97,7 +97,7 @@ module AbstractSoilLayerModule
         !> Update the AbstractSoilLayer on a given timestep
         function updateAbstractSoilLayer(me, t, q_in, m_np_in, m_transformed_in, m_dissolved_in) result(r)
             use ResultModule, only: Result
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me                  !! This AbstractSoilLayer instance
             integer :: t                                    !! The current time step
@@ -112,7 +112,7 @@ module AbstractSoilLayerModule
         !! No percolation occurs as pooled water never really leaves the AbstractSoilLayer.
         function addPooledWaterAbstractSoilLayer(me, V_pool) result(r)
             use ResultModule, only: Result
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me                  !! This AbstractSoilLayer instance
             real(dp) :: V_pool                              !! Volume of pooled water to add, \( V_{\text{pool}} \) [m3/m2]
@@ -122,7 +122,7 @@ module AbstractSoilLayerModule
         !> Erode NM from this soil layer
         function erodeAbstractSoilLayer(me, erodedSediment, bulkDensity, area) result(r)
             use ResultModule, only: Result
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me
             real(dp) :: erodedSediment(:)
@@ -132,7 +132,7 @@ module AbstractSoilLayerModule
         end function
 
         function calculateBioturbationRateAbstractSoilLayer(me) result(bioturbationRate)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me
             real(dp) :: bioturbationRate
@@ -141,7 +141,7 @@ module AbstractSoilLayerModule
         !> Parse the data input for this AbstractSoilLayer
         function parseInputDataAbstractSoilLayer(me) result(r)
             use ResultModule, only: Result
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me                  !! This AbstractSoilLayer instance
             type(Result) :: r

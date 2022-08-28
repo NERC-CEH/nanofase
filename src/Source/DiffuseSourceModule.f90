@@ -1,5 +1,5 @@
 module DiffuseSourceModule
-    use Globals
+    use GlobalsModule
     use ResultModule
     use netcdf, only: nf90_fill_double
     use DataInputModule

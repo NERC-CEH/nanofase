@@ -1,5 +1,5 @@
 module AbstractReactorModule
-    use Globals
+    use GlobalsModule
     implicit none
     
     !> A `Reactor` objects deals with nanoparticle transformations
@@ -48,7 +48,7 @@ module AbstractReactorModule
         
         !> Run initialising procedures for the `AbstractReactor` object
         function createAbstractReactor(me, x, y, alpha_hetero) result(r)
-            use Globals
+            use GlobalsModule
             use ResultModule, only: Result
             import AbstractReactor
             class(AbstractReactor) :: me        !! This `AbstractReactor` object
@@ -70,7 +70,7 @@ module AbstractReactorModule
                                W_settle_spm, &
                                G, &
                                volume) result(r)
-            use Globals
+            use GlobalsModule
             use ResultModule, only: Result
             import AbstractReactor
             class(AbstractReactor) :: me                        !! This `AbstractReactor1` object
@@ -126,7 +126,7 @@ module AbstractReactorModule
         
         !> Calculate the collision rate of NPs to SPM
         function calculateCollisionRateAbstractReactor(me, T_water, G, W_settle_np, W_settle_spm) result(k_coll)
-            use Globals
+            use GlobalsModule
             use ResultModule, only: Result
             import AbstractReactor
             class(AbstractReactor)  :: me
@@ -139,7 +139,7 @@ module AbstractReactorModule
 
         !> Calculate a particle concentration from a mass concentration
         function calculateParticleConcentrationAbstractReactor(me, C_mass, rho_particle, d) result(C_particle)
-            use Globals
+            use GlobalsModule
             import AbstractReactor
             class(AbstractReactor) :: me
             real(dp) :: C_mass

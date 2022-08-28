@@ -1,6 +1,6 @@
 !> Module container for `AbstractBedSedimentLayer` abstract superclass
 module AbstractBedSedimentLayerModule
-    use Globals
+    use GlobalsModule
     use ResultModule, only: Result, Result0D                        ! error handling classes, required for
     use ErrorInstanceModule                                         ! generation of trace error messages
     use FineSedimentModule                                          ! USEs all subclasses of FineSediment
@@ -118,7 +118,7 @@ module AbstractBedSedimentLayerModule
         !! `H (FineSediment)` returns the sediment that was removed 
         function RemoveSedimentFromLayer(Me, S, G, H) result(r)
             use ResultModule, only: Result
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractBedSedimentLayer, FineSediment         
             class(AbstractBedSedimentLayer) :: Me                            !! The `AbstractBedSedimentLayer` instance
             integer, intent(in) :: S                                 !! The particle size class

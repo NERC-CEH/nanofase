@@ -2,7 +2,7 @@
 module DataOutputModule
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
         iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
-    use Globals, only: C, dp
+    use GlobalsModule, only: C, dp
     use DataInputModule, only: DATASET
     use LoggerModule, only: LOGR
     use AbstractEnvironmentModule

@@ -1,6 +1,6 @@
 !> Module container for abstract base class AbstractGridCell
 module AbstractGridCellModule
-    use Globals
+    use GlobalsModule
     use mo_netcdf
     use ResultModule
     use ReachModule
@@ -165,127 +165,127 @@ module AbstractGridCellModule
         end subroutine
 
         function get_Q_outflowAbstractGridCell(me) result(Q_outflow)
-            use Globals, only: dp    
+            use GlobalsModule, only: dp    
             use ResultModule, only: Result
             import AbstractGridCell
-            class(AbstractGridCell) :: me                   !! This grid cell
+            class(AbstractGridCell) :: me           !! This grid cell
             real(dp) :: Q_outflow                   !! Discharge to return
         end function
 
         function get_j_spm_outflowAbstractGridCell(me) result(j_spm_outflow)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me                               !! This grid cell
             real(dp)                :: j_spm_outflow(C%nSizeClassesSpm) !! SPM outflow to return
         end function
 
         function get_m_spmAbstractGridCell(me) result(m_spm)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: m_spm(C%nSizeClassesSpm)
         end function
 
         function get_j_spm_inflowAbstractGridCell(me) result(j_spm_inflow)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: j_spm_inflow(C%nSizeClassesSpm)
         end function
 
         function get_j_spm_soilErosionAbstractGridCell(me) result(j_spm_soilErosion)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: j_spm_soilErosion(C%nSizeClassesSpm)
         end function
 
         function get_j_spm_bankErosionAbstractGridCell(me) result(j_spm_bankErosion)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: j_spm_bankErosion(C%nSizeClassesSpm)
         end function
 
         function get_j_spm_depositionAbstractGridCell(me) result(j_spm_deposition)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: j_spm_deposition(C%nSizeClassesSpm)
         end function
 
         function get_j_spm_resuspensionAbstractGridCell(me) result(j_spm_resuspension)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: j_spm_resuspension(C%nSizeClassesSpm)
         end function
 
         function get_m_np_waterAbstractGridCell(me) result(m_np)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: m_np(:,:,:)
         end function
 
         function get_m_np_sedimentAbstractGridCell(me) result(m_np)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: m_np(:,:,:)
         end function
 
         function get_m_transformed_waterAbstractGridCell(me) result(m_transformed)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: m_transformed(:,:,:)
         end function
 
         function get_m_dissolved_waterAbstractGridCell(me) result(m_dissolved)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: m_dissolved
         end function
 
         function get_C_spmAbstractGridCell(me) result(C_spm)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: C_spm(:)
         end function
 
         function get_C_np_soilAbstractGridCell(me) result(C_np_soil)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: C_np_soil(:,:,:)
         end function
 
         function get_C_np_waterAbstractGridCell(me) result(C_np_water)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: C_np_water(:,:,:)
         end function
 
         function get_C_np_sedimentAbstractGridCell(me) result(C_np_sediment)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: C_np_sediment(:,:,:)
         end function
 
         function get_C_np_sediment_byVolumeAbstractGridCell(me) result(C_np_sediment)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: C_np_sediment(:,:,:)
         end function
 
         function get_C_np_sediment_lAbstractGridCell(me, l) result(C_np_sediment)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             integer                 :: l
@@ -293,7 +293,7 @@ module AbstractGridCellModule
         end function
 
         function get_C_np_sediment_l_byVolumeAbstractGridCell(me, l) result(C_np_sediment)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             integer                 :: l
@@ -301,112 +301,112 @@ module AbstractGridCellModule
         end function
 
         function get_C_transformed_waterAbstractGridCell(me) result(C_transformed_water)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: C_transformed_water(:,:,:)
         end function
 
         function get_C_dissolved_waterAbstractGridCell(me) result(C_dissolved_water)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: C_dissolved_water
         end function
 
         function get_m_np_buried_sedimentAbstractGridCell(me) result(m_np_buried)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: m_np_buried(:,:,:)
         end function
 
         function get_sediment_massAbstractGridCell(me) result(sediment_mass) 
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: sediment_mass
         end function
 
         function get_j_nm_depositionAbstractGridCell(me) result(j_nm_deposition)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: j_nm_deposition(:,:,:)
         end function
 
         function get_j_transformed_depositionAbstractGridCell(me) result(j_transformed_deposition)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: j_transformed_deposition(:,:,:)
         end function
 
         function get_j_nm_resuspensionAbstractGridCell(me) result(j_nm_resuspension)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: j_nm_resuspension(:,:,:)
         end function
 
         function get_j_transformed_resuspensionAbstractGridCell(me) result(j_transformed_resuspension)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: j_transformed_resuspension(:,:,:)
         end function
 
         function get_j_nm_outflowAbstractGridCell(me) result(j_nm_outflow)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: j_nm_outflow(:,:,:)
         end function
 
         function get_j_transformed_outflowAbstractGridCell(me) result(j_transformed_outflow)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp), allocatable   :: j_transformed_outflow(:,:,:)
         end function
 
         function get_j_dissolved_outflowAbstractGridCell(me) result(j_dissolved_outflow)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: j_dissolved_outflow
         end function
 
         function getTotalReachLengthAbstractGridCell(me) result(totalReachLength)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: totalReachLength
         end function
 
         function getWaterVolumeAbstractGridCell(me) result(waterVolume)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: waterVolume
         end function
 
         function getWaterDepthAbstractGridCell(me) result(waterDepth)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: waterDepth
         end function
 
         function getBedSedimentAreaAbstractGridCell(me) result(bedArea)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: bedArea
         end function
 
         function getBedSedimentMassAbstractGridCell(me) result(sedimentMass)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractGridCell
             class(AbstractGridCell) :: me
             real(dp)                :: sedimentMass

@@ -1,7 +1,7 @@
 !> Module containing definition of base class WaterBody, which provides the primitive
 !! functionality to all environmental compartments that are water bodies.
 module WaterBodyModule
-    use Globals
+    use GlobalsModule
     use PointSourceModule
     use DiffuseSourceModule
     use DataInputModule, only: DATASET

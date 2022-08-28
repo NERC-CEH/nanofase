@@ -1,6 +1,6 @@
 !> Module containing definition of abstract base class AbstractSoilProfile
 module AbstractSoilProfileModule
-    use Globals
+    use GlobalsModule
     use AbstractSoilLayerModule
     use ResultModule, only: Result
     implicit none
@@ -105,7 +105,7 @@ module AbstractSoilProfileModule
                                    area, &
                                    q_precip_timeSeries, &
                                    q_evap_timeSeries) result(r)
-            use Globals
+            use GlobalsModule
             use ResultModule
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me                    !! The `AbstractSoilProfile` instance.
@@ -122,7 +122,7 @@ module AbstractSoilProfileModule
         !> Perform the AbstractSoilProfile's simulation for one timestep
         function updateAbstractSoilProfile(me, t, j_np_diffuseSource, j_transformed_diffuseSource, &
                                            j_dissolved_diffuseSource) result(r)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             use ResultModule, only: Result
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me                                !! This AbstractSoilProfile instance
@@ -136,7 +136,7 @@ module AbstractSoilProfileModule
         !> Percolate water through the AbstractSoilProfile for the current time step
         function percolateAbstractSoilProfile(me, t, j_np_diffuseSource, j_transformed_diffuseSource, &
                                               j_dissolved_diffuseSource) result(r)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             use ResultModule, only: Result
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me                                !! This AbstractSoilProfile instance
@@ -166,7 +166,7 @@ module AbstractSoilProfileModule
         !> Impose a size class distribution on a total mass to split it up
         !! into separate size classes.
         function imposeSizeDistributionAbstractSoilProfile(me, mass) result(distribution)
-            use Globals, only: dp, C
+            use GlobalsModule, only: dp, C
             import AbstractSoilProfile
             class(AbstractSoilProfile)  :: me                               !! This `AbstractSoilProfile` instance
             real(dp)                    :: mass                             !! The mass to split into a distribution
@@ -174,7 +174,7 @@ module AbstractSoilProfileModule
         end function
 
         function calculateSizeDistributionAbstractSoilProfile(me, clay, silt, sand, enrichClay) result(ssd)
-            use Globals, only: C
+            use GlobalsModule, only: C
             import AbstractSoilProfile
             class(AbstractSoilProfile)  :: me                               !! This AbstractSoilProfile instance
             real                        :: clay, silt, sand                 !! Percentage clay, silt and sand
@@ -190,7 +190,7 @@ module AbstractSoilProfileModule
         end function
 
         function calculateClayEnrichmentAbstractSoilProfile(me, ssd, k_dist, a) result(ssdEnriched)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractSoilProfile
             class(AbstractSoilProfile)  :: me                               !! This AbstractSoilProfile instance
             real(dp)                    :: ssd(C%nSizeClassesSpm)           !! Original sediment size distribution
@@ -213,42 +213,42 @@ module AbstractSoilProfileModule
         end subroutine
 
         function get_m_np_AbstractSoilProfile(me) result(m_np)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
             real(dp), allocatable :: m_np(:,:,:)
         end function
 
         function get_m_transformed_AbstractSoilProfile(me) result(m_transformed)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
             real(dp), allocatable :: m_transformed(:,:,:)
         end function
 
         function get_m_dissolved_AbstractSoilProfile(me) result(m_dissolved)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
             real(dp) :: m_dissolved
         end function
 
         function get_C_np_AbstractSoilProfile(me) result(C_np)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
             real(dp), allocatable :: C_np(:,:,:)
         end function
 
         function get_C_transformed_AbstractSoilProfile(me) result(C_transformed)
-            use Globals, only: C, dp
+            use GlobalsModule, only: C, dp
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
             real(dp), allocatable :: C_transformed(:,:,:)
         end function
 
         function get_C_dissolved_AbstractSoilProfile(me) result(C_dissolved)
-            use Globals, only: dp
+            use GlobalsModule, only: dp
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
             real(dp) :: C_dissolved

@@ -4,6 +4,10 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ## [Unreleased]
 
+### Changed
+
+- ANSI escape character now uses `char(27)` instead of backslash escape sequences, so `-fbackslash` (GFortran) and `-assume bscc` (Intel) compiler options no longer needed.
+
 ## [0.0.4] - 2021-12-08
 
 ### Added

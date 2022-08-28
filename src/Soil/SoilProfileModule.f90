@@ -1,6 +1,6 @@
 !> Module containing the SoilProfile class definition
 module SoilProfileModule
-    use Globals
+    use GlobalsModule
     use UtilModule
     use mo_netcdf
     use netcdf, only: nf90_fill_real

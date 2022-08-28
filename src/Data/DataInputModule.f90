@@ -5,7 +5,7 @@
 module DataInputModule
     use mo_netcdf
     use DefaultsModule
-    use Globals
+    use GlobalsModule
     use ResultModule, only: Result
     use ErrorInstanceModule, only: ErrorInstance
     use LoggerModule, only: LOGR

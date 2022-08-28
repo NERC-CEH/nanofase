@@ -2,7 +2,7 @@ module CheckpointModule
     use AbstractEnvironmentModule, only: EnvironmentPointer
     use EnvironmentModule
     use DefaultsModule, only: iouCheckpoint
-    use Globals, only: dp, C, ERROR_HANDLER
+    use GlobalsModule, only: dp, C, ERROR_HANDLER
     use DataInputModule, only: DATASET
     use LoggerModule, only: LOGR
     use FlowModule

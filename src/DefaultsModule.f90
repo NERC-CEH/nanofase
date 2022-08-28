@@ -3,7 +3,7 @@
 module DefaultsModule
     implicit none
 
-    ! Double precision reals. Private for the moment as it's also in Globals
+    ! Double precision reals. Private for the moment as it's also in GlobalsModule
     integer, private, parameter :: dp = selected_real_kind(15, 307)
 
     ! Config file IO units
