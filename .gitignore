@@ -7,9 +7,11 @@ Makefile
 
 # Compilation directories and logs/cache
 bin/
-build/
-release/
-debug/
+*build/
+*release/
+*debug/
+Debug/
+Release/
 obj/
 log/
 cache/
@@ -71,12 +73,9 @@ gprof
 .vs/
 .vscode/
 .project
-Debug/
-Release/
 *.sln
 *.u2d
 *.vfproj*
-fort*
 *.fdz
 *.dmp
 

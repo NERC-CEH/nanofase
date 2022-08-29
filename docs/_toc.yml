@@ -4,6 +4,10 @@
 format: jb-book
 root: intro
 parts:
+  - caption: Getting Started
+    chapters:
+    - file: getting-started/building-the-model
+    - file: getting-started/running-the-model
   - caption: Users
     chapters:
     - file: users/example-workflows

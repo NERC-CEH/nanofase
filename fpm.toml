@@ -12,8 +12,9 @@ datetime.path = "vendor/datetime-fortran"
 mo_netcdf.path = "vendor/mo_netcdf"
 
 [[executable]]
-name = "nanofase"
+name = "main"
 source-dir = "src"
+main = "main.f90"
 
 [build]
 external-modules = "netcdf"

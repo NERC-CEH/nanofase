@@ -1,10 +1,7 @@
-
 # Example Makefile for NanoFASE model. Usage:
-# 	`make`          Compile the Fortran source code with maximum debugging and minimal optimisations
-#	`make release`	Compile the Fortran source code with maximum optimisations and minimal debugging
-# 	`make run`      Run this executable
-# 	`make profile`  Run with the profiler gprof
-# 	`make debug`    Run in debug mode with gdb. Make sure -g flag is present in DEBUGFLAGS
+# 	`make`          Compile the model with maximum debugging and minimal optimisations
+#	`make release`	Compile the model with -O3 optimisations
+# 	`make fast`		Compile the model with -Ofast optimisations
 #	`make clean`    Clean compilation files
 
 # What compiler to use? gfortran recommended
@@ -20,13 +17,10 @@ COMMON_FLAGS = -ffpe-trap=zero,invalid,overflow,underflow -fcheck=all
 # Default to debug flags
 FLAGS = ${DEBUG_FLAGS} ${COMMON_FLAGS}
 # Executable file name and path
-EXEC_FILE = main
-EXEC_PATH = ./bin/
+EXEC_FILE = nanofase
+BUILD_DIR = build
 # NetCDF config, assuming you have the nf-config utility installed
 NETCDF = `nf-config --fflags --flibs`
-# Config file name and path. Used when running `make run`.
-CONFIG_PATH = ./config.example/
-CONFIG_FILE = config.example.nml
 # The following variables generate a unique compilation metadata file to be placed in EXEC_PATH,
 # which includes the current Git commit, branch and compilation time
 GIT_HASH = `git rev-parse HEAD`
@@ -41,56 +35,59 @@ ifeq ($(AUTOPARALLEL), 1)
 	COMMON_FLAGS += -floop-parallelize-all -ftree-parallelize-loops=${N_THREADS}
 endif
 
-OBJ = vendor/feh/src/ErrorInstance.o \
-	vendor/feh/src/Result.o \
-	vendor/feh/src/ErrorHandler.o \
-	vendor/feh/src/ErrorCriteria.o \
-	vendor/mo_netcdf/src/mo_types.o \
-	vendor/mo_netcdf/src/mo_netcdf.o \
-	vendor/datetime-fortran/src/datetime_module.o \
-	vendor/spoof/src/sparskit.o \
-	vendor/spoof/src/Spoof.o \
-	src/mod_strptime.o \
-	src/VersionModule.o \
-	src/DefaultsModule.o \
-	src/GlobalsModule.o \
-	src/UtilModule.o \
-	src/Logger/LoggerModule.o \
-	src/Data/DataInputModule.o \
-	src/Biota/AbstractBiotaModule.o \
-	src/Biota/BiotaSoilModule.o \
-	src/Biota/BiotaWaterModule.o \
-	src/Reactor/AbstractReactorModule.o \
-	src/Reactor/ReactorModule.o \
-	src/BedSedimentLayer/FineSedimentModule.o \
-	src/BedSedimentLayer/AbstractBedSedimentLayerModule.o \
-	src/BedSedimentLayer/BedSedimentLayerModule.o \
-	src/BedSediment/AbstractBedSedimentModule.o \
-	src/BedSediment/BedSedimentModule.o \
-	src/Source/DiffuseSourceModule.o \
-	src/Source/PointSourceModule.o \
-	src/WaterBody/FlowModule.o \
-	src/WaterBody/WaterBodyModule.o \
-	src/WaterBody/ReachModule.o \
-	src/RiverReachModule.o \
-	src/EstuaryReachModule.o \
-	src/Soil/AbstractSoilLayerModule.o \
-	src/Soil/SoilLayerModule.o \
-	src/Soil/AbstractSoilProfileModule.o \
-	src/Soil/SoilProfileModule.o \
-	src/GridCell/CropModule.o \
-	src/GridCell/AbstractGridCellModule.o \
-	src/GridCell/GridCellModule.o \
-	src/Environment/AbstractEnvironmentModule.o \
-	src/Environment/EnvironmentModule.o \
-	src/Data/NetCDFOutputModule.o \
-	src/Data/NetCDFAggregatedOutputModule.o \
-	src/Data/DataOutputModule.o \
-	src/CheckpointModule.o \
-	src/main.o 
+# Objects to generate, in dependency order
+OBJECTS_ = ErrorInstance.o \
+	Result.o \
+	ErrorHandler.o \
+	ErrorCriteria.o \
+	mo_types.o \
+	mo_netcdf.o \
+	datetime_module.o \
+	sparskit.o \
+	Spoof.o \
+	mod_strptime.o \
+	VersionModule.o \
+	DefaultsModule.o \
+	GlobalsModule.o \
+	UtilModule.o \
+	LoggerModule.o \
+	DataInputModule.o \
+	AbstractBiotaModule.o \
+	BiotaSoilModule.o \
+	BiotaWaterModule.o \
+	AbstractReactorModule.o \
+	ReactorModule.o \
+	FineSedimentModule.o \
+	AbstractBedSedimentLayerModule.o \
+	BedSedimentLayerModule.o \
+	AbstractBedSedimentModule.o \
+	BedSedimentModule.o \
+	DiffuseSourceModule.o \
+	PointSourceModule.o \
+	FlowModule.o \
+	WaterBodyModule.o \
+	ReachModule.o \
+	RiverReachModule.o \
+	EstuaryReachModule.o \
+	AbstractSoilLayerModule.o \
+	SoilLayerModule.o \
+	AbstractSoilProfileModule.o \
+	SoilProfileModule.o \
+	CropModule.o \
+	AbstractGridCellModule.o \
+	GridCellModule.o \
+	AbstractEnvironmentModule.o \
+	EnvironmentModule.o \
+	NetCDFOutputModule.o \
+	NetCDFAggregatedOutputModule.o \
+	DataOutputModule.o \
+	CheckpointModule.o \
+	main.o 
 
-OBJECTS = $(notdir $(OBJ))
+# Add the build dir to each object name
+OBJECTS = $(addprefix build/, $(OBJECTS_))
 
+# Where to look for the source files
 VPATH = vendor/feh/src \
 	vendor/mo_netcdf/src \
 	vendor/datetime-fortran/src \
@@ -112,19 +109,13 @@ VPATH = vendor/feh/src \
 MODEL_VERSION := $(shell sed -i "s/\".*\"/\"${GIT_RELEASE}\"/g" src/VersionModule.f90)
 
 $(EXEC_FILE): $(OBJECTS)
-	$(FC) $(FLAGS) -o $(EXEC_PATH)$@ $^ $(NETCDF)
-	echo $(COMP_META) > $(EXEC_PATH)comp_meta
-%.o: %.f90
-	$(FC) -c $(FLAGS) $< $(NETCDF)
+	$(FC) $(FLAGS) -o $(BUILD_DIR)/$@ $^ $(NETCDF)
+	echo $(COMP_META) > $(BUILD_DIR)/comp_meta
+$(BUILD_DIR)/%.o: %.f90
+	$(FC) -c $< -o $@ -J$(BUILD_DIR) $(FLAGS) $(NETCDF)
 release: FLAGS = ${RELEASE_FLAGS} ${COMMON_FLAGS}
 release: $(EXEC_FILE)
 fast: FLAGS = ${FAST_FLAGS} ${COMMON_FLAGS}
 fast: $(EXEC_FILE)
-run:
-	$(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
-profile:
-	gprof $(EXEC_PATH)$(EXEC_FILE) gmon.out
-debug:
-	gdb --args $(EXEC_PATH)$(EXEC_FILE) $(CONFIG_PATH)$(CONFIG_FILE)
 clean:
-	rm -f *.mod *.o *.stackdump Debug/*.* *.out
+	rm -f $(BUILD_DIR)/*.mod $(BUILD_DIR)/*.o $(BUILD_DIR)/$(EXEC_FILE) $(BUILD_DIR)/comp_meta
