@@ -8,6 +8,7 @@ parts:
     chapters:
     - file: getting-started/building-the-model
     - file: getting-started/running-the-model
+    - file: getting-started/test-scenario
   - caption: Users
     chapters:
     - file: users/example-workflows

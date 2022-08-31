@@ -23,6 +23,7 @@ docs/_build
 config/
 snip/
 data/
+output/
 scratch/
 *.dat
 
