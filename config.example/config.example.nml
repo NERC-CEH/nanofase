@@ -1,3 +1,10 @@
+!! NanoFASE model example config file
+!! ----------------------------------
+!! This file provideds a full list of config options that can be provided to
+!! the NanoFASE model. When used as is (alongside the data stored at 
+!! data.example/thames_tio2_2015.nc), this runs the model for nano-TiO2
+!! in the Thames catchment in 2015.
+
 ! One of the quirks of Fortran namelist files is that you can't saved implicitly sized
 ! arrays to variables in Fortran code without knowing their length. The way around this
 ! is to specify the array lengths as separate variables in a group read in before the
@@ -10,6 +17,7 @@ n_spm_size_classes = 5                                  ! Number of SPM size cla
 n_fractional_compositions = 2                           ! Number of fractional compositions for sediment
 /
 
+! Control the config options specific to the NMs
 &nanomaterial
 nm_size_classes = 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ! Diameter of NM in each binned size class [m]
 n_nm_forms = 1                                          ! Number of NM forms (core, shell, coating, corona etc)
