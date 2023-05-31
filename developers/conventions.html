@@ -1,0 +1,626 @@
+
+
+<!DOCTYPE html>
+
+
+<html lang="en" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+    <title>Conventions &#8212; NanoFASE</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=e353d410970836974a52" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=e353d410970836974a52" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.1.2/css/all.min.css?digest=e353d410970836974a52" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.1.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" href="../_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=e353d410970836974a52" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52" />
+
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/clipboard.min.js"></script>
+    <script src="../_static/copybutton.js"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../_static/design-tabs.js"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"
+const thebe_selector = ".thebe,.cell"
+const thebe_selector_input = "pre"
+const thebe_selector_output = ".output, .cell_output"
+</script>
+    <script async="async" src="../_static/sphinx-thebe.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'developers/conventions';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Input/output units" href="io-units.html" />
+    <link rel="prev" title="Conceptual structure" href="../theory/conceptual-structure.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <nav class="bd-header navbar navbar-expand-lg bd-navbar">
+    </nav>
+  
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+  
+
+<a class="navbar-brand logo" href="../intro.html">
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/logo.png" class="logo__image only-light" alt="Logo image"/>
+    <script>document.write(`<img src="../_static/logo.png" class="logo__image only-dark" alt="Logo image"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../intro.html">
+                    The NanoFASE model
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/building-the-model.html">Building the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/running-the-model.html">Runing the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/test-scenario.html">Test scenario</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Users</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../users/example-workflows.html">Example workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users/output.html">Data output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users/temporal-period.html">Running the model for different temporal periods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users/batch.html">Batch runs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users/checkpointing.html">Checkpointing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users/jasmin.html">Running the model on JASMIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../users/speeding-up-model-runs.html">Speeding up model runs</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Theory</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../theory/intro.html">Model theory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../theory/conceptual-structure.html">Conceptual structure</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developers</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="io-units.html">Input/output units</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase/issues/new?title=Issue%20on%20page%20%2Fdevelopers/conventions.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/developers/conventions.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+<script>
+document.write(`
+  <button class="theme-switch-button btn btn-sm btn-outline-primary navbar-btn rounded-circle" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch" data-mode="light"><i class="fa-solid fa-sun"></i></span>
+    <span class="theme-switch" data-mode="dark"><i class="fa-solid fa-moon"></i></span>
+    <span class="theme-switch" data-mode="auto"><i class="fa-solid fa-circle-half-stroke"></i></span>
+  </button>
+`);
+</script>
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Conventions</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indentation-line-length-and-encoding">Indentation, line length and encoding</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#comment-tags-todo-hack-bug">Comment tags: TODO, HACK, BUG</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#naming-conventions">Naming conventions</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#loop-iterators">Loop iterators</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#getters-setters-initialisers-creators-and-calculators">Getters, setters, initialisers, creators and calculators</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-handling">Error Handling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#units">Units</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-conventions">Data conventions</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article" role="main">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="conventions">
+<h1>Conventions<a class="headerlink" href="#conventions" title="Permalink to this heading">#</a></h1>
+<p>List of code style, formatting and naming conventions to follow. Semantics based loosely on these style guides, as well as following some <a class="reference external" href="https://www.python.org/dev/peps/pep-0008/">Pythonic conventions</a>:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="http://www.fortran90.org/src/best-practices.html">fortran90.org: Fortran Best Practices</a></p></li>
+<li><p><a class="reference external" href="http://www.fortran.com/Fortran_Style.pdf">fortran.com: Fortran Style</a></p></li>
+</ul>
+<section id="indentation-line-length-and-encoding">
+<h2>Indentation, line length and encoding<a class="headerlink" href="#indentation-line-length-and-encoding" title="Permalink to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Use four spaces to indent. Most editors, such as Sublime Text and Atom, allow you to specify that the <kbd>TAB</kbd> key inserts spaces.</p></li>
+<li><p>Limit line length to 120 characters.</p></li>
+<li><p>Save Fortran files in UTF-8 encoding.</p></li>
+</ul>
+</section>
+<section id="comment-tags-todo-hack-bug">
+<h2>Comment tags: TODO, HACK, BUG<a class="headerlink" href="#comment-tags-todo-hack-bug" title="Permalink to this heading">#</a></h2>
+<p>Where possible, use the tags <code class="docutils literal notranslate"><span class="pre">TODO</span></code>, <code class="docutils literal notranslate"><span class="pre">HACK</span></code> and <code class="docutils literal notranslate"><span class="pre">BUG</span></code> in comments to indicate in the code where additional work is still required, where temporary fixes or additions have been made that should be replaced, or where there is a known bug in the code. <a class="reference external" href="https://en.wikipedia.org/wiki/Comment_%28computer_programming%29#Tags">See here</a>. Most IDEs allow searching for these tags.</p>
+</section>
+<section id="naming-conventions">
+<h2>Naming conventions<a class="headerlink" href="#naming-conventions" title="Permalink to this heading">#</a></h2>
+<p>Though Fortran is insensitive to case, it’s still important to follow some sort of naming convention to improve code readability.</p>
+<ul class="simple">
+<li><p>Use lowercase for all Fortran constructs (<code class="docutils literal notranslate"><span class="pre">do</span></code>, <code class="docutils literal notranslate"><span class="pre">subroutine</span></code>, <code class="docutils literal notranslate"><span class="pre">module</span></code>, etc).</p></li>
+<li><p>Follow the Java/C convention of using lowerCamelCase for variable and procedure names (<code class="docutils literal notranslate"><span class="pre">settlingVelocity</span></code>, <code class="docutils literal notranslate"><span class="pre">calculateSettlingVelocity</span></code>) and UpperCamelCase for module, class, interface and type name (<code class="docutils literal notranslate"><span class="pre">RiverReachModule</span></code>, <code class="docutils literal notranslate"><span class="pre">RiverReach</span></code>).</p></li>
+<li><p>The exception to this is that mathematical variables should follow LaTeX-like notation and utilising underscores and capatilisation accordingly. For example, <img alt="alpha" src="https://latex.codecogs.com/gif.latex?%5Calpha" /> should be named <code class="docutils literal notranslate"><span class="pre">alpha</span></code>, <img alt="Gamma" src="https://latex.codecogs.com/gif.latex?%5CGamma" /> should be named <code class="docutils literal notranslate"><span class="pre">Gamma</span></code> and <img alt="k_settle" src="https://latex.codecogs.com/gif.latex?k_%7B%5Ctext%7Bsettle%7D%7D" /> should be named <code class="docutils literal notranslate"><span class="pre">k_settle</span></code>.</p></li>
+<li><p>Constants and globally-available variables should be written in all capitals, e.g., <code class="docutils literal notranslate"><span class="pre">ERROR_HANDLER</span></code>. Again, the exception to this is for mathematical constants, which should follow the above rule. For example, gravitational acceleration from the Constants user-derived type should be obtained by <code class="docutils literal notranslate"><span class="pre">C%g</span></code>.</p></li>
+<li><p>Acronyms of three or more letters should use CamelCase instead of uppercase. For example, <code class="docutils literal notranslate"><span class="pre">nSizeClassesSpm</span></code>.</p></li>
+<li><p>Prepend integer variables that give a length or size with <code class="docutils literal notranslate"><span class="pre">n</span></code>. For example, number of RiverReaches in a SubRiver would be <code class="docutils literal notranslate"><span class="pre">nRiverReaches</span></code>, and the number of nanoparticle size class would be <code class="docutils literal notranslate"><span class="pre">nSizeClassesNM</span></code>.</p></li>
+<li><p>Be explicit as possible without being unduly verbose when choosing names. A variable or procedure name should describe the value or functionality without need for further documentation. For example, use <code class="docutils literal notranslate"><span class="pre">spmSizeClasses</span></code> instead of <code class="docutils literal notranslate"><span class="pre">spmSC</span></code> and <code class="docutils literal notranslate"><span class="pre">calculateSettlingVelocity</span></code> instead of <code class="docutils literal notranslate"><span class="pre">calW</span></code>. The exception is that mathematical formalae can use mathematical symbols (as detailed above) to improve the readability of algorithms (i.e., make them resemble their mathematically-notated counterparts). For example, <img alt="E = mc^2" src="https://latex.codecogs.com/gif.latex?E=mc%5E2" /> could be coded <code class="docutils literal notranslate"><span class="pre">E</span> <span class="pre">=</span> <span class="pre">m*c**2</span></code>.</p></li>
+<li><p>Array variable names should be plural when they represent a collection of scalars. For example, a 1D array <code class="docutils literal notranslate"><span class="pre">densities</span></code> could represent an array of densities for different objects.</p></li>
+<li><p>The name of logical variables or functions that return logical variables should usually be prepended with “is” or “has” as they are usually used to perform a check, often inside an <code class="docutils literal notranslate"><span class="pre">if</span></code> construct. This promotes code readability. For example, <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(gridCell%isEmpty())</span></code>.</p></li>
+<li><p>Time series data should be stored in a variable appended with <code class="docutils literal notranslate"><span class="pre">_timeSeries</span></code>. E.g. <code class="docutils literal notranslate"><span class="pre">Q_runoff_timeSeries</span></code>.</p></li>
+</ul>
+<section id="loop-iterators">
+<h3>Loop iterators<a class="headerlink" href="#loop-iterators" title="Permalink to this heading">#</a></h3>
+<ul class="simple">
+<li><p>Loop iterators should be a single character, e.g., <code class="docutils literal notranslate"><span class="pre">i</span></code>, <code class="docutils literal notranslate"><span class="pre">j</span></code> or <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+<li><p>The character used depends on what is being looped through. <em>Note, this convention isn’t being followed rigorously at the moment.</em></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">s</span></code> for SPM size classes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">n</span></code> for NM size classes.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">l</span></code> for layers, e.g., collections of <code class="docutils literal notranslate"><span class="pre">SoilLayer</span></code> or <code class="docutils literal notranslate"><span class="pre">BedSedimentLayer</span></code> objects.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">r</span></code> for collections of reaches, e.g., <code class="docutils literal notranslate"><span class="pre">EstuaryReach</span></code> or <code class="docutils literal notranslate"><span class="pre">RiverReach</span></code> objects.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">x</span></code> and <code class="docutils literal notranslate"><span class="pre">y</span></code> for looping over <code class="docutils literal notranslate"><span class="pre">GridCell</span></code>s, in <em>x</em> and <em>y</em> directions, respectively.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">i</span></code>, <code class="docutils literal notranslate"><span class="pre">j</span></code> and <code class="docutils literal notranslate"><span class="pre">k</span></code> for everything else. <code class="docutils literal notranslate"><span class="pre">i</span></code> should be used preferentially and <code class="docutils literal notranslate"><span class="pre">j</span></code> and <code class="docutils literal notranslate"><span class="pre">k</span></code> only if nested within an <code class="docutils literal notranslate"><span class="pre">i</span></code> loop.</p></li>
+</ul>
+</li>
+</ul>
+</section>
+<section id="getters-setters-initialisers-creators-and-calculators">
+<h3>Getters, setters, initialisers, creators and calculators<a class="headerlink" href="#getters-setters-initialisers-creators-and-calculators" title="Permalink to this heading">#</a></h3>
+<p>Procedure names should distinguish between the types of operations they perform by the use of the keywords “get”, “set”, “create”, “calculate” and “parse”:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">create()</span></code>: A class can have a create procedure that, if represent, must be called before anything else. It performs calculations and runs operation (e.g., gets data from a file) and populates the instance’s type variables.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">updateSomething()</span></code>: Update methods are primarily for updating the instance’s type variables at each time step. This might include performing some calculations or simulations.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">getSomething()</span></code>: Return a type variable (“something”) or a simple modification of a class variable. For example, a RiverReach might have <code class="docutils literal notranslate"><span class="pre">getWidth()</span></code> to return a pre-calculated width. If the variable in question is named by a mathematical symbol (e.g. <code class="docutils literal notranslate"><span class="pre">alpha_het</span></code>), an underscore can be used to avoid capitalising the first letter of the variable name (<code class="docutils literal notranslate"><span class="pre">get_alpha_het</span></code> instead of <code class="docutils literal notranslate"><span class="pre">getAlpha_het</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">setSomething(something)</span></code>: Set a type variable (“something”).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">parseSomething()</span></code>: Used for reading data and manipulating to another form for us. For example, <code class="docutils literal notranslate"><span class="pre">parseInputData()</span></code> should be used to read from data input file and store data in model variables.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">calculateSomething(args)</span></code>: Calculate functions should be <em>pure</em> functions that take input arguments, perform some calculation with them, and return an output. They shouldn’t modify any variable except the input arguments and result variable. A calculate function is the analogy to a mathematical function, and might be called from within <code class="docutils literal notranslate"><span class="pre">create</span></code> and <code class="docutils literal notranslate"><span class="pre">update</span></code> procedures to set up and update object variables (though the calculate functions themselves shouldn’t alter the object variables). Error handling should be used sparingly in calculate functions (see Error Handling section).</p></li>
+</ul>
+</section>
+</section>
+<section id="error-handling">
+<h2>Error Handling<a class="headerlink" href="#error-handling" title="Permalink to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Care must be taken not to duplicate error checking and thus slow down code unnecessarily.</p>
+<ul>
+<li><p>In general, check for errors as far up the call stack as possible. This will catch errors earlier, reduce the risk of errors crashing the code and, if the error-containing datum is passed to multiple procedures, avoid having to check in multiple places for the same error:</p>
+<ul>
+<li><p>For input data, <code class="docutils literal notranslate"><span class="pre">parseInputData()</span></code> procedures should, where possible, perform error checking. The exception is if the datum in question has the potential to be erroneous for one purpose but non-erroneous for another.</p></li>
+<li><p>Calculate functions (<code class="docutils literal notranslate"><span class="pre">calculateSomething(args)</span></code>) should only check for an error when these errors can not be picked up further up the stack. These functions are likely to be called the most throughout the model run and errors arising from bad input data should have been picked up previously. Thus, to limit computational demands, only check for errors when the error couldn’t have been checked for before the function was called (e.g., from bad input data). An example of when error checking can be used in calculate functions is when performing numerical calculations; it is difficult to tell whether certain input data will cause instabilities in numerical calculations, thus it is only practicable to do this error checking during the numerical calculation itself.</p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>Error messages and traces are likely to be read by the end user of the model, rather than the programmer (as programming errors are likely to be weeded out during development). Bear this in mind when writing these messages; technical information about where in the code the error ocurred is likely to be less useful than general descriptions of what the model was doing and what input data might have caused the error. For example, “Value for heteroaggregation attachment efficiency, alpha_hetero, not found in input file. Trace: Creating GridCell at (1,1) &gt; Creating RiverReach 1 &gt; Parsing input data” is more useful then “Value for alpha_hetero not found. Trace: GridCell_1_1%RiverReach_1_1_1%parseInputData”.</p></li>
+<li><p>Let errors propagate as far up the call stack as possible before triggering them, to give users as complete a trace as possible as to where the error if from. The <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(r%hasError())</span></code> check and <code class="docutils literal notranslate"><span class="pre">return</span></code> construct can be used to this effect, to avoid code being run that the error will cause to crash.</p></li>
+</ul>
+</section>
+<section id="units">
+<h2>Units<a class="headerlink" href="#units" title="Permalink to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Where possible, input and output data should use SI units.</p></li>
+<li><p>Internal data should also, for the most part, use SI units. The exception is for flux/flow data (e.g. water flows, SPM/NM mass flows): In these cases, the unit of time should be the duration of the timestep. For example, m<sup>3</sup>/timestep and kg/timestep should be used for water flows and SPM/NM mass flows, respectively.</p></li>
+<li><p>If a variable is normalised to a unit length from an area or volume (e.g. rainfall as m/s = m<sup>3</sup>/m<sup>2</sup>/s, as opposed to m<sup>3</sup>/s), the corresponding variable name should be lowercase. Otherwise, it should be capitalised. For example, <code class="docutils literal notranslate"><span class="pre">q_runoff</span></code> for runoff in m/s, <code class="docutils literal notranslate"><span class="pre">Q_in</span></code> for river inflow in m<sup>3</sup>/s.</p></li>
+</ul>
+</section>
+<section id="data-conventions">
+<h2>Data conventions<a class="headerlink" href="#data-conventions" title="Permalink to this heading">#</a></h2>
+<ul class="simple">
+<li><p>Where possible, input and output data should use SI units.</p></li>
+<li><p>In contrast to the Fortran code naming conventions above, input data variable names should use snake_case, in line with common practice for data files. End users are likely to be more accustomed to snake_case rather than lowerCamelCase. Group names, which represent objects in the model, should still use UpperCamelCase.</p></li>
+<li><p>External variable names (those use in input/output data files) should map to internal variable names (those used in the model), aside for the change of case conventions (e.g. <code class="docutils literal notranslate"><span class="pre">n_timesteps</span></code> to <code class="docutils literal notranslate"><span class="pre">nTimesteps</span></code>). The exception to this is if a mathematical symbol is being used to store the data internally and that symbol would be unintuitive out of context (though, if this is the case, it might be worth checking the internal variable name itself it appropriate).</p></li>
+</ul>
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./developers"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+                <footer class="bd-footer-article">
+                  
+<div class="footer-article-items footer-article__inner">
+  
+    <div class="footer-article-item"><!-- Previous / next buttons -->
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../theory/conceptual-structure.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Conceptual structure</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="io-units.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Input/output units</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div></div>
+  
+</div>
+
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indentation-line-length-and-encoding">Indentation, line length and encoding</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#comment-tags-todo-hack-bug">Comment tags: TODO, HACK, BUG</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#naming-conventions">Naming conventions</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#loop-iterators">Loop iterators</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#getters-setters-initialisers-creators-and-calculators">Getters, setters, initialisers, creators and calculators</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#error-handling">Error Handling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#units">Units</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-conventions">Data conventions</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sam Harrison
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  <p class="copyright">
+    
+      © Copyright 2022.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=e353d410970836974a52"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=e353d410970836974a52"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
