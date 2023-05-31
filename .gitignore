@@ -17,7 +17,6 @@ log/
 cache/
 dll/
 x64/
-docs/_build
 
 # Config, directory for personal code snippets and data files
 config/
@@ -84,3 +83,5 @@ gprof
 ~$*.docx
 *.csv#
 
+# Docs
+docs/_build/
