@@ -1,0 +1,4 @@
+# Fpm options to build the release version of the model
+options build
+options --profile release
+options --flag "-O3 -fallow-argument-mismatch"

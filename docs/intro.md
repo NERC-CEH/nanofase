@@ -1,6 +1,6 @@
 # The NanoFASE model
 
-Multimedia spatiotemporal environmental fate and exposure model for engineered nanomaterials. The model predicts concentrations of nanomaterials with spatial (~kms) and temporal (~days) resolution in soils, surface waters and sediments, at the catchment scale and larger. See the [project website](http://nanofase.eu/) for information about the EU Horizon 2020 project that led to the development of this model.
+The NanoFASE model is a multimedia spatiotemporal environmental fate and exposure model for engineered nanomaterials. The model predicts concentrations of nanomaterials with spatial (~kms) and temporal (~days) resolution in soils, surface waters and sediments, at the catchment scale and larger. See the [project website](http://nanofase.eu/) for information about the EU Horizon 2020 project that led to the development of this model.
 
 :::{caution}
 *Currently in active development*
@@ -8,19 +8,23 @@ Multimedia spatiotemporal environmental fate and exposure model for engineered n
 
 ## Quickstart guide
 
-Clone the code (make sure to `--recurse-submodules`), make sure you have a recent version of GFortran, CMake and NetCDF Fortran installed, and build using CMake. From the model root directory:
+The easiest way to install the project is to use the [Fortran Package Manager](https://fpm.fortran-lang.org/en/install/index.html#install), which can be installed using Conda (`conda install -c conda-forge fpm`). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see [](./getting-started/building-the-model.md)).
+
+Clone the code (make sure to `--recurse-submodules`) and use *fpm* to install:
 
 ```shell
-$ mkdir build && cd build
-$ cmake .. -DCMAKE_BUILD_TYPE=Release
-$ make
+$ git clone git@github.com:NERC-CEH/nanofase.git --recurse-submodules
+$ cd nanofase
+$ fpm @install
 ```
 
-Test the model with the [test scenario](getting-started/test-scenario.md):
+Use the `--prefix <path-to-installation-dir>` flag to install the model into a directory of your choice, e.g. `fpm @install --prefix <path-to-installation-dir>`.
+
+Test the model with the [test scenario](getting-started/test-scenario.md). Presuming the install directory is on your `$PATH`:
 
 ```shell
-$ cd .. && mkdir log output
-$ build/nanofase config.example/test-scenario.nml
+$ mkdir log output
+$ nanofase config.example/test-scenario.nml
 ```
 
 Take a look at the NetCDF output file using your software of choice. For example, using Python's `xarray` to plot the pristine NM concentration in rivers at the end of the model run (2015-01-11):

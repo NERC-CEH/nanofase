@@ -1,0 +1,4 @@
+# Fpm options to build the debug version of the model
+options build
+options --profile debug
+options --flag "-Og -pg -Wall -fallow-argument-mismatch"

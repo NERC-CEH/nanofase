@@ -386,6 +386,7 @@ module NetCDFOutputModule
         class(NetCDFOutput) :: me           !! This NetCDFOutput class
         type(datetime)      :: simDatetime  ! Datetime that the simulation we performed
         type(NcVariable)    :: var          ! NetCDF variable
+        integer             :: i            ! Loop iterator
         integer             :: t(C%nTimestepsInBatch)   ! Time record dimension
         integer             :: waterbodyType(DATASET%gridShape(1), DATASET%gridShape(2))    ! Waterbody type
 

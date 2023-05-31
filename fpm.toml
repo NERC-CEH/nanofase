@@ -3,19 +3,16 @@ version = "0.0.4"
 license = "BSD-3-Clause"
 author = "Sam Harrison"
 maintainer = "sharrison@ceh.ac.uk"
-copyright = "Copyright 2022, UKCEH"
+copyright = "Copyright 2023, UKCEH"
 
 [dependencies]
-feh.path = "vendor/feh"
-spoof.path = "vendor/spoof"
+feh.git = "https://github.com/samharrison7/fortran-error-handler"
+spoof.git = "https://github.com/samharrison7/spoof"
 datetime.path = "vendor/datetime-fortran"
 mo_netcdf.path = "vendor/mo_netcdf"
 
 [[executable]]
-name = "main"
+name = "nanofase"
 source-dir = "src"
 main = "main.f90"
 
-[build]
-external-modules = "netcdf"
-link = ["netcdf", "netcdff"]

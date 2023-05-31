@@ -34,7 +34,7 @@ module ReachModule
         integer                 :: branch = 0                           !! Which branch is this reach on in the GridCell? 0 = not processed yet
         integer                 :: streamOrder = 0                      !! Stream order of this reach [-]
         ! Physical properties
-        real(dp)                :: slope                                !! Slope of reach [m/m]
+        real(dp)                :: slope                                !! Slope of the reach [m/m]
         real(dp)                :: width                                !! Width of the reach [m]
         real(dp)                :: xsArea                               !! The cross-sectional area of water in the reach [m2]
         real(dp)                :: f_m                                  !! Meandering factor used for calculating river volume [-]
@@ -298,7 +298,7 @@ module ReachModule
     !> Compute the resuspension rate [s-1] for a time step
     !! Reference: [Lazar et al., 2010](http://www.sciencedirect.com/science/article/pii/S0048969710001749?via%3Dihub)
     subroutine setResuspensionRateReach(me, Q, T_water_t)
-        class(Reach)   :: me                            !! This `Reach` instance
+        class(Reach)    :: me                           !! This `Reach` instance
         real(dp)        :: Q                            !! Flow rate to set resuspension rate based on [m/s]
         real            :: T_water_t                    !! Water temperature on this timestep [deg C]
         real(dp)        :: d_max                        ! Maximum resuspendable particle size [m]

@@ -1,0 +1,4 @@
+# Fpm options to install the model
+options install
+options --profile release
+options --flag "-O3 -fallow-argument-mismatch"
