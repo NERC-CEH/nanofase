@@ -1,0 +1,29 @@
+[library.Nanofase]
+language = "fortran"
+library = "nanofase"
+header = ""
+entry_point = "BmiNanofase"
+
+[build]
+undef_macros = []
+define_macros = []
+libraries = []
+library_dirs = []
+include_dirs = []
+extra_compile_args = []
+
+[package]
+name = "nanofasepy"
+requirements = []
+
+[info]
+github_username = "samharrison7"
+package_author = "Sam Harrison"
+package_author_email = "samharrison.xg@gmail.com"
+package_license = "BSD License"
+summary = ""
+
+[ci]
+python_version = ["3.9"]
+os = ["linux", "mac", "windows"]
+

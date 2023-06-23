@@ -20,7 +20,6 @@ x64/
 
 # Config, directory for personal code snippets and data files
 config/
-snip/
 data/
 output/
 scratch/

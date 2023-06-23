@@ -2,6 +2,8 @@
 
 🏗️ *This model is under active development. Use at your own risk!* 🏗️
 
+[📖 Read the model documentation 📖](https://nerc-ceh.github.io/nanofase/intro.html)
+
 Multimedia spatiotemporal environmental fate and exposure model for engineered nanomaterials. See the [project website](http://nanofase.eu/) for information about the EU Horizon 2020 project that led to the development of this model.
 
 ## Getting the code

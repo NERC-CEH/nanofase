@@ -8,6 +8,7 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 - ANSI escape character now uses `char(27)` instead of backslash escape sequences, so `-fbackslash` (GFortran) and `-assume bscc` (Intel) compiler options no longer needed.
 - ⚠️ The example config files now save output data to `output`, instead of `data/output`.
+- The default config file path of `config/config.nml` has been removed. A config file path *must* be provided either through the command line parameters, or if programmatically controlling the model, by passing the path to the `GLOBALS_INIT` function.
 
 ## [0.0.4] - 2021-12-08
 

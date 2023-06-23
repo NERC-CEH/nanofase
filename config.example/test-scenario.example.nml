@@ -68,6 +68,7 @@ simulation_mask = ""                                    ! Path to simulation mas
 &checkpoint
 checkpoint_file = "./checkpoint.dat"                    ! Location of checkpoint file to read from and/or save to
 save_checkpoint = .false.                               ! Save a checkpoint file when the run is finished? Defaults to false
+save_checkpoint_after_warm_up = .false.                 ! Save a checkpoint file after the warm-up is complete? Defaults to false
 reinstate_checkpoint = .false.                          ! Reinstate a checkpoint from checkpoint_file? Defaults to false
 preserve_timestep = .false.                             ! Should the timestep from the checkpoint be used as a starting timestep in a reinstated run?
 /

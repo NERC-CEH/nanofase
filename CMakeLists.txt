@@ -5,7 +5,7 @@ enable_language(Fortran)
 
 # GFortran compiler
 if (CMAKE_Fortran_COMPILER_ID MATCHES GNU)
-    set(common_flags "-fcheck=all -ffpe-trap=zero,invalid,overflow,underflow")
+    set(common_flags "-fcheck=all -ffpe-trap=zero,invalid,overflow,underflow -fallow-argument-mismatch")
     set(debug_flags "-Wall -Og -g -pg ${common_flags}")
     set(release_flags "-Ofast -march=native -mtune=native ${common_flags}")
 endif()

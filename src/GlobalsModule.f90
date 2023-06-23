@@ -21,7 +21,7 @@ module GlobalsModule
 
     type, public :: GlobalsType
         ! Get model version from the version module (which our build script should modify)
-        character(len=16)   :: modelVersion = MODEL_VERSION
+        character(len=17)   :: modelVersion = MODEL_VERSION
 
         ! Data input
         character(len=256)  :: inputFile
@@ -145,11 +145,12 @@ module GlobalsModule
   contains
 
     !> Initialise global variables, such as `ERROR_HANDLER`
-    subroutine GLOBALS_INIT()
+    subroutine GLOBALS_INIT(configFilePath)
+        character(len=*), optional :: configFilePath        !! Config file path
         integer :: n, i                                     ! Iterators
         integer :: nmlIOStat                                ! IO status for namelist reading
         type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
-        character(len=256) :: configFilePath, batchRunFilePath
+        character(len=256) ::  configFilePathArg, batchRunFilePath
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
         character(len=256) :: input_file, constants_file, output_path, log_file_path, start_date, &
@@ -238,16 +239,23 @@ module GlobalsModule
         include_soil_erosion = configDefaults%includeSoilErosion                ! True
 
         ! Has a path to the config path been provided as a command line argument?
-        call get_command_argument(1, configFilePath, configFilePathLength)
+        call get_command_argument(1, configFilePathArg, configFilePathLength)
         call get_command_argument(2, batchRunFilePath, batchRunFilePathLength)
 
-        ! Open the config file, or try and find one at config/config.nml if it can't be found 
+        ! Open the config file from the command line argument or pass parameter
         if (configFilePathLength > 0) then
+            open(iouConfig, file=trim(configFilePathArg), status="old")
+            C%configFilePath = configFilePathArg
+        else if (present(configFilePath)) then
             open(iouConfig, file=trim(configFilePath), status="old")
             C%configFilePath = configFilePath
         else
-            open(iouConfig, file="config/config.nml", status="old")
-            C%configFilePath = "config/config.nml"
+            ! Error out if we haven't been given a config file. We can't use
+            ! the error handler here because it hasn't been initialised yet,
+            ! and initialisation depends on config options, so we simply
+            ! use an error stop instead
+            print *, "No model config file provided."
+            error stop
         end if
 
         ! If this is a batch run, then open the batch run config file and store the data from it

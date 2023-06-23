@@ -10,9 +10,17 @@ feh.git = "https://github.com/samharrison7/fortran-error-handler"
 spoof.git = "https://github.com/samharrison7/spoof"
 datetime.path = "vendor/datetime-fortran"
 mo_netcdf.path = "vendor/mo_netcdf"
+bmif = { git = "https://github.com/samharrison7/bmi-fortran", branch="fpm-support" }
+
+[build]
+auto-executables = false
 
 [[executable]]
 name = "nanofase"
 source-dir = "src"
 main = "main.f90"
 
+[[executable]]
+name = "bmi_nanofase"
+source-dir = "src"
+main = "bmi_main.f90"

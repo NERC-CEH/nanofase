@@ -3,7 +3,7 @@
 The NanoFASE model is a multimedia spatiotemporal environmental fate and exposure model for engineered nanomaterials. The model predicts concentrations of nanomaterials with spatial (~kms) and temporal (~days) resolution in soils, surface waters and sediments, at the catchment scale and larger. See the [project website](http://nanofase.eu/) for information about the EU Horizon 2020 project that led to the development of this model.
 
 :::{caution}
-*Currently in active development*
+🏗️ Currently under active development. Use at your own risk! 🏗️
 :::
 
 ## Quickstart guide
