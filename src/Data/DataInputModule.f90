@@ -331,6 +331,7 @@ module DataInputModule
         C%constantsFile = C%batchConstantFiles(k)
         C%nTimeSteps = C%batchNTimesteps(k)
         C%startDate = C%batchStartDates(k)
+        C%endDate = C%startDate + timedelta(C%nTimeSteps - 1)
 
         ! Read in the new constants file
         call me%parseConstants(C%constantsFile)

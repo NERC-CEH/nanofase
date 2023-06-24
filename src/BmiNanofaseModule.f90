@@ -19,6 +19,8 @@ module BmiNanofaseModule
         type(DataOutput)    :: output           !! Data output from the model
         type(Checkpoint)    :: checkpt          !! Object dealing with checkpointing
         integer             :: t = 1            !! Current model timestep index
+        double precision    :: start_datenum    !! Model start date as seconds since 0 CE
+        double precision    :: end_datenum      !! Model end date as seconds since 0 CE
 
       contains
         ! Initialize, run, finalize (IRF)
@@ -151,20 +153,28 @@ module BmiNanofaseModule
             end if
         end if
 
+        ! Turn the model start and end dates into reals
+        this%start_datenum = date2num(C%startDate)
+        this%end_datenum = date2num(C%endDate)
+
         ! If we got this far without errors, the init must have been successful
-        bmi_status = 0
+        bmi_status = BMI_SUCCESS
     end function
 
-    ! Advance the model one time step. For the moment, the BMI is only
-    ! capable of controlling "standard" model runs that aren't batch runs
-    ! and aren't to steady state. The BMI user is responsible for
-    ! implementing batch and steady state runs. This might change.
+    !> Advance the model one time step. For the moment, the BMI is only
+    !! capable of controlling "standard" model runs that aren't batch runs
+    !! and aren't to steady state. The BMI user is responsible for
+    !! implementing batch and steady state runs. This might change.
     function update(this) result(bmi_status)
-        class(BmiNanofase), intent(inout) :: this
-        integer :: bmi_status
+        class(BmiNanofase), intent(inout) :: this   !! This instance
+        integer :: bmi_status                       !! BMI return status
 
-        ! TODO do we want to check this we haven't gone beyond
-        ! the limit of model timesteps?
+        ! Make sure we haven't gone beyond the number of timesteps
+        ! available in the model data
+        if (this%t > C%nTimeSteps) then
+            bmi_status = BMI_FAILURE
+            return
+        end if
         
         ! Update the environment for this timestep
         call this%env%update(t=this%t, &
@@ -175,15 +185,34 @@ module BmiNanofaseModule
         this%t = this%t + 1
 
         ! If we got this far, the update must have been successful
-        bmi_status = 0
-    end function update
+        bmi_status = BMI_SUCCESS
+    end function
 
-    ! Advance the model until the given time.
+    !> Advance the model until the given time.
     function update_until(this, time) result(bmi_status)
-      class(BmiNanofase), intent(inout) :: this
-      double precision, intent(in) :: time
-      integer :: bmi_status
-    end function update_until
+        class(BmiNanofase), intent(inout)   :: this         !! This instance
+        double precision, intent(in)        :: time         !! The time to update until is seconds since 0 CE
+        integer                             :: bmi_status   !! BMI return status
+        type(datetime)                      :: dtime        ! Datetime representation of `time`
+        type(timedelta)                     :: delta        ! Timedelta between `time` and model start time
+        integer                             :: t            ! Integer timestep representation of `time`
+
+        ! Convert the time from seconds since 0 CE to model timestep index
+        dtime = num2date(time)
+        delta = dtime - C%startDate
+        t = delta%total_seconds() / C%timeStep + 1
+
+        ! Check the timestep index is available in the model
+        if (t < 1 .or. t > C%nTimeSteps) then
+            bmi_status = BMI_FAILURE
+            return
+        end if
+
+        print *, delta%total_seconds()
+        print *, time, dtime%getDay(), t
+
+        bmi_status = BMI_SUCCESS
+    end function
 
     ! Perform teardown tasks for the model.
     function finalize(this) result(bmi_status)
@@ -275,12 +304,15 @@ module BmiNanofaseModule
       integer :: bmi_status
     end function get_var_location
 
-    ! Current time of the model.
+    !> Current time of the model
     function get_current_time(this, time) result(bmi_status)
-      class(BmiNanofase), intent(in) :: this
-      double precision, intent(out) :: time
-      integer :: bmi_status
-    end function get_current_time
+        class(BmiNanofase), intent(in) :: this
+        double precision, intent(out) :: time
+        integer :: bmi_status
+
+        ! Convert the timestep index to the time since epoch
+
+    end function
 
     ! Start time of the model.
     function get_start_time(this, time) result(bmi_status)

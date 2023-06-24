@@ -51,6 +51,7 @@ module GlobalsModule
         logical             :: writeToLog                       !! Should a log file be used?
         character(len=256)  :: configFilePath                   !! Config file path
         type(datetime)      :: startDate                        !! Datetime object representing the start date
+        type(datetime)      :: endDate                          !! Datetime object representing the end date
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
@@ -349,6 +350,7 @@ module GlobalsModule
         C%epsilon = epsilon
         startDateStr = start_date
         C%startDate = f_strptime(startDateStr)
+        C%endDate = C%startDate + timedelta(C%nTimeSteps - 1)
         C%triggerWarnings = trigger_warnings
         if (.not. trim(simulation_mask) == "") then
             C%hasSimulationMask = .true.
@@ -404,7 +406,7 @@ module GlobalsModule
         else
             C%nTimestepsInBatch = C%nTimesteps
             C%batchStartDate = C%startDate
-            C%batchEndDate = C%startDate + timedelta(C%nTimeSteps - 1)
+            C%batchEndDate = C%endDate
             allocate(C%batchNTimesteps(1))
             C%batchNTimesteps(1) = C%nTimeSteps
         end if
