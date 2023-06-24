@@ -465,7 +465,7 @@ module DataOutputModule
     end subroutine
 
     !> Tell the NetCDF output class that we're at the end of a chunk, so that
-    !! it write to the NetCDF file if in write-at-end mode
+    !! it writes to the NetCDF file if in write-at-end mode
     subroutine finaliseChunkDataOutput(me, tStart, isFinalChunk)
         class(DataOutput)  :: me               !! This DataOutput instance
         integer             :: tStart           !! Timestep index at the start of this chunk

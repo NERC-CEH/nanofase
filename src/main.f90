@@ -120,9 +120,6 @@ program main
             do t = 1, C%nTimeSteps
                 ! Update the environment for this timestep, which in turn updates all compartments
                 call env%update(t, t + tPreviousChunk, .false.)
-                ! Check for any errors returned from updated, and log/trigger them
-                call LOGR%toFile(errors=.errors.rslt)
-                call ERROR_HANDLER%trigger(errors=.errors.rslt)
                 ! Update the output files. Passing the "correct" timestep, taking into account previous
                 ! chunks, is important otherwise timestep indices will be incorrect in the data
                 call output%update(t + tPreviousChunk, t)
