@@ -7,6 +7,7 @@ program bmi_main
     type(BmiNanofase)   :: bminf
     integer             :: status
     character(len=256)  :: config_file_path
+    character(len=256), pointer :: model_name
     
     ! Get the path to the config file
     call get_command_argument(1, config_file_path)    

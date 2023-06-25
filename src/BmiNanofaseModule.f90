@@ -95,6 +95,8 @@ module BmiNanofaseModule
         procedure :: get_grid_nodes_per_face => get_grid_nodes_per_face
     end type BmiNanofase
 
+    character(len=BMI_MAX_COMPONENT_NAME), target :: component_name = "FASE"
+
   contains
 
     !> Perform startup tasks for the model, including running the
@@ -114,6 +116,9 @@ module BmiNanofaseModule
             logFilePath=C%logFilePath, &
             fileUnit=iouLog &
         )
+
+        ! Print the welcome
+        call printWelcome()
 
         ! Load the input data
         call DATASET%init(C%inputFile, C%constantsFile)
@@ -243,11 +248,13 @@ module BmiNanofaseModule
         bmi_status = BMI_SUCCESS
     end function finalize
 
-    ! Get the name of the model.
+    !> Get the name of the model
     function get_component_name(this, name) result(bmi_status)
         class(BmiNanofase), intent(in) :: this
         character(len=*), pointer, intent(out) :: name
         integer :: bmi_status
+        name => component_name
+        bmi_status = BMI_SUCCESS
     end function get_component_name
 
     ! Count a model's input variables.
