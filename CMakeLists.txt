@@ -30,6 +30,7 @@ set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${release_flags}")
 
 # Sources to compile - everything except those matching the regex
 file(GLOB_RECURSE sources src/*.f90 vendor/*.f90)
+list(FILTER sources EXCLUDE REGEX ".*src/bmi_main.f90")
 list(FILTER sources EXCLUDE REGEX ".*vendor/feh/example/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/feh/tests/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/datetime-fortran/tests/.*f90$")
@@ -48,3 +49,8 @@ file(WRITE "src/VersionModule.f90" ${version_file_new})
 add_executable(nanofase ${sources})
 target_include_directories(nanofase PUBLIC "${NETCDF_INCLUDES}")
 target_link_libraries(nanofase PRIVATE "${NETCDF_LIBRARIES_F90}")
+
+# Create a library for the BMI
+add_library(bminanofase SHARED src/BmiNanofaseModule.f90)
+target_include_directories(bminanofase PUBLIC "${NETCDF_INCLUDES}")
+target_link_libraries(bminanofase PRIVATE "${NETCDF_LIBRARIES_F90}")

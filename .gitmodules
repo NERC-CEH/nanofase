@@ -15,3 +15,6 @@
 [submodule "vendor/spoof"]
 	path = vendor/spoof
 	url = https://github.com/samharrison7/spoof.git
+[submodule "vendor/bmi-fortran"]
+	path = vendor/bmi-fortran
+	url = git@github.com:csdms/bmi-fortran.git
