@@ -24,9 +24,10 @@ if(NOT DEFINED NETCDF_INCLUDES)
     find_package(NetCDF REQUIRED)
 endif()
 
-# Set debug and release flags
+# Set flags and the mod directory
 set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_flags}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${release_flags}")
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/include)
 
 # Sources to compile - everything except those matching the regex
 file(GLOB_RECURSE sources src/*.f90 vendor/*.f90)
@@ -47,10 +48,18 @@ file(WRITE "src/VersionModule.f90" ${version_file_new})
 
 # Compile to executable and link to NetCDF
 add_executable(nanofase ${sources})
+add_library(fase ${sources})
 target_include_directories(nanofase PUBLIC "${NETCDF_INCLUDES}")
+target_include_directories(fase PUBLIC "${NETCDF_INCLUDES}")
 target_link_libraries(nanofase PRIVATE "${NETCDF_LIBRARIES_F90}")
+target_link_libraries(fase PRIVATE "${NETCDF_LIBRARIES_F90}")
 
 # Create a library for the BMI
-add_library(bminanofase SHARED src/BmiNanofaseModule.f90)
-target_include_directories(bminanofase PUBLIC "${NETCDF_INCLUDES}")
-target_link_libraries(bminanofase PRIVATE "${NETCDF_LIBRARIES_F90}")
+add_library(bminanofasemodule SHARED src/BmiNanofaseModule.f90)
+target_include_directories(bminanofasemodule PUBLIC "${NETCDF_INCLUDES}")
+target_link_libraries(bminanofasemodule PUBLIC fase PRIVATE "${NETCDF_LIBRARIES_F90}")
+
+# Add target to install
+install(TARGETS nanofase)
+install(TARGETS bminanofasemodule)
+install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY} DESTINATION . FILES_MATCHING PATTERN "*.mod")

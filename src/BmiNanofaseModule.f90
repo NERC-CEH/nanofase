@@ -15,12 +15,12 @@ module BmiNanofaseModule
     implicit none
 
     type, extends(bmi) :: BmiNanofase
-        type(Environment)   :: env              !! Object representing the environment
-        type(DataOutput)    :: output           !! Data output from the model
-        type(Checkpoint)    :: checkpt          !! Object dealing with checkpointing
-        integer             :: t = 1            !! Current model timestep index
-        double precision    :: start_datenum    !! Model start date as seconds since 0 CE
-        double precision    :: end_datenum      !! Model end date as seconds since 0 CE
+        type(Environment), public   :: env              !! Object representing the environment
+        type(DataOutput), public    :: output           !! Data output from the model
+        type(Checkpoint), public    :: checkpt          !! Object dealing with checkpointing
+        integer, public             :: t = 1            !! Current model timestep index
+        double precision, public    :: start_datenum    !! Model start date as seconds since 0 CE
+        double precision, public    :: end_datenum      !! Model end date as seconds since 0 CE
 
       contains
         ! Initialize, run, finalize (IRF)
@@ -62,6 +62,20 @@ module BmiNanofaseModule
         procedure :: get_value_at_indices_float => get_value_at_indices_float
         procedure :: get_value_at_indices_double => get_value_at_indices_double
 
+        ! Generics for getters
+        generic :: get_value => &
+            get_value_int, &
+            get_value_float, &
+            get_value_double
+        generic :: get_value_ptr => &
+            get_value_ptr_int, &
+            get_value_ptr_float, &
+            get_value_ptr_double
+        generic :: get_value_at_indices => &
+            get_value_at_indices_int, &
+            get_value_at_indices_float, &
+            get_value_at_indices_double
+
         ! Setters, by type
         procedure :: set_value_int => set_value_int
         procedure :: set_value_float => set_value_float
@@ -70,6 +84,16 @@ module BmiNanofaseModule
         procedure :: set_value_at_indices_float => set_value_at_indices_float
         procedure :: set_value_at_indices_double => set_value_at_indices_double
 
+        ! Generics for setters
+        generic :: set_value => &
+            set_value_int, &
+            set_value_float, &
+            set_value_double
+        generic :: set_value_at_indices => &
+            set_value_at_indices_int, &
+            set_value_at_indices_float, &
+            set_value_at_indices_double
+            
         ! Grid information
         procedure :: get_grid_rank => get_grid_rank
         procedure :: get_grid_size => get_grid_size
