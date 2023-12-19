@@ -4,7 +4,7 @@
 
 [submodule "mo_netcdf"]
     path = vendor/mo_netcdf
-    url = https://github.com/schaefed/mo_netcdf
+    url = https://github.com/samharrison7/mo_netcdf
 
 [submodule "vendor/datetime-fortran"]
 	path = vendor/datetime-fortran
