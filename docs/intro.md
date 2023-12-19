@@ -8,7 +8,7 @@ The NanoFASE model is a multimedia spatiotemporal environmental fate and exposur
 
 ## Quickstart guide
 
-The easiest way to install the project is to use the [Fortran Package Manager](https://fpm.fortran-lang.org/en/install/index.html#install), which can be installed using Conda (`conda install -c conda-forge fpm`). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see [](./getting-started/building-the-model.md)).
+The easiest way to install the model is to use the [Fortran Package Manager](https://fpm.fortran-lang.org/en/install/index.html#install), which can be installed using Conda (`conda install -c conda-forge fpm`). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see [](./getting-started/building-the-model.md)).
 
 Clone the code (make sure to `--recurse-submodules`) and use *fpm* to install:
 
@@ -25,6 +25,15 @@ Test the model with the [test scenario](getting-started/test-scenario.md). Presu
 ```shell
 $ mkdir log output
 $ nanofase config.example/test-scenario.nml
+```
+
+Or you can use fpm to run the model, without needing to install it first (i.e. omitting the `fpm @install` step above):
+
+```shell
+# Debug version
+$ fpm @run -- config.example/test-scenario.nml
+# Release version with optimisations turned on
+$ fpm @release -- config.example/test-scenario.nml
 ```
 
 Take a look at the NetCDF output file using your software of choice. For example, using Python's `xarray` to plot the pristine NM concentration in rivers at the end of the model run (2015-01-11):

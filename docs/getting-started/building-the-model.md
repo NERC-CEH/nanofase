@@ -25,9 +25,25 @@ If you forget the `--recurse-submodule` flag, then run the following from the re
 $ git submodule update --init --recursive
 ```
 
+## Using fpm (Fortran Package Manager)
+
+The easiest way to build the model is use [fpm](https://fpm.fortran-lang.org/) (Fortran Package Manger). You can install this easily using Conda (`conda install -c conda-forge fpm`). To build the model without installing:
+
+```sh
+$ fpm @build
+```
+
+The model binary will be placed in a subdirectory of the `build` folder. The `fpm @run` command can be used to run this executable (see [](./running-the-model)). Alternatively, you can install the model:
+
+```sh
+$ fpm @install
+```
+
+Optionally, you can provide an install directory using `--prefix <path-to-installation-dir>`, otherwise the model will install to a default location for your system (e.g. `/home/<user>/.local` on Linux)
+
 ## Using CMake
 
-The easiest way to build the model is using CMake:
+The model can also be built using CMake:
 
 ```sh
 $ mkdir build && cd build
