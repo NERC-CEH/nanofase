@@ -411,9 +411,16 @@ document.write(`
 <p><em>Work in progress.</em></p>
 <section id="running">
 <h2>Running<a class="headerlink" href="#running" title="Permalink to this heading">#</a></h2>
-<p>The model requires a config file to run. Examples are given in the <a class="reference external" href="https://github.com/NERC-CEH/nanofase/tree/develop/config.example">config.example</a> directory. The examples are commented and should be relatively self-explanatory. Copy one of these to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Then pass this config file as the first argument when calling the model executable. For example:</p>
+<p>The model requires a config file to run. Examples are given in the <a class="reference external" href="https://github.com/NERC-CEH/nanofase/tree/develop/config.example">config.example</a> directory. The examples are commented and should be relatively self-explanatory. Copy one of these to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Then pass this config file as the first argument when calling the model executable. For example, if you have installed the model to somewhere on your path:</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>mkdir<span class="w"> </span>config<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>cp<span class="w"> </span>config.example/config.example.nml<span class="w"> </span>config/my_config.nml
-$<span class="w"> </span>build/nanofase<span class="w"> </span>config/my_config.nml<span class="w"> </span>
+$<span class="w"> </span>nanofase<span class="w"> </span>config/my_config.nml<span class="w"> </span>
+</pre></div>
+</div>
+<p>Or if you wish to run via fpm without installing:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1"># Debug version</span>
+$<span class="w"> </span>fpm<span class="w"> </span>@run<span class="w"> </span>--<span class="w"> </span>config/my_config.nml
+<span class="c1"># Release version with optimisations</span>
+$<span class="w"> </span>fpm<span class="w"> </span>@release<span class="w"> </span>--<span class="w"> </span>config/my_config.nml
 </pre></div>
 </div>
 <section id="input-data">

@@ -389,6 +389,7 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-the-code">Getting the code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-fpm-fortran-package-manager">Using fpm (Fortran Package Manager)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-cmake">Using CMake</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-make">Using Make</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other-build-options">Other build options</a></li>
@@ -427,9 +428,21 @@ $<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>nanof
 </pre></div>
 </div>
 </section>
+<section id="using-fpm-fortran-package-manager">
+<h2>Using fpm (Fortran Package Manager)<a class="headerlink" href="#using-fpm-fortran-package-manager" title="Permalink to this heading">#</a></h2>
+<p>The easiest way to build the model is use <a class="reference external" href="https://fpm.fortran-lang.org/">fpm</a> (Fortran Package Manger). You can install this easily using Conda (<code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">-c</span> <span class="pre">conda-forge</span> <span class="pre">fpm</span></code>). To build the model without installing:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>fpm<span class="w"> </span>@build
+</pre></div>
+</div>
+<p>The model binary will be placed in a subdirectory of the <code class="docutils literal notranslate"><span class="pre">build</span></code> folder. The <code class="docutils literal notranslate"><span class="pre">fpm</span> <span class="pre">&#64;run</span></code> command can be used to run this executable (see <a class="reference internal" href="running-the-model.html"><span class="doc std std-doc">Runing the model</span></a>). Alternatively, you can install the model:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>fpm<span class="w"> </span>@install
+</pre></div>
+</div>
+<p>Optionally, you can provide an install directory using <code class="docutils literal notranslate"><span class="pre">--prefix</span> <span class="pre">&lt;path-to-installation-dir&gt;</span></code>, otherwise the model will install to a default location for your system (e.g. <code class="docutils literal notranslate"><span class="pre">/home/&lt;user&gt;/.local</span></code> on Linux)</p>
+</section>
 <section id="using-cmake">
 <h2>Using CMake<a class="headerlink" href="#using-cmake" title="Permalink to this heading">#</a></h2>
-<p>The easiest way to build the model is using CMake:</p>
+<p>The model can also be built using CMake:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
 $<span class="w"> </span>cmake<span class="w"> </span>..
 $<span class="w"> </span>make
@@ -523,6 +536,7 @@ $<span class="w"> </span>make
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-the-code">Getting the code</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-fpm-fortran-package-manager">Using fpm (Fortran Package Manager)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-cmake">Using CMake</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-make">Using Make</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other-build-options">Other build options</a></li>

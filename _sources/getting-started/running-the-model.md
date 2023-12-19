@@ -4,11 +4,20 @@
 
 ## Running
 
-The model requires a config file to run. Examples are given in the [config.example](https://github.com/NERC-CEH/nanofase/tree/develop/config.example) directory. The examples are commented and should be relatively self-explanatory. Copy one of these to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Then pass this config file as the first argument when calling the model executable. For example:
+The model requires a config file to run. Examples are given in the [config.example](https://github.com/NERC-CEH/nanofase/tree/develop/config.example) directory. The examples are commented and should be relatively self-explanatory. Copy one of these to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Then pass this config file as the first argument when calling the model executable. For example, if you have installed the model to somewhere on your path:
 
 ```shell
 $ mkdir config && cp config.example/config.example.nml config/my_config.nml
-$ build/nanofase config/my_config.nml 
+$ nanofase config/my_config.nml 
+```
+
+Or if you wish to run via fpm without installing:
+
+```shell
+# Debug version
+$ fpm @run -- config/my_config.nml
+# Release version with optimisations
+$ fpm @release -- config/my_config.nml
 ```
 
 ### Input data
