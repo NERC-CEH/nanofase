@@ -24,16 +24,16 @@ Test the model with the [test scenario](getting-started/test-scenario.md). Presu
 
 ```shell
 $ mkdir log output
-$ nanofase config.example/test-scenario.nml
+$ nanofase config.example/test-scenario.example.nml
 ```
 
 Or you can use fpm to run the model, without needing to install it first (i.e. omitting the `fpm @install` step above):
 
 ```shell
 # Debug version
-$ fpm @run -- config.example/test-scenario.nml
+$ fpm @run -- config.example/test-scenario.example.nml
 # Release version with optimisations turned on
-$ fpm @release -- config.example/test-scenario.nml
+$ fpm @release -- config.example/test-scenario.example.nml
 ```
 
 Take a look at the NetCDF output file using your software of choice. For example, using Python's `xarray` to plot the pristine NM concentration in rivers at the end of the model run (2015-01-11):
