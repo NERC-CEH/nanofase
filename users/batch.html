@@ -408,17 +408,16 @@ document.write(`
   <section class="tex2jax_ignore mathjax_ignore" id="batch-runs">
 <h1>Batch runs<a class="headerlink" href="#batch-runs" title="Permalink to this heading">#</a></h1>
 <p>The model allows for multiple simulations (“chunks”) to be chained together, such that the final temporal state of one model simulation provides the initial temporal state of the next. The main advantage of this is when wanting to run the model over long temporal periods: The model stores all input data in memory, and so long runs may use a significant amount of memory (depending on your geographical setup). Batching runs together means that only the input data for the current chunk is stored in memory at any time.</p>
-<p>In addition to the normal config file (which for batch runs provides config options for the entire batch run), batch runs need a batch config namelist file, which specifies the location of the input data and temporal information of each chunk within the batch run. An example is given at <a class="reference download internal" download="" href="../_downloads/34c6e1b22154b6293396c169196d279a/batch_config.example.nml"><span class="xref download myst">config.example/batch_config.example.nml</span></a></p>
+<p>In addition to the normal config file (which for batch runs provides config options for the entire batch run), batch runs need a batch config namelist file, which specifies the location of the input data and temporal information of each chunk within the batch run. An example is given at <a class="reference external" href="https://github.com/NERC-CEH/nanofase/blob/develop/config.example/batch_config.example.nml">config.example/batch_config.example.nml</a></p>
 <section id="running-a-batch-simulation">
 <h2>Running a batch simulation<a class="headerlink" href="#running-a-batch-simulation" title="Permalink to this heading">#</a></h2>
 <p>The model will run in batch mode if a batch config file is passed as the second command line argument, after the normal config file:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>./bin/main<span class="w"> </span>/path/to/normal/config.nml<span class="w"> </span>/path/to/batch_config.nml
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>nanofase<span class="w"> </span>/path/to/normal/config.nml<span class="w"> </span>/path/to/batch_config.nml
 </pre></div>
 </div>
-<p>where <code class="docutils literal notranslate"><span class="pre">./bin/main</span></code> is the path to the model executable.</p>
 <section id="initial-normal-config-file">
 <h3>Initial (normal) config file<a class="headerlink" href="#initial-normal-config-file" title="Permalink to this heading">#</a></h3>
-<p>The initial config file is just the same as a <a class="reference download internal" download="" href="../_downloads/6316d035efad1368d2a95e314a4eeb91/config.example.nml"><span class="xref download myst">normal model config file</span></a>. Most of the config options are used for the entire batch run, with the exception of the input and constants data paths, start date and number of timesteps.</p>
+<p>The initial config file is just the same as a <a class="reference external" href="https://github.com/NERC-CEH/nanofase/blob/develop/config.example/config.example.nml">normal model config file</a>. Most of the config options are used for the entire batch run, with the exception of the input and constants data paths, start date and number of timesteps.</p>
 </section>
 <section id="batch-config-file">
 <h3>Batch config file<a class="headerlink" href="#batch-config-file" title="Permalink to this heading">#</a></h3>
