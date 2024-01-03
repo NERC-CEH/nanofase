@@ -1,0 +1,25 @@
+package:
+  name: nanofase
+  version: {{ GIT_DESCRIBE_TAG }}
+
+source:
+  path: ..
+
+build:
+  script: fpm @install --prefix=${PREFIX}
+
+requirements:
+  build:
+    - gcc
+    - gfortran
+    - gxx
+    - netcdf-fortran
+    - fpm
+  run:
+    - libgcc
+    - libgfortran
+    - netcdf-fortran
+
+about:
+  home: https://nerc-ceh.github.io/nanofase
+  license: BSD 3 Clause

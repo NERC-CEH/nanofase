@@ -1,4 +1,5 @@
 # Fpm options to install the model
+system echo "module VersionModule\nimplicit none; character(len=17), parameter :: MODEL_VERSION = \"`git describe --tags`\"\nend module" > src/VersionModule.f90
 options install
 options --profile release
 options --flag "-O3 -fallow-argument-mismatch"
