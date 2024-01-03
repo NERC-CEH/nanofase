@@ -18,6 +18,10 @@ $ cd nanofase
 $ fpm @install
 ```
 
+```{note}
+If you are using Windows PowerShell, the character "@" is a special character and must be escaped by a backtick (grave character): `fpm \`@install`
+``` 
+
 Use the `--prefix <path-to-installation-dir>` flag to install the model into a directory of your choice, e.g. `fpm @install --prefix <path-to-installation-dir>`.
 
 Test the model with the [test scenario](getting-started/test-scenario.md). Presuming the install directory is on your `$PATH`:

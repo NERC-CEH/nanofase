@@ -1,3 +1,4 @@
+
 # Building the model
 
 Before running the model, it needs to be compiled into an executable file. There are a number of ways to do this, but all require the following to be installed:
@@ -32,6 +33,11 @@ The easiest way to build the model is use [fpm](https://fpm.fortran-lang.org/) (
 ```sh
 $ fpm @build
 ```
+
+```{note}
+If you are using Windows PowerShell, the "@" character is a special character and must be escaped using a backtick: `fpm \`@build`.
+```
+
 
 The model binary will be placed in a subdirectory of the `build` folder. The `fpm @run` command can be used to run this executable (see [](./running-the-model)). Alternatively, you can install the model:
 

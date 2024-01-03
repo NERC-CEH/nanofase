@@ -416,6 +416,10 @@ $<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>nanof
 $<span class="w"> </span>fpm<span class="w"> </span>@install
 </pre></div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you are using Windows PowerShell, the character “&#64;” is a special character and must be escaped by a backtick (grave character): <code class="docutils literal notranslate"><span class="pre">fpm</span> <span class="pre">\</span></code>&#64;install`</p>
+</div>
 <p>Use the <code class="docutils literal notranslate"><span class="pre">--prefix</span> <span class="pre">&lt;path-to-installation-dir&gt;</span></code> flag to install the model into a directory of your choice, e.g. <code class="docutils literal notranslate"><span class="pre">fpm</span> <span class="pre">&#64;install</span> <span class="pre">--prefix</span> <span class="pre">&lt;path-to-installation-dir&gt;</span></code>.</p>
 <p>Test the model with the <a class="reference internal" href="getting-started/test-scenario.html"><span class="doc std std-doc">test scenario</span></a>. Presuming the install directory is on your <code class="docutils literal notranslate"><span class="pre">$PATH</span></code>:</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>mkdir<span class="w"> </span>log<span class="w"> </span>output

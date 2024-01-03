@@ -434,6 +434,10 @@ $<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>nanof
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>fpm<span class="w"> </span>@build
 </pre></div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If you are using Windows PowerShell, the “&#64;” character is a special character and must be escaped using a backtick: <code class="docutils literal notranslate"><span class="pre">fpm</span> <span class="pre">\</span></code>&#64;build`.</p>
+</div>
 <p>The model binary will be placed in a subdirectory of the <code class="docutils literal notranslate"><span class="pre">build</span></code> folder. The <code class="docutils literal notranslate"><span class="pre">fpm</span> <span class="pre">&#64;run</span></code> command can be used to run this executable (see <a class="reference internal" href="running-the-model.html"><span class="doc std std-doc">Runing the model</span></a>). Alternatively, you can install the model:</p>
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>fpm<span class="w"> </span>@install
 </pre></div>
