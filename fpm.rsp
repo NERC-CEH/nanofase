@@ -1,0 +1,23 @@
+# Build the model for debugging
+@debug
+options build
+options --profile debug
+options --flag "-Og -pg -Wall -fallow-argument-mismatch"
+
+# Build the model for release
+@release
+options build
+options --profile release
+options --flag "-O3 -fallow-argument-mismatch"
+
+# Run the debug model build
+@run
+options run
+options --profile debug
+options --flag "-Og -pg -Wall -fallow-argument-mismatch"
+
+# Install the release model build
+@install
+options install
+options --profile release
+options --flag "-O3 -fallow-argument-mismatch"

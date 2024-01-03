@@ -81,6 +81,7 @@ gprof
 
 # Temp files
 ~$*.docx
+*~
 *.csv#
 
 # Docs
