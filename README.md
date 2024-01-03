@@ -21,7 +21,7 @@ $ git submodule update --init --recursive
 
 ## Compiling
 
-The model code is regularly compiled using the latest version of GFortran (9.2.1 at the time of writing), and periodically using ifort 18. We recommend using GFortran and one of the following build procedures to avoid complications. The only dependency is NetCDF, which must be installed prior to building (see the Dependencies section below).
+We recommend compiling using GFortran version 10 or higher. The only dependency is NetCDF, which must be installed prior to building (see the Dependencies section below).
 
 ### Using `make`
 
