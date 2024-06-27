@@ -112,18 +112,18 @@ module GridCellModule
                     me%y, &
                     1, &
                     me%n_river, &
-                    me%area, &
-                    me%q_precip_timeSeries, &
-                    me%q_evap_timeSeries &
+                    me%area, 
+                    me%q_precip_timeseries, &
+                    me%q_evap_timeseries &
                 ) &
             )
-            allocate(me%colSoilProfiles(1)%item, source=soilProfile)
-            allocate(me%distributionSediment, source=me%colSoilProfiles(1)%item%distributionSediment)
+            allocate(me%colsoilprofiles(1)%item, source=soilprofile)
+            allocate(me%distributionsediment, source=me%colsoilprofiles(1)%item%distributionsediment)
 
-            ! Only proceed if there are no critical errors (which might be caused by parseInputData())
-            if (.not. rslt%hasCriticalError()) then
-                ! Add RiverReaches to the GridCell (if any are present in the data file)
-                call rslt%addErrors(.errors. me%createReaches())
+            ! only proceed if there are no critical errors (which might be caused by parseinputdata())
+            if (.not. rslt%hascriticalerror()) then
+                ! add riverreaches to the gridcell (if any are present in the data file)
+                call rslt%adderrors(.errors. me%createreaches())
             end if
         end if
 

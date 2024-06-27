@@ -1,0 +1,7 @@
+{bdg-dark-line}`group` Name(dimensions),Specified in,Data type,Required or optional,Model units,Description
+{bdg-dark-line}`sediment` `porosity`,{bdg-secondary}`constants.nml` {bdg-danger}`constants.yaml` ,float,Required,\-,Average sediment porosity
+{bdg-dark-line}`sediment` `initial_mass(spm)`,{bdg-secondary}`constants.nml` {bdg-danger}`constants.yaml` ,float,Required,kg/m<sup>2</sup>,The mass of each sediment size class at the start of the model run.
+{bdg-dark-line}`sediment` `fractional_composition_distribution(fc)`,{bdg-secondary}`constants.nml` {bdg-danger}`constants.yaml` ,float,Required,\-,"The default distribution of sediment mass across fractional compositions, as a percentage."
+{bdg-dark-line}`sediment` `default_spm_size_distribution(spm)`,{bdg-secondary}`constants.nml` {bdg-danger}`constants.yaml` ,float,Required,\-,"The default size distribution applied to sediment particles, as a percentage, when there is no other information, such as from soil erosion yields."
+{bdg-dark-line}`sediment` `default_matrixembedded_distribution_to_spm(spm)`,{bdg-secondary}`constants.nml` {bdg-danger}`constants.yaml` ,float,Required,\-,The default size distribution that is used to proportion matrix-embedded releases of NM to sediment size classes.
+{bdg-dark-line}`sediment` `spm_density_by_size_class(spm)`,{bdg-secondary}`constants.nml` {bdg-danger}`constants.yaml` ,float,Required,kg/m<sup>3</sup>,The density of the sediment in each size class.

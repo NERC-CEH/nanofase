@@ -11,8 +11,13 @@ parts:
     - file: getting-started/test-scenario
   - caption: Users
     chapters:
-    - file: users/example-workflows
+    - file: users/input-data
+      sections:
+        - file: users/nanofase-data
+        - file: users/netcdf-namelist-input
+        - file: users/parameter-reference
     - file: users/output
+    - file: users/example-workflows
     - file: users/temporal-period
     - file: users/batch
     - file: users/checkpointing
@@ -27,3 +32,6 @@ parts:
     chapters:
     - file: developers/conventions
     - file: developers/io-units
+  - caption: Reference
+    chapters:
+    - file: references

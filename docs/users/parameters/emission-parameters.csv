@@ -1,0 +1,25 @@
+Name(dimensions),Specified in,Data type,Required or optional,Model units,Description
+"`emissions_areal_water_pristine(y, x)`<br>
+`emissions_areal_water_transformed(y, x)`<br>
+`emissions_areal_water_matrixembedded(y, x)`<br>
+`emissions_areal_water_dissolved(y, x)`",{bdg-primary}`data.nc` {bdg-success}`config.yaml`          ,float,"Optional, defaults to 0",kg/m<sup>2</sup>/dt,"Diffuse source emissions of pristine, transformed or matrix-embedded NM to waters."
+"`emissions_areal_soil_pristine(y, x)`<br>
+`emissions_areal_soil_transformed(y, x)`<br>
+`emissions_areal_soil_matrixembedded(y, x)`<br>
+`emissions_areal_soil_dissolved(y, x)`",{bdg-primary}`data.nc` {bdg-success}`config.yaml`          ,float,"Optional, defaults to 0",kg/m<sup>2</sup>/dt,"Diffuse source emissions of pristine, transformed or matrix-embedded NM to soils."
+"`emissions_atmospheric_drydepo_pristine(y, x)`<br>
+`emissions_atmospheric_drydepo_transformed(y, x)`<br>
+`emissions_atmospheric_drydepo_matrixembedded(y, x)`<br>
+`emissions_atmospheric_drydepo_dissolved(y, x)`",{bdg-primary}`data.nc` {bdg-success}`config.yaml`          ,float,"Optional, defaults to 0",kg/m<sup>2</sup>/dt,"Emissions of pristine, transformed or matrix-embedded NM via atmospheric dry deposition. Assumed to be split between soils and water according to the surface area of these compartments within each grid cell."
+"`emissions_atmospheric_wetdepo_pristine(y, x)`<br>
+`emissions_atmospheric_wetdepo_transformed(y, x)`<br>
+`emissions_atmospheric_wetdepo_matrixembedded(y, x)`<br>
+`emissions_atmospheric_wetdepo_dissolved(y, x)`",{bdg-primary}`data.nc` {bdg-success}`config.yaml`          ,float,"Optional, defaults to 0",kg/m<sup>2</sup>/dt,"Emissions of pristine, transformed or matrix-embedded NM via atmospheric wet deposition. Assumed to be split between soils and water according to the surface area of these compartments within each grid cell."
+"`emissions_point_water_pristine(p, t, y, x)`<br>
+`emissions_point_water_transformed(p, t, y, x)`<br>
+`emissions_point_water_matrixembedded(p, t, y, x)`<br>
+`emissions_point_water_dissolved(p, t, y, x)`",{bdg-primary}`data.nc` {bdg-success}`config.yaml`          ,float,"Optional, defaults to 0",kg/dt,"Point source emissions of pristine, transformed or matrix-embedded NM to waters. The dimension `p` represents the number of point sources within a grid cell. See [](nanofase-data:point-emissions) for how point source emissions should be specified in the NanoFASE data module, including specification of a temporal profile via a separate sidecar file."
+"`emissions_point_water_pristine_coords(d, p, y, x)`<br>
+`emissions_point_water_transformed_coords(d, p, y, x)`<br>
+`emissions_point_water_matrixembedded_coords(d, p, y, x)`<br>
+`emissions_point_water_dissolved_coords(d, p, y, x)`",{bdg-primary}`data.nc`,float,"Required for one form (pristine, transformed etc) if value given for corresponding point source.",m,"The projected (x, y) coordinates of the point source with same `p, y, x` indices. Only one coordinate is required across the different forms (pristine, transformed, matrix-embedded and dissolved), and therefore this variable only needs to be provided one. If coordinates for multiple forms are specified, the model will use only one in order of preference: dissolved, transformed, matrix-embedded, pristine. For example, if `emissions_point_water_pristine_coords` and `emissions_point_water_dissolved_coords` are provided, the value for `emissions_point_water_dissolved_coords` will be used for all of the forms from this point source. Not required in NanoFASE data module as data are provided by shapefiles (see [](nanofase-data:point-emissions))."

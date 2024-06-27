@@ -802,7 +802,7 @@ module DataInputModule
         real :: darcy_velocity, default_porosity, particle_density, &
             estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
             estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, nm_density, river_meandering_factor, &
-            water_temperature, deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta, shear_rate, &
+            deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta, shear_rate, &
             min_water_temperature, max_water_temperature
         real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
             resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
@@ -837,7 +837,7 @@ module DataInputModule
         namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
             k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
             estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
-            river_meandering_factor, water_temperature, river_attachment_efficiency, estuary_attachment_efficiency, &
+            river_meandering_factor, river_attachment_efficiency, estuary_attachment_efficiency, &
             deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta, shear_rate, min_water_temperature, &
             max_water_temperature, min_water_temperature_day_of_year
         namelist /sediment/ porosity, initial_mass, fractional_composition_distribution, &
@@ -886,10 +886,11 @@ module DataInputModule
         resuspension_alpha_estuary = 0.0_dp
         resuspension_beta_estuary = 0.0_dp
         soil_attachment_efficiency = defaultSoilAttachmentEfficiency
+        darcy_velocity = defaultSoilDarcyVelocity
         k_diss_pristine = default_k_diss_pristine
         k_diss_transformed = default_k_diss_transformed
         k_transform_pristine = default_k_transform_pristine
-        estuary_meandering_factor = 0.0
+        estuary_meandering_factor = 0.0         ! If meandering factors are zero, they are calculated from cell size
         river_meandering_factor = 0.0
         porosity = 0.0
         shear_rate = defaultShearRate
@@ -933,8 +934,9 @@ module DataInputModule
         me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
         me%soilDarcyVelocity = darcy_velocity
         me%soilDefaultPorosity = default_porosity
+        ! TODO Hamaker constant really should be a NM property as it depends on NM material, see https://doi.org/10.1021/es100598h
         me%soilHamakerConstant = hamaker_constant
-        me%soilParticleDensity = particle_density
+        me%soilParticleDensity = particle_density       ! TODO can we calculate this from soil texture (clay, silt, sand) etc?
         me%soilConstantAttachmentEfficiency = soil_attachment_efficiency
         me%soilErosivity_a1 = erosivity_a1
         me%soilErosivity_a2 = erosivity_a2

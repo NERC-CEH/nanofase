@@ -20,9 +20,9 @@ classDiagram
     BedSedimentLayer --o "1" Reactor
 ```
 
-Here, `Environment` represents the geographical area that we wish to model (e.g. a river catchment), which is divided into a number of `GridCell`s to give spatial resolution. Each `GridCell` can one or more `SoilProfile`s, which are split vertically into one or more `SoilLayer`s to give vertical resolution down the soil profile. `GridCell`s can also contain up to eight `WaterBody` objects (see [](surface-water-network)), each of which is an abstraction of a specific type of waterbody, such a `RiverReach` or `EstuaryReach`. Unlike `SoilProfile`s, `WaterBody` objects are linked across `GridCell`s to model the flow of water, sediment and contaminants around the environment. Each `WaterBody` contains a `BedSediment`, which is further split into a vertical distribution of `BedSedimentLayer`s. The final object is the `Reactor`, which is responsible for modelling the physical and chemical state of the contaminant being modelled.
+Here, `Environment` represents the geographical area that we wish to model (e.g. a river catchment), which is divided into a number of `GridCell`s to give spatial resolution. Each `GridCell` can one or more `SoilProfile`s, which are split vertically into one or more `SoilLayer`s to give vertical resolution down the soil profile. `GridCell`s can also contain up to eight `WaterBody` objects (see [](conceptual-structure:surface-water-network)), each of which is an abstraction of a specific type of waterbody, such a `RiverReach` or `EstuaryReach`. Unlike `SoilProfile`s, `WaterBody` objects are linked across `GridCell`s to model the flow of water, sediment and contaminants around the environment. Each `WaterBody` contains a `BedSediment`, which is further split into a vertical distribution of `BedSedimentLayer`s. The final object is the `Reactor`, which is responsible for modelling the physical and chemical state of the contaminant being modelled.
 
-(surface-water-network)=
+(conceptual-structure:surface-water-network)=
 ## Surface water network
 
 *To be completed...*

@@ -72,11 +72,10 @@ module DefaultsModule
 
     ! Defaults for constants
     real, parameter :: defaultSoilAttachmentEfficiency = 0.0
+    real, parameter :: defaultSoilDarcyVelocity = 9e-6_dp           ! [m/s] Tufenkji et al, 2004: https://doi.org/10.1021/es034049r 
     real, parameter :: default_k_diss_pristine = 0.0
     real, parameter :: default_k_diss_transformed = 0.0
     real, parameter :: default_k_transform_pristine = 0.0
-    real, parameter :: defaultEstuaryMeanderingFactor = 1.0
-    real, parameter :: defaultRiverMeanderingFactor = 1.0
     real, parameter :: defaultShearRate = 10.0                      ! Arvidsson et al, 2009: https://doi.org/10.1080/10807039.2011.538639
     real, parameter :: defaultMinWaterTemperature = 4.0             ! Thames River
     real, parameter :: defaultMaxWaterTemperature = 21.0            ! Thames River
