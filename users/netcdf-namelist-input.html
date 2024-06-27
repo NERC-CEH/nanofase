@@ -1,0 +1,1013 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>NetCDF and namelist input data &#8212; NanoFASE</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=a3416100" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=87e54e7c" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'users/netcdf-namelist-input';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Model parameter reference" href="parameter-reference.html" />
+    <link rel="prev" title="Compiling data with the NanoFASE data module" href="nanofase-data.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../intro.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/logo.png" class="logo__image only-light" alt="NanoFASE - Home"/>
+    <script>document.write(`<img src="../_static/logo.png" class="logo__image only-dark" alt="NanoFASE - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../intro.html">
+                    The NanoFASE model
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/building-the-model.html">Building the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/running-the-model.html">Runing the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/test-scenario.html">Test scenario</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="input-data.html">Input data</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">NetCDF and namelist input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parameter-reference.html">Model parameter reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Data output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="temporal-period.html">Running the model for different temporal periods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch.html">Batch runs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="checkpointing.html">Checkpointing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="jasmin.html">Running the model on JASMIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speeding-up-model-runs.html">Speeding up model runs</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Theory</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../theory/intro.html">Model theory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../theory/conceptual-structure.html">Conceptual structure</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developers</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../developers/conventions.html">Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developers/io-units.html">Input/output units</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../references.html">References</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase/issues/new?title=Issue%20on%20page%20%2Fusers/netcdf-namelist-input.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/users/netcdf-namelist-input.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>NetCDF and namelist input data</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#netcdf-file">NetCDF file</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#environmental-parameters">Environmental parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nanomaterial-properties">Nanomaterial properties</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#emissions">Emissions</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#calibration-parameters">Calibration parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#secondary-derived-variables">Secondary derived variables</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constants-namelist-file">Constants namelist file</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#allocatable-array-sizes-group"><code class="docutils literal notranslate"><span class="pre">allocatable_array_sizes</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nanomaterial-group"><code class="docutils literal notranslate"><span class="pre">nanomaterial</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#water-group"><code class="docutils literal notranslate"><span class="pre">water</span></code> group</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#estuary-parameters">Estuary parameters</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#soil-group"><code class="docutils literal notranslate"><span class="pre">soil</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sediment-group"><code class="docutils literal notranslate"><span class="pre">sediment</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sediment-calibration-parameters">Sediment calibration parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#earthworm-densities-group"><code class="docutils literal notranslate"><span class="pre">earthworm_densities</span></code> group</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="netcdf-and-namelist-input-data">
+<h1>NetCDF and namelist input data<a class="headerlink" href="#netcdf-and-namelist-input-data" title="Link to this heading">#</a></h1>
+<p>The model requires a NetCDF file of spatio(temporal) parameters and a Fortran namelist file of constants. The config file is responsible for telling the model where these input data are located (via the <code class="docutils literal notranslate"><span class="pre">&amp;data</span></code> group).</p>
+<p>The recommended way of generating these files is to use the <a class="reference external" href="https://github.com/nerc-ceh/nanofase-data">NanoFASE data module</a>. See <a class="reference internal" href="nanofase-data.html"><span class="doc std std-doc">Compiling data with the NanoFASE data module</span></a> for details of how to use this data module.</p>
+<p>This page gives a breakdown of the parameters required in the NetCDF and Fortran namelist file. These are mostly similar to those required by the NanoFASE data module, but also contains a selection of secondary derived variables that are calculated by the NanoFASE data module from its inputs. Example NetCDF and constants files are given in the <a class="reference external" href="https://github.com/NERC-CEH/nanofase/tree/develop/data.example">data.example</a> directory.</p>
+<section id="netcdf-file">
+<h2>NetCDF file<a class="headerlink" href="#netcdf-file" title="Link to this heading">#</a></h2>
+<p>The NetCDF file stores any data that aren’t constant (0D). Parameters have at least one of the following dimensions, as denoted in brackets after the variable name on this page:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">t</span></code>: Time dimension</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>: Spatial dimensions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">d</span></code>: Number of spatial dimensions, always equal to 2</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">w</span></code>: Index of inflow to a grid cell, maximum of 7</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">box</span></code>: Used to define the bounding box of the grid cells, always equal to 4 to represent each side of the bounding box</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">p</span></code>: Index of point source within a grid cell</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">l</span></code>: Index representing land use categories</p></li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>If you are manually creating this NetCDF file, pay careful attention to units, which might <em>not</em> be the conventional units used for these parameters. Notably, the length of the model timestep is used as a unit (e.g. m/timestep as the unit for runoff), meaning that changing timestep length means re-calculating these input data.</p>
+</div>
+<section id="environmental-parameters">
+<h3>Environmental parameters<a class="headerlink" href="#environmental-parameters" title="Link to this heading">#</a></h3>
+<p>This selection of parameters pertains to the geographical region modelled, such as its climate, topography and soil properties.</p>
+<dl class="simple myst" id="input-data-dem">
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">dem(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, if not present then default slope of 0.0005 m/m is assumed. Units: dm. Standard name: <code class="docutils literal notranslate"><span class="pre">height_above_mean_sea_level</span></code>.</em> <br />
+Digital elevation model (height above mean sea level). In the model, this is only used to calculate slope, whilst in the NanoFASE data module, it is used to calculate numerous <a class="reference internal" href="#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary variables</span></a> for input to the model.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">quickflow(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: m/timestep. Standard name: <code class="docutils literal notranslate"><span class="pre">surface_runoff_flux</span></code>.</em> <br />
+Also called surface runoff, this is the component of runoff that is responsible for driving soil erosion.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">runoff(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: m/timestep. Standard name: <code class="docutils literal notranslate"><span class="pre">runoff_flux</span></code>.</em> <br />
+This is the total runoff (subsurface and surface) that is routed by the model to provide surface water flows.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">precip(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: m/timestep. Standard name: <code class="docutils literal notranslate"><span class="pre">rainfall_flux</span></code>.</em> <br />
+Amount of precipitation, used to drive soil percolation.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">evap(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to 0. Units: m/timestep. Standard name: <code class="docutils literal notranslate"><span class="pre">water_evapotranspiration_flux</span></code>.</em> <br />
+Amount of evapotranspiration.</p>
+</dd>
+</dl>
+<dl class="simple myst" id="netcdf-namelist-soil-bulk-density">
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_bulk_density(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: kg/m<sup>3</sup>.</em> <br />
+Bulk density of soil, which is assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_water_content_field_capacity(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: cm<sup>3</sup>/cm<sup>3</sup>. Standard name: <code class="docutils literal notranslate"><span class="pre">volume_fraction_of_condensed_water_in_soil_at_field_capacity</span></code>.</em> <br />
+Water content of the soil at field capacity, as a fraction. Assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_water_content_saturation(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: cm<sup>3</sup>/cm<sup>3</sup>. Standard name: <code class="docutils literal notranslate"><span class="pre">volume_fraction_of_condensed_water_in_soil</span></code>.</em> <br />
+Water content of the soil at saturation, as a fraction. Assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_hydraulic_conductivity(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: m/s. Standard name: <code class="docutils literal notranslate"><span class="pre">soil_hydraulic_conductivity_at_saturation</span></code>.</em> <br />
+The hydraulic conductivity of the soil, which is assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_texture_clay_content(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: kg/kg. Standard name: <code class="docutils literal notranslate"><span class="pre">volume_fraction_of_clay_in_soil</span></code>.</em> <br />
+Clay content of the soil, as a fraction. Assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_texture_sand_content(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: kg/kg. Standard name: <code class="docutils literal notranslate"><span class="pre">volume_fraction_of_sand_in_soil</span></code>.</em> <br />
+Sand content of the soil, as a fraction. Assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_texture_silt_content(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: kg/kg. Standard name: <code class="docutils literal notranslate"><span class="pre">volume_fraction_of_silt_in_soil</span></code>.</em> <br />
+Silt content of the soil, as a fraction. Assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_texture_coarse_frag_content(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Units: kg/kg.</em> <br />
+Coarse fragment content of the soil, as a fraction. Assumed constant in time.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_usle_c_factor(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Unitless.</em> <br />
+Universal Soil Loss Equation cover management factor.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_usle_p_factor(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Unitless.</em> <br />
+Universal Soil Loss Equation support practice factor.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_usle_ls_factor(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Unitless.</em> <br />
+Universal Soil Loss Equation slope length and steepness factor.</p>
+</dd>
+</dl>
+<dl class="simple myst" id="netcdf-namelist-input-land-use">
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">land_use(l,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required. Unitless.</em> <br />
+The fraction of the grid cell that is each of the NanoFASE model land use categories, indexed by <code class="docutils literal notranslate"><span class="pre">l</span></code>. The categories along this dimension are given by the following table:</p>
+</dd>
+</dl>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Index value <code class="docutils literal notranslate"><span class="pre">l</span></code></p></th>
+<th class="head"><p>Land use category</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">urban_no_soil</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">urban_parks_leisure</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">urban_industrial_soil</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">urban_green_residential</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">arable</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">grassland</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">deciduous</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">coniferous</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">heathland</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">water</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">desert</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">other</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<dl class="simple myst" id="netcdf-namelist-input-is-estuary">
+<dt><code class="docutils literal notranslate"><span class="pre">ubyte</span> <span class="pre">is_estuary(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required if config <code class="docutils literal notranslate"><span class="pre">include_estuary</span> <span class="pre">=</span> <span class="pre">.true.</span></code>, unitless.</em> <br />
+Boolean variable dictating whether a grid cell’s waterbodies are estuaries (instead of freshwaters). 0 represents false, 1 represents true. This parameter is only required if the config option <code class="docutils literal notranslate"><span class="pre">include_estuary</span></code> is <code class="docutils literal notranslate"><span class="pre">.true.</span></code>, otherwise the model assumes there are no estuaries.</p>
+</dd>
+</dl>
+</section>
+<section id="nanomaterial-properties">
+<h3>Nanomaterial properties<a class="headerlink" href="#nanomaterial-properties" title="Link to this heading">#</a></h3>
+<p>Most nanomaterial properties are constant, and therefore included only in the constants namelist file. However, it is possible to input two parameters relating to the attachment of nanomaterials to the soil matrix as spatial parameters, to account for the spatial heterogeneity of soil affecting these parameters. If both parameters are present, the model will use the <code class="docutils literal notranslate"><span class="pre">soil_attachment_rate</span></code> preferentially over the <code class="docutils literal notranslate"><span class="pre">soil_attachment_efficiency</span></code> (which is used to internally calculate attachment rates).</p>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_attachment_rate(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, <code class="docutils literal notranslate"><span class="pre">soil_attachment_efficiency</span></code> used to calculate rate if not present. Unit: /s.</em> <br />
+The rate at which nanoparticles attach to the soil matrix.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">soil_attachment_efficiency(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, value in constants namelist file used if not present. Unitless.</em> <br />
+The attachment efficiency represents the probability that a collision between a nanoparticle and the soil matrix results in the sticking (attachment) of the nanoparticle.</p>
+</dd>
+</dl>
+</section>
+<section id="emissions">
+<h3>Emissions<a class="headerlink" href="#emissions" title="Link to this heading">#</a></h3>
+<p>The following parameters are used to define the emissions of nanomaterials to the environment. These are either <em>areal</em> (diffuse) emissions - assumed average across each grid cell, or <em>point</em> emissions, which are only to waters and snapped to the nearest waterbody within the model. Atmospheric inputs are provided by their own parameters, but are treated the same as areal emissions. Each point emission parameter actually has two parameters associated with it: the emission itself, and the exact (x, y) coordinates associated with that emission. If any of these parameters are excluded, they are presumed to be zero.</p>
+<p>For brevity, we condense the multiple parameters using <code class="docutils literal notranslate"><span class="pre">[x|y]</span></code> notation. For example, <code class="docutils literal notranslate"><span class="pre">emissions_areal_[water|soil]_[pristine|transformed|matrixembedded|dissolved]</span></code> represents eight parameters: <code class="docutils literal notranslate"><span class="pre">emissions_areal_water_pristine</span></code>, <code class="docutils literal notranslate"><span class="pre">emissions_areal_water_transformed</span></code>, etc.</p>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">emissions_areal_[water|soil]_[pristine|transformed|matrixembedded|dissolved](y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to 0. Units: kg/m<sup>2</sup>/timestep.</em> <br />
+Diffuse source emissions of pristine, transformed or matrix-embedded NM to waters or soils.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">emissions_atmospheric_[dry|wet]depo_[pristine|transformed|matrixembedded|dissolved](y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to 0. Units: kg/m<sup>2</sup>/timestep.</em> <br />
+Emissions of pristine, transformed or matrix-embedded NM via atmospheric dry or wet deposition. Assumed to be split between soils and water according to the surface area of these compartments within each grid cell.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">emissions_point_water_[pristine|transformed|matrixembedded|dissolved](p,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to 0. Units: kg/timestep.</em> <br />
+Point source emissions of pristine, transformed or matrix-embedded NM to waters. The dimension <code class="docutils literal notranslate"><span class="pre">p</span></code> represents the number of point sources within a grid cell.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">emissions_point_water_[pristine|transformed|matrixembedded|dissolved]_coords(d,</span> <span class="pre">p,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required for one form (pristine, transformed etc) if value given for corresponding point source. Units: m.</em> <br />
+The projected (x, y) coordinates of the point source with same <code class="docutils literal notranslate"><span class="pre">p,</span> <span class="pre">y,</span> <span class="pre">x</span></code> indices. Only one coordinate is required across the different forms (pristine, transformed, matrix-embedded and dissolved), and therefore this variable only needs to be provided one. If coordinates for multiple forms are specified, the model will use only one in order of preference: dissolved, transformed, matrix-embedded, pristine. For example, if <code class="docutils literal notranslate"><span class="pre">emissions_point_water_pristine_coords</span></code> and <code class="docutils literal notranslate"><span class="pre">emissions_point_water_dissolved_coords</span></code> are provided, the value for <code class="docutils literal notranslate"><span class="pre">emissions_point_water_dissolved_coords</span></code> will be used for all of the forms from this point source.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>We appreciate that dealing with point sources can be unintuitive. This is likely to be changed to be more logical in future versions of the model.</p>
+</div>
+</section>
+<section id="calibration-parameters">
+<span id="netcdf-namelist-input-calibration-params"></span><h3>Calibration parameters<a class="headerlink" href="#calibration-parameters" title="Link to this heading">#</a></h3>
+<p>The following parameters related to sediment dynamics are intended to be calibrated against observed suspended sediment concentrations. They can either be constant across the entire modelled region - and therefore specified in the constants namelist file instead of the NetCDF file - or spatial. If specified in both the NetCDF and constants namelist file, the NetCDF parameter is used.</p>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">resuspension_alpha(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, unitless.</em> <br />
+Shear velocity coefficient, used to calculate resuspension flux. Corresponds to parameter <span class="math notranslate nohighlight">\(a_7\)</span> in <span id="id1">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">resuspension_beta(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, units: s<sup>2</sup>/kg.</em> <br />
+Entrainment coefficient, used to calculate resuspension flux. Corresponds to parameter <span class="math notranslate nohighlight">\(a_8\)</span> in <span id="id2">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">deposition_alpha(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, unitless.</em> <br />
+Calibration parameter used to control sediment deposition. Corresponds to the parameter set to 38.1 in Equation 11 of <span id="id3">Zhiyao <em>et al.</em> [<a class="reference internal" href="../references.html#id3" title="Song Zhiyao, Wu Tingting, Xu Fumin, and Li Ruijie. A simple formula for predicting settling velocity of sediment particles. Water Science and Engineering, 1(1):37–43, March 2008. URL: http://www.sciencedirect.com/science/article/pii/S167423701530017X (visited on 2017-05-23), doi:10.1016/S1674-2370(15)30017-X.">8</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">deposition_beta(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, unitless.</em> <br />
+Calibration parameter used to control sediment deposition. Corresponds to the parameter set to 0.93 in Equation 11 of <span id="id4">Zhiyao <em>et al.</em> [<a class="reference internal" href="../references.html#id3" title="Song Zhiyao, Wu Tingting, Xu Fumin, and Li Ruijie. A simple formula for predicting settling velocity of sediment particles. Water Science and Engineering, 1(1):37–43, March 2008. URL: http://www.sciencedirect.com/science/article/pii/S167423701530017X (visited on 2017-05-23), doi:10.1016/S1674-2370(15)30017-X.">8</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">bank_erosion_alpha(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, units: kg/m.</em> <br />
+Bank erosion scaling factor, used to calculate sediment yield from bank erosion. Corresponds to parameter <span class="math notranslate nohighlight">\(a_9\)</span> in <span id="id5">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">bank_erosion_beta(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, unitless.</em> <br />
+Bank erosion non-linear coefficient, used to calculate sediment yield from bank erosion. Corresponds to parameter <span class="math notranslate nohighlight">\(a_{10}\)</span> in <span id="id6">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">sediment_transport_a(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, units: kg/m<sup>2</sup>/km<sup>2</sup>.</em> <br />
+Sediment transport capacity scaling factor. Corresponds to parameter <span class="math notranslate nohighlight">\(a_4\)</span> in <span id="id7">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">sediment_transport_b(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, units: m<sup>2</sup>/s.</em> <br />
+Sediment transport capacity direct runoff threshold. Corresponds to parameter <span class="math notranslate nohighlight">\(a_5\)</span> in <span id="id8">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">sediment_transport_c(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, defaults to value in constants namelist, unitless.</em> <br />
+Sediment transport capacity non-linear coefficient. Corresponds to parameter <span class="math notranslate nohighlight">\(a_6\)</span> in <span id="id9">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p>
+</dd>
+</dl>
+</section>
+<section id="secondary-derived-variables">
+<span id="netcdf-namelist-input-secondary-derived-variables"></span><h3>Secondary derived variables<a class="headerlink" href="#secondary-derived-variables" title="Link to this heading">#</a></h3>
+<p>These are variables that are only required by the NetCDF file and not the NanoFASE data module. The latter uses the above input variables to derive these secondary variables.</p>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">crs</span></code></dt><dd><p><em>Required.</em>
+The <code class="docutils literal notranslate"><span class="pre">crs</span></code> variable is an empty variable whose attributes define the Coordinate Reference System used by the model, to comply with CF conventions and to enable the dataset to be read by various spatial data software. It is recommended to include a <code class="docutils literal notranslate"><span class="pre">spatial_ref</span></code> and <code class="docutils literal notranslate"><span class="pre">crs_wkt</span></code> attribute, though the latter is the only used by the model internally (and only to write to the output data).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">t(t)</span></code></dt><dd><p><em>Required, coordinate variable, units: seconds since start of simulation period.</em> <br />
+Coordinate variable that maps timestep index to a real timestamp.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">x(x)</span></code></dt><dd><p><em>Required, coordinate variable, units: metres from origin of projected CRS.</em> <br />
+Coordinate variable that maps spatial x index to a real projected x position.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">y(y)</span></code></dt><dd><p><em>Required, coordinate variable, units: metres from origin of projected CRS.</em> <br />
+Coordinate variable that maps spatial y index to a real projected y position.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">grid_shape(d)</span></code></dt><dd><p><em>Required. Unitless</em> <br />
+Number of grid cells along each (x, y) grid axis.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">grid_res(d)</span></code></dt><dd><p><em>Required, units: metres</em> <br />
+Grid resolution - the size of each grid cell.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">float</span> <span class="pre">grid_bounds(box)</span></code></dt><dd><p><em>Required, units: metres</em> <br />
+Coordinates of the bounding box for the model grid, in order (left, top, right, bottom).</p>
+</dd>
+</dl>
+<p>The following variables are ultimately deduced from the <a class="reference internal" href="#input-data-dem"><span class="std std-ref">digital elevation model</span></a> (DEM) and are used to define the surface water network within the model, meaning the surface water network is automatically deduced and does not need to be provided as an input (see <a class="reference internal" href="../theory/conceptual-structure.html#conceptual-structure-surface-water-network"><span class="std std-ref">Surface water network</span></a>).</p>
+<figure class="align-right">
+<img alt="../_images/flowdir.gif" src="../_images/flowdir.gif" />
+</figure>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">flow_dir(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required, unitless</em> <br />
+Flow direction of water in the grid cell, relating to the topography and deduced from the <a class="reference internal" href="#input-data-dem"><span class="std std-ref">DEM</span></a>. Uses the standard eight-direction (D8) flow direction encoding.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">short</span> <span class="pre">outflow(y,</span> <span class="pre">x,</span> <span class="pre">d)</span></code></dt><dd><p><em>Required, unitless</em> <br />
+The (x, y) index of the outflow grid cell.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">short</span> <span class="pre">inflows(y,</span> <span class="pre">x,</span> <span class="pre">w,</span> <span class="pre">d)</span></code></dt><dd><p><em>Required, unitless</em> <br />
+The (x, y) indices of the inflowing grid cells, of which there may be up to 7 (see <a class="reference internal" href="../theory/conceptual-structure.html#conceptual-structure-surface-water-network"><span class="std std-ref">Surface water network</span></a>).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">short</span> <span class="pre">n_waterbodies(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required, unitless</em> <br />
+The number of waterbodies in each grid cell.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">ubyte</span> <span class="pre">is_headwater(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required, unitless</em> <br />
+Is this cell a headwater with no inflows? 0 represents false, 1 represents true.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="constants-namelist-file">
+<h2>Constants namelist file<a class="headerlink" href="#constants-namelist-file" title="Link to this heading">#</a></h2>
+<p>Parameters that are constant across space and time are provided via a text-based <a class="reference external" href="https://jules-lsm.github.io/vn4.2/namelists/intro.html">Fortran namelist file</a>. This file is split into separate groups: <code class="docutils literal notranslate"><span class="pre">allocatable_array_sizes</span></code>, <code class="docutils literal notranslate"><span class="pre">nanomaterial</span></code>, <code class="docutils literal notranslate"><span class="pre">water</span></code>, <code class="docutils literal notranslate"><span class="pre">sediment</span></code>, <code class="docutils literal notranslate"><span class="pre">soil</span></code> and <code class="docutils literal notranslate"><span class="pre">earthworm_densities</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>As well as the below parameters, the model also accepts a host of parameters related to biotic uptake. This process is still experimental and so these parameters are not yet documented.</p>
+</div>
+<section id="allocatable-array-sizes-group">
+<span id="netcdf-namelist-input-allocatable-array-sizes"></span><h3><code class="docutils literal notranslate"><span class="pre">allocatable_array_sizes</span></code> group<a class="headerlink" href="#allocatable-array-sizes-group" title="Link to this heading">#</a></h3>
+<p>One of the quirks of Fortran namelist files is that any parameter in the namelist that is an allocatable array must have a corresponding parameter in the file that is the size of the array, so that the model can allocate the correct amount of memory before reading the array in. This means that every array parameter in the NanoFASE model constants namelist has a corresponding parameter in the <code class="docutils literal notranslate"><span class="pre">allocatable_array_sizes</span></code> group, which is named the array parameter name prepended with <code class="docutils literal notranslate"><span class="pre">n_</span></code>.</p>
+<p>If you are using the NanoFASE data module (see <a class="reference internal" href="nanofase-data.html"><span class="doc std std-doc">Compiling data with the NanoFASE data module</span></a>) - which is recommended - you don’t have to worry about these allocatable array sizes, as the module automatically writes the <code class="docutils literal notranslate"><span class="pre">allocatable_array_sizes</span></code> group when compiling input data.</p>
+<p>For completeness, the array size parameters that must be specified, if their corresponding array parameter is present, is as follows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">n_default_nm_size_distribution</span>
+<span class="n">n_default_spm_size_distribution</span>
+<span class="n">n_default_matrixembedded_distribution_to_spm</span>
+<span class="n">n_vertical_distribution</span>
+<span class="n">n_porosity</span>
+<span class="n">n_spm_density_by_size_class</span>
+<span class="n">n_intial_mass</span>
+<span class="n">n_fractional_composition_distribution</span>
+<span class="n">n_estuary_mouth_coords</span>
+</pre></div>
+</div>
+</section>
+<section id="nanomaterial-group">
+<h3><code class="docutils literal notranslate"><span class="pre">nanomaterial</span></code> group<a class="headerlink" href="#nanomaterial-group" title="Link to this heading">#</a></h3>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">nm_density</span></code></dt><dd><p><em>Required, units: kg/m<sup>3.</em> <br />
+The average density of the nanomaterial modelled.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">default_nm_size_distribution</span></code></dt><dd><p><em>Required, unitless</em> <br />
+An array of the same length as the number of NM size classes (given by config). This is used to apply a proportion of NM mass in each size class to emissions data. It is a percentage, so as an example, if a model configuration has five size classes, and the mass was distributed evenly across them, then <code class="docutils literal notranslate"><span class="pre">default_nm_size_distribution</span> <span class="pre">=</span> <span class="pre">20,</span> <span class="pre">20,</span> <span class="pre">20,</span> <span class="pre">20,</span> <span class="pre">20</span></code>.</p>
+</dd>
+</dl>
+</section>
+<section id="water-group">
+<h3><code class="docutils literal notranslate"><span class="pre">water</span></code> group<a class="headerlink" href="#water-group" title="Link to this heading">#</a></h3>
+<p>See also <a class="reference internal" href="#netcdf-namelist-input-constant-calibration-params"><span class="std std-ref">Sediment calibration parameters</span></a>.</p>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">river_attachment_efficiency</span></code></dt><dd><p><em>Required, unitless.</em> <br />
+The attachment efficiency represents the probability that a collision between a nanoparticle and suspended particulate matter in rivers results in the sticking (attachment) of the nanoparticle, thus yielding is available for sediment deposition.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">k_diss_[pristine|transformed]</span></code></dt><dd><p><em>Optional, defaults to 0, units: /s.</em> <br />
+Dissolution rate of pristine or transformed NMs.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">k_transform_pristine</span></code></dt><dd><p><em>Optional, defaults to 0, units: /s.</em> <br />
+The rate at which pristine NM transforms to the <code class="docutils literal notranslate"><span class="pre">transformed</span></code> form.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">river_meandering_factor</span></code></dt><dd><p><em>Optional, defaults to calculation based on grid size, unitless.</em> <br />
+Meandering factor to account for rivers not being straight lines. If not present, meandering factor is estimated from the grid cell size, according to <span class="math notranslate nohighlight">\(f_m = 1.024 - 0.077 * \ln (200 / (dx + dy))\)</span> <span id="id10">[<a class="reference internal" href="../references.html#id4" title="Balázs M. Fekete, Charles J. Vörösmarty, and Richard B. Lammers. Scaling gridded river networks for macroscale hydrology: Development, analysis, and control of error. Water Resources Research, 37(7):1955–1967, 2001. _eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1029/2001WR900024. URL: https://onlinelibrary.wiley.com/doi/abs/10.1029/2001WR900024 (visited on 2024-06-19), doi:10.1029/2001WR900024.">3</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">[min|max]_water_temperature</span></code></dt><dd><p><em>Optional, defaults to 4<sup>o</sup>C (min) or 21<sup>o</sup>C (max), units: <sup>o</sup>C.</em> <br />
+Average minimum or maximum water temperature across the year. Calculates daily water temperature timeseries using a cosine curve based on these values.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">min_water_temperature_day_of_year</span></code></dt><dd><p><em>Optional, defaults to 32, unitless.</em> <br />
+Day of the year on which the minimum water temperature usually occurs, as an integer. Defaults to 32, which represents the first day of February. Used along with min/max water temperature to calculate water temperature timeseries.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">shear_rate</span></code></dt><dd><p><em>Optional, defaults to 10 /s, units: /s.</em> <br />
+Shear rate at the water-sediment interface, used for calculating resuspension. Defaults to 10 /s <span id="id11">[<a class="reference internal" href="../references.html#id5" title="Rickard Arvidsson, Sverker Molander, Björn A. Sandén, and Martin Hassellöv. Challenges in Exposure Modeling of Nanoparticles in Aquatic Environments. Human and Ecological Risk Assessment: An International Journal, 17(1):245–262, January 2011. URL: https://doi.org/10.1080/10807039.2011.538639 (visited on 2020-04-30), doi:10.1080/10807039.2011.538639.">1</a>]</span>.</p>
+</dd>
+</dl>
+<section id="estuary-parameters">
+<h4>Estuary parameters<a class="headerlink" href="#estuary-parameters" title="Link to this heading">#</a></h4>
+<p>Parameters pertaining to the estuary are required if the model domain has an estuary, as specified by the <a class="reference internal" href="#netcdf-namelist-input-is-estuary"><span class="std std-ref"><code class="docutils literal notranslate"><span class="pre">is_estuary</span></code> spatial variable</span></a> and config <code class="docutils literal notranslate"><span class="pre">include_estuary</span></code> option. Otherwise, these parameters can be excluded.</p>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">estuary_tidal_m2</span></code></dt><dd><p><em>Required if model domain has estuary, unitless.</em> <br />
+The M2 component of the tidal harmonics.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">estuary_tidal_s2</span></code></dt><dd><p><em>Required if model domain has estuary, unitless.</em> <br />
+The S2 component of the tidal harmonics.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">estuary_mouth_coords</span></code></dt><dd><p><em>Required if model domain has estuary, units: m.</em> <br />
+Position of the estuary mouth as (x, y) coordinates. Used to calculute upstream estuary dimensions based on exponential regression dependent on distance to estuary mouth.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">estuary_[mean_depth|width]_exp[a|b]</span></code></dt><dd><p><em>Required if model domain has estuary, unitless.</em> <br />
+Parameters <code class="docutils literal notranslate"><span class="pre">a</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span></code> controlling the dependence of the estuary mean depth or width on distance to the mouth. For example, parameters <code class="docutils literal notranslate"><span class="pre">estuary_width_expa</span></code> and <code class="docutils literal notranslate"><span class="pre">estuary_width_expb</span></code> are used to calculate the width of the estuary upstream by a distance of <code class="docutils literal notranslate"><span class="pre">d</span></code> by the relation <code class="docutils literal notranslate"><span class="pre">width</span> <span class="pre">=</span> <span class="pre">estuary_width_expa</span> <span class="pre">*</span> <span class="pre">exp(-estuary_width_expb</span> <span class="pre">*</span> <span class="pre">d)</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">estuary_meandering_factor</span></code></dt><dd><p><em>Optional, defaults to calculation based on grid size, unitless.</em> <br />
+Meandering factor to account for estuaries not being straight lines. If not present, meandering factor is estimated from the grid cell size, according to <span class="math notranslate nohighlight">\(f_m = 1.024 - 0.077 * \ln (200 / (dx + dy))\)</span> <span id="id12">[<a class="reference internal" href="../references.html#id4" title="Balázs M. Fekete, Charles J. Vörösmarty, and Richard B. Lammers. Scaling gridded river networks for macroscale hydrology: Development, analysis, and control of error. Water Resources Research, 37(7):1955–1967, 2001. _eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1029/2001WR900024. URL: https://onlinelibrary.wiley.com/doi/abs/10.1029/2001WR900024 (visited on 2024-06-19), doi:10.1029/2001WR900024.">3</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">estuary_attachment_efficiency</span></code></dt><dd><p><em>Required if model domain has estuary, unitless.</em> <br />
+The attachment efficiency represents the probability that a collision between a nanoparticle and suspended particulate matter in the estuary results in the sticking (attachment) of the nanoparticle, thus yielding is available for sediment deposition.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="soil-group">
+<h3><code class="docutils literal notranslate"><span class="pre">soil</span></code> group<a class="headerlink" href="#soil-group" title="Link to this heading">#</a></h3>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">darcy_velocity</span></code></dt><dd><p><em>Optional, defaults to 9e-6 m/s, units: m/s.</em> <br />
+The Darcy approach velocity is used to calculate the attachment rate of NMs. A default of 9e-6 m/s is used <span id="id13">[<a class="reference internal" href="../references.html#id7" title="Johannes A. J. Meesters, Albert A. Koelmans, Joris T. K. Quik, A. Jan Hendriks, and Dik van de Meent. Multimedia Modeling of Engineered Nanoparticles with SimpleBox4nano: Model Definition and Evaluation. Environmental Science &amp; Technology, 48(10):5726–5736, May 2014. URL: http://dx.doi.org/10.1021/es500548h (visited on 2017-03-28), doi:10.1021/es500548h.">5</a>, <a class="reference internal" href="../references.html#id6" title="Nathalie Tufenkji and Menachem Elimelech. Correlation Equation for Predicting Single-Collector Efficiency in Physicochemical Filtration in Saturated Porous Media. Environmental Science &amp; Technology, 38(2):529–536, January 2004. Publisher: American Chemical Society. URL: https://doi.org/10.1021/es034049r (visited on 2020-06-15), doi:10.1021/es034049r.">7</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">default_porosity</span></code></dt><dd><p><em>Required, unitless.</em> <br />
+Porosity of the soil profile.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">hamaker_constant</span></code></dt><dd><p><em>Required, units: J.</em> <br />
+Soil Hamaker constant, which is used to calculate the attachment rate of NMs.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">particle_density</span></code></dt><dd><p><em>Required, units: kg/m<sup>3</sup>.</em> <br />
+Average density of soil particles.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">erosivity_[a1|a2|a3|b]</span></code></dt><dd><p><em>Required, unitless.</em> <br />
+These four parameters are used to calculate a soil erosivity factor for use in predicting soil erosion yields. Based on a Revised Universal Soil Loss (RUSLE), with R-factor calculated from rainfall kinetic energy (see <span id="id14">Davison <em>et al.</em> [<a class="reference internal" href="../references.html#id8" title="P. Davison, M. G. Hutchins, S. G. Anthony, M. Betson, C. Johnson, and E. I. Lord. The relationship between potentially erosive storm energy and daily rainfall quantity in England and Wales. The Science of the Total Environment, 344(1-3):15–25, May 2005. doi:10.1016/j.scitotenv.2005.02.002.">2</a>]</span>) and K-factor based on a modified Morgan-Morgan-Finney <span id="id15">[<a class="reference internal" href="../references.html#id9" title="R. P. C. Morgan and J. H. Duzant. Modified MMF (Morgan–Morgan–Finney) model for evaluating effects of crops and vegetation cover on soil erosion. Earth Surface Processes and Landforms, 33(1):90–106, January 2008. URL: https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.1530 (visited on 2018-09-25), doi:10.1002/esp.1530.">6</a>]</span>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">soil_attachment_efficiency</span></code></dt><dd><p><em>Optional, defaults to 0 if corresponding parameter not present in NetCDF file, unitless.</em> <br />
+The attachment efficiency represents the probability that a collision between a nanoparticle and the soil matrix results in the sticking (attachment) of the nanoparticle. If a spatial version of this parameter is not present in the NetCDF file, this constant value is used.</p>
+</dd>
+</dl>
+</section>
+<section id="sediment-group">
+<h3><code class="docutils literal notranslate"><span class="pre">sediment</span></code> group<a class="headerlink" href="#sediment-group" title="Link to this heading">#</a></h3>
+<dl class="simple myst">
+<dt><code class="docutils literal notranslate"><span class="pre">porosity</span></code></dt><dd><p><em>Required, unitless.</em> <br />
+Average sediment porosity.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">initial_mass</span></code></dt><dd><p><em>Required, units: kg/m2.</em> <br />
+Array that must be the same length as the number of sediment size classes (<code class="docutils literal notranslate"><span class="pre">n_spm_size_classes</span></code> in config), representing the mass of each sediment size class at the start of the model run.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">fractional_composition_distribution</span></code></dt><dd><p><em>Required, unitless.</em> <br />
+Array that must be the same length as the number of sediment fractional compositions (<code class="docutils literal notranslate"><span class="pre">n_fractional_compositions</span></code> in config). Represents the default distribution of sediment mass across fractional compositions, as a percentage.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">default_spm_size_distribution</span></code></dt><dd><p><em>Required, unitless.</em> <br />
+Array that must be the same length as the number of sediment size classes (<code class="docutils literal notranslate"><span class="pre">n_spm_size_classes</span></code> in config). This is the default size distribution applied to sediment particles, as a percentage, when there is no other information, such as from soil erosion yields.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">default_matrixembedded_distribution_to_spm</span></code></dt><dd><p><em>Required, unitless.</em> <br />
+Array that must be the same length as the number of sediment size classes (<code class="docutils literal notranslate"><span class="pre">n_spm_size_classes</span></code> in config). This is the default size distribution that is used to proportion matrix-embedded releases of NM to sediment size classes.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">spm_density_by_size_class</span></code></dt><dd><p><em>Required, units: kg/m<sup>3</sup>.</em> <br />
+Array that must be the same lenth as the number of sediment size classes (<code class="docutils literal notranslate"><span class="pre">n_spm_size_classes</span></code> in config). Represents the density of the sediment in each size class.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>There are also a handful of parameters related to sediment enrichment, but this process is not fully implemented yet and therefore not documented.</p>
+</div>
+</section>
+<section id="sediment-calibration-parameters">
+<span id="netcdf-namelist-input-constant-calibration-params"></span><h3>Sediment calibration parameters<a class="headerlink" href="#sediment-calibration-parameters" title="Link to this heading">#</a></h3>
+<p>If spatial sediment calibration parameters (see <a class="reference internal" href="#netcdf-namelist-input-calibration-params"><span class="std std-ref">Calibration parameters</span></a>) are not provided, the model uses constant equivalents provided in the constants namelist file, split across the <code class="docutils literal notranslate"><span class="pre">soil</span></code> and <code class="docutils literal notranslate"><span class="pre">water</span></code> groups. The description and units remain as per for the NetCDF file. Note that the sediment transport capacity parameters are in the <code class="docutils literal notranslate"><span class="pre">soil</span></code> group, whilst the remaining parameters are in the <code class="docutils literal notranslate"><span class="pre">water</span></code> group. Different resuspension parameters can be provided for estuary and freshwaters, and if no value for estuary is given, the freshwater value is used. If the parameters are not present in either the NetCDF or constants namelist file, the following defaults are used:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&amp;</span><span class="n">water</span>
+  <span class="n">resuspension_alpha</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">required</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">present</span> <span class="ow">in</span> <span class="n">NetCDF</span><span class="o">&gt;</span>
+  <span class="n">resuspension_beta</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">required</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">present</span> <span class="ow">in</span> <span class="n">NetCDF</span><span class="o">&gt;</span>
+  <span class="n">resuspension_alpha_estuary</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">defaults</span> <span class="n">to</span> <span class="n">resuspension_alpha</span><span class="o">&gt;</span>
+  <span class="n">resuspension_beta_estuary</span> <span class="o">=</span> <span class="o">&lt;</span><span class="n">defaults</span> <span class="n">to</span> <span class="n">resuspension_beta</span><span class="o">&gt;</span>
+  <span class="n">deposition_alpha</span> <span class="o">=</span> <span class="mf">38.1</span><span class="n">_dp</span>
+  <span class="n">deposition_beta</span> <span class="o">=</span> <span class="mf">0.93</span><span class="n">_dp</span>
+  <span class="n">bank_erosion_alpha</span> <span class="o">=</span> <span class="mf">1e-9</span><span class="n">_dp</span>
+  <span class="n">bank_erosion_beta</span> <span class="o">=</span> <span class="mf">1.0</span><span class="n">_dp</span>
+\
+
+<span class="o">&amp;</span><span class="n">soil</span>
+  <span class="n">sediment_transport_a</span> <span class="o">=</span> <span class="mf">2e-9</span><span class="n">_dp</span>
+  <span class="n">sediment_transport_b</span> <span class="o">=</span> <span class="mf">0.0</span><span class="n">_dp</span>
+  <span class="n">sediment_transport_c</span> <span class="o">=</span> <span class="mf">0.2</span><span class="n">_dp</span>
+\
+</pre></div>
+</div>
+</section>
+<section id="earthworm-densities-group">
+<span id="netcdf-namelist-input-earthworms"></span><h3><code class="docutils literal notranslate"><span class="pre">earthworm_densities</span></code> group<a class="headerlink" href="#earthworm-densities-group" title="Link to this heading">#</a></h3>
+<p>This group is a list of earthworm densities per NanoFASE land use category, plus the vertical distribution of these earthworm densities across soil layers. All parameters are required and have units of individuals/m<sup>2</sup>. The following values are reasonable estimates across the different land use categories in the UK, for a 3-layer soil profile with depths of 5, 15 and 20 cms, respectively.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&amp;</span><span class="n">earthworm_densities</span>
+    <span class="n">arable</span> <span class="o">=</span> <span class="mi">30</span>
+    <span class="n">coniferous</span> <span class="o">=</span> <span class="mi">150</span>
+    <span class="n">deciduous</span> <span class="o">=</span> <span class="mi">400</span>
+    <span class="n">grassland</span> <span class="o">=</span> <span class="mi">250</span>
+    <span class="n">heathland</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">urban_capped</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">urban_gardens</span> <span class="o">=</span> <span class="mi">150</span>
+    <span class="n">urban_parks</span> <span class="o">=</span> <span class="mi">250</span>
+    <span class="n">vertical_distribution</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">35</span><span class="p">,</span> <span class="mi">15</span>
+<span class="o">/</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./users"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="nanofase-data.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Compiling data with the NanoFASE data module</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="parameter-reference.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Model parameter reference</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#netcdf-file">NetCDF file</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#environmental-parameters">Environmental parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nanomaterial-properties">Nanomaterial properties</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#emissions">Emissions</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#calibration-parameters">Calibration parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#secondary-derived-variables">Secondary derived variables</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constants-namelist-file">Constants namelist file</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#allocatable-array-sizes-group"><code class="docutils literal notranslate"><span class="pre">allocatable_array_sizes</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#nanomaterial-group"><code class="docutils literal notranslate"><span class="pre">nanomaterial</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#water-group"><code class="docutils literal notranslate"><span class="pre">water</span></code> group</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#estuary-parameters">Estuary parameters</a></li>
+</ul>
+</li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#soil-group"><code class="docutils literal notranslate"><span class="pre">soil</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sediment-group"><code class="docutils literal notranslate"><span class="pre">sediment</span></code> group</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sediment-calibration-parameters">Sediment calibration parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#earthworm-densities-group"><code class="docutils literal notranslate"><span class="pre">earthworm_densities</span></code> group</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sam Harrison
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2024.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

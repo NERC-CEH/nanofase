@@ -1,13 +1,12 @@
 
-
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="" >
+<html lang="en" data-content_root="../" >
 
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Running the model on JASMIN &#8212; NanoFASE</title>
   
@@ -15,53 +14,49 @@
   
   <script data-cfasync="false">
     document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
   </script>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-<link href="../_static/styles/bootstrap.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
 
   
-  <link href="../_static/vendor/fontawesome/6.5.1/css/all.min.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-solid-900.woff2" />
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-brands-400.woff2" />
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-regular-400.woff2" />
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
 
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" href="../_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
-    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=a3416100" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=87e54e7c" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae" />
-  <script src="../_static/vendor/fontawesome/6.5.1/js/all.min.js?digest=8d27b9dea8ad943066ae"></script>
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/clipboard.min.js"></script>
-    <script src="../_static/copybutton.js"></script>
-    <script src="../_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
     <script>let toggleHintShow = 'Click to show';</script>
     <script>let toggleHintHide = 'Click to hide';</script>
     <script>let toggleOpenOnPrint = 'true';</script>
-    <script src="../_static/togglebutton.js"></script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
-    <script src="../_static/design-tabs.js"></script>
-    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"
-const thebe_selector = ".thebe,.cell"
-const thebe_selector_input = "pre"
-const thebe_selector_output = ".output, .cell_output"
-</script>
-    <script async="async" src="../_static/sphinx-thebe.js"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'users/jasmin';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -76,27 +71,23 @@ const thebe_selector_output = ".output, .cell_output"
 
   
   
-  <a id="pst-skip-link" class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
-    <i class="fa-solid fa-arrow-up"></i>
-    Back to top
-  </button>
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
 
   
   <input type="checkbox"
           class="sidebar-toggle"
-          name="__primary"
-          id="__primary"/>
-  <label class="overlay overlay-primary" for="__primary"></label>
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
   
   <input type="checkbox"
           class="sidebar-toggle"
-          name="__secondary"
-          id="__secondary"/>
-  <label class="overlay overlay-secondary" for="__secondary"></label>
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
   
   <div class="search-button__wrapper">
     <div class="search-button__overlay"></div>
@@ -118,8 +109,13 @@ const thebe_selector_output = ".output, .cell_output"
   <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
 </form></div>
   </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar">
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -143,6 +139,8 @@ const thebe_selector_output = ".output, .cell_output"
         <div class="sidebar-primary-item">
 
   
+    
+  
 
 <a class="navbar-brand logo" href="../intro.html">
   
@@ -160,7 +158,18 @@ const thebe_selector_output = ".output, .cell_output"
   
   
 </a></div>
-        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         
         <ul class="nav bd-sidenav bd-sidenav__home-link">
@@ -178,8 +187,14 @@ const thebe_selector_output = ".output, .cell_output"
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Users</span></p>
 <ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="input-data.html">Input data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="netcdf-namelist-input.html">NetCDF and namelist input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parameter-reference.html">Model parameter reference</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1"><a class="reference internal" href="output.html">Data output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="temporal-period.html">Running the model for different temporal periods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="batch.html">Batch runs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="checkpointing.html">Checkpointing</a></li>
@@ -196,6 +211,10 @@ const thebe_selector_output = ".output, .cell_output"
 <li class="toctree-l1"><a class="reference internal" href="../developers/conventions.html">Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../developers/io-units.html">Input/output units</a></li>
 </ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../references.html">References</a></li>
+</ul>
 
     </div>
 </nav></div>
@@ -210,7 +229,7 @@ const thebe_selector_output = ".output, .cell_output"
 
       </div>
       
-      <main id="main-content" class="bd-main">
+      <main id="main-content" class="bd-main" role="main">
         
         
 
@@ -219,14 +238,14 @@ const thebe_selector_output = ".output, .cell_output"
           <div class="bd-content">
             <div class="bd-article-container">
               
-              <div class="bd-header-article">
+              <div class="bd-header-article d-print-none">
 <div class="header-article-items header-article__inner">
   
     <div class="header-article-items__start">
       
-        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
   <span class="fa-solid fa-bars"></span>
-</label></div>
+</button></div>
       
     </div>
   
@@ -351,10 +370,10 @@ const thebe_selector_output = ".output, .cell_output"
 
 <script>
 document.write(`
-  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
-    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
-    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
-    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
   </button>
 `);
 </script>
@@ -362,14 +381,14 @@ document.write(`
 
 <script>
 document.write(`
-  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
   </button>
 `);
 </script>
-<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <span class="fa-solid fa-list"></span>
-</label>
+</button>
 </div></div>
       
     </div>
@@ -409,11 +428,11 @@ document.write(`
                 <article class="bd-article">
                   
   <section class="tex2jax_ignore mathjax_ignore" id="running-the-model-on-jasmin">
-<h1>Running the model on JASMIN<a class="headerlink" href="#running-the-model-on-jasmin" title="Permalink to this heading">#</a></h1>
+<h1>Running the model on JASMIN<a class="headerlink" href="#running-the-model-on-jasmin" title="Link to this heading">#</a></h1>
 <p>The model needs GFortran 7 or later, and JASMIN only has GFortran 4.4 installed by default. GFortran 7.3.1 can be accessed on the <code class="docutils literal notranslate"><span class="pre">jasmin-sci1-test.ceda.ac.uk</span></code> machine using the Developer Toolset <code class="docutils literal notranslate"><span class="pre">devtoolset-7</span></code>. But the version of NetCDF installed was compiled with the default (v4.4) version of GFortran, and thus can’t be used with GFortran 7.3.1. In addition, <code class="docutils literal notranslate"><span class="pre">jasmin-sci1-test</span></code> server that the Developer Toolset is hosted on does not have access to LOTUS or SLURM. The only work around for this is to compile NetCDF Fortran from source (using the already installed NetCDF C) on <code class="docutils literal notranslate"><span class="pre">jasmin-sci1-test</span></code>, or install GCC <em>and</em> NetCDF Fortran from source for use on the main JASMIN sci servers (and thus have access to LOTUS/SLURM).</p>
 <p>Here are brief instructions on how to do this:</p>
 <section id="compiling-gcc-and-gfortran">
-<h2>Compiling GCC and GFortran<a class="headerlink" href="#compiling-gcc-and-gfortran" title="Permalink to this heading">#</a></h2>
+<h2>Compiling GCC and GFortran<a class="headerlink" href="#compiling-gcc-and-gfortran" title="Link to this heading">#</a></h2>
 <p>This is surprisingly easy, but takes <em>a long time</em>. These instructions are based on the instructions given by GCC: <a class="reference external" href="https://gcc.gnu.org/wiki/InstallingGCC">https://gcc.gnu.org/wiki/InstallingGCC</a>.</p>
 <p>For the following I will assume you download all source code into <code class="docutils literal notranslate"><span class="pre">~/software_src</span></code> and install all software into <code class="docutils literal notranslate"><span class="pre">~/software</span></code>, but you can obviously change these locations to wherever you want (as long as you have permissions for that directory).</p>
 <p>First, clone the source code and checkout the v9.2.0 release. The repo is largely and cloning takes ages:</p>
@@ -444,7 +463,7 @@ $<span class="w"> </span>make<span class="w"> </span>install
 </div>
 </section>
 <section id="linking-libraries">
-<h2>Linking libraries<a class="headerlink" href="#linking-libraries" title="Permalink to this heading">#</a></h2>
+<h2>Linking libraries<a class="headerlink" href="#linking-libraries" title="Link to this heading">#</a></h2>
 <p>Now you need to modify the <code class="docutils literal notranslate"><span class="pre">PATH</span></code>, <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code> and <code class="docutils literal notranslate"><span class="pre">LD_RUN_PATH</span></code> variables to point to the version of GCC you’ve just installed. The best way of doing this is to add the following to the bottom of your <code class="docutils literal notranslate"><span class="pre">~/.bashrc</span></code> file:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span>~/software/gcc/install/bin:<span class="nv">$PATH</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">LD_LIBRARY_PATH</span><span class="o">=</span>~/software/gcc/install/lib64:~/software/gcc/install/lib/gcc/x86_64-pc-linux-gnu/9.2.0:~/software/gcc/install/libexec/gcc/x86_64-pc-linux-gnu/9.2.0:<span class="nv">$LD_LIBRARY_PATH</span>
@@ -454,7 +473,7 @@ $<span class="w"> </span>make<span class="w"> </span>install
 <p>Logout and back in to set these variables, and now you can install NetCDFF.</p>
 </section>
 <section id="compiling-netcdf-fortran">
-<h2>Compiling NetCDF Fortran<a class="headerlink" href="#compiling-netcdf-fortran" title="Permalink to this heading">#</a></h2>
+<h2>Compiling NetCDF Fortran<a class="headerlink" href="#compiling-netcdf-fortran" title="Link to this heading">#</a></h2>
 <p>Clone netcdf-fortran from GitHub and checkout to the v4.4.1 release (don’t use the latest release, because that requires a later version of NetCDF-C than is already installed):</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Unidata/netcdf-fortran
 $<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>netcdf-fortran
@@ -487,12 +506,12 @@ make<span class="w"> </span>install
 </pre></div>
 </div>
 <section id="issues-with-jaspy">
-<h3>Issues with Jaspy<a class="headerlink" href="#issues-with-jaspy" title="Permalink to this heading">#</a></h3>
+<h3>Issues with Jaspy<a class="headerlink" href="#issues-with-jaspy" title="Link to this heading">#</a></h3>
 <p>Loading Jaspy (e.g via <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">jaspy</span></code>) can cause issues. For example, it is likely that your <code class="docutils literal notranslate"><span class="pre">$PATH</span></code> environment variable gets modified to include Jaspy directories first, thus overiding the changes you made to point it towards your <code class="docutils literal notranslate"><span class="pre">GCC</span></code> installation. The easiest way around this is to compile the model <em>before</em> loading Jaspy, or after you have unloaded it (<code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">unload</span> <span class="pre">jaspy</span></code>).</p>
 </section>
 </section>
 <section id="compiling-the-model">
-<h2>Compiling the model<a class="headerlink" href="#compiling-the-model" title="Permalink to this heading">#</a></h2>
+<h2>Compiling the model<a class="headerlink" href="#compiling-the-model" title="Link to this heading">#</a></h2>
 <p>The model Makefile needs to be edited to point to the correct version of NetCDF. Change the variable <code class="docutils literal notranslate"><span class="pre">NETCDF</span></code> to point to the directories you just installed NetCDF Fortran in. For example, if you installed to <code class="docutils literal notranslate"><span class="pre">~/software/netcdff</span></code>, then:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">NETCDF</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>-I/home/users/&lt;username&gt;/software/netcdff/include<span class="w"> </span>-L/home/users/&lt;username&gt;/software/netcdff/lib<span class="w"> </span>-lnetcdff<span class="w"> </span>-lnetcdf
 </pre></div>
@@ -532,7 +551,7 @@ make<span class="w"> </span>install
               
               
               
-                <footer class="prev-next-footer">
+                <footer class="prev-next-footer d-print-none">
                   
 <div class="prev-next-area">
     <a class="left-prev"
@@ -600,7 +619,7 @@ By Sam Harrison
 
   <p class="copyright">
     
-      © Copyright 2022.
+      © Copyright 2024.
       <br/>
     
   </p>
@@ -624,8 +643,8 @@ By Sam Harrison
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae"></script>
-<script src="../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae"></script>
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
 
   <footer class="bd-footer">
   </footer>

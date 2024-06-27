@@ -1,13 +1,12 @@
 
-
 <!DOCTYPE html>
 
 
-<html lang="en" data-content_root="" >
+<html lang="en" data-content_root="../" >
 
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <title>Running the model for different temporal periods &#8212; NanoFASE</title>
   
@@ -15,58 +14,54 @@
   
   <script data-cfasync="false">
     document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
-    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
   </script>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../_static/styles/theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-<link href="../_static/styles/bootstrap.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-<link href="../_static/styles/pydata-sphinx-theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
 
   
-  <link href="../_static/vendor/fontawesome/6.5.1/css/all.min.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-solid-900.woff2" />
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-brands-400.woff2" />
-<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-regular-400.woff2" />
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
 
-    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" href="../_static/styles/sphinx-book-theme.css?digest=14f4ca6b54d191a8c7657f6c759bf11a5fb86285" type="text/css" />
-    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=a3416100" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/design-style.4045f2051d55cab465a707391d5b2007.min.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=87e54e7c" />
   
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae" />
-<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae" />
-  <script src="../_static/vendor/fontawesome/6.5.1/js/all.min.js?digest=8d27b9dea8ad943066ae"></script>
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
 
-    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
-    <script src="../_static/jquery.js"></script>
-    <script src="../_static/underscore.js"></script>
-    <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
-    <script src="../_static/doctools.js"></script>
-    <script src="../_static/clipboard.min.js"></script>
-    <script src="../_static/copybutton.js"></script>
-    <script src="../_static/scripts/sphinx-book-theme.js?digest=5a5c038af52cf7bc1a1ec88eea08e6366ee68824"></script>
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
     <script>let toggleHintShow = 'Click to show';</script>
     <script>let toggleHintHide = 'Click to hide';</script>
     <script>let toggleOpenOnPrint = 'true';</script>
-    <script src="../_static/togglebutton.js"></script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
-    <script src="../_static/design-tabs.js"></script>
-    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"
-const thebe_selector = ".thebe,.cell"
-const thebe_selector_input = "pre"
-const thebe_selector_output = ".output, .cell_output"
-</script>
-    <script async="async" src="../_static/sphinx-thebe.js"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'users/temporal-period';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Batch runs" href="batch.html" />
-    <link rel="prev" title="Data output" href="output.html" />
+    <link rel="prev" title="Example workflows" href="example-workflows.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -76,27 +71,23 @@ const thebe_selector_output = ".output, .cell_output"
 
   
   
-  <a id="pst-skip-link" class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
-    <i class="fa-solid fa-arrow-up"></i>
-    Back to top
-  </button>
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
 
   
   <input type="checkbox"
           class="sidebar-toggle"
-          name="__primary"
-          id="__primary"/>
-  <label class="overlay overlay-primary" for="__primary"></label>
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
   
   <input type="checkbox"
           class="sidebar-toggle"
-          name="__secondary"
-          id="__secondary"/>
-  <label class="overlay overlay-secondary" for="__secondary"></label>
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
   
   <div class="search-button__wrapper">
     <div class="search-button__overlay"></div>
@@ -118,8 +109,13 @@ const thebe_selector_output = ".output, .cell_output"
   <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
 </form></div>
   </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar">
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
     </header>
   
 
@@ -143,6 +139,8 @@ const thebe_selector_output = ".output, .cell_output"
         <div class="sidebar-primary-item">
 
   
+    
+  
 
 <a class="navbar-brand logo" href="../intro.html">
   
@@ -160,7 +158,18 @@ const thebe_selector_output = ".output, .cell_output"
   
   
 </a></div>
-        <div class="sidebar-primary-item"><nav class="bd-links" id="bd-docs-nav" aria-label="Main">
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         
         <ul class="nav bd-sidenav bd-sidenav__home-link">
@@ -178,8 +187,14 @@ const thebe_selector_output = ".output, .cell_output"
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Users</span></p>
 <ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="input-data.html">Input data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="netcdf-namelist-input.html">NetCDF and namelist input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parameter-reference.html">Model parameter reference</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1"><a class="reference internal" href="output.html">Data output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Running the model for different temporal periods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="batch.html">Batch runs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="checkpointing.html">Checkpointing</a></li>
@@ -196,6 +211,10 @@ const thebe_selector_output = ".output, .cell_output"
 <li class="toctree-l1"><a class="reference internal" href="../developers/conventions.html">Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../developers/io-units.html">Input/output units</a></li>
 </ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../references.html">References</a></li>
+</ul>
 
     </div>
 </nav></div>
@@ -210,7 +229,7 @@ const thebe_selector_output = ".output, .cell_output"
 
       </div>
       
-      <main id="main-content" class="bd-main">
+      <main id="main-content" class="bd-main" role="main">
         
         
 
@@ -219,14 +238,14 @@ const thebe_selector_output = ".output, .cell_output"
           <div class="bd-content">
             <div class="bd-article-container">
               
-              <div class="bd-header-article">
+              <div class="bd-header-article d-print-none">
 <div class="header-article-items header-article__inner">
   
     <div class="header-article-items__start">
       
-        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
   <span class="fa-solid fa-bars"></span>
-</label></div>
+</button></div>
       
     </div>
   
@@ -351,10 +370,10 @@ const thebe_selector_output = ".output, .cell_output"
 
 <script>
 document.write(`
-  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
-    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
-    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
-    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
   </button>
 `);
 </script>
@@ -362,14 +381,14 @@ document.write(`
 
 <script>
 document.write(`
-  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <i class="fa-solid fa-magnifying-glass fa-lg"></i>
   </button>
 `);
 </script>
-<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
     <span class="fa-solid fa-list"></span>
-</label>
+</button>
 </div></div>
       
     </div>
@@ -407,8 +426,8 @@ document.write(`
                 <article class="bd-article">
                   
   <section class="tex2jax_ignore mathjax_ignore" id="running-the-model-for-different-temporal-periods">
-<h1>Running the model for different temporal periods<a class="headerlink" href="#running-the-model-for-different-temporal-periods" title="Permalink to this heading">#</a></h1>
-<p>The temporal period that the model is run for is defined by the model config (or <a class="reference internal" href="batch.html"><span class="doc std std-doc">batch config</span></a>) and NetCDF input files:</p>
+<h1>Running the model for different temporal periods<a class="headerlink" href="#running-the-model-for-different-temporal-periods" title="Link to this heading">#</a></h1>
+<p>The temporal period that the model is run for is defined by the model config (or <a class="reference internal" href="batch.html"><span class="std std-doc">batch config</span></a>) and NetCDF input files:</p>
 <ul class="simple">
 <li><p>The <em>start date</em> of the model run is provided by the <code class="docutils literal notranslate"><span class="pre">&amp;run</span> <span class="pre">&gt;</span> <span class="pre">start_date</span></code> property in the <a class="reference external" href="https://github.com/NERC-CEH/nanofase/blob/develop/config.example/config.example.nml">model config file</a>.</p></li>
 <li><p>The length of each time step is given by the <code class="docutils literal notranslate"><span class="pre">&amp;run</span> <span class="pre">&gt;</span> <span class="pre">timestep</span></code> property in this file, which is given in seconds.</p></li>
@@ -416,12 +435,12 @@ document.write(`
 </ul>
 <p>Hence, the temporal period over which the model runs is the length of the <code class="docutils literal notranslate"><span class="pre">t</span></code> dimension in the NetCDF file, multiplied by the time step length from the config file. The important point here is that the model ignores the <code class="docutils literal notranslate"><span class="pre">units</span></code> attribute of the <code class="docutils literal notranslate"><span class="pre">t</span></code> dimension, which is commonly used to describe the start date of the data. Additionally, there is no check that this <code class="docutils literal notranslate"><span class="pre">units</span></code> attribute is the same as the config <code class="docutils literal notranslate"><span class="pre">start_date</span></code> property. This is intentional: It allows the same NetCDF file to be used to model different time period, which might be useful for running the model to steady state. The upshot of this is that changing the <code class="docutils literal notranslate"><span class="pre">start_date</span></code> config option doesn’t change the data that is being used in the model run, it is simply used to tell the model what the start date of the NetCDF data is.</p>
 <section id="what-if-i-only-want-to-run-the-model-for-a-slice-of-the-netcdf-data-s-temporal-period">
-<h2>What if I only want to run the model for a slice of the NetCDF data’s temporal period?<a class="headerlink" href="#what-if-i-only-want-to-run-the-model-for-a-slice-of-the-netcdf-data-s-temporal-period" title="Permalink to this heading">#</a></h2>
+<h2>What if I only want to run the model for a slice of the NetCDF data’s temporal period?<a class="headerlink" href="#what-if-i-only-want-to-run-the-model-for-a-slice-of-the-netcdf-data-s-temporal-period" title="Link to this heading">#</a></h2>
 <p>For example, say you have a NetCDF file with data for an entire year with a daily time step (like the <a class="reference external" href="https://github.com/NERC-CEH/nanofase/blob/develop/data.example/thames_tio2_2015.nc">example Thames 2015 data</a>), but you only want to run the model for one month of that year - let’s say June.</p>
 <p>The bad news is that the model doesn’t currently provide a way to do this without creating a new NetCDF file. If you were to change the <code class="docutils literal notranslate"><span class="pre">start_date</span></code> config option to <code class="docutils literal notranslate"><span class="pre">2015-06-01</span></code> and <code class="docutils literal notranslate"><span class="pre">n_timesteps</span></code> to <code class="docutils literal notranslate"><span class="pre">30</span></code>, the model would actually use the first 30 time steps it encounters in the data file (for the example data, corresponding to January), but write to the output data that it was performing the calculation for June.</p>
 <p>The good news is that there are a variety of very easy methods to slice a NetCDF file down to a given time period:</p>
 <section id="slicing-a-netcdf-file-using-command-line-utility-ncks">
-<h3>Slicing a NetCDF file using command line utility <code class="docutils literal notranslate"><span class="pre">ncks</span></code><a class="headerlink" href="#slicing-a-netcdf-file-using-command-line-utility-ncks" title="Permalink to this heading">#</a></h3>
+<h3>Slicing a NetCDF file using command line utility <code class="docutils literal notranslate"><span class="pre">ncks</span></code><a class="headerlink" href="#slicing-a-netcdf-file-using-command-line-utility-ncks" title="Link to this heading">#</a></h3>
 <p>If you have NetCDF installed, you almost certainly have the NetCDF command line utilities installed, including the NetCDF Kitchen Sink <code class="docutils literal notranslate"><span class="pre">ncks</span></code>. Slicing a time dimension is as easy as:</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>ncks<span class="w"> </span>-d<span class="w"> </span>t,start_time,end_time<span class="w"> </span><span class="k">in</span>.nc<span class="w"> </span>out.nc
 </pre></div>
@@ -432,7 +451,7 @@ document.write(`
 </div>
 </section>
 <section id="slicing-a-netcdf-file-in-python-using-xarray">
-<h3>Slicing a NetCDF file in Python using <code class="docutils literal notranslate"><span class="pre">xarray</span></code><a class="headerlink" href="#slicing-a-netcdf-file-in-python-using-xarray" title="Permalink to this heading">#</a></h3>
+<h3>Slicing a NetCDF file in Python using <code class="docutils literal notranslate"><span class="pre">xarray</span></code><a class="headerlink" href="#slicing-a-netcdf-file-in-python-using-xarray" title="Link to this heading">#</a></h3>
 <p>Slicing a NetCDF file is also very easy in Python. For example, using the <code class="docutils literal notranslate"><span class="pre">xarray</span></code> library:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">xarray</span>
 
@@ -472,16 +491,16 @@ document.write(`
               
               
               
-                <footer class="prev-next-footer">
+                <footer class="prev-next-footer d-print-none">
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="output.html"
+       href="example-workflows.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Data output</p>
+        <p class="prev-next-title">Example workflows</p>
       </div>
     </a>
     <a class="right-next"
@@ -538,7 +557,7 @@ By Sam Harrison
 
   <p class="copyright">
     
-      © Copyright 2022.
+      © Copyright 2024.
       <br/>
     
   </p>
@@ -562,8 +581,8 @@ By Sam Harrison
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script src="../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae"></script>
-<script src="../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae"></script>
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
 
   <footer class="bd-footer">
   </footer>

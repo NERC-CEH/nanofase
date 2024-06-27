@@ -1,0 +1,1288 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Model parameter reference &#8212; NanoFASE</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=a3416100" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=87e54e7c" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'users/parameter-reference';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Data output" href="output.html" />
+    <link rel="prev" title="NetCDF and namelist input data" href="netcdf-namelist-input.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../intro.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/logo.png" class="logo__image only-light" alt="NanoFASE - Home"/>
+    <script>document.write(`<img src="../_static/logo.png" class="logo__image only-dark" alt="NanoFASE - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../intro.html">
+                    The NanoFASE model
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/building-the-model.html">Building the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/running-the-model.html">Runing the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/test-scenario.html">Test scenario</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="input-data.html">Input data</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="netcdf-namelist-input.html">NetCDF and namelist input data</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Model parameter reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Data output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="temporal-period.html">Running the model for different temporal periods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch.html">Batch runs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="checkpointing.html">Checkpointing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="jasmin.html">Running the model on JASMIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speeding-up-model-runs.html">Speeding up model runs</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Theory</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../theory/intro.html">Model theory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../theory/conceptual-structure.html">Conceptual structure</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developers</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../developers/conventions.html">Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developers/io-units.html">Input/output units</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../references.html">References</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase/issues/new?title=Issue%20on%20page%20%2Fusers/parameter-reference.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/users/parameter-reference.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Model parameter reference</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#environmental-parameters">Environmental parameters</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#meteorological-and-hydrological-parameters">Meteorological and hydrological parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-water-parameters">Surface water parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#soil-and-terrestrial-parameters">Soil and terrestrial parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sediment-parameters">Sediment parameters</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nanomaterial-parameters">Nanomaterial parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#emissions">Emissions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calibration-parameters">Calibration parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#secondary-derived-variables">Secondary derived variables</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="model-parameter-reference">
+<h1>Model parameter reference<a class="headerlink" href="#model-parameter-reference" title="Link to this heading">#</a></h1>
+<p>This section is a comprehensive reference for model input parameters, including what file(s) they should be specified in, what their defaults are, and ideas for where to source them from.</p>
+<p>For information on how to compile and input these parameters into the model, see <a class="reference internal" href="input-data.html"><span class="doc std std-doc">Input data</span></a>.</p>
+<p>The <strong>Name(dimensions)</strong> column includes the following dimensions for use in the NetCDF file:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">t</span></code>: Time dimension</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>: Spatial dimensions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">d</span></code>: Number of spatial dimensions, always equal to 2</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">w</span></code>: Index of inflow to a grid cell, maximum of 7</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">box</span></code>: Used to define the bounding box of the grid cells, always equal to 4 to represent each side of the bounding box</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">p</span></code>: Index of point source within a grid cell</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">l</span></code>: Index representing land use categories</p></li>
+</ul>
+<p>A handful of 1D arrays are present in the constants file. Note that the constants namelist file also requires allocatable array size variables to define the length of these arrays - see <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-allocatable-array-sizes"><span class="std std-ref">allocatable_array_sizes group</span></a>. These are handled automatically by the NanoFASE data module and <em>not</em> included in this reference. The array dimensions used in the constant files are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">nm</span></code>: NM size classes, length must equal <code class="docutils literal notranslate"><span class="pre">n_nm_size_classes</span></code> in the model config file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">spm</span></code>: Suspended sediment size classes, length must equal <code class="docutils literal notranslate"><span class="pre">n_spm_size_classes</span></code> in the model config file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fc</span></code>: Sediment fractional compositions, length must equal <code class="docutils literal notranslate"><span class="pre">n_fractional_compositions</span></code> in the model config file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">soil_l</span></code>: Soil layers, length must equal <code class="docutils literal notranslate"><span class="pre">n_soil_layers</span></code> in the model config file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sed_l</span></code>: Sediment layers, length must equal <code class="docutils literal notranslate"><span class="pre">n_sediment_layers</span></code> in the model config file.</p></li>
+</ul>
+<p>The <strong>Units</strong> columns gives the internal model units, and therefore those required by the NetCDF and constants namelist. “dt” is the length of the model timestep, for example, is the model has a timestep of one day, then “kg/timestep” means “kg/day”. The NanoFASE data module is capable of converting units of spatial data (not constants), and therefore any reasonable units can be used for the data input to this - as long as these units are specified in the config file.</p>
+<p>The <strong>Specified in</strong> column indicates which file the model parameter should be included in:</p>
+<ul class="simple">
+<li><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> The spatio(temporal) NetCDF file input directly to the model.</p></li>
+<li><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> The constants namelist file input directly to the model.</p></li>
+<li><p><span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span> The main config file of the <a class="reference internal" href="nanofase-data.html"><span class="doc std std-doc">NanoFASE data module</span></a>, which lists spatio(temporal) variables that are compiled into the NetCDF file. Though the data themselves aren’t in this file, it provides the path to where the data are.</p></li>
+<li><p><span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span> The constants YAML file that the <a class="reference internal" href="nanofase-data.html"><span class="doc std std-doc">NanoFASE data module</span></a> converts to the constants namelist file.</p></li>
+</ul>
+<p>Data in the constants file are grouped, and this is denoted in the <strong>Name(dimensions)</strong> column as <span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">group</span> <code class="docutils literal notranslate"><span class="pre">parameter_name</span></code>.</p>
+<p>The <strong>Potential source</strong> column gives ideas for where the data may be sourced from. These are particularly relevant to European scenarios.</p>
+<section id="environmental-parameters">
+<h2>Environmental parameters<a class="headerlink" href="#environmental-parameters" title="Link to this heading">#</a></h2>
+<section id="meteorological-and-hydrological-parameters">
+<h3>Meteorological and hydrological parameters<a class="headerlink" href="#meteorological-and-hydrological-parameters" title="Link to this heading">#</a></h3>
+<div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Potential source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">dem(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required in <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span>, optional in <span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span></p></td>
+<td><p>dm</p></td>
+<td><p>Digital elevation model (height above mean sea level). In the model, this is only used to calculate slope, which defaults to 0.0005 m/m. In the NanoFASE data module, it is used to calculate numerous <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary variables</span></a> for input to the model. Standard name: <code class="docutils literal notranslate"><span class="pre">height_above_mean_sea_level</span></code></p></td>
+<td><p><a class="reference external" href="https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model">Copernicus DEM</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">quickflow(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>m/dt</p></td>
+<td><p>Also called surface runoff, this is the component of runoff that is responsible for driving soil erosion.  Standard name: <code class="docutils literal notranslate"><span class="pre">surface_runoff_flux</span></code></p></td>
+<td><p>Usually obtained from a hydrological model</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">runoff(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>m/dt</p></td>
+<td><p>This is the total runoff (subsurface and surface) that is routed by the model to provide surface water flows.  Standard name: <code class="docutils literal notranslate"><span class="pre">runoff_flux</span></code></p></td>
+<td><p>Usually obtained from a hydrological model</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">precip(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>m/dt</p></td>
+<td><p>Amount of precipitation, used to drive soil percolation. Standard name: <code class="docutils literal notranslate"><span class="pre">rainfall_flux</span></code></p></td>
+<td><p><a class="reference external" href="https://cds.climate.copernicus.eu/cdsapp#!/dataset/10.24381/cds.151d3ec6?tab=overview">Copernicus E-OBS</a> or <a class="reference external" href="https://doi.org/10.5285/dbf13dd5-90cd-457a-a986-f2f9dd97e93c">CEH-GEAR</a> for the UK</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">evap(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>m/dt</p></td>
+<td><p>Amount of evapotranspiration. Standard name: <code class="docutils literal notranslate"><span class="pre">water_evapotranspiration_flux</span></code></p></td>
+<td><p><a class="reference external" href="https://doi.org/10.3390/atmos13050772">Nistor et al, 2022</a> (data available <a class="reference external" href="https://doi.org/10.5281/zenodo.5899476">here</a>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="surface-water-parameters">
+<h3>Surface water parameters<a class="headerlink" href="#surface-water-parameters" title="Link to this heading">#</a></h3>
+<div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">group</span> Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Potential source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">is_estuary(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>ubyte</p></td>
+<td><p>Required if config option <code class="docutils literal notranslate"><span class="pre">include_estuary</span> <span class="pre">=</span> <span class="pre">.true.</span></code></p></td>
+<td><p>-</p></td>
+<td><p>Boolean variable dictating whether a grid cell’s waterbodies are estuaries (instead of freshwaters). 0 represents false, 1 represents true. This parameter is only required if the config option <code class="docutils literal notranslate"><span class="pre">include_estuary</span></code> is <code class="docutils literal notranslate"><span class="pre">.true.</span></code>, otherwise the model assumes there are no estuaries</p></td>
+<td><p>Could be deduced from land use maps, such as <a class="reference external" href="https://land.copernicus.eu/en/products/corine-land-cover">CORINE Land Cover</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">river_meandering_factor</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to calculation based on grid size</p></td>
+<td><p>-</p></td>
+<td><p>Meandering factor to account for rivers not being straight lines. If not present, meandering factor is estimated from the grid cell size, according to <span class="math notranslate nohighlight">\(f_m = 1.024 - 0.077 * \ln (200 / (dx + dy))\)</span> <span id="id1">[<a class="reference internal" href="../references.html#id4" title="Balázs M. Fekete, Charles J. Vörösmarty, and Richard B. Lammers. Scaling gridded river networks for macroscale hydrology: Development, analysis, and control of error. Water Resources Research, 37(7):1955–1967, 2001. _eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1029/2001WR900024. URL: https://onlinelibrary.wiley.com/doi/abs/10.1029/2001WR900024 (visited on 2024-06-19), doi:10.1029/2001WR900024.">3</a>]</span>.</p></td>
+<td><p>Could be deduced from river network vectors, such as <a class="reference external" href="https://www.ordnancesurvey.co.uk/products/os-open-rivers">OS Open Rivers</a></p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">min_water_temperature</span></code><br><code class="docutils literal notranslate"><span class="pre">max_water_temperature</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 4<sup>o</sup>C (min) or 21<sup>o</sup>C (max)</p></td>
+<td><p><sup>o</sup>C</p></td>
+<td><p>Average minimum or maximum water temperature across the year. Calculates daily water temperature timeseries using a cosine curve based on these values.</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">min_water_temperature_day_of_year</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>int</p></td>
+<td><p>Optional, defaults to 32</p></td>
+<td><p>-</p></td>
+<td><p>Day of the year on which the minimum water temperature usually occurs, as an integer. Defaults to 32, which represents the first day of February. Used along with min/max water temperature to calculate water temperature timeseries.</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">shear_rate</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 10 /s</p></td>
+<td><p>/s</p></td>
+<td><p>Shear rate at the water-sediment interface, used for calculating resuspension. Defaults to 10 /s <span id="id2">[<a class="reference internal" href="../references.html#id5" title="Rickard Arvidsson, Sverker Molander, Björn A. Sandén, and Martin Hassellöv. Challenges in Exposure Modeling of Nanoparticles in Aquatic Environments. Human and Ecological Risk Assessment: An International Journal, 17(1):245–262, January 2011. URL: https://doi.org/10.1080/10807039.2011.538639 (visited on 2020-04-30), doi:10.1080/10807039.2011.538639.">1</a>]</span>.</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">estuary_tidal_m2</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required if model domain has estuary</p></td>
+<td><p>-</p></td>
+<td><p>The M2 component of the tidal harmonics.</p></td>
+<td><p>Estuary authorities such as the Thames Port Authority</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">estuary_tidal_s2</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required if model domain has estuary</p></td>
+<td><p>-</p></td>
+<td><p>The S2 component of the tidal harmonics.</p></td>
+<td><p>Estuary authorities such as the Thames Port Authority</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">estuary_mouth_coords</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required if model domain has estuary</p></td>
+<td><p>m</p></td>
+<td><p>Position of the estuary mouth as (x, y) coordinates. Used to calculute upstream estuary dimensions based on exponential regression dependent on distance to estuary mouth.</p></td>
+<td><p>Estuary authorities such as the Thames Port Authority</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">estuary_mean_depth_expa</span></code><br><code class="docutils literal notranslate"><span class="pre">estuary_mean_depth_expb</span></code><br><code class="docutils literal notranslate"><span class="pre">estuary_width_expa</span></code><br><code class="docutils literal notranslate"><span class="pre">estuary_width_expb</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required if model domain has estuary</p></td>
+<td><p>-</p></td>
+<td><p>Parameters <code class="docutils literal notranslate"><span class="pre">a</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span></code> controlling the dependence of the estuary mean depth or width on distance to the mouth. For example, parameters <code class="docutils literal notranslate"><span class="pre">estuary_width_expa</span></code> and <code class="docutils literal notranslate"><span class="pre">estuary_width_expb</span></code> are used to calculate the width of the estuary upstream by a distance of <code class="docutils literal notranslate"><span class="pre">d</span></code> by the relation <code class="docutils literal notranslate"><span class="pre">width</span> <span class="pre">=</span> <span class="pre">estuary_width_expa</span> <span class="pre">*</span> <span class="pre">exp(-estuary_width_expb</span> <span class="pre">*</span> <span class="pre">d)</span></code>.</p></td>
+<td><p>Could be calibrated from vector map data showing width of rivers, or estuary monitoring data with depths</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">estuary_meandering_factor</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to calculation based on grid size</p></td>
+<td><p>-</p></td>
+<td><p>Meandering factor to account for estuaries not being straight lines. If not present, meandering factor is estimated from the grid cell size, according to <span class="math notranslate nohighlight">\(f_m = 1.024 - 0.077 * \ln (200 / (dx + dy))\)</span> <span id="id3">[<a class="reference internal" href="../references.html#id4" title="Balázs M. Fekete, Charles J. Vörösmarty, and Richard B. Lammers. Scaling gridded river networks for macroscale hydrology: Development, analysis, and control of error. Water Resources Research, 37(7):1955–1967, 2001. _eprint: https://onlinelibrary.wiley.com/doi/pdf/10.1029/2001WR900024. URL: https://onlinelibrary.wiley.com/doi/abs/10.1029/2001WR900024 (visited on 2024-06-19), doi:10.1029/2001WR900024.">3</a>]</span>.</p></td>
+<td><p>Could be deduced from land use maps, such as <a class="reference external" href="https://land.copernicus.eu/en/products/corine-land-cover">CORINE Land Cover</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="soil-and-terrestrial-parameters">
+<h3>Soil and terrestrial parameters<a class="headerlink" href="#soil-and-terrestrial-parameters" title="Link to this heading">#</a></h3>
+<div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">group</span> Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Potential source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">soil_bulk_density(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>kg/m<sup>3</sup></p></td>
+<td><p>Bulk density of the soil profile</p></td>
+<td><p><a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/soil-bulk-density-europe">ESDAC Soil Bulk Density</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">soil_water_content_field_capacity(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>cm<sup>3</sup>/cm<sup>3</sup></p></td>
+<td><p>Water content of the soil at field capacity, as a fraction. Standard name: <code class="docutils literal notranslate"><span class="pre">volume_fraction_of_condensed_water_in_soil_at_field_capacity</span></code></p></td>
+<td><p><a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/maps-indicators-soil-hydraulic-properties-europe">ESDAC Soil Hydraulic Properties</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">soil_water_content_saturation(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>cm<sup>3</sup>/cm<sup>3</sup></p></td>
+<td><p>Water content of the soil at saturation, as a fraction. Standard name: <code class="docutils literal notranslate"><span class="pre">volume_fraction_of_condensed_water_in_soil</span></code></p></td>
+<td><p><a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/maps-indicators-soil-hydraulic-properties-europe">ESDAC Soil Hydraulic Properties</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">soil_hydraulic_conductivity(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>m/s</p></td>
+<td><p>The hydraulic conductivity of the soil. Standard name: <code class="docutils literal notranslate"><span class="pre">soil_hydraulic_conductivity_at_saturation</span></code></p></td>
+<td><p><a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/maps-indicators-soil-hydraulic-properties-europe">ESDAC Soil Hydraulic Properties</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">soil_texture_clay_content(y,</span> <span class="pre">x)</span></code> <code class="docutils literal notranslate"><span class="pre">soil_texture_sand_content(y,</span> <span class="pre">x)</span></code> <code class="docutils literal notranslate"><span class="pre">soil_texture_silt_content(y,</span> <span class="pre">x)</span></code> <code class="docutils literal notranslate"><span class="pre">soil_texture_coarse_frag_content(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>kg/kg</p></td>
+<td><p>Clay, sand, silt or coarse fragment content of the soil, as a fraction.</p></td>
+<td><p><a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/topsoil-physical-properties-europe-based-lucas-topsoil-data">ESDAC Topsoil Physical Properties</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">soil_usle_c_factor(y,</span> <span class="pre">x)</span></code> <code class="docutils literal notranslate"><span class="pre">soil_usle_p_factor(y,</span> <span class="pre">x)</span></code> <code class="docutils literal notranslate"><span class="pre">soil_usle_ls_factor(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>Universal Soil Loss Equation cover management (C), support practice (P) and slope length and steepness (LS) factors.</p></td>
+<td><p>ESDAC <a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/cover-management-factor-c-factor-eu">C-factor</a>, <a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/support-practices-factor-p-factor-eu">P-factor</a> and <a class="reference external" href="https://esdac.jrc.ec.europa.eu/content/ls-factor-slope-length-and-steepness-factor-eu">LS-factor</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">land_use(l,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>The fraction of the grid cell that is each of the NanoFASE model land use categories, indexed by <code class="docutils literal notranslate"><span class="pre">l</span></code>. <a class="reference internal" href="nanofase-data.html#nanofase-data-land-use"><span class="std std-ref">See here</span></a> for land use categories. This is an internal parameter only required in the model NetCDF file. The NanoFASE data module takes a more conventional land use raster (see next row) and converts it to this parameter.</p></td>
+<td><p><a class="reference external" href="https://land.copernicus.eu/en/products/corine-land-cover">CORINE Land Cover</a> raster, pre-processed by the NanoFASE data module</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">land_use(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>int</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>Raster of land use classes, which are mapped to NanoFASE land use categories. If data are CORINE, the mapping should work automatically - see <a class="reference internal" href="nanofase-data.html#nanofase-data-land-use"><span class="std std-ref">Land use config</span></a>. This is the only spatial data that can be higher resolution than the model resolution (the higher the resolution, the more accurate that the above model parameter <code class="docutils literal notranslate"><span class="pre">land_use(l,</span> <span class="pre">y,</span> <span class="pre">x)</span></code> will be)</p></td>
+<td><p><a class="reference external" href="https://land.copernicus.eu/en/products/corine-land-cover">CORINE Land Cover</a> raster</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">darcy_velocity</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 9e-6 m/s</p></td>
+<td><p>m/s</p></td>
+<td><p>The Darcy approach velocity is used to calculate the attachment rate of NMs. A default of 9e-6 m/s is used <span id="id4">[<a class="reference internal" href="../references.html#id7" title="Johannes A. J. Meesters, Albert A. Koelmans, Joris T. K. Quik, A. Jan Hendriks, and Dik van de Meent. Multimedia Modeling of Engineered Nanoparticles with SimpleBox4nano: Model Definition and Evaluation. Environmental Science &amp; Technology, 48(10):5726–5736, May 2014. URL: http://dx.doi.org/10.1021/es500548h (visited on 2017-03-28), doi:10.1021/es500548h.">5</a>, <a class="reference internal" href="../references.html#id6" title="Nathalie Tufenkji and Menachem Elimelech. Correlation Equation for Predicting Single-Collector Efficiency in Physicochemical Filtration in Saturated Porous Media. Environmental Science &amp; Technology, 38(2):529–536, January 2004. Publisher: American Chemical Society. URL: https://doi.org/10.1021/es034049r (visited on 2020-06-15), doi:10.1021/es034049r.">7</a>]</span>.</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">default_porosity</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>Porosity of the soil profile.</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">particle_density</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>kg/m3</p></td>
+<td><p>Average density of soil particles.</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">erosivity_a1</span></code><br><code class="docutils literal notranslate"><span class="pre">erosivity_a2</span></code><br><code class="docutils literal notranslate"><span class="pre">erosivity_a3</span></code><br><code class="docutils literal notranslate"><span class="pre">erosivity_b</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>These four parameters are used to calculate a soil erosivity factor for use in predicting soil erosion yields. Based on a Revised Universal Soil Loss (RUSLE), with R-factor calculated from rainfall kinetic energy (see <span id="id5">Davison <em>et al.</em> [<a class="reference internal" href="../references.html#id8" title="P. Davison, M. G. Hutchins, S. G. Anthony, M. Betson, C. Johnson, and E. I. Lord. The relationship between potentially erosive storm energy and daily rainfall quantity in England and Wales. The Science of the Total Environment, 344(1-3):15–25, May 2005. doi:10.1016/j.scitotenv.2005.02.002.">2</a>]</span>) and K-factor based on a modified Morgan-Morgan-Finney <span id="id6">[<a class="reference internal" href="../references.html#id9" title="R. P. C. Morgan and J. H. Duzant. Modified MMF (Morgan–Morgan–Finney) model for evaluating effects of crops and vegetation cover on soil erosion. Earth Surface Processes and Landforms, 33(1):90–106, January 2008. URL: https://onlinelibrary.wiley.com/doi/abs/10.1002/esp.1530 (visited on 2018-09-25), doi:10.1002/esp.1530.">6</a>]</span>.</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">earthworm-densities</span> <code class="docutils literal notranslate"><span class="pre">arable</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">coniferous</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">deciduous</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">grassland</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">heathland</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">urban_capped</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">urban_gardens</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">urban_parks</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>individuals/m3</p></td>
+<td><p>Density of earthworms in each <a class="reference internal" href="nanofase-data.html#nanofase-data-land-use"><span class="std std-ref">NanoFASE land use category</span></a>.</p></td>
+<td><p><a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-earthworms"><span class="std std-ref">See here</span></a> for reasonable estimates for the UK. Could be deduced from earthworm density maps, e.g. <a class="reference external" href="https://doi.org/10.1016/j.apsoil.2015.08.015">for Europe</a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">earthworm-densities</span> <code class="docutils literal notranslate"><span class="pre">vertical_distribution(soil_l)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>Percentage of the earthworms in each soil layer, used to distribute the densities across the soil profile.</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="sediment-parameters">
+<h3>Sediment parameters<a class="headerlink" href="#sediment-parameters" title="Link to this heading">#</a></h3>
+<div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">group</span> Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">sediment</span> <code class="docutils literal notranslate"><span class="pre">porosity</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>Average sediment porosity</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">sediment</span> <code class="docutils literal notranslate"><span class="pre">initial_mass(spm)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>kg/m<sup>2</sup></p></td>
+<td><p>The mass of each sediment size class at the start of the model run.</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">sediment</span> <code class="docutils literal notranslate"><span class="pre">fractional_composition_distribution(fc)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>The default distribution of sediment mass across fractional compositions, as a percentage.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">sediment</span> <code class="docutils literal notranslate"><span class="pre">default_spm_size_distribution(spm)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>The default size distribution applied to sediment particles, as a percentage, when there is no other information, such as from soil erosion yields.</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">sediment</span> <code class="docutils literal notranslate"><span class="pre">default_matrixembedded_distribution_to_spm(spm)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>The default size distribution that is used to proportion matrix-embedded releases of NM to sediment size classes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">sediment</span> <code class="docutils literal notranslate"><span class="pre">spm_density_by_size_class(spm)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>kg/m<sup>3</sup></p></td>
+<td><p>The density of the sediment in each size class.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</section>
+<section id="nanomaterial-parameters">
+<h2>Nanomaterial parameters<a class="headerlink" href="#nanomaterial-parameters" title="Link to this heading">#</a></h2>
+<div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">group</span> Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">nanomaterial</span> <code class="docutils literal notranslate"><span class="pre">nm_density</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>kg/m<sup>3</sup></p></td>
+<td><p>The average density of the nanomaterial modelled</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">nanomaterial</span> <code class="docutils literal notranslate"><span class="pre">default_nm_size_distribution(nm)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>Used to apply a proportion of NM mass in each size class to emissions data, as a percentage</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">soil_attachment_efficiency</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0 if corresponding parameter not present in  NetCDF file</p></td>
+<td><p>-</p></td>
+<td><p>The attachment efficiency represents the probability that a collision between a nanoparticle and the soil matrix results in the sticking (attachment) of the nanoparticle. If a spatial version of this parameter is not present in the NetCDF file, this constant value is used.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">soil_attachment_rate(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, <code class="docutils literal notranslate"><span class="pre">soil_attachment_efficiency</span></code> used to calculate rate if not present</p></td>
+<td><p>/s</p></td>
+<td><p>The rate at which nanoparticles attach to the soil matrix</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">soil_attachment_efficiency(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, value in constants file used if not present</p></td>
+<td><p>-</p></td>
+<td><p>The attachment efficiency represents the probability that a collision between a nanoparticle and the soil matrix results in the sticking (attachment) of the nanoparticle</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">hamaker_constant</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>J</p></td>
+<td><p>Soil Hamaker constant, which is used to calculate the attachment rate of NMs.</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">river_attachment_efficiency</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>-</p></td>
+<td><p>The attachment efficiency represents the probability that a collision between a nanoparticle and suspended particulate matter in rivers results in the sticking (attachment) of the nanoparticle, thus yielding is available for sediment deposition.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">k_diss_pristine</span></code><br><code class="docutils literal notranslate"><span class="pre">k_diss_transformed</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>/s</p></td>
+<td><p>Dissolution rate of pristine or transformed NMs.</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">estuary_attachment_efficiency</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required if model domain has estuary</p></td>
+<td><p>-</p></td>
+<td><p>The attachment efficiency represents the probability that a collision between a nanoparticle and suspended particulate matter in estuaries results in the sticking (attachment) of the nanoparticle, thus yielding is available for sediment deposition.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="emissions">
+<h2>Emissions<a class="headerlink" href="#emissions" title="Link to this heading">#</a></h2>
+<div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">emissions_areal_water_pristine(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_areal_water_transformed(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_areal_water_matrixembedded(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_areal_water_dissolved(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>kg/m<sup>2</sup>/dt</p></td>
+<td><p>Diffuse source emissions of pristine, transformed or matrix-embedded NM to waters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">emissions_areal_soil_pristine(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_areal_soil_transformed(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_areal_soil_matrixembedded(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_areal_soil_dissolved(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>kg/m<sup>2</sup>/dt</p></td>
+<td><p>Diffuse source emissions of pristine, transformed or matrix-embedded NM to soils.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_drydepo_pristine(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_drydepo_transformed(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_drydepo_matrixembedded(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_drydepo_dissolved(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>kg/m<sup>2</sup>/dt</p></td>
+<td><p>Emissions of pristine, transformed or matrix-embedded NM via atmospheric dry deposition. Assumed to be split between soils and water according to the surface area of these compartments within each grid cell.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_wetdepo_pristine(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_wetdepo_transformed(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_wetdepo_matrixembedded(y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_atmospheric_wetdepo_dissolved(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>kg/m<sup>2</sup>/dt</p></td>
+<td><p>Emissions of pristine, transformed or matrix-embedded NM via atmospheric wet deposition. Assumed to be split between soils and water according to the surface area of these compartments within each grid cell.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">emissions_point_water_pristine(p,</span> <span class="pre">t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_point_water_transformed(p,</span> <span class="pre">t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_point_water_matrixembedded(p,</span> <span class="pre">t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_point_water_dissolved(p,</span> <span class="pre">t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>kg/dt</p></td>
+<td><p>Point source emissions of pristine, transformed or matrix-embedded NM to waters. The dimension <code class="docutils literal notranslate"><span class="pre">p</span></code> represents the number of point sources within a grid cell. See <a class="reference internal" href="nanofase-data.html#nanofase-data-point-emissions"><span class="std std-ref">Point source emissions and temporal profiles</span></a> for how point source emissions should be specified in the NanoFASE data module, including specification of a temporal profile via a separate sidecar file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">emissions_point_water_pristine_coords(d,</span> <span class="pre">p,</span> <span class="pre">y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_point_water_transformed_coords(d,</span> <span class="pre">p,</span> <span class="pre">y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_point_water_matrixembedded_coords(d,</span> <span class="pre">p,</span> <span class="pre">y,</span> <span class="pre">x)</span></code><br>
+<code class="docutils literal notranslate"><span class="pre">emissions_point_water_dissolved_coords(d,</span> <span class="pre">p,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span></p></td>
+<td><p>float</p></td>
+<td><p>Required for one form (pristine, transformed etc) if value given for corresponding point source.</p></td>
+<td><p>m</p></td>
+<td><p>The projected (x, y) coordinates of the point source with same <code class="docutils literal notranslate"><span class="pre">p,</span> <span class="pre">y,</span> <span class="pre">x</span></code> indices. Only one coordinate is required across the different forms (pristine, transformed, matrix-embedded and dissolved), and therefore this variable only needs to be provided one. If coordinates for multiple forms are specified, the model will use only one in order of preference: dissolved, transformed, matrix-embedded, pristine. For example, if <code class="docutils literal notranslate"><span class="pre">emissions_point_water_pristine_coords</span></code> and <code class="docutils literal notranslate"><span class="pre">emissions_point_water_dissolved_coords</span></code> are provided, the value for <code class="docutils literal notranslate"><span class="pre">emissions_point_water_dissolved_coords</span></code> will be used for all of the forms from this point source. Not required in NanoFASE data module as data are provided by shapefiles (see <a class="reference internal" href="nanofase-data.html#nanofase-data-point-emissions"><span class="std std-ref">Point source emissions and temporal profiles</span></a>).</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="calibration-parameters">
+<h2>Calibration parameters<a class="headerlink" href="#calibration-parameters" title="Link to this heading">#</a></h2>
+<p>The calibration parameters relate to sediment dynamics, but are included in a separate table for ease of reference. They can all either be specified as spatial or constant, with the spatial version being used preferentially if both are present.</p>
+<p>Generally, the model should be calibrated against observed sediment concentrations using these parameters. For example, for the UK, the <a class="reference external" href="https://environment.data.gov.uk/water-quality/view/landing">Environment Agency Water Quality Data Archive</a> could be used.</p>
+<div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">group</span> Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">resuspension_alpha(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>-</p></td>
+<td><p>Shear velocity coefficient, used to calculate resuspension flux.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">resuspension_alpha</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required if not present in spatial data</p></td>
+<td><p>-</p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-secondary sd-text-secondary">water</span> <code class="docutils literal notranslate"><span class="pre">resuspension_alpha_estuary</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to <code class="docutils literal notranslate"><span class="pre">water</span> <span class="pre">.</span> <span class="pre">resuspension_alpha</span></code></p></td>
+<td><p>-</p></td>
+<td><p>As above, for estuaries</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">resuspension_beta(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>s<sup>2</sup>/kg</p></td>
+<td><p>Entrainment coefficient, used to calculate resuspension flux. Corresponds to parameter <span class="math notranslate nohighlight">\(a_8\)</span> in <span id="id7">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p></td>
+</tr>
+<tr class="row-even"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">resuspension_beta</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required if not present in spatial data</p></td>
+<td><p>s<sup>2</sup>/kg</p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">resuspension_beta_estuary</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to <code class="docutils literal notranslate"><span class="pre">water</span> <span class="pre">.</span> <span class="pre">resuspension_beta</span></code></p></td>
+<td><p>s<sup>2</sup>/kg</p></td>
+<td><p>As above, for estuaries</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">deposition_alpha(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>-</p></td>
+<td><p>Calibration parameter used to control sediment deposition. Corresponds to the parameter set to 38.1 in Equation 11 of <span id="id8">Zhiyao <em>et al.</em> [<a class="reference internal" href="../references.html#id3" title="Song Zhiyao, Wu Tingting, Xu Fumin, and Li Ruijie. A simple formula for predicting settling velocity of sediment particles. Water Science and Engineering, 1(1):37–43, March 2008. URL: http://www.sciencedirect.com/science/article/pii/S167423701530017X (visited on 2017-05-23), doi:10.1016/S1674-2370(15)30017-X.">8</a>]</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">deposition_alpha</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 38.1</p></td>
+<td><p>-</p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">deposition_beta(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>-</p></td>
+<td><p>Calibration parameter used to control sediment deposition. Corresponds to the parameter set to 0.93 in Equation 11 of <span id="id9">Zhiyao <em>et al.</em> [<a class="reference internal" href="../references.html#id3" title="Song Zhiyao, Wu Tingting, Xu Fumin, and Li Ruijie. A simple formula for predicting settling velocity of sediment particles. Water Science and Engineering, 1(1):37–43, March 2008. URL: http://www.sciencedirect.com/science/article/pii/S167423701530017X (visited on 2017-05-23), doi:10.1016/S1674-2370(15)30017-X.">8</a>]</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">deposition_beta</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0.93</p></td>
+<td><p>-</p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bank_erosion_alpha(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>kg/m</p></td>
+<td><p>Bank erosion scaling factor, used to calculate sediment yield from bank erosion. Corresponds to parameter <span class="math notranslate nohighlight">\(a_9\)</span> in <span id="id10">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">bank_erosion_alpha</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 1e-9</p></td>
+<td><p>kg/m</p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">bank_erosion_beta(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>-</p></td>
+<td><p>Bank erosion non-linear coefficient, used to calculate sediment yield from bank erosion. Corresponds to parameter <span class="math notranslate nohighlight">\(a_{10}\)</span> in <span id="id11">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">water</span> <code class="docutils literal notranslate"><span class="pre">bank_erosion_beta</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 1.0</p></td>
+<td><p>-</p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sediment_transport_a(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>kg/m<sup>2</sup>/km<sup>2</sup></p></td>
+<td><p>Sediment transport capacity scaling factor. Corresponds to parameter <span class="math notranslate nohighlight">\(a_4\)</span> in <span id="id12">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">sediment_transport_a</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 2e-9</p></td>
+<td><p>kg/m<sup>2</sup>/km<sup>2</sup></p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sediment_transport_b(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>m<sup>2</sup>/s</p></td>
+<td><p>Sediment transport capacity direct runoff threshold. Corresponds to parameter <span class="math notranslate nohighlight">\(a_5\)</span> in <span id="id13">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">sediment_transport_b</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>m<sup>2</sup>/s</p></td>
+<td><p>As above</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sediment_transport_c(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to value in constants</p></td>
+<td><p>-</p></td>
+<td><p>Sediment transport capacity non-linear coefficient. Corresponds to parameter <span class="math notranslate nohighlight">\(a_6\)</span> in <span id="id14">Lazar <em>et al.</em> [<a class="reference internal" href="../references.html#id2" title="Attila N. Lazar, Dan Butterfield, Martyn N. Futter, Katri Rankinen, Marie Thouvenot-Korppoo, Nick Jarritt, Deborah S. L. Lawrence, Andrew J. Wade, and Paul G. Whitehead. An assessment of the fine sediment dynamics in an upland river system: INCA-Sed modifications and implications for fisheries. Science of The Total Environment, 408(12):2555–2566, May 2010. URL: http://www.sciencedirect.com/science/article/pii/S0048969710001749, doi:10.1016/j.scitotenv.2010.02.030.">4</a>]</span>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><span class="sd-sphinx-override sd-badge sd-outline-dark sd-text-dark">soil</span> <code class="docutils literal notranslate"><span class="pre">sediment_transport_c</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-secondary sd-bg-text-secondary">constants.nml</span> <span class="sd-sphinx-override sd-badge sd-bg-danger sd-bg-text-danger">constants.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0.2</p></td>
+<td><p>-</p></td>
+<td><p>As above</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="secondary-derived-variables">
+<h2>Secondary derived variables<a class="headerlink" href="#secondary-derived-variables" title="Link to this heading">#</a></h2>
+<p>The spatial variables that are derived by the NanoFASE data module, and therefore required in the NetCDF file but not as input to the data module, are documented here: <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">Secondary derived variables</span></a>.</p>
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./users"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="netcdf-namelist-input.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">NetCDF and namelist input data</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="output.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Data output</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#environmental-parameters">Environmental parameters</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#meteorological-and-hydrological-parameters">Meteorological and hydrological parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#surface-water-parameters">Surface water parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#soil-and-terrestrial-parameters">Soil and terrestrial parameters</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#sediment-parameters">Sediment parameters</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nanomaterial-parameters">Nanomaterial parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#emissions">Emissions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calibration-parameters">Calibration parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#secondary-derived-variables">Secondary derived variables</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sam Harrison
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2024.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
