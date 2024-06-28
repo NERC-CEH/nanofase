@@ -1,36 +1,28 @@
 # Compiling data with the NanoFASE data module
 
-The *NanoFASE data module* is a collection of Python scripts that are used to compile input data for the model. It is recommended to use these scripts over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of [secondary derived variables](netcdf-namelist-input:secondary-derived-variables), amongst other reasons.
+The *NanoFASE data module* (`nfdata`) is a Python library that is used to compile input data for the model. It is recommended to use this library over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of [secondary derived variables](netcdf-namelist-input:secondary-derived-variables), amongst other reasons.
+
+The library can be [found on GitHub](https://github.com/nerc-ceh/nfdata).
 
 ## Getting started
 
+The easiest way to use the library is to [install it from PyPI](https://pypi.org/project/nfdata/). For example, using pip:
+
+```bash
+$ pip install nfdata
+```
+
 ```{note}
-The data module is currently only available as standalone scripts, rather than a Python package. This means that you must manually download the repository and set up a computational environment (install the correct packages) to be able to run the scripts, as detailed below. In the future, we will create a Python package from these scripts to ease this process.
+We are currently working on a Conda package for the library - watch this space!
 ```
-
-Clone a copy of the repository from GitHub:
-
-```bash
-$ git clone git@github.com:NERC-CEH/nanofase-data.git
-$ cd nanofase-data
-```
-
-Use Conda (or Mamba) to create a new environmental and install the required packages:
-
-```bash
-$ conda env create -f environment.yaml
-$ conda activate nanofase-data
-```
-
-If you don't want to use Conda/Mamba, then the `environment.yaml` file lists the packages that need to be installed.
 
 ## Basic usage
 
-The main script is `nanofase_data.py`:
+Once installed, the library can be run via the command line using the `nfdata` command:
 
 ```
-(nanofase-data) $ python nanofase_data.py --help
-usage: nanofase_data.py [-h] [--output OUTPUT] {create,edit,constants} file
+$ nfdata --help
+usage: nfdata [-h] [--output OUTPUT] {create,edit,constants} file
 
 Compile or edit data for the NanoFASE model.
 
@@ -50,7 +42,7 @@ options:
 Specifying the "create" option compiles a new NetCDF dataset and Fortran namelist constant file:
 
 ```shell script
-(nanofase-data) $ python nanofase_data.py create /path/to/config.create.yaml
+$ nfdata create /path/to/config.create.yaml
 ```
 
 An annotated example config file is given: [`config.create.example.yaml`](https://github.com/NERC-CEH/nanofase-data/blob/develop/config.create.example.yaml). The file is quite self-explanatory, but a [full description is given below](nanofase-data:config).
@@ -62,7 +54,7 @@ The two files will be output to the paths specified in the config file.
 To edit an existing NetCDF dataset, specify the "edit" option:
 
 ```shell script
-(nanofase-data) $ python nanofase_data.py edit /path/to/config.edit.yaml
+$ nfdata edit /path/to/config.edit.yaml
 ```
 
 An annotated example config file is given: [`config.edit.example.yaml`](https://github.com/NERC-CEH/nanofase-data/blob/develop/config.edit.example.yaml). This is similar (but not identical) in format to the creation config file, except only those variables you with to edit should be specified (all other variables are left as-is). Documentation for the config file is [provided below](nanofase-data:config).
@@ -76,7 +68,7 @@ The Fortran namelist file cannot be edited using this method and you should inst
 To simply convert a constants YAML file to a Fortran namelist file, you can use the `constants` option:
 
 ```shell script
-(nanofase-data) $ python nanofase_data.py constants /path/to/constants.yaml -o /path/to/constants.nml
+$ nfdata constants /path/to/constants.yaml -o /path/to/constants.nml
 ```
 
 No config file is required. The location of the newly created constants file is given by the `-o` or `--output` argument.

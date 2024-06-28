@@ -443,30 +443,24 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="compiling-data-with-the-nanofase-data-module">
 <h1>Compiling data with the NanoFASE data module<a class="headerlink" href="#compiling-data-with-the-nanofase-data-module" title="Link to this heading">#</a></h1>
-<p>The <em>NanoFASE data module</em> is a collection of Python scripts that are used to compile input data for the model. It is recommended to use these scripts over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary derived variables</span></a>, amongst other reasons.</p>
+<p>The <em>NanoFASE data module</em> (<code class="docutils literal notranslate"><span class="pre">nfdata</span></code>) is a Python library that is used to compile input data for the model. It is recommended to use this library over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary derived variables</span></a>, amongst other reasons.</p>
+<p>The library can be <a class="reference external" href="https://github.com/nerc-ceh/nfdata">found on GitHub</a>.</p>
 <section id="getting-started">
 <h2>Getting started<a class="headerlink" href="#getting-started" title="Link to this heading">#</a></h2>
+<p>The easiest way to use the library is to <a class="reference external" href="https://pypi.org/project/nfdata/">install it from PyPI</a>. For example, using pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>nfdata
+</pre></div>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The data module is currently only available as standalone scripts, rather than a Python package. This means that you must manually download the repository and set up a computational environment (install the correct packages) to be able to run the scripts, as detailed below. In the future, we will create a Python package from these scripts to ease this process.</p>
+<p>We are currently working on a Conda package for the library - watch this space!</p>
 </div>
-<p>Clone a copy of the repository from GitHub:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:NERC-CEH/nanofase-data.git
-$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>nanofase-data
-</pre></div>
-</div>
-<p>Use Conda (or Mamba) to create a new environmental and install the required packages:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yaml
-$<span class="w"> </span>conda<span class="w"> </span>activate<span class="w"> </span>nanofase-data
-</pre></div>
-</div>
-<p>If you don’t want to use Conda/Mamba, then the <code class="docutils literal notranslate"><span class="pre">environment.yaml</span></code> file lists the packages that need to be installed.</p>
 </section>
 <section id="basic-usage">
 <h2>Basic usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
-<p>The main script is <code class="docutils literal notranslate"><span class="pre">nanofase_data.py</span></code>:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>(nanofase-data) $ python nanofase_data.py --help
-usage: nanofase_data.py [-h] [--output OUTPUT] {create,edit,constants} file
+<p>Once installed, the library can be run via the command line using the <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> command:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ nfdata --help
+usage: nfdata [-h] [--output OUTPUT] {create,edit,constants} file
 
 Compile or edit data for the NanoFASE model.
 
@@ -484,7 +478,7 @@ options:
 <section id="creating-a-new-dataset">
 <h3>Creating a new dataset<a class="headerlink" href="#creating-a-new-dataset" title="Link to this heading">#</a></h3>
 <p>Specifying the “create” option compiles a new NetCDF dataset and Fortran namelist constant file:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>nanofase-data<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>nanofase_data.py<span class="w"> </span>create<span class="w"> </span>/path/to/config.create.yaml
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>nfdata<span class="w"> </span>create<span class="w"> </span>/path/to/config.create.yaml
 </pre></div>
 </div>
 <p>An annotated example config file is given: <a class="reference external" href="https://github.com/NERC-CEH/nanofase-data/blob/develop/config.create.example.yaml"><code class="docutils literal notranslate"><span class="pre">config.create.example.yaml</span></code></a>. The file is quite self-explanatory, but a <a class="reference internal" href="#nanofase-data-config"><span class="std std-ref">full description is given below</span></a>.</p>
@@ -493,7 +487,7 @@ options:
 <section id="editing-an-existing-dataset">
 <h3>Editing an existing dataset<a class="headerlink" href="#editing-an-existing-dataset" title="Link to this heading">#</a></h3>
 <p>To edit an existing NetCDF dataset, specify the “edit” option:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>nanofase-data<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>nanofase_data.py<span class="w"> </span>edit<span class="w"> </span>/path/to/config.edit.yaml
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>nfdata<span class="w"> </span>edit<span class="w"> </span>/path/to/config.edit.yaml
 </pre></div>
 </div>
 <p>An annotated example config file is given: <a class="reference external" href="https://github.com/NERC-CEH/nanofase-data/blob/develop/config.edit.example.yaml"><code class="docutils literal notranslate"><span class="pre">config.edit.example.yaml</span></code></a>. This is similar (but not identical) in format to the creation config file, except only those variables you with to edit should be specified (all other variables are left as-is). Documentation for the config file is <a class="reference internal" href="#nanofase-data-config"><span class="std std-ref">provided below</span></a>.</p>
@@ -503,7 +497,7 @@ options:
 <section id="only-creating-a-new-constants-file">
 <h3>Only creating a new constants file<a class="headerlink" href="#only-creating-a-new-constants-file" title="Link to this heading">#</a></h3>
 <p>To simply convert a constants YAML file to a Fortran namelist file, you can use the <code class="docutils literal notranslate"><span class="pre">constants</span></code> option:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="o">(</span>nanofase-data<span class="o">)</span><span class="w"> </span>$<span class="w"> </span>python<span class="w"> </span>nanofase_data.py<span class="w"> </span>constants<span class="w"> </span>/path/to/constants.yaml<span class="w"> </span>-o<span class="w"> </span>/path/to/constants.nml
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>nfdata<span class="w"> </span>constants<span class="w"> </span>/path/to/constants.yaml<span class="w"> </span>-o<span class="w"> </span>/path/to/constants.nml
 </pre></div>
 </div>
 <p>No config file is required. The location of the newly created constants file is given by the <code class="docutils literal notranslate"><span class="pre">-o</span></code> or <code class="docutils literal notranslate"><span class="pre">--output</span></code> argument.</p>
