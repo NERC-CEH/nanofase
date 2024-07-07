@@ -45,7 +45,7 @@
     <script src="../_static/doctools.js?v=9a2dae69"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
-    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/copybutton.js?v=35a8b989"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
     <script>let toggleHintShow = 'Click to show';</script>
     <script>let toggleHintHide = 'Click to hide';</script>
@@ -417,7 +417,7 @@ document.write(`
 <h1>Input data<a class="headerlink" href="#input-data" title="Link to this heading">#</a></h1>
 <p>The model requires a NetCDF file of spatio(temporal) input data, and a Fortran namelist file for constants. The config file is responsible for telling the model where these input data are located (via the <code class="docutils literal notranslate"><span class="pre">&amp;data</span></code> group). There are two options for generating these input data files:</p>
 <ul class="simple">
-<li><p><em>Recommended</em>: Use the <a class="reference external" href="https://github.com/nerc-ceh/nanofase-data">NanoFASE data module</a> - see <a class="reference internal" href="nanofase-data.html"><span class="doc std std-doc">Compiling data with the NanoFASE data module</span></a>. This is a Python script that compiles multiple spatio(temporal) input files into the main NetCDF file, at the same time as deriving secondary variables from these data, which are required by the model.</p></li>
+<li><p><em>Recommended</em>: Use the <a class="reference external" href="https://github.com/nerc-ceh/nanofase-data">NanoFASE data module</a> - see <a class="reference internal" href="nanofase-data.html"><span class="doc std std-doc">Compiling data with the NanoFASE data module</span></a>. This is a Python library that compiles multiple spatio(temporal) input files into the main NetCDF file, at the same time as deriving secondary variables from these data, which are required by the model.</p></li>
 <li><p>Manually creating (or editing a copy of) the NetCDF and namelist files. This is not recommended for compiling new data (though can be useful for editing existing data) due to the requirement for a range of <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary derived variables</span></a> that would have to be calculated manually. If you wish to go down this route, see <a class="reference internal" href="netcdf-namelist-input.html"><span class="doc std std-doc">NetCDF and namelist input data</span></a> for details of the variables required in the NetCDF and constants namelist file.</p></li>
 </ul>
 <p>The complete list of parameters required by the model is givin in <a class="reference internal" href="parameter-reference.html"><span class="doc std std-doc">Model parameter reference</span></a>. Example NetCDF and constants files are given in the <a class="reference external" href="https://github.com/NERC-CEH/nanofase/tree/develop/data.example">data.example</a> directory.</p>

@@ -15,14 +15,14 @@ If your system has multiple versions of GFortran installed, make sure that the N
 
 First, get a copy of the code by cloning the repo, making sure to specify `--recurse-submodules` to pull in code for the submodules in the `vendor/` directory:
 
-```shell
+```console
 $ git clone https://github.com/nerc-ceh/nanofase.git --recurse-submodules
 $ cd nanofase
 ```
 
 If you forget the `--recurse-submodule` flag, then run the following from the repo directory:
 
-```shell
+```console
 $ git submodule update --init --recursive
 ```
 

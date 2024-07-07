@@ -45,7 +45,7 @@
     <script src="_static/doctools.js?v=9a2dae69"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
-    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/copybutton.js?v=35a8b989"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
     <script>let toggleHintShow = 'Click to show';</script>
     <script>let toggleHintHide = 'Click to hide';</script>
@@ -436,9 +436,9 @@ document.write(`
 <h2>Quickstart guide<a class="headerlink" href="#quickstart-guide" title="Link to this heading">#</a></h2>
 <p>The easiest way to install the model is to use the <a class="reference external" href="https://fpm.fortran-lang.org/en/install/index.html#install">Fortran Package Manager</a>, which can be installed using Conda (<code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">-c</span> <span class="pre">conda-forge</span> <span class="pre">fpm</span></code>). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see <a class="reference internal" href="getting-started/building-the-model.html"><span class="std std-doc">Building the model</span></a>).</p>
 <p>Clone the code (make sure to <code class="docutils literal notranslate"><span class="pre">--recurse-submodules</span></code>) and use <em>fpm</em> to install:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:NERC-CEH/nanofase.git<span class="w"> </span>--recurse-submodules
-$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>nanofase
-$<span class="w"> </span>fpm<span class="w"> </span>@install
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:NERC-CEH/nanofase.git<span class="w"> </span>--recurse-submodules
+<span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>nanofase
+<span class="gp">$ </span>fpm<span class="w"> </span>@install
 </pre></div>
 </div>
 <div class="admonition note">
@@ -447,15 +447,15 @@ $<span class="w"> </span>fpm<span class="w"> </span>@install
 </div>
 <p>Use the <code class="docutils literal notranslate"><span class="pre">--prefix</span> <span class="pre">&lt;path-to-installation-dir&gt;</span></code> flag to install the model into a directory of your choice, e.g. <code class="docutils literal notranslate"><span class="pre">fpm</span> <span class="pre">&#64;install</span> <span class="pre">--prefix</span> <span class="pre">&lt;path-to-installation-dir&gt;</span></code>.</p>
 <p>Test the model with the <a class="reference internal" href="getting-started/test-scenario.html"><span class="std std-doc">test scenario</span></a>. Presuming the install directory is on your <code class="docutils literal notranslate"><span class="pre">$PATH</span></code>:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>mkdir<span class="w"> </span>log<span class="w"> </span>output
-$<span class="w"> </span>nanofase<span class="w"> </span>config.example/test-scenario.example.nml
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>mkdir<span class="w"> </span>log<span class="w"> </span>output
+<span class="gp">$ </span>nanofase<span class="w"> </span>config.example/test-scenario.example.nml
 </pre></div>
 </div>
 <p>Or you can use fpm to run the model, without needing to install it first (i.e. omitting the <code class="docutils literal notranslate"><span class="pre">fpm</span> <span class="pre">&#64;install</span></code> step above):</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span><span class="c1"># Debug version</span>
-$<span class="w"> </span>fpm<span class="w"> </span>@run<span class="w"> </span>--<span class="w"> </span>config.example/test-scenario.example.nml
-<span class="c1"># Release version with optimisations turned on</span>
-$<span class="w"> </span>fpm<span class="w"> </span>@release<span class="w"> </span>--<span class="w"> </span>config.example/test-scenario.example.nml
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp"># </span>Debug<span class="w"> </span>version
+<span class="gp">$ </span>fpm<span class="w"> </span>@run<span class="w"> </span>--<span class="w"> </span>config.example/test-scenario.example.nml
+<span class="gp"># </span>Release<span class="w"> </span>version<span class="w"> </span>with<span class="w"> </span>optimisations<span class="w"> </span>turned<span class="w"> </span>on
+<span class="gp">$ </span>fpm<span class="w"> </span>@release<span class="w"> </span>--<span class="w"> </span>config.example/test-scenario.example.nml
 </pre></div>
 </div>
 <p>Take a look at the NetCDF output file using your software of choice. For example, using Python’s <code class="docutils literal notranslate"><span class="pre">xarray</span></code> to plot the pristine NM concentration in rivers at the end of the model run (2015-01-11):</p>

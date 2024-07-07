@@ -1,24 +1,45 @@
 # Compiling data with the NanoFASE data module
 
-The *NanoFASE data module* (`nfdata`) is a Python library that is used to compile input data for the model. It is recommended to use this library over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of [secondary derived variables](netcdf-namelist-input:secondary-derived-variables), amongst other reasons.
+The *NanoFASE data module* (`nfdata`) is a Python package that is used to compile input data for the model. It is recommended to use this package over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of [secondary derived variables](netcdf-namelist-input:secondary-derived-variables), amongst other reasons.
 
-The library can be [found on GitHub](https://github.com/nerc-ceh/nfdata).
+The package source code can be [found on GitHub](https://github.com/nerc-ceh/nfdata).
 
 ## Getting started
 
-The easiest way to use the library is to [install it from PyPI](https://pypi.org/project/nfdata/). For example, using pip:
+The package is available on [PyPI](https://pypi.org/project/nfdata/) or [Conda](https://anaconda.org/samharrison7/nfdata), and the easiest way to use the package is to install one of these using Pixi, Conda/Mamba or Pip:
 
-```bash
+`````{tab-set}
+````{tab-item} Conda
+```console
+$ conda install -c samharrison7 nfdata
+```
+````
+````{tab-item} Mamba
+```console
+$ mamba install -c samharrison7 nfdata
+```
+````
+````{tab-item} Pip
+```console
 $ pip install nfdata
 ```
-
-```{note}
-We are currently working on a Conda package for the library - watch this space!
+````
+````{tab-item} Pixi (global)
+```console
+$ pixi global install -c samharrison7 nfdata
 ```
+````
+````{tab-item} Pixi (project)
+```console
+$ pixi project channel add samharrison7
+$ pixi add nfdata
+```
+````
+`````
 
 ## Basic usage
 
-Once installed, the library can be run via the command line using the `nfdata` command:
+Once installed, the package can be run via the command line using the `nfdata` command:
 
 ```
 $ nfdata --help
@@ -41,7 +62,7 @@ options:
 
 Specifying the "create" option compiles a new NetCDF dataset and Fortran namelist constant file:
 
-```shell script
+```console
 $ nfdata create /path/to/config.create.yaml
 ```
 
@@ -53,7 +74,7 @@ The two files will be output to the paths specified in the config file.
 
 To edit an existing NetCDF dataset, specify the "edit" option:
 
-```shell script
+```console
 $ nfdata edit /path/to/config.edit.yaml
 ```
 
@@ -67,7 +88,7 @@ The Fortran namelist file cannot be edited using this method and you should inst
 
 To simply convert a constants YAML file to a Fortran namelist file, you can use the `constants` option:
 
-```shell script
+```console
 $ nfdata constants /path/to/constants.yaml -o /path/to/constants.nml
 ```
 

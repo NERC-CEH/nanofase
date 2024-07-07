@@ -45,7 +45,7 @@
     <script src="../_static/doctools.js?v=9a2dae69"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
-    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/copybutton.js?v=35a8b989"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
     <script>let toggleHintShow = 'Click to show';</script>
     <script>let toggleHintHide = 'Click to hide';</script>
@@ -443,22 +443,53 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="compiling-data-with-the-nanofase-data-module">
 <h1>Compiling data with the NanoFASE data module<a class="headerlink" href="#compiling-data-with-the-nanofase-data-module" title="Link to this heading">#</a></h1>
-<p>The <em>NanoFASE data module</em> (<code class="docutils literal notranslate"><span class="pre">nfdata</span></code>) is a Python library that is used to compile input data for the model. It is recommended to use this library over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary derived variables</span></a>, amongst other reasons.</p>
-<p>The library can be <a class="reference external" href="https://github.com/nerc-ceh/nfdata">found on GitHub</a>.</p>
+<p>The <em>NanoFASE data module</em> (<code class="docutils literal notranslate"><span class="pre">nfdata</span></code>) is a Python package that is used to compile input data for the model. It is recommended to use this package over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of <a class="reference internal" href="netcdf-namelist-input.html#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary derived variables</span></a>, amongst other reasons.</p>
+<p>The package source code can be <a class="reference external" href="https://github.com/nerc-ceh/nfdata">found on GitHub</a>.</p>
 <section id="getting-started">
 <h2>Getting started<a class="headerlink" href="#getting-started" title="Link to this heading">#</a></h2>
-<p>The easiest way to use the library is to <a class="reference external" href="https://pypi.org/project/nfdata/">install it from PyPI</a>. For example, using pip:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>nfdata
+<p>The package is available on <a class="reference external" href="https://pypi.org/project/nfdata/">PyPI</a> or <a class="reference external" href="https://anaconda.org/samharrison7/nfdata">Conda</a>, and the easiest way to use the package is to install one of these using Pixi, Conda/Mamba or Pip:</p>
+<div class="sd-tab-set docutils">
+<input checked="checked" id="sd-tab-item-0" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-0">
+Conda</label><div class="sd-tab-content docutils">
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>samharrison7<span class="w"> </span>nfdata
 </pre></div>
 </div>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>We are currently working on a Conda package for the library - watch this space!</p>
+</div>
+<input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-1">
+Mamba</label><div class="sd-tab-content docutils">
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>mamba<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>samharrison7<span class="w"> </span>nfdata
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-2" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-2">
+Pip</label><div class="sd-tab-content docutils">
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span>nfdata
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-3" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-3">
+Pixi (global)</label><div class="sd-tab-content docutils">
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>pixi<span class="w"> </span>global<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>samharrison7<span class="w"> </span>nfdata
+</pre></div>
+</div>
+</div>
+<input id="sd-tab-item-4" name="sd-tab-set-0" type="radio">
+<label class="sd-tab-label" for="sd-tab-item-4">
+Pixi (project)</label><div class="sd-tab-content docutils">
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>pixi<span class="w"> </span>project<span class="w"> </span>channel<span class="w"> </span>add<span class="w"> </span>samharrison7
+<span class="gp">$ </span>pixi<span class="w"> </span>add<span class="w"> </span>nfdata
+</pre></div>
+</div>
+</div>
 </div>
 </section>
 <section id="basic-usage">
 <h2>Basic usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
-<p>Once installed, the library can be run via the command line using the <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> command:</p>
+<p>Once installed, the package can be run via the command line using the <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> command:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ nfdata --help
 usage: nfdata [-h] [--output OUTPUT] {create,edit,constants} file
 
@@ -478,7 +509,7 @@ options:
 <section id="creating-a-new-dataset">
 <h3>Creating a new dataset<a class="headerlink" href="#creating-a-new-dataset" title="Link to this heading">#</a></h3>
 <p>Specifying the “create” option compiles a new NetCDF dataset and Fortran namelist constant file:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>nfdata<span class="w"> </span>create<span class="w"> </span>/path/to/config.create.yaml
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nfdata<span class="w"> </span>create<span class="w"> </span>/path/to/config.create.yaml
 </pre></div>
 </div>
 <p>An annotated example config file is given: <a class="reference external" href="https://github.com/NERC-CEH/nanofase-data/blob/develop/config.create.example.yaml"><code class="docutils literal notranslate"><span class="pre">config.create.example.yaml</span></code></a>. The file is quite self-explanatory, but a <a class="reference internal" href="#nanofase-data-config"><span class="std std-ref">full description is given below</span></a>.</p>
@@ -487,7 +518,7 @@ options:
 <section id="editing-an-existing-dataset">
 <h3>Editing an existing dataset<a class="headerlink" href="#editing-an-existing-dataset" title="Link to this heading">#</a></h3>
 <p>To edit an existing NetCDF dataset, specify the “edit” option:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>nfdata<span class="w"> </span>edit<span class="w"> </span>/path/to/config.edit.yaml
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nfdata<span class="w"> </span>edit<span class="w"> </span>/path/to/config.edit.yaml
 </pre></div>
 </div>
 <p>An annotated example config file is given: <a class="reference external" href="https://github.com/NERC-CEH/nanofase-data/blob/develop/config.edit.example.yaml"><code class="docutils literal notranslate"><span class="pre">config.edit.example.yaml</span></code></a>. This is similar (but not identical) in format to the creation config file, except only those variables you with to edit should be specified (all other variables are left as-is). Documentation for the config file is <a class="reference internal" href="#nanofase-data-config"><span class="std std-ref">provided below</span></a>.</p>
@@ -497,7 +528,7 @@ options:
 <section id="only-creating-a-new-constants-file">
 <h3>Only creating a new constants file<a class="headerlink" href="#only-creating-a-new-constants-file" title="Link to this heading">#</a></h3>
 <p>To simply convert a constants YAML file to a Fortran namelist file, you can use the <code class="docutils literal notranslate"><span class="pre">constants</span></code> option:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>nfdata<span class="w"> </span>constants<span class="w"> </span>/path/to/constants.yaml<span class="w"> </span>-o<span class="w"> </span>/path/to/constants.nml
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>nfdata<span class="w"> </span>constants<span class="w"> </span>/path/to/constants.yaml<span class="w"> </span>-o<span class="w"> </span>/path/to/constants.nml
 </pre></div>
 </div>
 <p>No config file is required. The location of the newly created constants file is given by the <code class="docutils literal notranslate"><span class="pre">-o</span></code> or <code class="docutils literal notranslate"><span class="pre">--output</span></code> argument.</p>
