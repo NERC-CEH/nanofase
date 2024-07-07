@@ -19,14 +19,14 @@ The good news is that there are a variety of very easy methods to slice a NetCDF
 
 If you have NetCDF installed, you almost certainly have the NetCDF command line utilities installed, including the NetCDF Kitchen Sink `ncks`. Slicing a time dimension is as easy as:
 
-```shell
-ncks -d t,start_time,end_time in.nc out.nc
+```console
+$ ncks -d t,start_time,end_time in.nc out.nc
 ```
 
 where `start_time` and `end_time` are zero-indexed integers (use the flag `-F` if you want one-indexed). So, using our example, to slice June from the [example Thames 2015 data](../data.example/thames_tio2_2015.nc), we slice between 152 (1 June) and 181 (30 June):
 
-```shell
-ncks -d t,152,181 thames_tio2_2015.nc thames_tio2_june2015.nc
+```console
+$ ncks -d t,152,181 thames_tio2_2015.nc thames_tio2_june2015.nc
 ```
 
 ### Slicing a NetCDF file in Python using `xarray`

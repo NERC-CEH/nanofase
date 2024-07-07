@@ -37,7 +37,7 @@ emissions_areal_soil_pristine:
 
 Save this to `vendor/nanofase-data/config.edit.yaml`. Now we can run the data compiler, which is provided as a submodule to this repo:
 
-```shell
+```console
 $ vendor/nanofase-data/nanofase_data.py edit vendor/nanofase-data/config.edit.yaml
 ```
 
@@ -63,7 +63,7 @@ output_path = "data/output/"
 
 Now you're ready to run the model with this updated config file:
 
-```shell
+```console
 $ make run CONFIG_PATH=config/ CONFIG_FILE=config.nml
 ```
 

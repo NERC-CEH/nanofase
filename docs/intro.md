@@ -12,7 +12,7 @@ The easiest way to install the model is to use the [Fortran Package Manager](htt
 
 Clone the code (make sure to `--recurse-submodules`) and use *fpm* to install:
 
-```shell
+```console
 $ git clone git@github.com:NERC-CEH/nanofase.git --recurse-submodules
 $ cd nanofase
 $ fpm @install
@@ -26,14 +26,14 @@ Use the `--prefix <path-to-installation-dir>` flag to install the model into a d
 
 Test the model with the [test scenario](getting-started/test-scenario.md). Presuming the install directory is on your `$PATH`:
 
-```shell
+```console
 $ mkdir log output
 $ nanofase config.example/test-scenario.example.nml
 ```
 
 Or you can use fpm to run the model, without needing to install it first (i.e. omitting the `fpm @install` step above):
 
-```shell
+```console
 # Debug version
 $ fpm @run -- config.example/test-scenario.example.nml
 # Release version with optimisations turned on

@@ -8,14 +8,14 @@ Multimedia spatiotemporal environmental fate and exposure model for engineered n
 
 Simply clone this repo, making sure to specify `--recurse-submodules` to pull in code for the submodules in the `vendor/` directory:
 
-```shell
+```console
 $ git clone https://github.com/nerc-ceh/nanofase.git --recurse-submodules
 $ cd nanofase
 ```
 
 If you forget the `--recurse-submodule` flag, then run the following from the repo directory:
 
-```shell
+```console
 $ git submodule update --init --recursive
 ```
 
@@ -27,7 +27,7 @@ We recommend compiling using GFortran version 10 or higher. The only dependency 
 
 An example makefile ([Makefile.example](./Makefile.example)) is provided. If you already have NetCDF installed, then compiling the model is as simple as making the `bin` directory to place your exectuble in, then running `make`:
 
-```shell
+```console
 $ cp Makefile.example Makefile
 $ mkdir bin
 $ make
@@ -35,7 +35,7 @@ $ make
 
 The [example makefile](./Makefile.example) provides targets for debug, release and "fast" compilation. The main make target builds the debug version, whilst the `release` and `fast` targets build optimised release versions (`release` uses `-O3`, `fast` uses `-Ofast -march=native -mtune=native`). Run times can be significantly improved using the `release` and `fast` targets, and so unless you need detailed debugging or profiling, then it is recommended to use one of these.
 
-```shell
+```console
 # Build the debug version
 $ make
 # OR, build the release version
@@ -48,7 +48,7 @@ $ make fast
 
 The model can also be built using `cmake`, using the [CMakeLists.txt](./CMakeLists.txt) file. Use the standard `cmake` procedure to compile the model:
 
-```shell
+```console
 $ mkdir build && cd build
 $ cmake ..
 $ make
@@ -62,7 +62,7 @@ Note that, whilst `cmake` can be used to compile the model using the `ifort` or 
 
 The only dependency outside of the `vendor` directory (which are compiled from source when the model is compiled, so don't worry about these) is the [NetCDF Fortran](https://www.unidata.ucar.edu/software/netcdf/docs/building_netcdf_fortran.html) library, which must already be installed on your system. NetCDF4 is available on most default application repositories, such as those for Ubuntu and Red Hat, and this is the easiest way to install. For example, on Ubuntu:
 
-```shell
+```console
 $ sudo apt-get install libnetcdf-dev
 $ sudo apt-get install libnetcdff-dev
 ```
@@ -75,7 +75,7 @@ If you're on Windows, it is highly recommended to use Cygwin or a Linux containe
 
 The model requires a config file to run. An example is placed at [config.example/config.example.nml](./config.example/config.example.nml). The example is commented and should be relatively self-explanatory. Copy this to a new file and edit as you wish. Make sure the directories you specify for output data and logs exist, otherwise the model will fail. Then pass this config file as the first argument when calling the model executable. For example, if you compiled the model to `./bin/main`:
 
-```shell
+```console
 $ ./bin/main /path/to/config/file.nml
 ```
 
