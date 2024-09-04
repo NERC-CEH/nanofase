@@ -2,7 +2,7 @@
 
 The *NanoFASE data module* (`nfdata`) is a Python package that is used to compile input data for the model. It is recommended to use this package over and above manually compiling the NetCDF and constants namelist file required by the model, as the data module scripts take care of deriving a variety of [secondary derived variables](netcdf-namelist-input:secondary-derived-variables), amongst other reasons.
 
-The package source code can be [found on GitHub](https://github.com/nerc-ceh/nfdata).
+The package source code can be [found on GitHub](https://github.com/nerc-ceh/nanofase-data).
 
 ## Getting started
 
