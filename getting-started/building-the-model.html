@@ -394,7 +394,6 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-fpm-fortran-package-manager">Using fpm (Fortran Package Manager)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-cmake">Using CMake</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-make">Using Make</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other-build-options">Other build options</a></li>
 </ul>
             </nav>
         </div>
@@ -471,11 +470,6 @@ $<span class="w"> </span>make
 <p>The default target builds the model with debugging enabled. To turn on optimisations, build using <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">release</span></code> (for <code class="docutils literal notranslate"><span class="pre">-O3</span></code> optimisations) or <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">fast</span></code> (for <code class="docutils literal notranslate"><span class="pre">-Ofast</span></code> optimsations).</p>
 <p>The model will be built into the <code class="docutils literal notranslate"><span class="pre">build</span></code> directory by default (a custom directory can be specified with the <code class="docutils literal notranslate"><span class="pre">$BUILD_DIR</span></code> option, e.g. <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">BUILD_DIR=makebuild</span></code>). An executable file named <code class="docutils literal notranslate"><span class="pre">nanofase</span></code> will now be available in this directory.</p>
 </section>
-<section id="other-build-options">
-<h2>Other build options<a class="headerlink" href="#other-build-options" title="Link to this heading">#</a></h2>
-<p>We are also working towards supporting the <a class="reference external" href="https://fpm.fortran-lang.org/">Fortran Package Manager</a> (FPM), but are not quite there yet. See the <a class="reference external" href="https://github.com/NERC-CEH/nanofase/blob/develop/fpm.toml">fpm.toml</a> file for the work-in-progress FPM manifest file.</p>
-<p>The model can also be compiled using Visual Studio with the Intel Fortran integration. See <a class="reference internal" href="../developers/vs-ifort-setup.html"><span class="std std-doc">Building with Intel Fortran and Visual Studio</span></a> for a guide on compiling using Visual Studio 2017.</p>
-</section>
 </section>
 
     <script type="text/x-thebe-config">
@@ -547,7 +541,6 @@ $<span class="w"> </span>make
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-fpm-fortran-package-manager">Using fpm (Fortran Package Manager)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-cmake">Using CMake</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-make">Using Make</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#other-build-options">Other build options</a></li>
 </ul>
   </nav></div>
 
