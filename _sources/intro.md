@@ -8,7 +8,7 @@ The NanoFASE model is a multimedia spatiotemporal environmental fate and exposur
 
 ## Quickstart guide
 
-The easiest way to install the model is to use the [Fortran Package Manager](https://fpm.fortran-lang.org/en/install/index.html#install), which can be installed using Conda (`conda install -c conda-forge fpm`). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see [](./getting-started/building-the-model.md)).
+The easiest way to install the model is to use the [Fortran Package Manager]([https://fpm.fortran-lang.org/en/install/index.html#install](https://fpm.fortran-lang.org/install/index.html#install)), which can be installed using Conda (`conda install -c conda-forge fpm`). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see [](./getting-started/building-the-model.md)).
 
 Clone the code (make sure to `--recurse-submodules`) and use *fpm* to install:
 
