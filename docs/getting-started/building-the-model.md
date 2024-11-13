@@ -76,9 +76,3 @@ $ make
 The default target builds the model with debugging enabled. To turn on optimisations, build using `make release` (for `-O3` optimisations) or `make fast` (for `-Ofast` optimsations).
 
 The model will be built into the `build` directory by default (a custom directory can be specified with the `$BUILD_DIR` option, e.g. `make BUILD_DIR=makebuild`). An executable file named `nanofase` will now be available in this directory.
-
-## Other build options
-
-We are also working towards supporting the [Fortran Package Manager](https://fpm.fortran-lang.org/) (FPM), but are not quite there yet. See the [fpm.toml](https://github.com/NERC-CEH/nanofase/blob/develop/fpm.toml) file for the work-in-progress FPM manifest file.
-
-The model can also be compiled using Visual Studio with the Intel Fortran integration. See [](../developers/vs-ifort-setup.md) for a guide on compiling using Visual Studio 2017.
