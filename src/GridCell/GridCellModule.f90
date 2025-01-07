@@ -112,7 +112,7 @@ module GridCellModule
                     me%y, &
                     1, &
                     me%n_river, &
-                    me%area, 
+                    me%area, &
                     me%q_precip_timeseries, &
                     me%q_evap_timeseries &
                 ) &

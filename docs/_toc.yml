@@ -23,7 +23,7 @@ parts:
     - file: users/checkpointing
     - file: users/jasmin
     - file: users/speeding-up-model-runs
-    - file: users/vs-ifort-setup
+    - file: users/common-errors
   - caption: Theory
     chapters:
     - file: theory/intro

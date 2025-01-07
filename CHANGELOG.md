@@ -6,6 +6,7 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ### Changed
 
+- The `water_temperature` variable in the constants data file has been replaced with `min_water_temperature`, `max_water_temperature` and `min_water_temperature_day_of_year`. Providing `water_temperature` will throw an error.
 - ANSI escape character now uses `char(27)` instead of backslash escape sequences, so `-fbackslash` (GFortran) and `-assume bscc` (Intel) compiler options no longer needed.
 - ⚠️ The example config files now save output data to `output`, instead of `data/output`.
 

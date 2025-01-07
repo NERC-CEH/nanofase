@@ -350,6 +350,7 @@ module SoilProfileModule
         real    :: ssd_(3,C%nSizeClassesSpm)                        ! Temporary SSD array, before summing across SSD dimension
         ! Bins for texture content, based on definition of clay, silt and sand. First bins
         ! have non-zero lower bound to avoid numerical errors when logging
+        print *, clay, silt, sand
         texture = [clay, silt, sand] / 100.0
         if (enrichClay) then
             clayEnrichmentRatio = 0.26 + 1 / (1 - texture(3))               ! Ref: Stefano and Ferro, 2002: https://doi.org/10.1006/bioe.2001.0034
