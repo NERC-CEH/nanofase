@@ -445,7 +445,6 @@ module DataInputModule
         ! Soil texture                              [%]
         var = me%nc%getVariable('soil_texture_clay_content')
         call var%getData(me%soilTextureClayContent)
-        print *, me%soilTextureClayContent
         var = me%nc%getVariable('soil_texture_sand_content')
         call var%getData(me%soilTextureSandContent)
         var = me%nc%getVariable('soil_texture_silt_content')

@@ -350,7 +350,6 @@ module SoilProfileModule
         real    :: ssd_(3,C%nSizeClassesSpm)                        ! Temporary SSD array, before summing across SSD dimension
         ! Bins for texture content, based on definition of clay, silt and sand. First bins
         ! have non-zero lower bound to avoid numerical errors when logging
-        print *, clay, silt, sand
         texture = [clay, silt, sand] / 100.0
         if (enrichClay) then
             clayEnrichmentRatio = 0.26 + 1 / (1 - texture(3))               ! Ref: Stefano and Ferro, 2002: https://doi.org/10.1006/bioe.2001.0034
@@ -434,6 +433,13 @@ module SoilProfileModule
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
         me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
+        ! Check if clay, sand and silt sum to (nearly) 1, and if not, default to
+        ! the average soil texture for Europe
+        if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
+            me%clayContent = 18.0
+            me%sandContent = 46.0
+            me%siltContent = 36.0
+        end if
         if (me%coarseFragContent == nf90_fill_real) then
             me%coarseFragContent = 0.0
         end if
@@ -550,17 +556,15 @@ module SoilProfileModule
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
         me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
-        ! If one of the clay/sand/silt content variables is empty, then use defaults
-        ! instead. The defaults are roughly the average soil texture across Europe
-        ! TODO maybe move this to the DataInputModule as part of data validation
-        if ((me%clayContent == nf90_fill_real) .or. (me%sandContent == nf90_fill_real) &
-            .or. (me%siltContent == nf90_fill_real)) then
+        ! Check if clay, sand and silt sum to (nearly) 1, and if not, default to
+        ! the average soil texture for Europe
+        if (abs(1.0 - me%clayContent - me%sandContent - me%siltContent) > 1e-3) then
             me%clayContent = 0.18
             me%sandContent = 0.46
             me%siltContent = 0.36
         end if
         if (me%coarseFragContent == nf90_fill_real) then
-            me%coarseFragContent = 0.0_dp
+            me%coarseFragContent = 0.0
         end if
         ! Calculate the average grain diameter from soil texture
         me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
