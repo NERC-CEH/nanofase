@@ -509,6 +509,7 @@ module SoilProfileModule
             ERROR_HANDLER%equal( &
                 value = sum(me%distributionSediment), &
                 criterion = 1.0_dp, &
+                epsilon = 1e-3, &
                 message = "Grain size distribution does not sum to 100%. " &
                             // "Have you set sediment size classes correctly?" &
             ) &
