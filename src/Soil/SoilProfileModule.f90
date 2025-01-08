@@ -558,10 +558,10 @@ module SoilProfileModule
         me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
         ! Check if clay, sand and silt sum to (nearly) 1, and if not, default to
         ! the average soil texture for Europe
-        if (abs(1.0 - me%clayContent - me%sandContent - me%siltContent) > 1e-3) then
-            me%clayContent = 0.18
-            me%sandContent = 0.46
-            me%siltContent = 0.36
+        if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
+            me%clayContent = 18.0
+            me%sandContent = 46.0
+            me%siltContent = 36.0
         end if
         if (me%coarseFragContent == nf90_fill_real) then
             me%coarseFragContent = 0.0
