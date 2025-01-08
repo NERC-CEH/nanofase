@@ -510,7 +510,7 @@ module SoilProfileModule
                 value = sum(me%distributionSediment), &
                 criterion = 1.0_dp, &
                 epsilon = 1e-3, &
-                message = "Grain size distribution does not sum to 100%. " &
+                message = "Grain size distribution does not sum to 1 (100%). " &
                             // "Have you set sediment size classes correctly?" &
             ) &
         )
@@ -550,8 +550,17 @@ module SoilProfileModule
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
         me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
+        ! If one of the clay/sand/silt content variables is empty, then use defaults
+        ! instead. The defaults are roughly the average soil texture across Europe
+        ! TODO maybe move this to the DataInputModule as part of data validation
+        if ((me%clayContent == nf90_fill_real) .or. (me%sandContent == nf90_fill_real) &
+            .or. (me%siltContent == nf90_fill_real)) then
+            me%clayContent = 0.18
+            me%sandContent = 0.46
+            me%siltContent = 0.36
+        end if
         if (me%coarseFragContent == nf90_fill_real) then
-            me%coarseFragContent = 0.0
+            me%coarseFragContent = 0.0_dp
         end if
         ! Calculate the average grain diameter from soil texture
         me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
