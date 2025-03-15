@@ -433,7 +433,7 @@ module SoilProfileModule
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
         me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
-        ! Check if clay, sand and silt sum to (nearly) 1, and if not, default to
+        ! Check if clay, sand and silt sum to (nearly) 100%, and if not, default to
         ! the average soil texture for Europe
         if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
             me%clayContent = 18.0
@@ -556,7 +556,7 @@ module SoilProfileModule
         me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
         me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
         me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
-        ! Check if clay, sand and silt sum to (nearly) 1, and if not, default to
+        ! Check if clay, sand and silt sum to (nearly) 100%, and if not, default to
         ! the average soil texture for Europe
         if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
             me%clayContent = 18.0
