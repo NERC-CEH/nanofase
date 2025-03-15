@@ -10,7 +10,6 @@ source:
   path: ..
 
 build:
-  noarch: generic
   script: fpm @install --prefix=${PREFIX}
 
 requirements:
