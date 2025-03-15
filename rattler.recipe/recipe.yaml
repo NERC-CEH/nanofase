@@ -1,5 +1,5 @@
 context:
-  version: 0.0.4
+  version: 0.0.5
   name: nanofase
 
 package:
@@ -10,6 +10,7 @@ source:
   path: ..
 
 build:
+  noarch: generic
   script: fpm @install --prefix=${PREFIX}
 
 requirements:
