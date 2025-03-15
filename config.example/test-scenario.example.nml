@@ -48,7 +48,7 @@ include_sediment_fluxes = .true.                        ! Should sediment fluxes
 
 &run
 description = "12 cell, 10 timestep test scenario"      ! Not used by model, but included in output data
-write_to_log = .true.                                   ! Should we write logs to file?
+write_to_log = .false.                                  ! Should we write logs to file?
 timestep = 86400                                        ! Length of each time step, in seconds
 n_timesteps = 10                                        ! Number of time steps
 start_date = "2015-01-01"                               ! Start date for model run, in YYYY-MM-DD format

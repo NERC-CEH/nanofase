@@ -1,6 +1,10 @@
-package:
-  name: nanofase
+context:
   version: 0.0.4
+  name: nanofase
+
+package:
+  name: ${{ name }}
+  version: ${{ version }}
 
 source:
   path: ..
@@ -20,7 +24,26 @@ requirements:
     - libgfortran
     - netcdf-fortran
 
+tests:
+  - script:
+      - mkdir output
+      - nanofase config.example/test-scenario.example.nml
+    files:
+      source:
+        - config.example/test-scenario.example.nml
+        - data.example/constants_test-scenario.nml
+        - data.example/test-scenario.nc
+
 about:
   homepage: https://nerc-ceh.github.io/nanofase
   license: BSD-3-Clause
+  summary: Nanomaterial Fate And Speciation in the Environment
+  description: |
+    NanoFASE is a spatiotemporal model of nanomaterial fate and
+    speciation in terrestrial and aquatic environments.
   repository: https://github.com/nerc-ceh/nanofase
+  documentation: https://fragmentmnp.ceh.ac.uk
+
+extra:
+  recipe-maintainers:
+    - samharrison7
