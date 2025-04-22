@@ -20,7 +20,7 @@ A handful of 1D arrays are present in the constants file. Note that the constant
 * `soil_l`: Soil layers, length must equal `n_soil_layers` in the model config file.
 * `sed_l`: Sediment layers, length must equal `n_sediment_layers` in the model config file.
 
-The **Units** columns gives the internal model units, and therefore those required by the NetCDF and constants namelist. "dt" is the length of the model timestep, for example, is the model has a timestep of one day, then "kg/timestep" means "kg/day". The NanoFASE data module is capable of converting units of spatial data (not constants), and therefore any reasonable units can be used for the data input to this - as long as these units are specified in the config file.
+The **Units** columns gives the internal model units, and therefore those required by the NetCDF and constants namelist. "dt" is the length of the model timestep. For example, if the model has a timestep of one day, then "kg/dt" means "kg/day". The NanoFASE data module is capable of converting units of spatial data (not constants), and therefore any reasonable units can be used for the data input to this - as long as these units are specified in the config file.
 
 The **Specified in** column indicates which file the model parameter should be included in:
 * {bdg-primary}`data.nc` The spatio(temporal) NetCDF file input directly to the model.
