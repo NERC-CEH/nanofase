@@ -16,3 +16,5 @@ name = "nanofase"
 source-dir = "src"
 main = "main.f90"
 
+[build]
+link = ["netcdf", "netcdff"]

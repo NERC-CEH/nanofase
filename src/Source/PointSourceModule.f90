@@ -2,9 +2,9 @@ module PointSourceModule
     use GlobalsModule
     use ResultModule
     use DataInputModule, only: DATASET
+    use ContaminantModule
     implicit none
    
-    !> PointSource objects are used to input point source emissions to the environment
     type, public :: PointSource
         integer                     :: x                                !! Grid cell x reference
         integer                     :: y                                !! Grid cell y reference
@@ -12,8 +12,7 @@ module PointSourceModule
         real                        :: x_coord                          !! Exact eastings of this point source
         real                        :: y_coord                          !! Exact northings of this point source
         character(len=11)           :: compartment                      !! Which environmental compartment is this source for?
-        real(dp), allocatable       :: j_np_pointSource(:,:,:)          !! NM input for a given time step [kg/timestep]
-        real(dp), allocatable       :: j_transformed_pointSource(:,:,:) !! Transformed NM input for a given time step [kg/timestep]
+        type(Contaminant)           :: j_contaminant_pointSource        !! Contaminant input for a given time step
         real(dp)                    :: j_dissolved_pointSource          !! Dissolved species input for a given time step [kg/timestep]
       contains
         procedure :: create => createPointSource
@@ -22,61 +21,69 @@ module PointSourceModule
 
   contains
     
-    !> Create the point source
     subroutine createPointSource(me, x, y, s, compartment)
         class(PointSource)  :: me               !! This point source
         integer             :: x                !! Grid cell x index
         integer             :: y                !! Grid cell y index
         integer             :: s                !! Point source index
         character(len=*)    :: compartment      !! Compartment type (only water at the moment)
-        ! Allocate and initialise
+        type(Result)        :: r                !! Result object for error handling
+        ! Allocate and initialize
         me%x = x
         me%y = y
         me%s = s
         me%compartment = compartment
-        allocate(me%j_np_pointSource(C%npDim(1), C%npDim(2), C%npDim(3)), &
-            me%j_transformed_pointSource(C%npDim(1), C%npDim(2), C%npDim(3)))
+        ! Initialize the Contaminant object
+        r = me%j_contaminant_pointSource%create()
+        if (r%hasCriticalError()) call ERROR_HANDLER%trigger(errors=.errors.r)
+        me%j_dissolved_pointSource = 0.0_dp
         ! Get the exact coordinates of this point source
-        if (.not. DATASET%emissionsPointWaterCoords(me%x, me%y, me%s, 1) == nf90_fill_double) then
+        if (DATASET%emissionsPointWaterCoords(me%x, me%y, me%s, 1) /= nf90_fill_double) then
             me%x_coord = DATASET%emissionsPointWaterCoords(me%x, me%y, me%s, 1)
             me%y_coord = DATASET%emissionsPointWaterCoords(me%x, me%y, me%s, 2)
         end if
     end subroutine
     
-    !> Update the point source on this time step t
     subroutine updatePointSource(me, t)
         class(PointSource)  :: me           !! This point source
         integer             :: t            !! Current time step
-        integer             :: i            ! Iterator
+        integer             :: n, s, f      !! Iterators for size classes, SPM states, and forms
+        type(Result)        :: r            !! Result object for error handling
         ! Default to zero
-        me%j_np_pointSource = 0
-        me%j_dissolved_pointSource = 0
-        me%j_transformed_pointSource = 0
+        call me%j_contaminant_pointSource%finalise() ! Reset to zero
+        r = me%j_contaminant_pointSource%create()   ! Reallocate
+        if (r%hasCriticalError()) then
+            call ERROR_HANDLER%trigger(errors=.errors.r)
+            return
+        end if
+        me%j_dissolved_pointSource = 0.0_dp
         ! Only include point sources if config says we're meant to, and we're not in the
         ! warm up period
-        if (C%includePointSources .and. t .ge. C%warmUpPeriod) then
-            ! There are only point sources to water (for the moment)
+        if (C%includePointSources .and. t >= C%warmUpPeriod) then
             if (trim(me%compartment) == 'water') then
-                ! Pristine - assumed to be core (form index = 1)
-                    if (.not. DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) == nf90_fill_double) then
-                    me%j_np_pointSource(:,1,1) = DATASET%emissionsPointWaterPristine(me%x, me%y, t, me%s) &
-                        * DATASET%defaultNMSizeDistribution
-                end if
-                ! Matrix-embedded
-                if (.not. DATASET%emissionsPointWaterMatrixEmbedded(me%x, me%y, t, me%s) == nf90_fill_double) then
-                    do i = 1, C%nSizeClassesNM
-                        me%j_np_pointSource(i,1,3:) = DATASET%emissionsPointWaterMatrixEmbedded(me%x, me%y, t, me%s) &
-                            * DATASET%defaultMatrixEmbeddedDistributionToSpm * DATASET%defaultNMSizeDistribution(i)
+                ! Pristine and transformed contaminants
+                do n = 1, C%nContaminantSizeClasses
+                    do f = 1, C%contaminantDim(2) ! Forms (pristine, transformed)
+                        ! Free contaminant (state = FREE_CONTAMINANT)
+                        if (DATASET%emissionsPointWaterContaminant(me%x, me%y, t, me%s, n, f, FREE_CONTAMINANT) &
+                            /= nf90_fill_double) then
+                            me%j_contaminant_pointSource%c(n, f, FREE_CONTAMINANT) = &
+                                DATASET%emissionsPointWaterContaminant(me%x, me%y, t, me%s, n, f, FREE_CONTAMINANT)
+                        end if
+                        ! Matrix-embedded (attached to SPM)
+                        do s = 1, C%nSizeClassesSpm
+                            if (DATASET%emissionsPointWaterContaminant(me%x, me%y, t, me%s, n, f, &
+                                SPM_CONTAMINANT_START + s - 1) /= nf90_fill_double) then
+                                me%j_contaminant_pointSource%c(n, f, SPM_CONTAMINANT_START + s - 1) = &
+                                    DATASET%emissionsPointWaterContaminant(me%x, me%y, t, me%s, n, f, &
+                                    SPM_CONTAMINANT_START + s - 1)
+                            end if
+                        end do
                     end do
-                end if
+                end do
                 ! Dissolved
-                if (.not. DATASET%emissionsPointWaterDissolved(me%x, me%y, t, me%s) == nf90_fill_double) then
-                    me%j_dissolved_pointSource = DATASET%emissionsPointWaterDissolved(me%x, me%y, t, me%s)
-                end if
-                ! Transformed
-                if (.not. DATASET%emissionsPointWaterTransformed(me%x, me%y, t, me%s) == nf90_fill_double) then
-                    me%j_transformed_pointSource(:,1,1) = DATASET%emissionsPointWaterTransformed(me%x, me%y, t, me%s) &
-                        * DATASET%defaultNMSizeDistribution
+                if (DATASET%emissionsPointWaterDissolvedContaminant(me%x, me%y, t) /= nf90_fill_double) then
+                    me%j_dissolved_pointSource = DATASET%emissionsPointWaterDissolvedContaminant(me%x, me%y, t)
                 end if
             end if
         end if

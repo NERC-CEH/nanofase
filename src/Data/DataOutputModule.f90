@@ -2,7 +2,7 @@
 module DataOutputModule
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
         iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
-    use GlobalsModule, only: C, dp
+    use GlobalsModule, only: C, dp, FREE_CONTAMINANT, ATTACHED_CONTAMINANT
     use DataInputModule, only: DATASET
     use LoggerModule, only: LOGR
     use AbstractEnvironmentModule
@@ -15,6 +15,7 @@ module DataOutputModule
     use mo_netcdf
     use NetCDFOutputModule
     use NetCDFAggregatedOutputModule
+    use ContaminantModule
     implicit none
 
     !> The DataOutput class is responsible for writing output data to disk
@@ -23,8 +24,8 @@ module DataOutputModule
         type(EnvironmentPointer)            :: env                      !! Pointer to the environment, to retrieve state variables
         class(NetCDFOutput), allocatable    :: ncout                    !! NetCDF output class
         ! Storing variables across timesteps for dynamics calculations
-        real(dp), allocatable               :: previousSSDByLayer(:,:)
-        real(dp), allocatable               :: previousSSD(:)
+        real(dp), allocatable            :: previousSSDByLayer(:,:)
+        real(dp), allocatable            :: previousSSD(:)
       contains
         procedure, public :: init => initDataOutput
         procedure, public :: initSedimentSizeDistribution => initSedimentSizeDistributionDataOutput
@@ -45,72 +46,65 @@ module DataOutputModule
     end type
 
   contains
-    
+
     !> Initialise the data output be creating the relevant output files and writing
     !! their headers and metadata
-    subroutine initDataOutput(me, env)
-        class(DataOutput)           :: me
+    subroutine initDataOutput(this, env)
+        class(DataOutput)         :: this
         type(Environment), target   :: env
         
         ! Point the Environment object to that passed in
-        me%env%item => env
+        this%env%item => env
         ! Allocate the appropriate NetCDF output object, depending on whether we're aggregating
         ! to grid cell or not
         if (C%includeWaterbodyBreakdown) then
-            allocate(NetCDFOutput :: me%ncout)
+            allocate(NetCDFOutput :: this%ncout)
         else 
-            allocate(NetCDFAggregatedOutput :: me%ncout)
+            allocate(NetCDFAggregatedOutput :: this%ncout)
         end if
 
         if (C%writeNetCDF) then
-            call me%ncout%init(env, 1)
+            call this%ncout%init(env, 1)
         end if
 
         ! Open the files to write to
         open(iouOutputSummary, file=trim(C%outputPath) // 'summary' // trim(C%outputHash) // '.md')
         if (C%writeCSV) then
-            open(iouOutputWater, &
-                 file=trim(C%outputPath) // 'output_water' // trim(C%outputHash) // '.csv')
-            open(iouOutputSediment, &
-                 file=trim(C%outputPath) // 'output_sediment' // trim(C%outputHash) // '.csv')
-            open(iouOutputSoil, &
-                 file=trim(C%outputPath) // 'output_soil' // trim(C%outputHash) // '.csv')
+            open(iouOutputWater, file=trim(C%outputPath) // 'output_water' // trim(C%outputHash) // '.csv')
+            open(iouOutputSediment, file=trim(C%outputPath) // 'output_sediment' // trim(C%outputHash) // '.csv')
+            open(iouOutputSoil, file=trim(C%outputPath) // 'output_soil' // trim(C%outputHash) // '.csv')
         end if
         if (C%writeCompartmentStats) then
-            open(iouOutputStats, &
-                 file=trim(C%outputPath) // 'stats' // trim(C%outputHash) // '.csv')
+            open(iouOutputStats, file=trim(C%outputPath) // 'stats' // trim(C%outputHash) // '.csv')
         end if
 
         ! Write the headers for the files
-        call me%writeHeaders()
+        call this%writeHeaders()
     end subroutine
 
     !> Initialise the sediment size distribution steady state run output data file
-    subroutine initSedimentSizeDistributionDataOutput(me)
-        class(DataOutput)           :: me
-        integer                     :: i, j
-
+    subroutine initSedimentSizeDistributionDataOutput(this)
+        class(DataOutput)         :: this
+        integer                   :: i, j
+ 
         ! Sediment begins with distribution given in the input data
-        allocate(me%previousSSD, source=DATASET%sedimentInitialMass)
-        allocate(me%previousSSDByLayer(C%nSedimentLayers, C%nSizeClassesSpm))
+        allocate(this%previousSSD, source=DATASET%sedimentInitialMass)
+        allocate(this%previousSSDByLayer(C%nSedimentLayers, C%nSizeClassesSpm))
         do i = 1, C%nSedimentLayers
-            me%previousSSDByLayer(i,:) = DATASET%sedimentInitialMass
+            this%previousSSDByLayer(i,:) = DATASET%sedimentInitialMass
         end do
 
         ! Open the SSD file and write the headers
         open(iouOutputSSD, file=trim(C%outputPath) // 'output_ssd' // trim(C%outputHash) // '.csv')
         if (C%writeMetadataAsComment) then
             write(iouOutputSSD, '(a)') "# NanoFASE model output data - SEDIMENT SIZE DISTRIBUTION."
-            write(iouOutputSSD, '(a)') "# Output file for when running the model until sediment size " // &
-                "distribution is at steady state."
-            write(iouOutputSSD, '(a)') "# Each row represents a complete model run (as defined by the config/batch config file)."
-            write(iouOutputSSD, '(a)') "#\ti: model run index (number of iterations of the same input data)"
-            write(iouOutputSSD, '(a)') "#\tssd_sci_all_layers: sediment size distribution across size classes i, " // &
-                "averaged across sediment layers"
+            write(iouOutputSSD, '(a)') "# Output file for running model until sediment size distribution is at steady state."
+            write(iouOutputSSD, '(a)') "# Each row represents a complete model run."
+            write(iouOutputSSD, '(a)') "#\ti: model run index"
+            write(iouOutputSSD, '(a)') "#\tssd_sci_all_layers: sediment size distribution, averaged across sediment layers"
             write(iouOutputSSD, '(a)') "#\tssd_sci_lj: sediment size distribution across size classes i, for layer j"
             write(iouOutputSSD, '(a)') "#\tdelta_max_lj: maximum difference between size distribution bins for layer j"
-            write(iouOutputSSD, '(a)') "#\tdelta_max_all_layers: maximum difference between size " // &
-                "distribution bins for size distribution averaged across sediment layers"
+            write(iouOutputSSD, '(a)') "#\tdelta_max_all_layers: maximum difference for size distribution averaged across layers"
         end if
         write(iouOutputSSD, '(a)', advance='no') "i,"
         write(iouOutputSSD, '(*(a))', advance='no') ('ssd_sc'//trim(str(i))//'_all_layers,', i=1, C%nSizeClassesSpm)
@@ -121,11 +115,9 @@ module DataOutputModule
     end subroutine
 
     !> Save the output from the current timestep to the output files
-    subroutine updateDataOutput(me, t, tInChunk)
-        class(DataOutput)   :: me       !! The DataOutput instance
-        integer             :: t        !! The current timestep in the batch
-        integer             :: tInChunk !! The timestep in the current chunk
-        integer             :: x, y     ! Iterators
+    subroutine updateDataOutput(this, t, tInChunk)
+        class(DataOutput)   :: this
+        integer             :: t, tInChunk, x, y
         type(datetime)      :: date
         character(len=100)  :: dateISO
         real                :: easts, norths
@@ -135,20 +127,19 @@ module DataOutputModule
         dateISO = date%isoformat()
         
         ! Loop through the grid cells and update each compartment
-        do y = 1, size(me%env%item%colGridCells, dim=2)
-            do x = 1, size(me%env%item%colGridCells, dim=1)
+        do y = 1, size(this%env%item%colGridCells, dim=2)
+            do x = 1, size(this%env%item%colGridCells, dim=1)
                 ! Only write data if cell isn't masked
                 if (DATASET%simulationMask(x,y)) then
                     easts = DATASET%x(x)
                     norths = DATASET%y(y)
-                    call me%updateWater(t, tInChunk, x, y, dateISO, easts, norths)
-                    call me%updateSediment(t, tInChunk, x, y, dateISO, easts, norths)
-                    call me%updateSoil(t, tInChunk, x, y, dateISO, easts, norths)
-                    ! Are we writing to a NetCDF file?
+                    call this%updateWater(t, tInChunk, x, y, dateISO, easts, norths)
+                    call this%updateSediment(t, tInChunk, x, y, dateISO, easts, norths)
+                    call this%updateSoil(t, tInChunk, x, y, dateISO, easts, norths)
                     if (C%writeNetCDF) then
-                        call me%ncout%updateWater(t, tInChunk, x, y)
-                        call me%ncout%updateSediment(t, tInChunk, x, y)
-                        call me%ncout%updateSoil(t, tInChunk, x, y)
+                        call this%ncout%updateWater(t, tInChunk, x, y)
+                        call this%ncout%updateSediment(t, tInChunk, x, y)
+                        call this%ncout%updateSoil(t, tInChunk, x, y)
                     end if
                 end if
             end do
@@ -156,46 +147,65 @@ module DataOutputModule
     end subroutine
 
     !> Update the water output file for the current timestep
-    subroutine updateWaterDataOutput(me, t, tInChunk, x, y, date, easts, norths)
-        class(DataOutput)   :: me               !! The DataOutput instance
-        integer             :: t                !! The current timestep
-        integer             :: tInChunk         !! Timestep in the current chunk
-        integer             :: x, y             !! Grid cell indices
-        character(len=*)    :: date             !! Datetime of this timestep
-        real                :: easts, norths    !! Eastings and northings of this grid cell
-        integer             :: i, w             ! Iterators
-        character(len=3)    :: reachType        ! Is this a river of estuary?
-        real(dp)            :: m_spm(C%nSizeClassesSpm) ! SPM masses
-        real(dp)            :: C_spm(C%nSizeClassesSpm) ! SPM concs
+    subroutine updateWaterDataOutput(this, t, tInChunk, x, y, date, easts, norths)
+        class(DataOutput)   :: this                             !! The DataOutput instance
+        integer             :: t, tInChunk, x, y                
+        character(len=*)    :: date
+        real                :: easts, norths
+        integer             :: i, w, f
+        character(len=3)    :: reachType
+        real(dp)            :: m_spm(C%nSizeClassesSpm)
+        real(dp)            :: C_spm(C%nSizeClassesSpm)
+        type(Contaminant)   :: m_contaminant, j_contaminant_outflow, j_contaminant_deposition, j_contaminant_resuspension
+        real(dp)            :: C_contaminant, C_dissolved
+        type(Result0D)      :: r
+        character(len=256)  :: tr = "DataOutputModule.f90%updateWaterDataOutput"
+
         if (C%writeCSV) then
-            ! Do we want to output waterbody breakdown or aggregate to grid cell level?
             if (C%includeWaterbodyBreakdown) then
-                ! Loop through the waterbodies in this cell. Only loops if nReaches > 0, hence we don't check explicitly
-                do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
-                    associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                        ! Is it a reach or an estuary?
+                do w = 1, this%env%item%colGridCells(x,y)%item%nReaches
+                    associate (reach => this%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
                         select type (reach)
-                            type is (RiverReach)
-                                reachType = 'riv'
-                            type is (EstuaryReach)
-                                reachType = 'est'
+                            type is (RiverReach); reachType = 'riv'
+                            type is (EstuaryReach); reachType = 'est'
                         end select
-                        ! Write the data
+                        m_contaminant = reach%get_m_contaminant()
+                        j_contaminant_outflow = reach%j_contaminant_outflow
+                        j_contaminant_deposition = reach%j_contaminant_deposition
+                        j_contaminant_resuspension = reach%j_contaminant_resuspension
+                        r = m_contaminant%getConcentration(reach%volume)
+                        if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                            call r%addToTrace(tr)
+                            call m_contaminant%finalise()
+                            return
+                        end if
+                        C_contaminant = r%getDataAsRealDP()
+                        if (reach%volume > C%epsilon) then
+                            C_dissolved = m_contaminant%m_dissolved / reach%volume
+                        else
+                            C_dissolved = 0.0_dp
+                        end if
                         write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                             trim(str(x)) // "," // trim(str(y)) // "," // &
                             trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                            trim(str(sum(reach%m_np))) // "," // trim(str(sum(reach%C_np))) // "," // &
-                            trim(str(sum(reach%m_transformed))) // "," // trim(str(sum(reach%C_transformed))) // "," // &
-                            trim(str(reach%m_dissolved)) // "," // trim(str(reach%C_dissolved)) // "," // &
-                            trim(str(sum(reach%j_nm%deposition))) // "," // &
-                            trim(str(sum(reach%j_nm_transformed%deposition))) // "," // &
-                            trim(str(sum(reach%j_nm%resuspension))) // "," // &
-                            trim(str(sum(reach%j_nm_transformed%resuspension))) // "," // &
-                            trim(str(sum(reach%j_nm%outflow))) // "," // &
-                            trim(str(sum(reach%j_nm_transformed%outflow))) // "," // &
-                            trim(str(reach%j_dissolved%outflow)) // "," // &
+                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(C_contaminant)) // "," // &
+                            trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(sum(m_contaminant%get_attached()) / reach%volume)) // "," // &
+                            trim(str(m_contaminant%m_dissolved)) // "," // &
+                            trim(str(C_dissolved)) // "," // &
+                            trim(str(sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(j_contaminant_outflow%m_dissolved)) // "," // &
                             trim(str(sum(reach%m_spm))) // "," // &
                             trim(str(sum(reach%C_spm))) // ","
+                        do f = 1, C%contaminantDim(2)
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
+                        end do
                         if (C%includeSpmSizeClassBreakdown) then
                             write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
                                 trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
@@ -209,123 +219,68 @@ module DataOutputModule
                         end if
                         write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
                             trim(str(reach%Q%outflow / C%timeStep))
+                        call m_contaminant%finalise()
                     end associate
                 end do
             else
-                ! We're not including waterbody breakdown, so just output the grid cell aggregated values. Here we check
-                ! that there are reaches in the cell, and if not, don't print a row for this cell. There is slightly different
-                ! to checking if the cell is empty (i.e. doesn't have a soil profile either)
-                associate (cell => me%env%item%colGridCells(x,y)%item)
+                associate (cell => this%env%item%colGridCells(x,y)%item)
                     if (cell%nReaches > 0) then
-                        ! Write the data
+                        m_contaminant = cell%get_m_contaminant_water()
+                        j_contaminant_outflow = cell%get_j_contaminant_outflow()
+                        j_contaminant_deposition = cell%get_j_contaminant_deposition()
+                        j_contaminant_resuspension = cell%get_j_contaminant_resuspension()
+                        r = m_contaminant%getConcentration(cell%getWaterVolume())
+                        if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                            call r%addToTrace(tr)
+                            call m_contaminant%finalise()
+                            return
+                        end if
+                        C_contaminant = r%getDataAsRealDP()
+                        if (cell%getWaterVolume() > C%epsilon) then
+                            C_dissolved = m_contaminant%m_dissolved / cell%getWaterVolume()
+                        else
+                            C_dissolved = 0.0_dp
+                        end if
                         write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                             trim(str(x)) // "," // trim(str(y)) // "," // &
                             trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
-                            trim(str(sum(cell%get_m_np_water()))) // "," // trim(str(sum(cell%get_C_np_water()))) // "," // &
-                            trim(str(sum(cell%get_m_transformed_water()))) // "," // &
-                            trim(str(sum(cell%get_C_transformed_water()))) // "," // &
-                            trim(str(cell%get_m_dissolved_water())) // "," // &
-                            trim(str(cell%get_C_dissolved_water())) // "," // &
-                            trim(str(sum(cell%get_j_nm_deposition()))) // "," // &
-                            trim(str(sum(cell%get_j_transformed_deposition()))) // "," // &
-                            trim(str(sum(cell%get_j_nm_resuspension()))) // "," // &
-                            trim(str(sum(cell%get_j_transformed_resuspension()))) // "," // &
-                            trim(str(sum(cell%get_j_nm_outflow()))) // "," // &
-                            trim(str(sum(cell%get_j_transformed_outflow()))) // "," // &
-                            trim(str(cell%get_j_dissolved_outflow())) // ","
+                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(C_contaminant)) // "," // &
+                            trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(sum(m_contaminant%get_attached()) / cell%getWaterVolume())) // "," // &
+                            trim(str(m_contaminant%m_dissolved)) // "," // &
+                            trim(str(C_dissolved)) // "," // &
+                            trim(str(sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                            trim(str(j_contaminant_outflow%m_dissolved)) // ","
                         m_spm = cell%get_m_spm()
                         C_spm = cell%get_C_spm()
                         write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_spm))) // "," // &
                             trim(str(sum(C_spm))) // ","
+                        do f = 1, C%contaminantDim(2)
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
+                        end do
                         if (C%includeSpmSizeClassBreakdown) then
                             write(iouOutputWater, '(*(a))', advance='no') (trim(str(m_spm(i))) // "," // &
                                 trim(str(C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
                         end if
                         if (C%includeSedimentFluxes) then
-                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
+                            write(iouOutputWater, '(a)', advance='no') &
+                                trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
                                 trim(str(sum(cell%get_j_spm_deposition()))) // "," // &
                                 trim(str(sum(cell%get_j_spm_resuspension()))) // "," // &
                                 trim(str(sum(cell%get_j_spm_inflow()))) // "," // &
                                 trim(str(sum(cell%get_j_spm_outflow()))) // "," // &
-                                trim(str(sum(cell%get_j_spm_bankErosion()))) // ","
+                                trim(str(sum(cell%colRiverReaches(1)%item%j_spm%bankErosion))) // ","
                         end if
                         write(iouOutputWater, '(a)') trim(str(cell%getWaterVolume())) // "," // &
                             trim(str(cell%getWaterDepth())) // "," // &
                             trim(str(cell%get_Q_outflow() / C%timeStep))
-                    end if
-                end associate
-            end if
-        end if
-
-    end subroutine
-
-    !> Update the current sediment output file on the current timestep
-    subroutine updateSedimentDataOutput(me, t, tInChunk, x, y, date, easts, norths)
-        class(DataOutput)   :: me               !! The DataOutput instance
-        integer             :: t                !! The current timestep
-        integer             :: tInChunk         !! The current timestep
-        integer             :: x, y             !! Grid cell indices
-        character(len=*)    :: date             !! Datetime of this timestep
-        real                :: easts, norths    !! Eastings and northings of this grid cell
-        integer             :: w, l             ! Iterators
-        character(len=3)    :: reachType        ! Is this a river of estuary?
-
-        if (C%writeCSV) then
-            if (C%includeWaterbodyBreakdown) then
-                ! Loop through the waterbodies in this cell
-                do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
-                    associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                        ! Is this a river or estuary?
-                        select type (reach)
-                            type is (RiverReach)
-                                reachType = 'riv'
-                            type is (EstuaryReach)
-                                reachType = 'est'
-                        end select
-                        ! Write the data
-                        write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," &
-                            // trim(date) // "," // trim(str(x)) // "," // trim(str(y)) &
-                            // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // &
-                            trim(str(w)) // "," // reachType // "," // &
-                            trim(str(sum(reach%bedSediment%get_m_np()) * reach%bedArea)) // "," // &    ! Converting from kg/m2 to kg
-                            trim(str(sum(reach%bedSediment%get_C_np()))) // "," // &
-                            trim(str(sum(reach%bedSediment%get_C_np_byMass()))) // ","
-                        ! Only include layer-by-layer breakdown if we've been asked to
-                        if (C%includeSedimentLayerBreakdown) then
-                            write(iouOutputSediment, '(*(a))', advance='no') &
-                                (trim(str(sum(reach%bedSediment%get_C_np_l(l))))  // "," // &
-                                trim(str(sum(reach%bedSediment%get_C_np_l_byMass(l)))) // ",", l=1, C%nSedimentLayers)
-                        end if
-                        write(iouOutputSediment, '(a)') &
-                            trim(str(sum(reach%bedSediment%get_m_np_buried()) * reach%bedArea)) // "," // &
-                            trim(str(reach%bedArea)) // "," // trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea)) &
-                            // "," // trim(str(reach%bedSediment%Mf_bed_all() / sum(C%sedimentLayerDepth)))
-                    end associate
-                end do
-            else
-                ! We're not including waterbody breakdown, so just output the grid cell aggregated values. Here we check
-                ! that there are reaches in the cell, and if not, don't print a row for this cell. There is slightly different
-                ! to checking if the cell is empty (i.e. doesn't have a soil profile either)
-                associate (cell => me%env%item%colGridCells(x,y)%item)
-                    if (cell%nReaches > 0) then
-                        ! Write the data
-                        write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
-                            trim(str(x)) // "," // trim(str(y)) // "," // &
-                            trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
-                            trim(str(sum(cell%get_m_np_sediment()))) // "," // &
-                            trim(str(sum(cell%get_C_np_sediment_byVolume()))) // "," // &
-                            trim(str(sum(cell%get_C_np_sediment()))) // ","
-                        ! Only include layer-by-layer breakdown if we've been asked to
-                        if (C%includeSedimentLayerBreakdown) then
-                            write(iouOutputSediment, '(*(a))', advance='no') &
-                                (trim(str(sum(cell%get_C_np_sediment_l_byVolume(l)))) // "," // &
-                                trim(str(sum(cell%get_C_np_sediment_l(l)))) // ",", l=1, C%nSedimentLayers)
-                        end if
-                        write(iouOutputSediment, '(a)') &
-                            trim(str(sum(cell%get_m_np_buried_sediment()))) // "," // &
-                            trim(str(cell%getBedSedimentArea())) // "," // trim(str(cell%getBedSedimentMass())) &
-                            // "," // trim(str(cell%getBedSedimentMass() / &
-                                ((cell%getBedSedimentArea() * sum(C%sedimentLayerDepth)))))
+                        call m_contaminant%finalise()
                     end if
                 end associate
             end if
@@ -333,177 +288,411 @@ module DataOutputModule
     end subroutine
 
     !> Update the sediment output file on the current timestep
-    subroutine updateSoilDataOutput(me, t, tInChunk, x, y, date, easts, norths)
-        class(DataOutput)   :: me               !! This DataOutput instance
-        integer             :: t                !! The current timestep
-        integer             :: tInChunk         !! The current timestep
-        integer             :: x, y             !! Grid cell indices
-        character(len=*)    :: date             !! Datetime of this timestep
-        real                :: easts, norths    !! Eastings and northings of this grid cell
-        integer             :: i, l             ! Iterators
-        ! Loop through soil profiles and write row for each one
-        do i = 1, me%env%item%colGridCells(x,y)%item%nSoilProfiles
-            associate (profile => me%env%item%colGridCells(x,y)%item%colSoilProfiles(i)%item)
-                write(iouOutputSoil, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
-                    trim(str(x)) // "," // trim(str(y)) // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // &
-                    trim(str(i)) // "," // trim(profile%dominantLandUseName) // "," // &
-                    trim(str(sum(profile%get_m_np()))) // "," // trim(str(sum(profile%get_m_transformed()))) // "," // &
-                    trim(str(profile%get_m_dissolved())) // "," // trim(str(sum(profile%get_C_np()))) // "," // &
-                    trim(str(sum(profile%get_C_transformed()))) // "," // trim(str(profile%get_C_dissolved())) // ","
-                if (C%includeSoilStateBreakdown) then
-                    write(iouOutputSoil, '(a)', advance='no') trim(str(sum(freeNM(profile%get_C_np())))) // "," // &
-                        trim(str(sum(freeNM(profile%get_C_transformed())))) // "," // &
-                        trim(str(sum(attachedNM(profile%get_C_np())))) // "," // &
-                        trim(str(sum(attachedNM(profile%get_C_transformed())))) // ","
-                end if
-                if (C%includeSoilLayerBreakdown) then
-                    write(iouOutputSoil, '(*(a))', advance='no') &
-                        (trim(str(sum(profile%colSoilLayers(l)%item%C_np))) // "," // &
-                         trim(str(sum(profile%colSoilLayers(l)%item%C_transformed))) // "," // &
-                         trim(str(profile%colSoilLayers(l)%item%C_dissolved)) // ",", l = 1, C%nSoilLayers)
-                    if (C%includeSedimentLayerBreakdown) then
-                        write(iouOutputSoil, '(*(a))', advance='no') &
-                            (trim(str(sum(freeNM(profile%colSoilLayers(l)%item%C_np)))) // "," // &
-                             trim(str(sum(freeNM(profile%colSoilLayers(l)%item%C_transformed)))) // ",", &
-                             l = 1, C%nSoilLayers)
-                        write(iouOutputSoil, '(*(a))', advance='no') &
-                            (trim(str(sum(attachedNM(profile%colSoilLayers(l)%item%C_np)))) // "," // &
-                             trim(str(sum(attachedNM(profile%colSoilLayers(l)%item%C_transformed)))) // ",", &
-                             l = 1, C%nSoilLayers)
+    subroutine updateSedimentDataOutput(this, t, tInChunk, x, y, date, easts, norths)
+        class(DataOutput)   :: this
+        integer             :: t, tInChunk, x, y
+        character(len=*)    :: date
+        real                :: easts, norths
+        integer             :: w, l, f
+        character(len=3)    :: reachType
+        type(Contaminant)   :: m_contaminant, m_buried
+        real(dp)            :: C_contaminant, C_byMass, C_byMass_layer
+        type(Result0D)      :: r, res_l, res_get
+        real(dp)            :: total_sediment_mass
+        character(len=256)  :: tr = "DataOutputModule.f90%updateSedimentDataOutput"
+
+        if (C%writeCSV) then
+            if (C%includeWaterbodyBreakdown) then
+                do w = 1, this%env%item%colGridCells(x,y)%item%nReaches
+                    associate (reach => this%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                        select type (reach)
+                            type is (RiverReach); reachType = 'riv'
+                            type is (EstuaryReach); reachType = 'est'
+                        end select
+                        
+                        res_get = reach%bedSediment%get_m_contaminant()
+                        if (res_get%hasCriticalError() .or. .not. allocated(res_get%data)) then
+                            call res_get%addToTrace(tr); return
+                        end if
+                        select type (data => res_get%getData())
+                            type is (Contaminant); m_contaminant = data
+                            class default; return
+                        end select
+
+                        r = m_contaminant%getConcentration(reach%bedArea * sum(C%sedimentLayerDepth))
+                        if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                            call r%addToTrace(tr); call m_contaminant%finalise(); return
+                        end if
+                        C_contaminant = r%getDataAsRealDP()
+                        
+                        total_sediment_mass = reach%bedSediment%Mf_bed_all()
+                        if (total_sediment_mass > C%epsilon) then
+                            C_byMass = (sum(m_contaminant%c) + m_contaminant%m_dissolved) / total_sediment_mass
+                        else
+                            C_byMass = 0.0_dp
+                        end if
+                        
+                        res_get = reach%bedSediment%get_m_contaminant_buried()
+                        if (res_get%hasCriticalError() .or. .not. allocated(res_get%data)) then
+                            call res_get%addToTrace(tr); return
+                        end if
+                        select type (data => res_get%getData())
+                            type is (Contaminant); m_buried = data
+                            class default; return
+                        end select
+                        
+                        write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
+                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)) * reach%bedArea)) // "," // &
+                            trim(str(C_contaminant)) // "," // &
+                            trim(str(C_byMass)) // ","
+                        do f = 1, C%contaminantDim(2)
+                            write(iouOutputSediment, '(a)', advance='no') &
+                                trim(str(sum(m_contaminant%c(:,f,:)) * reach%bedArea)) // ","
+                        end do
+                        if (C%includeSedimentLayerBreakdown) then
+                            do l = 1, C%nSedimentLayers
+                                res_l = reach%bedSediment%get_m_contaminant_l(l)
+                                if (res_l%hasCriticalError() .or. .not. allocated(res_l%data)) then
+                                    call res_l%addToTrace(tr); cycle
+                                end if
+                                select type (data => res_l%getData())
+                                    type is (Contaminant); m_contaminant = data
+                                    class default; cycle
+                                end select
+                                r = m_contaminant%getConcentration(reach%bedSediment%colBedSedimentLayers(l)%item%V_layer())
+                                if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                                    call r%addToTrace(tr); call m_contaminant%finalise(); call m_buried%finalise(); return
+                                end if
+                                
+                                total_sediment_mass = reach%bedSediment%colBedSedimentLayers(l)%item%M_f_layer()
+                                if (total_sediment_mass > C%epsilon) then
+                                    C_byMass_layer = (sum(m_contaminant%c) + m_contaminant%m_dissolved) / total_sediment_mass
+                                else
+                                    C_byMass_layer = 0.0_dp
+                                end if
+                                
+                                write(iouOutputSediment, '(a)', advance='no') trim(str(r%getDataAsRealDP())) // "," // &
+                                    trim(str(C_byMass_layer)) // ","
+                                call m_contaminant%finalise()
+                            end do
+                        end if
+                        write(iouOutputSediment, '(a)') &
+                            trim(str(sum(m_buried%c(:,:,FREE_CONTAMINANT)) * reach%bedArea)) // "," // &
+                            trim(str(reach%bedArea)) // "," // &
+                            trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea)) // "," // &
+                            trim(str(reach%bedSediment%Mf_bed_all() / sum(C%sedimentLayerDepth)))
+                        call m_contaminant%finalise()
+                        call m_buried%finalise()
+                    end associate
+                end do
+            else
+                associate (cell => this%env%item%colGridCells(x,y)%item)
+                    if (cell%nReaches > 0) then
+                        ! Get contaminant mass directly (cell getters are not wrapped in Result0D)
+                        m_contaminant = cell%get_m_contaminant_sediment()
+                        
+                        r = m_contaminant%getConcentration(cell%getBedSedimentArea() * sum(C%sedimentLayerDepth))
+                        if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                            call r%addToTrace(tr); call m_contaminant%finalise(); return
+                        end if
+                        C_contaminant = r%getDataAsRealDP()
+                        
+                        total_sediment_mass = cell%getBedSedimentMass()
+                        if (total_sediment_mass > C%epsilon) then
+                            C_byMass = (sum(m_contaminant%c) + m_contaminant%m_dissolved) / total_sediment_mass
+                        else
+                            C_byMass = 0.0_dp
+                        end if
+                        
+                        ! Get buried contaminant mass directly
+                        m_buried = cell%get_m_contaminant_buried_sediment()
+                        
+                        write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
+                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(C_contaminant)) // "," // &
+                            trim(str(C_byMass)) // ","
+                        do f = 1, C%contaminantDim(2)
+                            write(iouOutputSediment, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
+                        end do
+                        if (C%includeSedimentLayerBreakdown) then
+                            associate (bedSediment => cell%colRiverReaches(1)%item%bedSediment)
+                                do l = 1, C%nSedimentLayers
+                                    res_l = bedSediment%get_m_contaminant_l(l)
+                                    if (res_l%hasCriticalError() .or. .not. allocated(res_l%data)) then
+                                        call res_l%addToTrace(tr); cycle
+                                    end if
+                                    select type (data => res_l%getData())
+                                        type is (Contaminant); m_contaminant = data
+                                        class default; cycle
+                                    end select
+                                    r = m_contaminant%getConcentration(bedSediment%colBedSedimentLayers(l)%item%V_layer())
+                                    if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                                        call r%addToTrace(tr); call m_contaminant%finalise(); call m_buried%finalise(); return
+                                    end if
+                                    
+                                    total_sediment_mass = bedSediment%colBedSedimentLayers(l)%item%M_f_layer()
+                                    if (total_sediment_mass > C%epsilon) then
+                                        C_byMass_layer = (sum(m_contaminant%c) + m_contaminant%m_dissolved) / total_sediment_mass
+                                    else
+                                        C_byMass_layer = 0.0_dp
+                                    end if
+                                    
+                                    write(iouOutputSediment, '(a)', advance='no') trim(str(r%getDataAsRealDP())) // "," // &
+                                        trim(str(C_byMass_layer)) // ","
+                                    call m_contaminant%finalise()
+                                end do
+                            end associate
+                        end if
+                        write(iouOutputSediment, '(a)') &
+                            trim(str(sum(m_buried%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(cell%getBedSedimentArea())) // "," // trim(str(cell%getBedSedimentMass())) // "," // &
+                            trim(str(cell%getBedSedimentMass() / (cell%getBedSedimentArea() * sum(C%sedimentLayerDepth))))
+                        call m_contaminant%finalise()
+                        call m_buried%finalise()
                     end if
-                end if
-                ! Should we include soil erosion?
-                if (C%includeSoilErosionYields) then
-                    write(iouOutputSoil, '(a)', advance='no') trim(str(sum(profile%erodedSediment) * profile%area)) &
-                        // "," // trim(str(sum(profile%m_np_eroded(:,:,2)))) // "," // &
-                        trim(str(sum(profile%m_transformed_eroded(:,:,2)))) // ","
-                end if
-                write(iouOutputSoil, '(a)') trim(str(sum(profile%m_np_buried))) // "," // &
-                    trim(str(sum(profile%m_transformed_buried))) // "," // &
-                    trim(str(profile%m_dissolved_buried)) // "," // &
-                    trim(str(profile%bulkDensity))
-            end associate
-        end do
+                end associate
+            end if
+        end if
     end subroutine
 
-    function updateSedimentSizeDistributionDataOutput(me, i_model) result(delta_max)
-        class(DataOutput)   :: me                           !! This DataOutput instance
-        integer             :: i_model                      !! Current model iteration
-        real(dp)            :: m_sediment_byLayer(C%nSedimentLayers, C%nSizeClassesSpm)
+    subroutine updateSoilDataOutput(this, t, tInChunk, x, y, date, easts, norths)
+        class(DataOutput)  :: this
+        integer            :: t, tInChunk, x, y
+        character(len=*)   :: date
+        real               :: easts, norths
+        integer            :: i, l, f
+        type(Contaminant)  :: m_contaminant, m_eroded, m_buried
+        real(dp)           :: C_contaminant, C_dissolved, C_dissolved_layer
+        type(Result0D)     :: r
+        character(len=256) :: tr = "DataOutputModule.f90%updateSoilDataOutput"
+        real(dp)           :: profile_volume
+
+        if (C%writeCSV) then
+            do i = 1, this%env%item%colGridCells(x,y)%item%nSoilProfiles
+                associate (profile => this%env%item%colGridCells(x,y)%item%colSoilProfiles(i)%item)
+                    m_contaminant = profile%get_m_contaminant()
+                    
+                    profile_volume = sum([(profile%colSoilLayers(l)%item%volume, l = 1, C%nSoilLayers)])
+
+                    r = m_contaminant%getConcentration(profile_volume)
+                    if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                        call r%addToTrace(tr)
+                        call m_contaminant%finalise()
+                        return
+                    end if
+                    C_contaminant = r%getDataAsRealDP()
+                    
+                    if (profile_volume > C%epsilon) then
+                        C_dissolved = m_contaminant%m_dissolved / profile_volume
+                    else
+                        C_dissolved = 0.0_dp
+                    end if
+                    
+                    m_eroded = profile%m_contaminant_eroded
+                    m_buried = profile%m_contaminant_buried
+                    write(iouOutputSoil, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                        trim(str(x)) // "," // trim(str(y)) // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // &
+                        trim(str(i)) // "," // trim(profile%dominantLandUseName) // "," // &
+                        trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                        trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                        trim(str(m_contaminant%m_dissolved)) // "," // &
+                        trim(str(C_contaminant)) // "," // &
+                        trim(str(sum(m_contaminant%get_attached()) / profile_volume)) // "," // &
+                        trim(str(C_dissolved)) // ","
+                    do f = 1, C%contaminantDim(2)
+                        write(iouOutputSoil, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
+                    end do
+                    if (C%includeSoilStateBreakdown) then
+                        write(iouOutputSoil, '(a)', advance='no') &
+                            trim(str(sum(m_contaminant%get_free()))) // "," // &
+                            trim(str(sum(m_contaminant%get_attached()))) // ","
+                    end if
+                    if (C%includeSoilLayerBreakdown) then
+                        do l = 1, C%nSoilLayers
+                            m_contaminant = profile%colSoilLayers(l)%item%m_contaminant
+                            r = m_contaminant%getConcentration(profile%colSoilLayers(l)%item%volume)
+                            if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                                call r%addToTrace(tr)
+                                call m_contaminant%finalise()
+                                call m_eroded%finalise()
+                                call m_buried%finalise()
+                                return
+                            end if
+                            
+                            if (profile%colSoilLayers(l)%item%volume > C%epsilon) then
+                                C_dissolved_layer = m_contaminant%m_dissolved / profile%colSoilLayers(l)%item%volume
+                            else
+                                C_dissolved_layer = 0.0_dp
+                            end if
+                            
+                            write(iouOutputSoil, '(a)', advance='no') &
+                                trim(str(r%getDataAsRealDP())) // "," // &
+                                trim(str(C_dissolved_layer)) // ","
+                            if (C%includeSoilStateBreakdown) then
+                                write(iouOutputSoil, '(a)', advance='no') &
+                                    trim(str(sum(m_contaminant%get_free()))) // "," // &
+                                    trim(str(sum(m_contaminant%get_attached()))) // ","
+                            end if
+                            call m_contaminant%finalise()
+                        end do
+                    end if
+                    if (C%includeSoilErosionYields) then
+                        write(iouOutputSoil, '(a)', advance='no') &
+                            trim(str(sum(profile%erodedSediment) * profile%area)) // "," // &
+                            trim(str(sum(m_eroded%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(m_eroded%c(:,:,ATTACHED_CONTAMINANT)))) // ","
+                    end if
+                    write(iouOutputSoil, '(a)') &
+                        trim(str(sum(m_buried%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                        trim(str(sum(m_buried%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                        trim(str(m_buried%m_dissolved)) // "," // &
+                        trim(str(profile%bulkDensity))
+                    call m_contaminant%finalise()
+                    call m_eroded%finalise()
+                    call m_buried%finalise()
+                end associate
+            end do
+        end if
+    end subroutine
+
+    function updateSedimentSizeDistributionDataOutput(this, i_model) result(delta_max)
+        class(DataOutput)   :: this
+        integer             :: i_model
+        real(dp)            :: delta_max, m_sediment_byLayer(C%nSedimentLayers, C%nSizeClassesSpm)
         real(dp)            :: sedimentSizeDistributionByLayer(C%nSedimentLayers, C%nSizeClassesSpm)
         real(dp)            :: sedimentSizeDistribution(C%nSizeClassesSpm)
         integer             :: i, j
-        real(dp)            :: delta_max
         real(dp)            :: delta_max_l(C%nSedimentLayers)
-        ! Get the current mass of sediment in each layer
-        m_sediment_byLayer = me%env%item%get_m_sediment_byLayer()
-        ! Calculate the sediment size distribution across all layers
+
+        m_sediment_byLayer = this%env%item%get_m_sediment_byLayer()
         sedimentSizeDistribution = sum(m_sediment_byLayer, dim=1) / sum(m_sediment_byLayer)
-        ! Calculate the sediment size distribution for each layer
         do j = 1, C%nSedimentLayers
             sedimentSizeDistributionByLayer(j,:) = m_sediment_byLayer(j,:) / sum(m_sediment_byLayer(j,:))
-            delta_max_l = maxval(abs(me%previousSSDByLayer(j,:) - sedimentSizeDistributionByLayer(j,:)))
+            delta_max_l(j) = maxval(abs(this%previousSSDByLayer(j,:) - sedimentSizeDistributionByLayer(j,:)))
         end do
-        delta_max = maxval(abs(me%previousSSD - sedimentSizeDistribution))
-        ! Write the values to file
+        delta_max = maxval(abs(this%previousSSD - sedimentSizeDistribution))
         write(iouOutputSSD, '(a)', advance='no') trim(str(i_model)) // ","
-        write(iouOutputSSD, '(*(a))', advance='no') (trim(str(sedimentSizeDistribution(i))) // &
-            ",", i=1, C%nSizeClassesSpm)
-        write(iouOutputSSD, '(*(a))', advance='no') ((trim(str(sedimentSizeDistributionByLayer(j,i))) // &
-            ",", i=1, C%nSizeClassesSpm), j=1, C%nSedimentLayers)
+        write(iouOutputSSD, '(*(a))', advance='no') (trim(str(sedimentSizeDistribution(i))) // ",", i=1, C%nSizeClassesSpm)
+        write(iouOutputSSD, '(*(a))', advance='no') ((trim(str(sedimentSizeDistributionByLayer(j,i))) // ",", &
+            i=1, C%nSizeClassesSpm), j=1, C%nSedimentLayers)
         write(iouOutputSSD, '(*(a))', advance='no') (trim(str(delta_max_l(i)))//',', i=1, C%nSedimentLayers)
         write(iouOutputSSD, '(a)') trim(str(delta_max))
-        ! Update the previous SSDs to use on the next model iteration
-        me%previousSSD = sedimentSizeDistribution
-        me%previousSSDByLayer = sedimentSizeDistributionByLayer
+        this%previousSSD = sedimentSizeDistribution
+        this%previousSSDByLayer = sedimentSizeDistributionByLayer
     end function
 
-    ! Finalise the data output by adding PECs to the simulation summary file and closing output files
-    subroutine finaliseDataOutput(me, iSteadyState)
-        class(DataOutput)   :: me
-        integer             :: iSteadyState
-        real(dp)            :: timeUntilSteadyState
-        ! Write the final model summary info to the simulation summary file
+    subroutine finaliseDataOutput(this, iSteadyState)
+        class(DataOutput)  :: this
+        integer            :: iSteadyState
+        real(dp)           :: timeUntilSteadyState
+        type(Contaminant)  :: cont_soil, cont_water, cont_sediment
+        real(dp)           :: total_mass_water, mean_mass_water, total_mass_sediment, mean_mass_sediment
+        integer            :: t
+
         if (.not. C%runToSteadyState) then
             write(iouOutputSummary, *) "\n## PECs"
         else
             write(iouOutputSummary, *) "\n## PECs (final model iteration)"
         end if
+        cont_soil = this%env%item%get_C_contaminant_soil()
+        cont_water = this%env%item%get_C_contaminant_water()
+        cont_sediment = this%env%item%get_C_contaminant_sediment()
         write(iouOutputSummary, *) "- Soil, spatial mean on final timestep: " // &
-            trim(str(sum(me%env%item%get_C_np_soil()))) // " kg/kg soil"
+            trim(str(sum(cont_soil%c(:,:,FREE_CONTAMINANT)))) // " kg/kg soil"
+        
+        total_mass_water = 0.0_dp
+        if (allocated(this%env%item%contaminant_water_t)) then
+            do t = 1, size(this%env%item%contaminant_water_t)
+                total_mass_water = total_mass_water + sum(this%env%item%contaminant_water_t(t)%c) &
+                                                    + this%env%item%contaminant_water_t(t)%m_dissolved
+            end do
+            if (size(this%env%item%contaminant_water_t) > 0) then
+                mean_mass_water = total_mass_water / size(this%env%item%contaminant_water_t)
+            else
+                mean_mass_water = 0.0_dp
+            end if
+        else
+            mean_mass_water = 0.0_dp
+        end if
         write(iouOutputSummary, *) "- Water, spatiotemporal mean: " // &
-            trim(str(sum(sum(me%env%item%C_np_water_t, dim=1)) / size(me%env%item%C_np_water_t, dim=1))) // " kg/m3"
+            trim(str(mean_mass_water)) // " kg/m3"
+
+        total_mass_sediment = 0.0_dp
+        if (allocated(this%env%item%contaminant_sediment_t)) then
+            do t = 1, size(this%env%item%contaminant_sediment_t)
+                total_mass_sediment = total_mass_sediment + sum(this%env%item%contaminant_sediment_t(t)%c) &
+                                                        + this%env%item%contaminant_sediment_t(t)%m_dissolved
+            end do
+            if (size(this%env%item%contaminant_sediment_t) > 0) then
+                mean_mass_sediment = total_mass_sediment / size(this%env%item%contaminant_sediment_t)
+            else
+                mean_mass_sediment = 0.0_dp
+            end if
+        else
+            mean_mass_sediment = 0.0_dp
+        end if
         write(iouOutputSummary, *) "- Sediment, spatiotemporal mean: " // &
-            trim(str(sum(sum(me%env%item%C_np_sediment_t, dim=1)) / size(me%env%item%C_np_sediment_t, dim=1))) // &
-            " kg/kg sediment"
-       
+            trim(str(mean_mass_sediment)) // " kg/kg sediment"
+
+        call cont_soil%finalise()
+        call cont_water%finalise()
+        call cont_sediment%finalise()
+
         timeUntilSteadyState = iSteadyState * C%timeStep * C%nTimestepsInBatch
         if (C%runToSteadyState) then
             write(iouOutputSummary, *) "\n## Steady state"
             write(iouOutputSummary, *) "- Iterations until steady state: " // trim(str(iSteadyState))
-            write(iouOutputSummary, *) "- Time until steady state: " &
-                // trim(str(iSteadyState * C%timeStep * C%nTimestepsInBatch)) // " s"
+            write(iouOutputSummary, *) "- Time until steady state: " // trim(str(timeUntilSteadyState)) // " s"
         end if
 
-        ! Close the files
-        close(iouOutputSummary); close(iouOutputWater); close(iouOutputSediment); close(iouOutputSoil)
-        close(iouOutputSSD); close(iouOutputStats)
+        close(iouOutputSummary); close(iouOutputWater); close(iouOutputSediment)
+        close(iouOutputSoil); close(iouOutputSSD); close(iouOutputStats)
         
-        ! Log that we've written output data files
         call LOGR%add('Model output written to ' // trim(C%outputPath), COLOR_GREEN)
     end subroutine
 
-    !> Tell the NetCDF output class to reallocate memory for the new chunk,
-    !! if we're in write-at-end mode
-    subroutine newChunkDataOutput(me, k)
-        class(DataOutput)  :: me       !! This DataOutput instance
-        integer             :: k        !! This chunk index
-        ! Only bother calling this if we need to reallocate memory
+    subroutine newChunkDataOutput(this, k)
+        class(DataOutput)  :: this
+        integer            :: k
         if (C%writeNetCDF .and. C%netCDFWriteMode == 'end') then
-            call me%ncout%newChunk(k)
+            call this%ncout%newChunk(k)
         end if
     end subroutine
 
-    !> Tell the NetCDF output class that we're at the end of a chunk, so that
-    !! it write to the NetCDF file if in write-at-end mode
-    subroutine finaliseChunkDataOutput(me, tStart, isFinalChunk)
-        class(DataOutput)  :: me               !! This DataOutput instance
-        integer             :: tStart           !! Timestep index at the start of this chunk
-        logical             :: isFinalChunk     !! Is this the final chunk?
-        ! Only bother calling this if we need to write to the NetCDF file
+    subroutine finaliseChunkDataOutput(this, tStart, isFinalChunk)
+        class(DataOutput)  :: this
+        integer            :: tStart
+        logical            :: isFinalChunk
         if (C%writeNetCDF .and. C%netCDFWriteMode == 'end') then
-            call me%ncout%finaliseChunk(tStart)
+            call this%ncout%finaliseChunk(tStart)
         end if
-        ! If this is the final chunk, close the NetCDF file
         if (C%writeNetCDF .and. isFinalChunk) then
-            call me%ncout%close()
+            call this%ncout%close()
         end if
     end subroutine
 
-    ! Write the headers for the output files
-    subroutine writeHeadersDataOutput(me)
-        class(DataOutput)   :: me                   !! This DataOutput instance
-        ! Write headers all of the output files
-        call me%writeHeadersSimulationSummary()
+    subroutine writeHeadersDataOutput(this)
+        class(DataOutput)   :: this
+        call this%writeHeadersSimulationSummary()
         if (C%writeCSV) then
-            call me%writeHeadersWater()
-            call me%writeHeadersSediment()
-            call me%writeHeadersSoil()
+            call this%writeHeadersWater()
+            call this%writeHeadersSediment()
+            call this%writeHeadersSoil()
         end if
         if (C%writeCompartmentStats) then
-            call me%writeHeadersStats()
+            call this%writeHeadersStats()
         end if
     end subroutine
 
-    !> Write headers for the simulation summary file, including basic info about the model run
-    subroutine writeHeadersSimulationSummaryDataOutput(me)
-        class(DataOutput)   :: me                   !! This DataOutput instance
-        type(datetime)      :: simDatetime          ! Datetime the simulation was run 
+    subroutine writeHeadersSimulationSummaryDataOutput(this)
+        class(DataOutput)   :: this
+        type(datetime)      :: simDatetime
 
-        ! Parse some datetimes
         simDatetime = simDatetime%now()
-
-        ! Summary file headers
         write(iouOutputSummary, '(a)') "# NanoFASE model simulation summary"
         write(iouOutputSummary, '(a)') " - Description: " // trim(C%runDescription)
         write(iouOutputSummary, '(a)') " - Simulation datetime: " // simDatetime%isoformat()
@@ -521,7 +710,6 @@ module DataOutputModule
         write(iouOutputSummary, *) "- End date: " // C%batchEndDate%strftime('%Y-%m-%d')
         write(iouOutputSummary, *) "- Timestep length: " // trim(str(C%timeStep)) // " s"
         write(iouOutputSummary, *) "- Number of timesteps: " // trim(str(C%nTimestepsInBatch))
-        
         write(iouOutputSummary, *) "\n## Spatial domain"
         write(iouOutputSummary, *) "- Grid resolution: " // trim(str(DATASET%gridRes(1))) // ", " // &
             trim(str(DATASET%gridRes(2))) // " m" 
@@ -529,32 +717,21 @@ module DataOutputModule
             trim(str(DATASET%gridBounds(2))) // &
             ", " // trim(str(DATASET%gridBounds(3))) // ", " // trim(str(DATASET%gridBounds(4))) // " m"
         write(iouOutputSummary, *) "- Grid shape: " // trim(str(DATASET%gridShape(1))) // ", " // trim(str(DATASET%gridShape(2)))
-        write(iouOutputSummary, *) "- Number of non-empty grid cells: " // trim(str(me%env%item%nGridCells))
+        write(iouOutputSummary, *) "- Number of non-empty grid cells: " // trim(str(this%env%item%nGridCells))
         write(iouOutputSummary, *) "- Is simulation masked? " // trim(str(C%hasSimulationMask))
         write(iouOutputSummary, *) "- Number of non-masked grid cells: " // trim(str(DATASET%nNonMaskedCells))
     end subroutine
 
-    !> Write the headers for the compartment stats file
-    subroutine writeHeadersStatsDataOutput(me)
-        class(DataOutput)  :: me
-
-        ! ! Write metadata, if we're meant to
-        ! if (C%writeMetadataAsComment) then
-        !     write(iouOutputStats, '(a)') "# NanoFASE model output data - COMPARTMENT STATS.\n"
-        !     write(iouOutputStats, '(a)') "# This file contains summary statistics for each environmental compartment.\n"
-        ! end if
-        ! write(iouOutputStats '(a)')
-    end subroutine
-
-    !> Write the headers for the water output file
-    subroutine writeHeadersWaterDataOutput(me)
-        class(DataOutput)   :: me           !! This DataOutput instance
-        integer             :: i            ! Size class iterator
+    subroutine writeHeadersWaterDataOutput(this)
+        class(DataOutput)   :: this
+        integer             :: i, f
         
-        ! Write metadata, if we're meant to 
         if (C%writeMetadataAsComment) then
-            write(iouOutputWater, '(a)') "# NanoFASE model output data - WATER.\n# See summary.md for model run metadata."
-            write(iouOutputWater, '(a)') "# Columns:\n#\tt: timestep index\n#\tdatetime: datetime of this timestep"
+            write(iouOutputWater, '(a)') "# NanoFASE model output data - WATER."
+            write(iouOutputWater, '(a)') "# See summary.md for model run metadata."
+            write(iouOutputWater, '(a)') "# Columns:"
+            write(iouOutputWater, '(a)') "#\tt: timestep index"
+            write(iouOutputWater, '(a)') "#\tdatetime: datetime of this timestep"
             write(iouOutputWater, '(a)') "#\tx, y: grid cell (eastings and northings) index"
             write(iouOutputWater, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
             if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)') "#\tw: waterbody index within this grid cell"
@@ -563,34 +740,38 @@ module DataOutputModule
             else
                 write(iouOutputWater, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
             end if
-            write(iouOutputWater, '(a)') "#\tm_np(kg), m_transformed(kg), m_dissolved(kg): " // &
-                "NM mass (pristine, transformed and dissolved, kg)"
-            write(iouOutputWater, '(a)') "#\tC_np(kg/m3), C_transformed(kg/m3), C_dissolved(kg/m3): NM concentration (kg/m3)"
-            write(iouOutputWater, '(a)') "#\tm_np_outflow(kg), m_transformed_outflow(kg), m_dissolved_outflow(kg): " // &
-                "downstream outflow NM masses (kg)"
-            write(iouOutputWater, '(a)') "#\tm_np_deposited(kg), m_transformed_deposited(kg): mass of NM deposited (kg)"
-            write(iouOutputWater, '(a)') "#\tm_np_resuspended(kg), m_transformed_resuspended(kg): mass of NM resuspended (kg)"
+            write(iouOutputWater, '(a)') "#\tm_contaminant_pristine(kg), m_contaminant_attached(kg), m_dissolved(kg): " // &
+                "contaminant mass (pristine, attached, dissolved, kg)"
+            write(iouOutputWater, '(a)') "#\tC_contaminant_total(kg/m3), C_contaminant_attached(kg/m3), C_dissolved(kg/m3): " // &
+                "contaminant concentration (total, attached, dissolved, kg/m3)"
+            write(iouOutputWater, '(a)') "#\tm_contaminant_pristine_deposited(kg), m_contaminant_attached_deposited(kg): " // &
+                "deposited contaminant masses (kg)"
+            write(iouOutputWater, '(a)') "#\tm_contaminant_pristine_resuspended(kg), m_contaminant_attached_resuspended(kg): " // &
+                "resuspended contaminant masses (kg)"
+            write(iouOutputWater, '(a)') "#\tm_contaminant_pristine_outflow(kg), " // &
+                "m_contaminant_attached_outflow(kg), m_dissolved_outflow(kg): " // &
+                "outflow contaminant masses (kg)"
             write(iouOutputWater, '(a)') "#\tm_spm(kg), C_spm(kg/m3): mass and concentration of SPM (kg, kg/m3)"
+            write(iouOutputWater, '(a)') "#\tm_contaminant_form_f(kg): contaminant mass for form f (kg)"
             if (C%includeSpmSizeClassBreakdown) then
-                write(iouOutputWater, '(a)') "#\tm_spm_sci(kg), C_spm_sci(kg/m3): mass aond concentration of SPM in " // &
-                    "size class i (kg, kg/m3)"
+                write(iouOutputWater, '(a)') "#\tm_spm_sci(kg), C_spm_sci(kg/m3): " // &
+                "mass and concentration of SPM in size class i (kg, kg/m3)"
             end if
             if (C%includeSedimentFluxes) then
                 write(iouOutputWater, '(a)') "#\tm_spm_erosion(kg), m_spm_dep(kg), m_spm_res(kg), m_spm_inflow(kg), " // &
-                    "m_spm_outflow(kg), m_spm_bank_erosion(kg): SPM fluxes from erosion, deposition, resuspension, " // &
-                    "inflows, outflow and bank erosion on this timestep (kg)"
+                    "m_spm_outflow(kg), m_spm_bank_erosion(kg): SPM fluxes (kg)"
             end if
-            write(iouOutputWater, '(a)') "#\tvolume(m3), depth(m), flow(m3/s): volume (m3), " // &
-                "depth (m) and flow rate (m3/s) of this waterbody"
+            write(iouOutputWater, '(a)') "#\tvolume(m3), depth(m), flow(m3/s): volume (m3), depth (m), flow rate (m3/s)"
         end if
-        ! Write the actual headers
         write(iouOutputWater, '(a)', advance='no') "t,datetime,x,y,easts,norths,"
         if (C%includeWaterbodyBreakdown) write(iouOutputWater, '(a)', advance='no') "w,"
-        write(iouOutputWater, '(a)', advance='no') "waterbody_type,m_np(kg),C_np(kg/m3)," // &
-            "m_transformed(kg),C_transformed(kg/m3),m_dissolved(kg),C_dissolved(kg/m3)," // &
-            "m_np_deposited(kg),m_transformed_deposited(kg)," // &
-            "m_np_resuspended(kg),m_transformed_resuspended(kg),m_np_outflow(kg),m_transformed_outflow(kg)," // &
-            "m_dissolved_outflow(kg),m_spm(kg),C_spm(kg/m3),"
+        write(iouOutputWater, '(a)', advance='no') "waterbody_type,m_contaminant_pristine(kg),C_contaminant_total(kg/m3)," // &
+            "m_contaminant_attached(kg),C_contaminant_attached(kg/m3),m_dissolved(kg),C_dissolved(kg/m3)," // &
+            "m_contaminant_pristine_deposited(kg),m_contaminant_attached_deposited(kg)," // &
+            "m_contaminant_pristine_resuspended(kg),m_contaminant_attached_resuspended(kg)," // &
+            "m_contaminant_pristine_outflow(kg),m_contaminant_attached_outflow(kg),m_dissolved_outflow(kg)," // &
+            "m_spm(kg),C_spm(kg/m3),"
+        write(iouOutputWater, '(*(a))', advance='no') ("m_contaminant_form" // trim(str(f)) // "(kg),", f=1, C%contaminantDim(2))
         if (C%includeSpmSizeClassBreakdown) then
             write(iouOutputWater, '(*(a))', advance="no") &
                 ("m_spm_sc" // trim(str(i)) // "(kg),C_spm_sc" // trim(str(i)) // "(kg/m3),", i=1, C%nSizeClassesSpm) 
@@ -602,12 +783,10 @@ module DataOutputModule
         write(iouOutputWater, '(a)') "volume(m3),depth(m),flow(m3/s)"
     end subroutine
 
-    !> Write the headers for the sediment output file
-    subroutine writeHeadersSedimentDataOutput(me)
-        class(DataOutput)   :: me           !! This DataOutput instance
-        integer             :: i            ! Iterator
+    subroutine writeHeadersSedimentDataOutput(this)
+        class(DataOutput)   :: this
+        integer             :: i, f
 
-        ! Write metadata, if we're meant to
         if (C%writeMetadataAsComment) then
             write(iouOutputSediment, '(a)') "# NanoFASE model output data - SEDIMENT."
             write(iouOutputSediment, '(a)') "# See summary.md for model run metadata."
@@ -615,108 +794,117 @@ module DataOutputModule
             write(iouOutputSediment, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
             if (C%includeWaterbodyBreakdown) write(iouOutputSediment, '(a)') "#\tw: waterbody index within this grid cell"
             if (C%includeWaterbodyBreakdown) then
-                write(iouOutputSediment, '(a)') "#\twaterbody_type: what type (river, estuary etc) " // &
-                    "of waterbody is this sediment in?"
+                write(iouOutputSediment, '(a)') "#\twaterbody_type: what type (river, estuary etc) is this sediment in?"
             else
-                write(iouOutputSediment, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
+                write(iouOutputSediment, '(a)') "#\twaterbody_type: dominant waterbody type in this cell"
             end if
-            write(iouOutputSediment, '(a)') "#\tm_np_total(kg), C_np_total(kg/m3), C_np_total(kg/kg): " &
-                // "NM mass (kg) and concentration (kg/m3 and kg/kg dry weight) for all layers"
+            write(iouOutputSediment, '(a)') "#\tm_contaminant_pristine_total(kg), " // &
+                "C_contaminant_total(kg/m3), C_contaminant_total(kg/kg): " // &
+                "contaminant mass (kg) and concentration (kg/m3, kg/kg dry weight) for all layers"
+            write(iouOutputSediment, '(a)') "#\tm_contaminant_form_f(kg): contaminant mass for form f (kg)"
             if (C%includeSedimentLayerBreakdown) then
-                write(iouOutputSediment, '(a)') "#\tC_np_li(kg/m3), C_np_li(kg/kg): NM conc for layer i (kg/m3 and kg/kg)"
+                write(iouOutputSediment, '(a)') "#\tC_contaminant_li(kg/m3), C_contaminant_li(kg/kg): contaminant conc for layer i"
             end if
-            write(iouOutputSediment, '(a)') "#\tm_np_buried(kg): NM mass buried on this timestep (kg)"
+            write(iouOutputSediment, '(a)') "#\tm_contaminant_pristine_buried(kg): contaminant mass buried (kg)"
             write(iouOutputSediment, '(a)') "#\tbed_area(m2): area of this bed sediment (m2)"
-            write(iouOutputSediment, '(a)') "#\tsediment_mass(kg): total mass of fine sediment " // &
-                "in this bed sediment (kg, *not* kg/m2)"
-            write(iouOutputSediment, '(a)') "#\tsediment_density(kg): average density of the sediment (kg/m3)"
+            write(iouOutputSediment, '(a)') "#\tsediment_mass(kg): total mass of fine sediment (kg)"
+            write(iouOutputSediment, '(a)') "#\tsediment_density(kg/m3): average density of the sediment"
         end if
-        ! Write the actual headers
         write(iouOutputSediment, '(a)', advance="no") "t,datetime,x,y,easts,norths," 
         if (C%includeWaterbodyBreakdown) write(iouOutputSediment, '(a)', advance='no') "w,"
-        write(iouOutputSediment, '(a)', advance='no') "waterbody_type,m_np_total(kg),C_np_total(kg/m3),C_np_total(kg/kg),"
-        ! Should we include sediment layer breakdown?
+        write(iouOutputSediment, '(a)', advance='no') &
+            "waterbody_type,m_contaminant_pristine_total(kg),C_contaminant_total(kg/m3)," // &
+            "C_contaminant_total(kg/kg),"
+        write(iouOutputSediment, '(*(a))', advance='no') ("m_contaminant_form" // trim(str(f)) // "(kg),", f=1, C%contaminantDim(2))
         if (C%includeSedimentLayerBreakdown) then
             write(iouOutputSediment, '(*(a))', advance="no") &
-                ("C_np_l" // trim(str(i)) // "(kg/m3),C_np_l" // trim(str(i)) // "(kg/kg),", i = 1, C%nSedimentLayers) 
+                ("C_contaminant_l" // trim(str(i)) // "(kg/m3),C_contaminant_l" &
+                // trim(str(i)) // "(kg/kg),", i = 1, C%nSedimentLayers) 
         end if
-        write(iouOutputSediment, '(a)') "m_np_buried(kg),bed_area(m2),sediment_mass(kg),sediment_density(kg/m3)"
+        write(iouOutputSediment, '(a)') "m_contaminant_pristine_buried(kg),bed_area(m2),sediment_mass(kg),sediment_density(kg/m3)"
     end subroutine
 
-    !> Write the headers for the soil output file
-    subroutine writeHeadersSoilDataOutput(me)
-        class(DataOutput)   :: me           !! This DataOutput instance
-        integer             :: i            ! Iterator
+    subroutine writeHeadersSoilDataOutput(this)
+        class(DataOutput)   :: this
+        integer             :: i, f
 
         if (C%writeMetadataAsComment) then
             write(iouOutputSoil, '(a)') "# NanoFASE model output data - SOIL."
             write(iouOutputSoil, '(a)') "# See summary.md for model run metadata."
-            write(iouOutputSoil, '(a)') "# Columns:\n#\tt: timestep index\n#\tdatetime: datetime of this timestep"
+            write(iouOutputSoil, '(a)') "# Columns:"
+            write(iouOutputSoil, '(a)') "#\tt: timestep index"
+            write(iouOutputSoil, '(a)') "#\tdatetime: datetime of this timestep"
             write(iouOutputSoil, '(a)') "#\tx, y: grid cell (eastings and northings) index"
             write(iouOutputSoil, '(a)') "#\teasts, norths: eastings and northings at the centre of this grid cell (m)"
             write(iouOutputSoil, '(a)') "#\tp: soil profile index within this cell"
             write(iouOutputSoil, '(a)') "#\tland_use: dominant land use of this soil profile"
-            write(iouOutputSoil, '(a)') "#\tm_np_total(kg), m_transformed_total(kg), m_dissolved_total(kg): " // &
-                "NM mass (pristine, transformed and dissolved) in whole soil profile, sum of free and attached NM"
-            write(iouOutputSoil, '(a)') "#\tC_np_total(" // C%soilPECUnits // "), C_transformed_total(" // C%soilPECUnits // &
-                "), C_dissolved_total(" // C%soilPECUnits // "): " // &
-                "NM concentration averaged over all soil layers, sum of free and attached NM"
-            ! Should we include a breakdown of NM state (free vs attached)?
+            write(iouOutputSoil, '(a)') "#\tm_contaminant_pristine_total(kg), "// &
+                "m_contaminant_attached_total(kg), m_dissolved_total(kg): " // &
+                "contaminant mass (pristine, attached, dissolved) in whole soil profile"
+            write(iouOutputSoil, '(a)') "#\tC_contaminant_total(" // C%soilPECUnits // "), " // & 
+                "C_contaminant_attached(" // C%soilPECUnits // &
+                "), C_dissolved_total(" // C%soilPECUnits // "): contaminant concentration"
+            write(iouOutputSoil, '(a)') "#\tm_contaminant_form_f(kg): contaminant mass for form f (kg)"
             if (C%includeSoilStateBreakdown) then
-                write(iouOutputSoil, '(a)') "#\tC_np_free(" // C%soilPECUnits // "), C_transformed_free(" // C%soilPECUnits // &
-                    "): free NM concentration averaged over all soil layers"
-                write(iouOutputSoil, '(a)') "#\tC_np_att(" // C%soilPECUnits // "), C_transformed_att(" // C%soilPECUnits // &
-                    "): attached NM concentration averaged over all soil layers"
+                write(iouOutputSoil, '(a)') "#\tC_contaminant_pristine_free(" // C%soilPECUnits // "), " // &
+                    "C_contaminant_attached(" // C%soilPECUnits // &
+                    "): free and attached contaminant concentration"
             end if
-            ! Should we include a breakdown across the soil layers?
-            if (C%includeSedimentLayerBreakdown) then
-                write(iouOutputSoil, '(a)') "#\tC_np_li(" // C%soilPECUnits // "), C_transformed_li(" // C%soilPECUnits // &
-                "), C_dissolved_li(" // C%soilPECUnits // "): NM concentration for layer i, sum of free and attached"
+            if (C%includeSoilLayerBreakdown) then
+                write(iouOutputSoil, '(a)') "#\tC_contaminant_li(" // C%soilPECUnits // "), " // &
+                    "C_dissolved_li(" // C%soilPECUnits // &
+                    "): contaminant concentration for layer i"
                 if (C%includeSoilStateBreakdown) then
-                    write(iouOutputSoil, '(a)') "#\tC_np_free_li("//C%soilPECUnits//"), C_transformed_free_li("// &
-                        C%soilPECUnits//"): free NM concentration for layer i"
-                    write(iouOutputSoil, '(a)') "#\tC_np_att_li("// C%soilPECUnits//"), C_transformed_att_li("// &
-                        C%soilPECUnits//"): attached NM concentration for layer i"
+                    write(iouOutputSoil, '(a)') "#\tC_contaminant_pristine_free_li(" // C%soilPECUnits // "), " // &
+                        "C_contaminant_attached_li(" // &
+                        C%soilPECUnits // "): free and attached contaminant concentration for layer i"
                 end if
             end if
             if (C%includeSoilErosionYields) then
-                write(iouOutputSoil, '(a)') "#\tm_soil_eroded(kg), m_np_eroded(kg), m_transformed_eroded(kg): " // &
-                    "mass of soil and NM eroded on this timestep"
+                write(iouOutputSoil, '(a)') "#\tm_soil_eroded(kg), " // &
+                    "m_contaminant_pristine_eroded(kg), m_contaminant_attached_eroded(kg): " // &
+                    "mass of soil and contaminant eroded"
             end if
-            write(iouOutputSoil, '(a)') "#\tm_np_buried(kg), m_transformed_buried(kg), m_dissolved_buried(kg): " // &
-                "mass of NM buried on this timestep"
+            write(iouOutputSoil, '(a)') "#\tm_contaminant_pristine_buried(kg), " // &
+                "m_contaminant_attached_buried(kg), m_dissolved_buried(kg): " // &
+                "mass of contaminant buried"
             write(iouOutputSoil, '(a)') "#\tbulk_density(kg/m3): bulk density of this soil profile"
         end if
-        ! Write the actual headers
         write(iouOutputSoil, '(a)', advance="no") "t,datetime,x,y,easts,norths,p,land_use," // &
-            "m_np_total(kg),m_transformed_total(kg),m_dissolved_total(kg)," // &
-            "C_np_total(" // C%soilPECUnits // "),C_transformed_total(" // C%soilPECUnits // &
+            "m_contaminant_pristine_total(kg),m_contaminant_attached_total(kg),m_dissolved_total(kg)," // &
+            "C_contaminant_total(" // C%soilPECUnits // "),C_contaminant_attached(" // C%soilPECUnits // &
             "),C_dissolved_total(" // C%soilPECUnits // "),"
-        ! Should we include state breakdown - free vs attached?
+        write(iouOutputSoil, '(*(a))', advance='no') ("m_contaminant_form" // trim(str(f)) // &
+            "(" // C%soilPECUnits // "),", f=1, C%contaminantDim(2))
         if (C%includeSoilStateBreakdown) then
-            write(iouOutputSoil, '(a)', advance="no") "C_np_free("//C%soilPECUnits//"),C_transformed_free("// &
-                C%soilPECUnits//"),C_np_att("//C%soilPECUnits//"),C_transformed_att("//C%soilPECUnits//"),"
+            write(iouOutputSoil, '(a)', advance="no") "C_contaminant_pristine_free(" // C%soilPECUnits // ")," // &
+                "C_contaminant_attached(" // &
+                C%soilPECUnits // "),"
         end if
-        ! Should we include soil layer breakdown?
         if (C%includeSoilLayerBreakdown) then
             write(iouOutputSoil, '(*(a))', advance="no") &
-                ("C_np_l"//trim(str(i))//"("//C%soilPECUnits//"),C_transformed_l"//trim(str(i))//"("//C%soilPECUnits//"),"// &
-                 "C_dissolved_l"//trim(str(i))//"("//C%soilPECUnits//"),", i = 1, C%nSoilLayers)
+                ("C_contaminant_l" // trim(str(i)) // "(" // C%soilPECUnits // "),C_dissolved_l" // trim(str(i)) // &
+                 "(" // C%soilPECUnits // "),", i = 1, C%nSoilLayers)
             if (C%includeSoilStateBreakdown) then
                 write(iouOutputSoil, '(*(a))', advance="no") &
-                    ("C_np_free_l"//trim(str(i))//"("//C%soilPECUnits//"),C_transformed_free_l"//trim(str(i))// &
-                     "("//C%soilPECUnits//"),", i = 1, C%nSoilLayers)
-                write(iouOutputSoil, '(*(a))', advance="no") &
-                    ("C_np_att_l"//trim(str(i))//"("//C%soilPECUnits//"),C_transformed_att_l"//trim(str(i))// &
-                     "("//C%soilPECUnits//"),", i = 1, C%nSoilLayers)
+                    ("C_contaminant_pristine_free_l" // trim(str(i)) // "(" // C%soilPECUnits // "),C_contaminant_attached_l" // &
+                     trim(str(i)) // "(" // C%soilPECUnits // "),", i = 1, C%nSoilLayers)
             end if
         end if
-        ! Should we include eroded soil and NM?
         if (C%includeSoilErosionYields) then
-            write(iouOutputSoil, '(a)', advance='no') "m_soil_eroded(kg),m_np_eroded(kg),m_transformed_eroded(kg),"
+            write(iouOutputSoil, '(a)', advance='no') "m_soil_eroded(kg),m_contaminant_pristine_eroded(kg)," // & 
+            "m_contaminant_attached_eroded(kg),"
         end if
-        write(iouOutputSoil, '(a)', advance='no') "m_np_buried(kg),m_transformed_buried(kg),"
-        write(iouOutputSoil, '(a)') "m_dissolved_buried(kg),bulk_density(kg/m3)"
+        write(iouOutputSoil, '(a)') "m_contaminant_pristine_buried(kg),m_contaminant_attached_buried(kg)," // & 
+            "m_dissolved_buried(kg),bulk_density(kg/m3)"
+    end subroutine
+
+    subroutine writeHeadersStatsDataOutput(this)
+        class(DataOutput)  :: this
+        if (C%writeMetadataAsComment) then
+            write(iouOutputStats, '(a)') "# NanoFASE model output data - COMPARTMENT STATS."
+            write(iouOutputStats, '(a)') "# This file contains summary statistics for each environmental compartment."
+        end if
     end subroutine
 
 end module

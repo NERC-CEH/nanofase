@@ -9,11 +9,12 @@ module RiverReachModule
     use DataInputModule, only: DATASET
     use ReactorModule
     use BiotaWaterModule
+    use ContaminantModule
     implicit none
 
     !> The RiverReach type represents a segment of river within a grid cell
     type, public, extends(Reach) :: RiverReach
-      contains
+    contains
         ! Create
         procedure :: create => createRiverReach
         ! Simulators
@@ -22,24 +23,26 @@ module RiverReachModule
         procedure :: setDimensions
         ! Data handlers
         procedure :: parseInputData => parseInputDataRiverReach
+        procedure :: updateSources
         ! Calculators
         procedure :: calculateWidth => calculateWidth
         procedure :: calculateDepth => calculateDepth
         procedure :: calculateVelocity => calculateVelocity
+        procedure :: finalise => finaliseRiverReach
     end type
 
-  contains
+contains
 
     !> Create this RiverReach with the provided grid cell and waterbody indices (x, y, w)
     !! and sediment size class distribution
     function createRiverReach(me, x, y, w, distributionSediment) result(rslt)
-        class(RiverReach) :: me                 !! This `RiverReach` instance
-        integer :: x                            !! Grid cell x-position index
-        integer :: y                            !! Grid cell y-position index
-        integer :: w                            !! Water body index within the cell
-        real(dp) :: distributionSediment(C%nSizeClassesSPM)     !! Distribution to split sediment across size classes
-        type(Result) :: rslt                    !! Result object to return errors in
-        integer :: i                            ! Iterator
+        class(RiverReach), intent(inout) :: me                     !! This `RiverReach` instance
+        integer, intent(in) :: x                                   !! Grid cell x-position index
+        integer, intent(in) :: y                                   !! Grid cell y-position index
+        integer, intent(in) :: w                                   !! Water body index within the cell
+        real(dp), intent(in) :: distributionSediment(C%nSizeClassesSPM) !! Distribution to split sediment across size classes
+        type(Result) :: rslt                                       !! Result object to return errors in
+        integer :: i                                               ! Iterator
 
         ! Set reach references (indices set in WaterBody%create) and grid cell area.
         ! Diffuse and point sources are created in WaterBody%create
@@ -49,14 +52,28 @@ module RiverReachModule
         ! Parse input data and allocate/initialise variables. The order here is important:
         ! allocation depends on the input data.
         call rslt%addErrors(.errors. me%parseInputData())
+        call rslt%addErrors(.errors. me%m_contaminant%create())
+        if (allocated(DATASET%initialContaminantConcsWater)) then
+            me%m_contaminant%c = DATASET%initialContaminantConcsWater(me%x, me%y, :, :, :)
+            if (allocated(DATASET%initialDissolvedConcsWater)) then
+                me%m_contaminant%m_dissolved = DATASET%initialDissolvedConcsWater(me%x, me%y)
+            end if
+        end if
 
         ! Create the BedSediment for this RiverReach
-        ! TODO: Get the type of BedSediment from the data file, and check for allst
         allocate(BedSediment :: me%bedSediment)
         allocate(Reactor :: me%reactor)
+        call rslt%addErrors([ &
+            .errors. me%bedSediment%create(me%x, me%y, me%w), &
+            .errors. me%reactor%create( &
+                me%x, me%y, merge('estuary', 'water  ', DATASET%isEstuary(me%x, me%y)), &
+                me%m_contaminant, me%volume, &
+                DATASET%waterTemperature(C%startDate%yearday()), &
+                C_spm=me%C_spm, W_settle_spm=me%W_settle_spm, &
+                G=DATASET%shearRate, velocity=me%velocity) &
+        ])
 
         ! Allocate and create the correct number of biota objects for this reach
-        ! TODO move all this to database
         allocate(me%biotaIndices(0))
         if (DATASET%hasBiota) then
             do i = 1, DATASET%nBiota
@@ -66,84 +83,111 @@ module RiverReachModule
                 end if
             end do
         end if
+
         allocate(me%biota(me%nBiota))
         do i = 1, me%nBiota
             call rslt%addErrors(.errors. me%biota(i)%create(me%biotaIndices(i)))
         end do
-
-        ! Create the bed sediment and reactor
-        call rslt%addErrors([ &
-            .errors. me%bedSediment%create(me%x, me%y, me%w), &
-            .errors. me%reactor%create(me%x, me%y, me%alpha_hetero) &
-        ])
-
-        ! Add what we're doing here to the trace and log that creating the reach was successful
+        
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOGR%toFile("Creating " // trim(me%ref) // ": success")
     end function
 
-    !> Run the river reach simulation for this timestep
-    subroutine updateRiverReach(me, t, q_runoff, q_overland, j_spm_runoff, j_np_runoff, &
-                                j_transformed_runoff, contributingArea, isWarmUp)
-        class(RiverReach)   :: me                                   !! This `RiverReach` instance
-        integer             :: t                                    !! The current timestep
-        real(dp)            :: q_runoff                             !! Runoff from the hydrological model [m3/m2/timestep]
-        real(dp)            :: q_overland                           !! Overland runoff [m3/m2/timestep]
-        real(dp)            :: j_spm_runoff(:)                      !! Eroded sediment runoff to this reach [kg/timestep]
-        real(dp)            :: j_np_runoff(:,:,:)                   !! Eroded NP runoff to this reach [kg/timestep]
-        real(dp)            :: j_transformed_runoff(:,:,:)          !! Eroded transformed NP runoff to this reach [kg/timestep]
-        real(dp)            :: contributingArea                     !! Area contributing to this reach (e.g. the soil profile) [m2]
-        logical             :: isWarmUp                             !! Are we in a warm up period?
-        type(Result)        :: rslt                                 ! Result object to store errors in
-        integer             :: i                                    ! Iterator
-        integer             :: nDisp                                ! Number of displacements to split this time step into
-        real(dp)            :: dt                                   ! Length of each displacement [s]
-        real(dp)            :: dQ                                   ! Water flow for each displacement
-        real(dp)            :: dj_spm(C%nSizeClassesSpm)            ! SPM inflows for each displacement
-        real(dp)            :: dj_nm(C%npDim(1), C%npDim(2), C%npDim(3)) ! NM inflows for each displacement
-        real(dp)            :: dj_nm_transformed(C%npDim(1), C%npDim(2), C%npDim(3)) ! Transformed NM inflows for each displacement
-        real(dp)            :: dj_dissolved                         ! Dissolved species inflows for each displacement
-        type(datetime)      :: currentDate                          ! The current timestep's date
-        real                :: T_water_t                            ! Water temperature on this timestep [deg C]
+    subroutine updateSources(me, t)
+        class(RiverReach) :: me
+        integer :: t
+        integer :: p
+        type(Result) :: rslt
+        type(Contaminant) :: temp_contaminant
 
+        call rslt%addErrors(.errors. me%j_contaminant_pointSources%create())
+        do p = 1, DATASET%maxPointSources
+            call rslt%addErrors(.errors. temp_contaminant%create())
+            if (allocated(DATASET%emissionsPointWaterContaminant)) then
+                temp_contaminant%c = DATASET%emissionsPointWaterContaminant(me%x, me%y, t, p, :, :, :)
+            else
+                temp_contaminant%c = 0.0_dp
+            end if
+            if (allocated(DATASET%emissionsPointWaterDissolvedContaminant)) then
+                temp_contaminant%m_dissolved = DATASET%emissionsPointWaterDissolvedContaminant(me%x, me%y, t)
+            else
+                temp_contaminant%m_dissolved = 0.0_dp
+            end if
+            call me%j_contaminant_pointSources%add(temp_contaminant)
+            call temp_contaminant%finalise()
+        end do
+
+        call rslt%addErrors(.errors. me%j_contaminant_diffuseSources%create())
+        call rslt%addErrors(.errors. temp_contaminant%create())
+        if (allocated(DATASET%emissionsArealWaterContaminant)) then
+            temp_contaminant%c = DATASET%emissionsArealWaterContaminant(me%x, me%y, :, :, :)
+        else
+            temp_contaminant%c = 0.0_dp
+        end if
+        if (allocated(DATASET%emissionsArealWaterDissolvedContaminant)) then
+            temp_contaminant%m_dissolved = DATASET%emissionsArealWaterDissolvedContaminant(me%x, me%y)
+        else
+            temp_contaminant%m_dissolved = 0.0_dp
+        end if
+        call me%j_contaminant_diffuseSources%add(temp_contaminant)
+        call temp_contaminant%finalise()
+
+        call rslt%addToTrace("Updating sources for " // trim(me%ref) // " on timestep #" // trim(str(t)))
+        call LOGR%toFile(errors = .errors. rslt)
+        call ERROR_HANDLER%trigger(errors = .errors. rslt)
+    end subroutine
+
+    !> Run the river reach simulation for this timestep
+    subroutine updateRiverReach(me, t, q_runoff, q_overland, j_spm_runoff, j_contaminant_runoff, &
+                                contributingArea, isWarmUp)
+        class(RiverReach), intent(inout) :: me                     !! This `RiverReach` instance
+        integer, intent(in) :: t                                   !! The current timestep
+        real(dp), intent(in) :: q_runoff                           !! Runoff from the hydrological model [m3/m2/timestep]
+        real(dp), intent(in) :: q_overland                         !! Overland runoff [m3/m2/timestep]
+        real(dp), intent(in) :: j_spm_runoff(:)                    !! Eroded sediment runoff to this reach [kg/timestep]
+        type(Contaminant), intent(in) :: j_contaminant_runoff      !! Contaminant runoff to this reach [kg/timestep]
+        real(dp), intent(in) :: contributingArea                   !! Area contributing to this reach (e.g. the soil profile) [m2]
+        logical, intent(in) :: isWarmUp                            !! Are we in a warm up period?
+        type(Result) :: rslt                                       ! Result object to store errors in
+        integer :: i                                               ! Iterator
+        integer :: nDisp                                           ! Number of displacements to split this time step into
+        real(dp) :: dt                                             ! Length of each displacement [s]
+        real(dp) :: dQ                                             ! Water flow for each displacement
+        real(dp) :: dj_spm(C%nSizeClassesSpm)                      ! SPM inflows for each displacement
+        type(Contaminant) :: dj_contaminant_in
+        type(datetime) :: currentDate                              ! The current timestep's date
+        real(dp) :: T_water_t
+        type(Contaminant) :: c_env_contaminant
+      
         ! Reset all flows to zero, which is needed as flows are added to iteratively in the displacement loop
         call me%emptyFlows()
 
         ! Get the current date and use the day of year to get the water temp
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = me%T_water(currentDate%yearday())
-            
+
         ! Get the inflows from upstream water bodies
         do i = 1, me%nInflows
             me%Q%inflow = me%Q%inflow - me%inflows(i)%item%Q%outflow
             me%j_spm%inflow = me%j_spm%inflow - me%inflows(i)%item%j_spm%outflow
-            me%j_nm%inflow = me%j_nm%inflow - me%inflows(i)%item%j_nm%outflow
-            me%j_nm_transformed%inflow = me%j_nm_transformed%inflow - me%inflows(i)%item%j_nm_transformed%outflow
-            me%j_dissolved%inflow = me%j_dissolved%inflow - me%inflows(i)%item%j_dissolved%outflow
+            call me%j_contaminant_inflow%add(me%inflows(i)%item%get_j_contaminant_outflow())
         end do
-
         ! Get the inflows from runoff and scale to this reach, then use this to set dimensions
         me%Q%runoff = q_runoff * contributingArea
         me%Q_in_total = me%Q%inflow + me%Q%runoff
         call me%setDimensions(t)
 
         ! Set the erosion yields, with includes scaling the soil erosion by sediment transport
-        ! capacity, calculating the bank ersoion, and storing these in the flow objects
-        call me%setErosionYields(j_spm_runoff, q_overland, contributingArea, j_np_runoff, j_transformed_runoff)
+        ! capacity, calculating the bank erosion, and storing these in the flow objects
+        call me%setErosionYields(j_spm_runoff, q_overland, contributingArea, j_contaminant_runoff)
 
-        ! TODO transfers and demands
-
-        if (.not. C%ignoreNM .and. .not. isWarmUp) then
-            ! Inflows from point and diffuse sources, updates the NM flow object
+        if (.not. C%ignoreContaminant .and. .not. isZero(me%Q_in_total)) then
             call me%updateSources(t)
         end if
 
-        ! Set the resuspension and settling rates [/s] (but don't settle until we're looping through displacements) 
         call me%setResuspensionRate(me%Q_in_total / C%timeStep, T_water_t)
         call me%setSettlingRate(T_water_t)
 
-        ! If the total inflow for this timestep is bigger than the current reach volume, 
-        ! then we need to split into a number of time displacements
         if (isZero(me%Q_in_total) .or. isZero(me%volume)) then
             nDisp = 1
         else
@@ -151,64 +195,31 @@ module RiverReachModule
         end if
         dt = C%timestep / nDisp
         dQ = me%Q_in_total / nDisp
-        dj_SPM = (me%j_spm%inflow + me%j_spm%soilErosion + me%j_spm%bankErosion) / nDisp
-        if (.not. C%ignoreNM) then
-            dj_NM = (me%j_nm%inflow + me%j_nm%soilErosion + me%j_nm%pointSources & 
-                    + me%j_nm%diffuseSources) / nDisp
-            dj_NM_transformed = (me%j_nm_transformed%inflow + me%j_nm_transformed%soilErosion &
-                                + me%j_nm_transformed%pointSources + me%j_nm_transformed%diffuseSources) / nDisp
-            dj_dissolved = (me%j_dissolved%inflow + me%j_dissolved%pointSources &
-                            + me%j_dissolved%diffuseSources) / nDisp
-        end if
+        dj_spm = (me%j_spm%inflow + me%j_spm%soilErosion + me%j_spm%bankErosion) / nDisp
+        call rslt%addErrors(.errors. dj_contaminant_in%create())
+        call dj_contaminant_in%add_scaled(me%j_contaminant_inflow, 1.0_dp/nDisp)
+        call dj_contaminant_in%add_scaled(me%j_contaminant_soilErosion, 1.0_dp/nDisp)
+        call dj_contaminant_in%add_scaled(me%j_contaminant_pointSources, 1.0_dp/nDisp)
+        call dj_contaminant_in%add_scaled(me%j_contaminant_diffuseSources, 1.0_dp/nDisp)
 
-        ! Now we can run the simulation for each time displacement, with calculates SPM and NM outflow,
-        ! deposition and resuspension, and updates the flow objects accordingly
         do i = 1, nDisp
-            call me%updateDisplacement(t, i, dt, dQ, dj_SPM, dj_NM, dj_nm_transformed, dj_dissolved)
+            call me%updateDisplacement(t, i, dt, dQ, dj_spm, dj_contaminant_in, T_water_t)
         end do
 
-        ! Set the new concentrations
+        call dj_contaminant_in%finalise()
+
+        ! Set the final concentrations based on the calculated masses [kg/m3]
         me%C_spm = divideCheckZero(me%m_spm, me%volume)
-        ! Only if we're not ignoring NM
-        if (.not. C%ignoreNM) then
-            me%C_np = divideCheckZero(me%m_np, me%volume)
-            me%C_transformed = divideCheckZero(me%m_transformed, me%volume)
-            me%C_dissolved = divideCheckZero(me%m_dissolved, me%volume)
-
-            ! Now we pass the NM to the reactor to update
-            call rslt%addErrors([.errors. &
-                me%reactor%update( &
-                    t, &
-                    me%m_np, &
-                    me%m_transformed, &
-                    me%m_dissolved, &
-                    me%C_spm, &
-                    T_water_t, &
-                    me%W_settle_np, &
-                    me%W_settle_spm, &
-                    DATASET%shearRate, &
-                    me%volume &
-                ) &
-            ])
-            ! Get the resultant masses from the Reactor
-            me%m_np = me%reactor%m_np
-            me%m_transformed = me%reactor%m_transformed
-            me%m_dissolved = me%reactor%m_dissolved
+        if (.not. C%ignoreContaminant .and. .not. isZero(me%volume)) then
+            call rslt%addErrors(.errors. me%reactor%update(dj_contaminant_in, dt))
+            me%m_contaminant = me%reactor%contaminant
         end if
-
-        ! Set the final concentrations based on the calculated mases [kg/m3]
-        me%C_np = divideCheckZero(me%m_np, me%volume)
-        me%C_transformed = divideCheckZero(me%m_transformed, me%volume)
-        me%C_dissolved = divideCheckZero(me%m_dissolved, me%volume)
 
         ! Update the biota
         do i = 1, me%nBiota
-            call rslt%addErrors(.errors. me%biota(i)%update( &
-                t, &
-                me%C_np, &
-                me%C_transformed, &
-                me%C_dissolved &
-            ))
+            c_env_contaminant = me%m_contaminant%divideCheckZero(me%volume)
+            call rslt%addErrors(.errors. me%biota(i)%update(t, c_env_contaminant))
+            call c_env_contaminant%finalise()
         end do
 
         ! Add what we're doing here to the error trace and trigger any errors there are
@@ -218,16 +229,15 @@ module RiverReachModule
     end subroutine
 
     !> Run the simulation for an individual time displacement
-    subroutine updateDisplacementRiverReach(me, t, d, dt, dQ, dj_spm_in, dj_nm_in, dj_nm_transformed_in, dj_dissolved_in)
+    subroutine updateDisplacementRiverReach(me, t, d, dt, dQ, dj_spm_in, dj_contaminant_in, T_water_t)
         class(RiverReach)  :: me                                                !! This reach
         integer             :: t                                                !! Current timestep index (used for error output) 
         integer             :: d                                                !! Current time displacement index (used for error output)
         real(dp)            :: dt                                               !! Time displacement [s] 
         real(dp)            :: dQ                                               !! Water flow from runoff and inflows [m3/displacement]
         real(dp)            :: dj_spm_in(C%nSizeClassesSPM)                     !! SPM inflow from erosion and inflows [kg/displacement]
-        real(dp)            :: dj_nm_in(C%npDim(1), C%npDim(2), C%npDim(3))     !! NM inflow from erosion, inflows and sources [kg/displacement]
-        real(dp)            :: dj_nm_transformed_in(C%npDim(1), C%npDim(2), C%npDim(3)) !! Transformed NM inflow from erosion, inflows and sources [kg/displacement]
-        real(dp)            :: dj_dissolved_in                                  !! Dissolved species inflow from inflows and sources [kg/displacement]
+        type(Contaminant)   :: dj_contaminant_in
+        real(dp)            :: T_water_t
         real(dp)            :: dj_spm_resus(C%nSizeClassesSPM)
         real(dp)            :: dj_spm_resus_perArea(C%nSizeClassesSpm)
         real(dp)            :: dj_spm_resus_perArea_(C%nSizeClassesSpm)
@@ -235,103 +245,77 @@ module RiverReachModule
         real(dp)            :: dj_spm_deposit(C%nSizeClassesSPM)
         real(dp)            :: dj_spm_outflow(C%nSizeClassesSPM)
         integer             :: i
-        real(dp)            :: k_outflow                                        ! The outflow rate [/s]
-        real(dp)            :: dj_nm_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: dj_nm_transformed_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: dj_nm_resus(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: dj_nm_transformed_resus(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: dj_nm_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: dj_nm_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        real(dp)            :: dj_dissolved_outflow
+        real(dp)            :: k_outflow
+        type(Contaminant)   :: dj_contaminant_deposit
+        type(Contaminant)   :: dj_contaminant_resus
+        type(Contaminant)   :: dj_contaminant_outflow
+        type(Result0D)      :: res_contaminant
+        type(Contaminant)   :: m_contaminant
 
-        ! Check that we've got a volume before going on
+        call rslt%addErrors(.errors. dj_contaminant_outflow%create())
+        call rslt%addErrors(.errors. dj_contaminant_deposit%create())
+        call rslt%addErrors(.errors. dj_contaminant_resus%create())
+
         if (.not. isZero(me%volume)) then
-
-            ! Outflow rate [/disp]
             k_outflow = dQ / me%volume
+            dj_spm_outflow = min(flushToZero(me%m_spm * k_outflow), me%m_spm)
+            dj_spm_deposit = flushToZero((me%m_spm + dj_spm_in) * me%k_settle * dt)
+            dj_spm_deposit = min(dj_spm_deposit, me%m_spm + dj_spm_in)
 
-            ! Calculate outflow and deposition first
-            dj_spm_outflow = min(flushToZero(me%m_spm * k_outflow), me%m_spm)           ! [kg/disp]
-            dj_spm_deposit = flushToZero((me%m_spm + dj_spm_in) * me%k_settle * dt)     ! [kg/disp]
-            dj_spm_deposit = min(dj_spm_deposit, me%m_spm + dj_spm_in)      
-
-            ! Calculate resuspension [kg/displacement] and send this to the bed sediment,
-            ! which tells us how much sediment can actually be resuspended. Bed sediment resuspend
-            ! method *must* be called before deposition
-            dj_spm_resus_perArea = flushToZero(me%k_resus * me%bedSediment%Mf_bed_by_size() * dt)           ! kg/m2 = s-1 * kg/m2 * s
+            dj_spm_resus_perArea = flushToZero(me%k_resus * me%bedSediment%Mf_bed_by_size() * dt)
             dj_spm_resus_perArea_ = dj_spm_resus_perArea
             call rslt%addErrors(.errors. me%bedSediment%resuspend(dj_spm_resus_perArea_))
-            ! The above modifies dj_spm_resus_perArea to be the amount of sediment passed
-            ! in that *isn't* resuspended, so the amount actually resuspended is input - output:
             dj_spm_resus_perArea = dj_spm_resus_perArea - dj_spm_resus_perArea_
             dj_spm_resus = dj_spm_resus_perArea * me%bedArea
 
-            ! Pass the deposited SPM to the bed sediment
             call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit))
 
-            ! Add these to the flow objects and ammend the SPM mass
-            me%Q%outflow = me%Q%outflow - dQ 
+            me%Q%outflow = me%Q%outflow - dQ
             me%j_spm%resuspension = me%j_spm%resuspension + dj_spm_resus
-            me%j_spm%deposition = me%j_spm%deposition - dj_spm_deposit      ! Deposition is negative
-            me%j_spm%outflow = me%j_spm%outflow - dj_spm_outflow            ! Outflow is negative
-            ! Mass of SPM = previous mass + inflows (runoff and inflow) + resus - deposition - outflow.
-            ! We still need to set minimum bound as 0 in case of FP rounding errors in calculating scaling
-            ! factor forces outflow mass to be slightly higher than inflow
+            me%j_spm%deposition = me%j_spm%deposition - dj_spm_deposit
+            me%j_spm%outflow = me%j_spm%outflow - dj_spm_outflow
             me%m_spm = flushToZero(max(me%m_spm + dj_spm_in + dj_spm_resus - dj_spm_deposit - dj_spm_outflow, 0.0_dp))
 
-            ! Check we're not meant to be ignore NM processes to speed things up
-            if (.not. C%ignoreNM) then
-                ! Now we can deal with NM, firstly by calculating the deposited and outflowing NM
-                dj_nm_outflow = min(flushToZero(me%m_np * k_outflow), me%m_np)                                       ! [kg/disp]
-                dj_nm_transformed_outflow = min(flushToZero(me%m_transformed * k_outflow), me%m_transformed)         ! [kg/disp]
-                dj_dissolved_outflow = min(flushToZero(me%m_dissolved * k_outflow), me%m_dissolved)                  ! [kg/disp]
-                dj_nm_deposit = 0.0_dp              ! Only heteraggregated size classes will be changed, to set others to zero
-                dj_nm_transformed_deposit = 0.0_dp
-                do i = 1, C%nSizeClassesSpm
-                    dj_nm_deposit(:,:,2+i) = min(flushToZero((me%m_np(:,:,2+i) + dj_nm_in(:,:,2+i)) &
-                        * me%k_settle(i) * dt), me%m_np(:,:,2+i) + dj_nm_in(:,:,2+i))
-                    dj_nm_transformed_deposit(:,:,2+i) = min(flushToZero((me%m_transformed(:,:,2+i) &
-                        + dj_nm_transformed_in(:,:,2+i)) * me%k_settle(i) * dt), me%m_transformed(:,:,2+i) &
-                        + dj_nm_transformed_in(:,:,2+i))
-                end do
+            if (.not. C%ignoreContaminant) then
+                call dj_contaminant_outflow%multiply_scalar(me%m_contaminant, k_outflow)
+                call dj_contaminant_deposit%multiply_scalar(me%m_contaminant, sum(me%k_settle * dt))
+                res_contaminant = me%bedSediment%get_m_contaminant()
+                if (res_contaminant%hasError()) then
+                    call rslt%addErrors(res_contaminant%getErrors())
+                    call LOGR%toFile(errors = .errors. rslt)
+                    call ERROR_HANDLER%trigger(errors = .errors. rslt)
+                    return
+                end if
+                select type (data => res_contaminant%getData())
+                    type is (Contaminant)
+                        m_contaminant = data
+                    class default
+                        call rslt%addError(ErrorInstance(code=106, message="Invalid data type in Result0D"))
+                        call LOGR%toFile(errors = .errors. rslt)
+                        call ERROR_HANDLER%trigger(errors = .errors. rslt)
+                        return
+                end select
+                call dj_contaminant_resus%multiply_scalar(m_contaminant, sum(me%k_resus * dt))
 
-            ! Pass the deposited and resuspended SPM to the bed sediment, which will use it
-            ! to populate the mass transfer matrix
-                call me%bedSediment%getMatrix(divideCheckZero(dj_spm_deposit, me%bedArea), dj_spm_resus_perArea)
-                ! Pass the deposited NM to the bed sediment, which apportions it across the sediment layers
-                call me%bedSediment%transferNM(divideCheckZero(dj_nm_deposit, me%bedArea))
-                ! Now pull the mass of NM resuspended out of the bed sediment (which internally
-                ! is calculated using the mass of sediment resuspended)
-                dj_nm_resus = flushToZero(me%bedSediment%M_np(2,:,:,:) * me%bedArea)
-
-                ! TODO no resuspended transformed NM for the moment
-                dj_nm_transformed_resus = 0.0_dp
-
-                ! Add these NM fluxes to the flow object and ammend the NM mass
-                me%j_nm%deposition = me%j_nm%deposition - dj_nm_deposit         ! Deposition is negative
-                me%j_nm%resuspension = me%j_nm%resuspension + dj_nm_resus
-                me%j_nm%outflow = me%j_nm%outflow - dj_nm_outflow               ! Outflow is negative
-                me%j_nm_transformed%deposition = me%j_nm_transformed%deposition - dj_nm_transformed_deposit
-                me%j_nm_transformed%resuspension = me%j_nm_transformed%resuspension + dj_nm_transformed_resus
-                me%j_nm_transformed%outflow = me%j_nm_transformed%outflow - dj_nm_transformed_outflow
-                me%j_dissolved%outflow = me%j_dissolved%outflow - dj_dissolved_outflow
-                ! Mass of NM = previous mass + inflows (runoff, inflows, sources) + resus - deposition - outflow
-                me%m_np = max(me%m_np + dj_nm_in + dj_nm_resus - dj_nm_deposit - dj_nm_outflow, 0.0_dp)
-                me%m_transformed = max(me%m_transformed + dj_nm_transformed_in + dj_nm_transformed_resus &
-                                - dj_nm_transformed_deposit - dj_nm_transformed_outflow, 0.0_dp)
-                me%m_dissolved = max(me%m_dissolved + dj_dissolved_in - dj_dissolved_outflow, 0.0_dp)
+                call me%j_contaminant_deposition%add_scaled(dj_contaminant_deposit, -1.0_dp)
+                call me%j_contaminant_resuspension%add(dj_contaminant_resus)
+                call me%j_contaminant_outflow%add_scaled(dj_contaminant_outflow, -1.0_dp)
+                call me%m_contaminant%add(dj_contaminant_in)
+                call me%m_contaminant%add_scaled(dj_contaminant_deposit, -1.0_dp)
+                call me%m_contaminant%add(dj_contaminant_resus)
+                call me%m_contaminant%add_scaled(dj_contaminant_outflow, -1.0_dp)
+                call rslt%addErrors(.errors. me%bedSediment%transferContaminant(dj_contaminant_deposit))
             end if
-
         else
-            ! If there is no volume then there must be no SPM/NM. Concentrations will be
-            ! set outside of the displacement loop
             me%m_spm = 0.0_dp
-            me%m_np = 0.0_dp 
-            me%m_transformed = 0.0_dp
-            me%m_dissolved = 0.0_dp
+            call rslt%addErrors(.errors. me%m_contaminant%create())
+            call me%m_contaminant%finalise()
         end if
 
-        ! Trigger any errors that there were
+        call dj_contaminant_outflow%finalise()
+        call dj_contaminant_deposit%finalise()
+        call dj_contaminant_resus%finalise()
+
         call rslt%addToTrace("Updating time displacement #" // trim(str(d)))
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
         call LOGR%toFile(errors = .errors. rslt)
@@ -340,25 +324,26 @@ module RiverReachModule
 
     !> Set the dimensions (width, depth, areas, volume) of the reach
     subroutine setDimensions(me, t)
-        class(RiverReach)  :: me        !! This reach
+        class(RiverReach)   :: me       !! This reach
         integer             :: t        !! The current timestep index
         ! Calculate the width [m], depth [m], cross-section, bed and surface areas [m2] and volume [m3]
         me%width = me%calculateWidth(me%Q_in_total/C%timeStep)
         me%depth = me%calculateDepth(me%width, me%slope, me%Q_in_total/C%timeStep, t)
         me%xsArea = me%depth*me%width
         me%bedArea = me%width*me%length*me%f_m
-        me%surfaceArea = me%bedArea                         ! For river reaches, set surface area equal to bed area [m2]
+        me%surfaceArea = me%bedArea                      ! For river reaches, set surface area equal to bed area [m2]
         me%volume = me%depth*me%width*me%length*me%f_m
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
     end subroutine
 
     !> Parse data from the input file for this river reach
     function parseInputDataRiverReach(me) result(rslt)
-        class(RiverReach) :: me
+        class(RiverReach), intent(inout) :: me
         type(Result) :: rslt
 
         me%f_m = DATASET%riverMeanderingFactor
-        me%alpha_hetero = DATASET%riverAttachmentEfficiency
+        me%alpha_hetero = merge(DATASET%estuaryAttachmentEfficiency, DATASET%riverAttachmentEfficiency, &
+                                DATASET%isEstuary(me%x, me%y))
         me%alpha_resus = DATASET%resuspensionAlpha(me%x, me%y)
         me%beta_resus = DATASET%resuspensionBeta(me%x, me%y)
         me%a_stc = DATASET%sedimentTransport_a(me%x, me%y)
@@ -366,18 +351,12 @@ module RiverReachModule
         me%c_stc = DATASET%sedimentTransport_c(me%x, me%y)
         me%T_water = DATASET%waterTemperature
 
-        ! Parse the input data to get inflows and outflow arrays. Pointers to reaches won't be
-        ! set until all reaches created
-        call rslt%addErrors( &
-            .errors. me%parseInflowsAndOutflow() &
-        )
-
-        ! Now we've got inflows and outflows, we can set reach length, assuming one reach per branch
+        call rslt%addErrors(.errors. me%parseInflowsAndOutflow())
         call me%setReachLengthAndSlope()
 
-        call rslt%addToTrace('Parsing input data')             ! Add this procedure to the trace
+        call rslt%addToTrace('Parsing input data')
     end function
-
+    
     !> Calculate the width \( W \) of the river based on the discharge:
     !! $$
     !!      W = 1.22Q^{0.557}
@@ -441,20 +420,17 @@ module RiverReachModule
         ! If method diverged (results in NaN)
         if (isnan(D_i)) then
             call rslt%addError(ErrorInstance( &
-                message="Newton's method diverged to NaN after " // trim(str(i)) // " iterations." &
-            ))
-        ! If max number of iterations reached
+                message="Newton's method diverged to NaN after " // trim(str(i)) // " iterations."))
+        ! If max number of iterations reached        
         else if (i > iMax) then
             call rslt%addError(ErrorInstance( &
                 message="Newton's method failed to converge - maximum number of iterations (" &
                     // trim(str(i)) // ") exceeded. Precision (proximity to zero) required: " &
-                    // trim(str(epsilon)) // ". Final value: " // trim(str(f)) // "." &
-            ))
+                    // trim(str(epsilon)) // ". Final value: " // trim(str(f)) // "."))
         ! If we got a negative river depth
         else if (D_i < 0.0_dp) then
             call rslt%addError( &
-                ErrorInstance(message="Newton's method gave negative river depth. Depth: " // trim(str(D_i))) &
-            )
+                ErrorInstance(message="Newton's method gave negative river depth. Depth: " // trim(str(D_i))))
         end if
 
         ! Add what we're doing here to the error trace and trigger any errors there are
@@ -463,13 +439,13 @@ module RiverReachModule
         call LOGR%toFile(errors = .errors. rslt)
         call ERROR_HANDLER%trigger(errors = .errors. rslt)
     end function
-
+    
     !> Calculate the velocity of the river:
     !! $$
     !!      v = \frac{Q}{WD}
     !! $$
     function calculateVelocity(me, D, Q, W) result(v)
-        class(RiverReach), intent(in) :: me    !! This `RiverReach` instance
+        class(RiverReach), intent(in) :: me     !! This `RiverReach` instance
         real(dp), intent(in) :: D               !! River depth \( D \) [m]
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m**3/s]
         real(dp), intent(in) :: W               !! River width \( W \) [m]
@@ -481,4 +457,22 @@ module RiverReachModule
         end if
     end function
 
+    subroutine finaliseRiverReach(me)
+        class(RiverReach), intent(inout) :: me
+        call me%WaterBody%finalise()
+        if (allocated(me%biota)) then
+            deallocate(me%biota)
+        end if
+        if (allocated(me%biotaIndices)) then
+            deallocate(me%biotaIndices)
+        end if
+        if (allocated(me%bedSediment)) then
+            call me%bedSediment%finalise()
+            deallocate(me%bedSediment)
+        end if
+        if (allocated(me%reactor)) then
+            call me%reactor%finalise()
+            deallocate(me%reactor)
+        end if
+    end subroutine
 end module

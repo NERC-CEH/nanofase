@@ -6,21 +6,25 @@ module BedSedimentModule
     use AbstractBedSedimentModule
     use BedSedimentLayerModule
     use FineSedimentModule
+    use ContaminantModule
     use Spoof
+    use LoggerModule, only: LOGR
     implicit none
     private
 
     !> Class representing a `BedSediment` object, which is an extension of the
     !! abstract superclass `BedSediment`.
     type, public, extends(AbstractBedSediment) :: BedSediment
-      contains
-        procedure, public :: create => createBedSediment1            ! constructor method
-        procedure, public :: destroy => destroyBedSediment1          ! finaliser method
-        procedure, public :: deposit => DepositSediment1             ! deposit sediment from water column
-        procedure, public :: resuspend => ResuspendSediment1         ! resuspend sediment to water column
-        procedure, public :: repmass => ReportBedMassToConsole1      ! report mass of fine sediment in each layer to console [kg/m2]
-        procedure, public :: getmatrix => getMTCMatrix1              ! derives mass transfer coefficient matrix for sediment
-        procedure, public :: transferNM => transferNMBedSediment1    ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
+        contains
+            procedure, public :: create => createBedSediment1
+            procedure, public :: destroy => destroyBedSediment1
+            procedure, public :: deposit => DepositSediment1
+            procedure, public :: resuspend => ResuspendSediment1
+            procedure, public :: repmass => ReportBedMassToConsole1
+            procedure, public :: getmatrix => getMTCMatrix1
+            procedure, public :: transferContaminant => transferContaminantBedSediment1
+            procedure, public :: deposit_spm => deposit_spm_BedSediment
+            procedure, public :: resuspend_spm => resuspend_spm_BedSediment
     end type
     
   contains
@@ -89,7 +93,7 @@ module BedSedimentModule
                 end do
             end do
         end do
-        ! Convert delta_sed to CSR storage, to speed up NM transfer during simulation
+        ! Convert delta_sed to CSR storage, to speed up Contaminant transfer during simulation
         do s = 1, C%nSizeClassesSpm
             me%delta_sed_csr(s) = CSRMatrix(me%delta_sed(:,:,s))
         end do
@@ -101,55 +105,99 @@ module BedSedimentModule
     !! Initialised `BedSediment` object, including all layers and included `FineSediment`
     !! objects
     function createBedSediment1(me, x, y, w) result(r)
-        class(BedSediment) :: me                                    !! Self-reference
-        integer :: x                                                !! x index of the containing water body
-        integer :: y                                                !! y index of the containing water body
-        integer :: w                                                !! w index of the containing water body
-        type(Result) :: r                                            !! Returned `Result` object
-        type(BedSedimentLayer), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer, for implementation of polymorphism
-        integer :: L                                                 ! LOCAL loop counter
-        integer :: allst                                             ! LOCAL array allocation status
-        character(len=256) :: tr                                     ! LOCAL error trace
-        character(len=16), parameter :: ms = "Allocation error"      ! LOCAL allocation error message
+    class(BedSediment) :: me                                    !! Self-reference
+    integer :: x                                                !! x index of the containing water body
+    integer :: y                                                !! y index of the containing water body
+    integer :: w                                                !! w index of the containing water body
+    type(Result) :: r                                           !! Returned `Result` object
+    type(BedSedimentLayer), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer, for implementation of polymorphism
+    integer :: L                                                ! LOCAL loop counter
+    integer :: allst                                            ! LOCAL array allocation status
+    character(len=256) :: tr                                    ! LOCAL error trace
+    character(len=16), parameter :: ms = "Allocation error"     ! LOCAL allocation error message
+    type(ErrorInstance) :: err(1)
 
-        me%name = trim(ref('BedSediment', x, y, w))
-        me%nSizeClasses = C%nSizeClassesSpm                          ! set number of size classes from global value
-        me%nfComp = C%nFracCompsSpm                                  ! set number of compositional fractions from global value
-        tr = trim(me%name) // "%createBedSediment1"                  ! procedure name as trace
+    me%name = trim(ref('BedSediment', x, y, w))
+    me%nSizeClasses = C%nSizeClassesSpm                         ! set number of size classes from global value
+    me%nfComp = C%nFracCompsSpm                                 ! set number of compositional fractions from global value
+    tr = trim(me%name) // "%createBedSediment1"                 ! procedure name as trace
 
-        ! Initialise NM mass pools matrix
-        allocate(me%M_np(C%nSedimentLayers + 3, C%npDim(1), C%npDim(2), C%npDim(3)))
-        allocate(me%C_np_byMass(C%nSedimentLayers, C%npDim(1), C%npDim(2), C%npDim(3)))
-        allocate(me%delta_sed_csr(C%nSizeClassesSpm))
-        me%M_np = 0.0_dp
-        me%C_np_byMass = 0.0_dp
-
-        allocate(me%colBedSedimentLayers(C%nSedimentLayers))        ! Create BedSedimentLayer collection
-        me%n_delta_sed = C%nSedimentLayers + 3                      ! The order of the delta_sed matrix
-        allocate(me%delta_sed(C%nSedimentLayers + 3, &
-                              C%nSedimentLayers + 3, &
-                              me%nSizeClasses))                         ! allocate space for sediment mass transfer matrix
-        me%delta_sed = 0.0_dp                                           ! initialise to zero
-
-        do L = 1, C%nSedimentLayers                                         ! loop through each layer
-            allocate(bsl1)                                           ! allocate the temporary local BedSedimentLayer variable
-            call r%addErrors(.errors. bsl1%create(L))                   ! initialise the layer object
-            allocate(me%colBedSedimentLayers(L)%item, &
-                source=bsl1, stat = allst)                   ! allocate empty object of this type
-            deallocate(bsl1)                                 ! deallocate local variable ready for the next iteration of the loop
-            if (allst /= 0) then
-                call r%addError(ErrorInstance( &
-                                   code = 1, &
-                                message = ms, &
-                                  trace = [tr]))             ! add to Result
-                return                                       ! critical error, so return
+    ! Initialise Contaminant mass pools matrix
+    allocate(me%m_contaminant(C%nSedimentLayers + 3), stat=allst)
+    if (allst /= 0) then
+        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+        call r%addError(err(1))
+        call LOGR%toFile(errors=err)
+        return
+    end if
+    do L = 1, C%nSedimentLayers + 3
+        ! Pass DATASET%nc and provide required arguments from DATASET
+        r = me%m_contaminant(L)%create_from_data( &
+            data=DATASET%nc, &
+            compartment='sediment', &
+            contaminantDensity=DATASET%contaminantDensity, &
+            soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
+            riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
+            estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
+            k_diss_pristine=DATASET%contaminant_k_diss_pristine, &
+            k_diss_transformed=DATASET%contaminant_k_diss_transformed, &
+            k_transform_pristine=DATASET%contaminant_k_transform_pristine, &
+            waterTemperature=DATASET%waterTemperature(1) &  ! Use first timestep or adjust as needed
+        )
+        if (r%hasCriticalError()) then
+            call LOGR%toFile(errors=r%getErrors())
+            return
+        end if
+        if (L > 2 .and. allocated(DATASET%initialContaminantConcsSediment)) then
+            me%m_contaminant(L)%c = DATASET%initialContaminantConcsSediment(me%x, me%y, :, :, :)
+            if (allocated(DATASET%initialDissolvedConcsSediment)) then
+                me%m_contaminant(L)%m_dissolved = DATASET%initialDissolvedConcsSediment(me%x, me%y)
             end if
-            if (r%hasCriticalError()) then                           ! if a critical error has been thrown
-                call r%addToTrace(tr)                                ! add trace to Result
-                return                                               ! exit, as a critical error has occurred
-            end if
-        end do
-    end function
+        end if
+    end do
+
+    allocate(me%colBedSedimentLayers(C%nSedimentLayers), stat=allst)
+    if (allst /= 0) then
+        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+        call r%addError(err(1))
+        call LOGR%toFile(errors=err)
+        return
+    end if
+    me%n_delta_sed = C%nSedimentLayers + 3
+    allocate(me%delta_sed(C%nSedimentLayers + 3, C%nSedimentLayers + 3, me%nSizeClasses), stat=allst)
+    if (allst /= 0) then
+        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+        call r%addError(err(1))
+        call LOGR%toFile(errors=err)
+        return
+    end if
+    me%delta_sed = 0.0_dp
+    allocate(me%delta_sed_csr(C%nSizeClassesSpm), stat=allst)
+    if (allst /= 0) then
+        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+        call r%addError(err(1))
+        call LOGR%toFile(errors=err)
+        return
+    end if
+
+    do L = 1, C%nSedimentLayers
+        allocate(bsl1)
+        call r%addErrors(.errors. bsl1%create(L))
+        allocate(me%colBedSedimentLayers(L)%item, source=bsl1, stat=allst)
+        deallocate(bsl1)
+        if (allst /= 0) then
+            err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+            call r%addError(err(1))
+            call LOGR%toFile(errors=err)
+            return
+        end if
+        if (r%hasCriticalError()) then
+            call r%addToTrace(tr)
+            return
+        end if
+    end do
+end function
+
     !> **Function purpose**                                         <br>
     !! Deallocate all allocatable variables and call destroy methods for all
     !! enclosed objects
@@ -161,78 +209,89 @@ module BedSedimentModule
         type(Result) :: r                                            !! returned Result object
         type(ErrorInstance) :: er                                    ! LOCAL ErrorInstance object for error handling.
         character(len=256) :: tr                                     ! LOCAL name of this procedure, for trace
-        integer :: L                                                 ! LOCAL Loop iterator
+        integer :: L, i                                                 ! LOCAL Loop iterator
         integer :: allst                                             ! LOCAL array allocation status
         character(len=18), parameter :: ms = "Deallocation error"    ! LOCAL CONSTANT error message
 
+        tr = trim(me%name) // "%destroyBedSedimentLayer%colBedSedimentLayers"
         do L = 1, C%nSedimentLayers
-            call r%addErrors(.errors. &
-                me%colBedSedimentLayers(L)%item%destroy())           ! destroy enclosed BedSedimentLayers
+            call r%addErrors(.errors. me%colBedSedimentLayers(L)%item%destroy())
         end do
-        tr = trim(me%name) // &
-            "%destroyBedSedimentLayer%colBedSedimentLayers"         ! trace message
-        deallocate(me%colBedSedimentLayers, stat = allst)            ! deallocate all allocatable variables
-        if (allst /= 0) then
-            er = ErrorInstance(code = 1, &
-                               message = ms, &
-                               trace = [tr] &
-                              )                                      ! create warning if error thrown
-            call r%addError(er)                                      ! add to Result
+        if (allocated(me%m_contaminant)) then
+            do i = 1, size(me%m_contaminant)
+                call me%m_contaminant(i)%finalise()
+            end do
+            deallocate(me%m_contaminant, stat=allst)
+            if (allst /= 0) then
+                er = ErrorInstance(code=1, message=ms, trace=[tr])
+                call r%addError(er)
+                call LOGR%toFile(errors=[er])
+            end if
+        end if
+        if (allocated(me%colBedSedimentLayers)) then
+            deallocate(me%colBedSedimentLayers, stat=allst)
+            if (allst /= 0) then
+                er = ErrorInstance(code=1, message=ms, trace=[tr])
+                call r%addError(er)
+                call LOGR%toFile(errors=[er])
+            end if
+        end if
+        if (allocated(me%delta_sed)) then
+            deallocate(me%delta_sed, stat=allst)
+            if (allst /= 0) then
+                er = ErrorInstance(code=1, message=ms, trace=[tr])
+                call r%addError(er)
+                call LOGR%toFile(errors=[er])
+            end if
+        end if
+        if (allocated(me%delta_sed_csr)) then
+            deallocate(me%delta_sed_csr, stat=allst)
+            if (allst /= 0) then
+                er = ErrorInstance(code=1, message=ms, trace=[tr])
+                call r%addError(er)
+                call LOGR%toFile(errors=[er])
+            end if
         end if
     end function
 
-    !> Transfer NM between sediment layers, based on the mass transfer coefficient
+    !> Transfer Contaminant between sediment layers, based on the mass transfer coefficient
     !! matrix delta_sed, which should already have been set prior to calling this procedure
-    subroutine transferNMBedSediment1(me, j_np_dep)
-        class(BedSediment) :: me                               !! This BedSediment instance
-        real(dp)            :: j_np_dep(:,:,:)                  !! Mass of NM deposited to bed sediment on this time step [kg/m2]
-        integer             :: i, j, k, l                       ! Iterator
-        real(dp)            :: M_f_byLayer(C%nSedimentLayers)   ! Mass of fine sediment by layer
+    function transferContaminantBedSediment1(me, j_contaminant_dep) result(r)
+        class(BedSediment), intent(inout) :: me
+        type(Contaminant), intent(in) :: j_contaminant_dep
+        type(Result) :: r
+        type(ErrorInstance) :: err(1)
+        real(dp), allocatable :: state_vector(:)
+        integer :: nCompartments, s, f, st, i
+        character(len=256) :: tr
 
-        ! Assumes me%delta_sed has already been set
-        ! Add new deposited NM to matrix, reset resus and buried to zero
-        me%M_np(1,:,:,:) = j_np_dep                     ! Deposited     [kg/m2]
-        me%M_np(2,:,:,:) = 0.0_dp                       ! Resuspended   [kg/m2]
-        me%M_np(C%nSedimentLayers+3,:,:,:) = 0.0_dp     ! Buried        [kg/m2]
-
-        ! Perform the transfer calculation to move NM between the layers
-        do k = 1, C%nSizeClassesSpm
-            do j = 1, C%npDim(2)
-                do i = 1, C%npDim(1)
-                    ! Below are a number of different matrix multiplication methods. Generally, the fastest
-                    ! is when delta_sed is stored in CSR format, for setups with ~5 sediment layers. You may
-                    ! wish to play around with other methods if your setup typically uses fewer or more
-                    ! sediment layers. This function is generally the most computationally expensive in the model.
-                    ! If changing storage format, make sure delta_sed_dia or delta_sed_csr are initialised
-
-                    ! CSR storage implementation
-                    me%M_np(:,i,j,k+2) = me%delta_sed_csr(k)%multiply(me%M_np(:,i,j,k+2))
-                    ! Set NM concentration for all layers 
-                    me%C_np_byMass(:,i,j,k+2) = divideCheckZero(me%M_np(3:C%nSedimentLayers+2,i,j,k+2), me%Mf_bed_layer_array())
-
-                    ! Matmul implementation. Might be faster for <5 sediment layers
-                    ! me%M_np(:,i,j,k+2) = matmul(me%delta_sed(:,:,k), me%M_np(:,i,j,k+2))
-
-                    ! Diagonal storage implementation. Might be faster for >5 sediment layers,
-                    ! especially if transfers typically only between adjacent layers
-                    ! me%M_np(:,i,j,k+2) = me%delta_sed_dia(k)%multiply(me%M_np(:,i,j,k+2))
-
-                    ! OpenBLAS implementation. Might be faster for >5 sediment layers and if
-                    ! transfers across multiple layers are possible. Make sure you have OpenBLAS/BLAS
-                    ! installed and linked when compiling
-                    ! call dgemv('n', me%n_delta_sed, me%n_delta_sed, 1.0_dp, me%delta_sed(:,:,k), &
-                    !             me%n_delta_sed, me%M_np(:,i,j,k+2), 1, 0.0_dp, me%M_np(:,i,j,k+2), 1) 
+        tr = trim(me%name) // "%transferContaminantBedSediment1"
+        if (.not. allocated(me%m_contaminant)) then
+            err(1) = ErrorInstance(code=105, message="Contaminant array not allocated", trace=[tr])
+            call r%addError(err(1))
+            call LOGR%toFile(errors=err)
+            return
+        end if
+        nCompartments = C%nSedimentLayers + 3
+        allocate(state_vector(nCompartments))
+        do s = 1, C%contaminantDim(1)
+            do f = 1, C%contaminantDim(2)
+                do st = 1, C%contaminantDim(3)
+                    state_vector = 0.0_dp
+                    state_vector(1) = j_contaminant_dep%c(s,f,st)
+                    do i = 2, nCompartments
+                        state_vector(i) = me%m_contaminant(i)%c(s,f,st)
+                    end do
+                    state_vector = me%delta_sed_csr(s)%multiply(state_vector)
+                    me%m_contaminant(1)%c(s,f,st) = state_vector(1)
+                    do i = 2, nCompartments
+                        me%m_contaminant(i)%c(s,f,st) = state_vector(i)
+                    end do
                 end do
             end do
         end do
-
-        ! Reset delta_sed. It seems delta_sed is used interchangeably as absolute masses
-        ! and mass coefficients, so resetting is playing it safe to avoid numerical errors
-        ! in case not all elements are reset on each timestep. TODO need to figure this
-        ! out properly
-        me%delta_sed = 0.0_dp
-
-    end subroutine
+        deallocate(state_vector)
+    end function
 
     !> **Function purpose**                                         <br>
     !! Resuspend specified masses of fine sediment in each size class, and their
@@ -578,5 +637,88 @@ module BedSedimentModule
             call me%colBedSedimentLayers(n)%item%repMass()           !! print out mass of FS in each layer, by size class [kg/m2]
         end do
     end subroutine
+
+    function deposit_spm_BedSediment(me, dj_spm_deposit, dj_spm_resus, bedArea, out_deposit, out_resus) result(r)
+        class(BedSediment), intent(inout) :: me
+        real(dp), intent(in) :: dj_spm_deposit(:), dj_spm_resus(:)
+        real(dp), intent(in) :: bedArea
+        type(Contaminant), intent(out) :: out_deposit, out_resus
+        type(Result) :: r
+        type(Result) :: res
+        real(dp) :: fraction_spm_deposited(C%nSizeClassesSpm)
+        integer :: j, n, f
+        character(len=256) :: tr
+        type(ErrorInstance) :: err(1)
+
+        tr = trim(me%name) // "%deposit_spm_BedSediment"
+        res = out_deposit%create()
+        if (res%hasCriticalError()) then
+            call r%addErrors(res%getErrors())
+            call LOGR%toFile(errors=r%getErrors())
+            return
+        end if
+        res = out_resus%create()
+        if (res%hasCriticalError()) then
+            call r%addErrors(res%getErrors())
+            call LOGR%toFile(errors=r%getErrors())
+            return
+        end if
+        do j = 1, C%nSizeClassesSpm
+            if (isZero(sum(me%m_contaminant(1)%c))) then
+                fraction_spm_deposited(j) = 0.0_dp
+            else
+                fraction_spm_deposited(j) = dj_spm_deposit(j) / sum(me%m_contaminant(1)%c)
+            end if
+        end do
+        out_deposit%c = 0.0_dp
+        out_resus%c = 0.0_dp
+        out_deposit%m_dissolved = 0.0_dp
+        out_resus%m_dissolved = 0.0_dp
+        do j = 1, C%nSizeClassesSpm
+            do n = 1, C%nContaminantSizeClasses
+                do f = 1, C%nContaminantForms
+                    out_deposit%c(n,f,SPM_CONTAMINANT_START+j-1) = min( &
+                        me%m_contaminant(1)%c(n,f,SPM_CONTAMINANT_START+j-1) * fraction_spm_deposited(j), &
+                        me%m_contaminant(1)%c(n,f,SPM_CONTAMINANT_START+j-1))
+                    me%m_contaminant(1)%c(n,f,SPM_CONTAMINANT_START+j-1) = &
+                        me%m_contaminant(1)%c(n,f,SPM_CONTAMINANT_START+j-1) - &
+                        out_deposit%c(n,f,SPM_CONTAMINANT_START+j-1)
+                    out_resus%c(n,f,SPM_CONTAMINANT_START+j-1) = &
+                        me%m_contaminant(2)%c(n,f,SPM_CONTAMINANT_START+j-1) * bedArea
+                end do
+            end do
+        end do
+    end function
+
+    function resuspend_spm_BedSediment(me, dj_spm_resus, bedArea, out_resus) result(r)
+        class(BedSediment), intent(inout) :: me
+        real(dp), intent(in) :: dj_spm_resus(:)
+        real(dp), intent(in) :: bedArea
+        type(Contaminant), intent(out) :: out_resus
+        type(Result) :: r
+        type(Result) :: res
+        integer :: j, n, f
+        character(len=256) :: tr
+        type(ErrorInstance) :: err(1)
+
+        tr = trim(me%name) // "%resuspend_spm_BedSediment"
+        res = out_resus%create()
+        if (res%hasCriticalError()) then
+            call r%addErrors(res%getErrors())
+            call LOGR%toFile(errors=r%getErrors())
+            return
+        end if
+        do j = 1, C%nSizeClassesSpm
+            do n = 1, C%nContaminantSizeClasses
+                do f = 1, C%nContaminantForms
+                    out_resus%c(n,f,SPM_CONTAMINANT_START+j-1) = &
+                        me%m_contaminant(2)%c(n,f,SPM_CONTAMINANT_START+j-1) * bedArea
+                    me%m_contaminant(1)%c(n,f,SPM_CONTAMINANT_START+j-1) = &
+                        me%m_contaminant(1)%c(n,f,SPM_CONTAMINANT_START+j-1) + &
+                        out_resus%c(n,f,SPM_CONTAMINANT_START+j-1)
+                end do
+            end do
+        end do
+    end function
 
 end module

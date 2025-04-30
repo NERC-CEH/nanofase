@@ -2,13 +2,14 @@
 module AbstractEnvironmentModule
     use GlobalsModule
     use ResultModule
+    use ContaminantModule
     use AbstractGridCellModule
     use mo_netcdf
     implicit none
     private
 
     type, public :: EnvironmentPointer
-        class(AbstractEnvironment), pointer :: item => null()                   !! Pointer to polymorphic AbstractEnvironment object
+        class(AbstractEnvironment), pointer :: item => null()           !! Pointer to polymorphic AbstractEnvironment object
     end type
 
     !> Abstract base class definition for `AbstractEnvironment`.
@@ -22,9 +23,9 @@ module AbstractEnvironmentModule
         integer                             :: nWaterbodies = 0         !! The number of waterbodies in the Environment
         type(NcGroup)                       :: ncGroup                  !! NetCDF group for this `Environment` object
         ! Summary statistics
-        real(dp), allocatable               :: C_np_water_t(:,:,:,:)    !! Water NM conc spatial mean on each timestep [kg/m3]
-        real(dp), allocatable               :: C_np_sediment_t(:,:,:,:) !! Sediment NM conc spatial mean on each timestep [kg/kg]
-        real(dp), allocatable               :: m_sediment_t_byLayer(:,:,:)  !! Sediment mass in each layer on each timestep [kg]
+        type(Contaminant), allocatable :: contaminant_water_t(:)        ! Contaminant state in water per timestep
+        type(Contaminant), allocatable :: contaminant_sediment_t(:)     ! Contaminant state in sediment per timestep
+        real(dp), allocatable          :: m_sediment_t_byLayer(:,:,:)   ! Sediment mass in each layer per timestep [kg]
       contains
         procedure(createEnvironment), deferred :: create
         procedure(updateEnvironment), deferred :: update
@@ -32,12 +33,14 @@ module AbstractEnvironmentModule
         procedure(determineStreamOrderEnvironment), deferred :: determineStreamOrder
         procedure(parseNewBatchDataEnvironment), deferred :: parseNewBatchData
         ! Getters
-        procedure(get_m_npEnvironment), deferred :: get_m_np
-        procedure(get_C_np_soilEnvironment), deferred :: get_C_np_soil
-        procedure(get_C_np_waterEnvironment), deferred :: get_C_np_water
-        procedure(get_C_np_sedimentEnvironment), deferred :: get_C_np_sediment
+        procedure(parseInputDataEnvironment), deferred :: parseInputData
+        procedure(get_m_contaminantEnvironment), deferred :: get_m_contaminant
+        procedure(get_C_contaminant_soilEnvironment), deferred :: get_C_contaminant_soil
+        procedure(get_C_contaminant_waterEnvironment), deferred :: get_C_contaminant_water
+        procedure(get_C_contaminant_sedimentEnvironment), deferred :: get_C_contaminant_sediment
         procedure(getBedSedimentAreaEnvironment), deferred :: getBedSedimentArea
         procedure(get_m_sediment_byLayerEnvironment), deferred :: get_m_sediment_byLayer
+        procedure :: finalise => finaliseEnvironment
     end type
 
     abstract interface
@@ -87,32 +90,34 @@ module AbstractEnvironmentModule
             class(AbstractEnvironment) :: me
         end subroutine
         
-        function get_m_npEnvironment(me) result(m_np)
-            use GlobalsModule
+        function get_m_contaminantEnvironment(me) result(m_contaminant)
+            use ContaminantModule
             import AbstractEnvironment
             class(AbstractEnvironment) :: me
-            real(dp) :: m_np(C%nSizeClassesNM, 4, 2 + C%nSizeClassesSpm)
+            type(Contaminant) :: m_contaminant
         end function
 
-        function get_C_np_soilEnvironment(me) result(C_np_soil)
-            use GlobalsModule, only: C, dp
+        function get_C_contaminant_soilEnvironment(me) result(C_contaminant_soil)
+            !use GlobalsModule, only: C, dp
+            use ContaminantModule
             import AbstractEnvironment
             class(AbstractEnvironment) :: me
-            real(dp), allocatable :: C_np_soil(:,:,:)
+            !real(dp), allocatable :: C_contaminant_soil(:,:,:)
+            type(Contaminant) :: C_contaminant_soil
         end function
 
-        function get_C_np_waterEnvironment(me) result(C_np_water)
+        function get_C_contaminant_waterEnvironment(me) result(C_contaminant_water)
             use GlobalsModule, only: C, dp
-            import AbstractEnvironment
+            import AbstractEnvironment, Contaminant
             class(AbstractEnvironment) :: me
-            real(dp), allocatable :: C_np_water(:,:,:)
+            type(Contaminant) :: C_contaminant_water
         end function
 
-        function get_C_np_sedimentEnvironment(me) result(C_np_sediment)
+        function get_C_contaminant_sedimentEnvironment(me) result(C_contaminant_sediment)
             use GlobalsModule, only: C, dp
-            import AbstractEnvironment
+            import AbstractEnvironment, Contaminant
             class(AbstractEnvironment) :: me
-            real(dp), allocatable :: C_np_sediment(:,:,:)
+            type(Contaminant) :: C_contaminant_sediment
         end function
 
         function getBedSedimentAreaEnvironment(me) result(bedArea)
@@ -126,9 +131,32 @@ module AbstractEnvironmentModule
             use GlobalsModule, only: dp, C
             import AbstractEnvironment
             class(AbstractEnvironment)      :: me
-            real(dp), allocatable   :: m_sediment_byLayer(:,:)
+            real(dp), allocatable :: m_sediment_byLayer(:,:)  ! (nSedimentLayers, C%contaminantDim(1))
         end function
 
     end interface
+
+    contains
+    subroutine finaliseEnvironment(me)
+        class(AbstractEnvironment) :: me
+        integer :: i
+        if (allocated(me%contaminant_water_t)) then
+            do i = 1, size(me%contaminant_water_t)
+                call me%contaminant_water_t(i)%finalise()
+            end do
+            deallocate(me%contaminant_water_t)
+        end if
+        if (allocated(me%contaminant_sediment_t)) then
+            do i = 1, size(me%contaminant_sediment_t)
+                call me%contaminant_sediment_t(i)%finalise()
+            end do
+            deallocate(me%contaminant_sediment_t)
+        end if
+        if (allocated(me%m_sediment_t_byLayer)) deallocate(me%m_sediment_t_byLayer)
+        if (allocated(me%colGridCells)) deallocate(me%colGridCells)
+        if (allocated(me%headwaters)) deallocate(me%headwaters)
+        if (allocated(me%routedReaches)) deallocate(me%routedReaches)
+        if (allocated(me%gridDimensions)) deallocate(me%gridDimensions)
+    end subroutine
 
 end module

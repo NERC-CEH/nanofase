@@ -2,10 +2,11 @@
 module AbstractBedSedimentModule
     use GlobalsModule
     use mo_netcdf
-    use ResultModule, only: Result, Result0D
+    use ResultModule, only: Result, Result0D, Result3D
     use ErrorInstanceModule
     use AbstractBedSedimentLayerModule
     use FineSedimentModule
+    use ContaminantModule
     use Spoof
     implicit none                                                    ! force declaration of all variables
     !> Type definition for polymorphic `BedSedimentLayer` container,
@@ -21,14 +22,15 @@ module AbstractBedSedimentModule
     type, abstract, public :: AbstractBedSediment
         character(len=256)              :: name                                 !! Name for this object, of the form *BedSediment_x_y_s_r*
         class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:)  !! Collection of `BedSedimentLayer` objects
+        integer                         :: x                                    !! x index of the containing water body
+        integer                         :: y                                    !! y index of the containing water body
         integer                         :: nSizeClasses                         !! Number of fine sediment size classes
         real(dp), allocatable           :: delta_sed(:,:,:)                     !! mass transfer matrix for sediment deposition and resuspension. dim1=layers+3, dim2=layers+3, dim3=size classes
         integer                         :: n_delta_sed                          !! The order of delta_sed
         type(CSRMatrix), allocatable    :: delta_sed_csr(:)                     !! CSR matrix storage for delta_sed. dim=spm size classes
         integer                         :: nfComp                               !! number of fractional composition terms for sediment
-        ! Nanomaterials
-        real(dp), allocatable           :: M_np(:,:,:,:)                        !! Mass pools of nanomaterials in dep, resus, layer 1, ..., layer N, buried [kg/m2]
-        real(dp), allocatable           :: C_np_byMass(:,:,:,:)                 !! Concentration of NM across sediment layers [kg/kg dw]
+        ! Contaminants
+        type(Contaminant), allocatable :: m_contaminant(:)                     !! Contaminant objects for deposition, resuspension, layers 1 to N, and burial
     contains
         procedure(createBedSediment), deferred :: create            ! constructor method
         procedure(destroyBedSediment), deferred :: destroy          ! finaliser method
@@ -36,7 +38,7 @@ module AbstractBedSedimentModule
         procedure(ResuspendSediment), deferred :: resuspend         ! resuspend sediment to water column
         procedure(ReportBedMassToConsole), deferred :: repMass      ! report fine sediment masses to the console
         procedure(FinaliseMTCMatrix), deferred :: getMatrix         ! finalise mass transfer coefficient matrix
-        procedure(transferNMBedSediment), deferred :: transferNM    ! Transfer NM masses between layers and to/from water body, using mass transfer coef matrix
+        procedure(transferContaminantBedSediment), deferred :: transferContaminant    ! Transfer Contaminant masses between layers and to/from water body, using mass transfer coef matrix
         procedure :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
         procedure :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
         procedure :: Aw_sediment => Get_Aw_sediment          ! water available capacity for size class
@@ -48,13 +50,14 @@ module AbstractBedSedimentModule
         procedure :: Mf_bed_layer_array => get_Mf_bed_layer_array  ! Fine sediment mass as an array of all layers
         procedure :: V_w_by_layer => get_V_w_by_layer        ! total water volume in each layer
         ! Getters
-        procedure :: get_m_np
-        procedure :: get_C_np
-        procedure :: get_C_np_byMass => get_C_np_byMassBedSediment
-        procedure :: get_m_np_l => get_m_np_lBedSediment
-        procedure :: get_C_np_l => get_C_np_lBedSediment
-        procedure :: get_C_np_l_byMass => get_C_np_l_byMassBedSediment
-        procedure :: get_m_np_buried => get_m_np_buriedBedSediment
+        procedure :: get_m_contaminant
+        procedure :: get_C_contaminant
+        procedure :: get_C_contaminant_byMass
+        procedure :: get_m_contaminant_l
+        procedure :: get_C_contaminant_l
+        procedure :: get_C_contaminant_l_byMass
+        procedure :: get_m_contaminant_buried
+        procedure :: finalise => finaliseBedSediment
     end type
 
     abstract interface
@@ -110,12 +113,13 @@ module AbstractBedSedimentModule
             type(Result) :: r                                       !! Returned `Result` object
         end function
 
-        subroutine transferNMBedSediment(me, j_np_dep)
-            use GlobalsModule, only: dp
-            import AbstractBedSediment
-            class(AbstractBedSediment) :: me
-            real(dp) :: j_np_dep(:,:,:)
-        end subroutine
+        function transferContaminantBedSediment(me, j_contaminant_dep) result(r)
+            use ResultModule, only: Result
+            import AbstractBedSediment, Contaminant
+            class(AbstractBedSediment), intent(inout) :: me
+            type(Contaminant), intent(in) :: j_contaminant_dep
+            type(Result) :: r
+        end function
 
         !> **Function purpose**                                     <br>
         !! Deposit specified masses of fine sediment in each size class, and their
@@ -206,8 +210,7 @@ module AbstractBedSedimentModule
         !! 
         subroutine ReportBedMassToConsole(Me)
             import AbstractBedSediment
-            class(AbstractBedSediment) :: Me                                     !! The `AbstractBedSediment` instance
-            integer :: n                                                 !! LOCAL loop counter 
+            class(AbstractBedSediment) :: Me                                     !! The `AbstractBedSediment` instance       
         end subroutine
 
         !> **Function purpose**
@@ -271,7 +274,7 @@ module AbstractBedSedimentModule
         end do
     end function
 
-    !> **Function purpose**                                         <br>
+     !> **Function purpose**                                         <br>
     !! Return capacity for fine sediment of a specified size class in the whole
     !! sediment
     !!                                                              <br>
@@ -510,66 +513,238 @@ module AbstractBedSedimentModule
             Mf_size(S) = Mf                                          ! assign to array for output
         end do
     end function
-    
-    !> Get the current mass of NM in all bed sediment layers
-    function get_m_np(me) result(m_np)
-        class(AbstractBedSediment)  :: me                                       !! This AbstractBedSediment instance
-        real(dp)            :: m_np(C%npDim(1),C%npDim(2),C%npDim(3))   !! NM mass in all bed sediment layers [kg/m2]
-        ! Sum the layer mass from the bed sediment m_np array. The first two elements
-        ! are ignored as they are deposited and resuspended NM
-        m_np = sum(me%m_np(3:C%nSedimentLayers+2,:,:,:), dim=1)
+
+    function get_m_contaminant(me) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        type(Result0D) :: r
+        type(Contaminant) :: m_contaminant
+        type(Result) :: res
+        integer :: i
+        if (.not. allocated(me%m_contaminant)) then
+            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+            return
+        end if
+        res = m_contaminant%create()
+        if (res%hasCriticalError()) then
+            call r%addErrors(res%getErrors())
+            return
+        end if
+        do i = 3, C%nSedimentLayers+2
+            call m_contaminant%add(me%m_contaminant(i))
+        end do
+        allocate(r%data, source=m_contaminant)
+        call r%setErrors()
     end function
 
-    !> Get the NM mass in layer l [kg/m2]
-    function get_m_np_lBedSediment(me, l) result(m_np_l)
-        class(AbstractBedSediment)  :: me                                           !! This AbstractBedSediment instance 
-        integer             :: l                                            !! Layer index to retrieve NM mass for
-        real(dp)            :: m_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM mass in layer l
-        m_np_l = me%m_np(2+l,:,:,:)
+    function get_C_contaminant(me) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        type(Result3D) :: r
+        type(Contaminant) :: m_contaminant
+        real(dp), allocatable :: C_contaminant(:,:,:)
+        type(Result0D) :: res
+        if (.not. allocated(me%m_contaminant)) then
+            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+            return
+        end if
+        res = me%get_m_contaminant()
+        if (res%hasError()) then
+            call r%addErrors(res%getErrors())
+            return
+        end if
+        select type (data => res%getData())
+            type is (Contaminant)
+                m_contaminant = data
+            class default
+                call r%addError(ErrorInstance(code=106, message="Invalid data type in Result0D"))
+                return
+        end select
+        allocate(C_contaminant(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        if (sum(C%sedimentLayerDepth) > C%epsilon) then
+            C_contaminant = m_contaminant%c / sum(C%sedimentLayerDepth)
+        else
+            C_contaminant = 0.0_dp
+        end if
+        allocate(r%data, source=C_contaminant)
+        call r%setErrors()
+        deallocate(C_contaminant)
     end function
 
-    !> Get the current NM PEC [kg/m3] across all bed sediment layers
-    function get_C_np(me) result(C_np)
-        class(AbstractBedSediment)  :: me                                           !! This AbstractBedSediment instance
-        real(dp)            :: C_np(C%npDim(1), C%npDim(2), C%npDim(3))     !! NM PEC across all bed sediment layers [kg/m3]
-        C_np = me%get_m_np() / sum(C%sedimentLayerDepth)
-    end function
-
-    !> Get the current NM PEC by volume [kg/m3] in layer 1
-    function get_C_np_lBedSediment(me, l) result(C_np_l)
-        class(AbstractBedSediment)  :: me                                           !! This AbstractBedSediment instance
-        integer             :: l                                            !! Layer index to retrieve NM PEC for
-        real(dp)            :: C_np_l(C%npDim(1), C%npDim(2), C%npDim(3))   !! NM PEC in layer l [kg/m3]
-        C_np_l = me%get_m_np_l(l) / C%sedimentLayerDepth(l)
-    end function
-
-    !> Get the current NM PEC by mass [kg/kg] across all bed sediment layers
-    function get_C_np_byMassBedSediment(me) result(C_np_byMass)
-        class(AbstractBedSediment)  :: me                                               !! This AbstractBedSediment instance
-        real(dp)            :: C_np_byMass(C%npDim(1), C%npDim(2), C%npDim(3))  !! NM PEC across all bed layers [kg/kg]
-        real(dp)            :: layerMasses(C%nSedimentLayers)                   !! Mass (per m2) of each layer to weight average NM PEC by [kg/m2]
-        integer             :: i
-        ! Get the masses of the sediment in each layer to use in weighting PEC average
+    function get_C_contaminant_byMass(me) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        type(Result3D) :: r
+        real(dp), allocatable :: C_contaminant_byMass(:,:,:)
+        real(dp) :: layerMasses(C%nSedimentLayers)
+        type(Contaminant) :: m_contaminant_l
+        type(Result0D) :: res
+        integer :: i
+        if (.not. allocated(me%m_contaminant)) then
+            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+            return
+        end if
+        allocate(C_contaminant_byMass(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        C_contaminant_byMass = 0.0_dp
         do i = 1, C%nSedimentLayers
             layerMasses(i) = me%Mf_bed_by_layer(i)
+            res = me%get_m_contaminant_l(i)
+            if (res%hasError()) then
+                call r%addErrors(res%getErrors())
+                deallocate(C_contaminant_byMass)
+                return
+            end if
+            select type (data => res%getData())
+                type is (Contaminant)
+                    m_contaminant_l = data
+                class default
+                    call r%addError(ErrorInstance(code=106, message="Invalid data type in Result0D"))
+                    deallocate(C_contaminant_byMass)
+                    return
+            end select
+            if (layerMasses(i) > C%epsilon) then
+                C_contaminant_byMass = C_contaminant_byMass + m_contaminant_l%c / layerMasses(i)
+            end if
         end do
-        ! Calculate the weighted average using these masses
-        C_np_byMass = weightedAverage(me%C_np_byMass, layerMasses)
+        if (sum(layerMasses) > C%epsilon) then
+            C_contaminant_byMass = C_contaminant_byMass / sum(layerMasses)
+        else
+            C_contaminant_byMass = 0.0_dp
+        end if
+        allocate(r%data, source=C_contaminant_byMass)
+        call r%setErrors()
+        deallocate(C_contaminant_byMass)
     end function
 
-    !> Get the current NM PEC by mass [kg/kg] in layer l 
-    function get_C_np_l_byMassBedSediment(me, l) result(C_np_l_byMass)
-        class(AbstractBedSediment)  :: me                                                   !! This AbstractBedSediment instance
-        integer             :: l                                                    !! Layer index to retrieve NM PEC for
-        real(dp)            :: C_np_l_byMass(C%npDim(1), C%npDim(2), C%npDim(3))    !! NM PEC by mass for layer l [kg/kg]
-        C_np_l_byMass = me%C_np_byMass(l,:,:,:)
-    end function
-    
-    !> Get the mass of NM buried on this timestep [kg/m2]
-    function get_m_np_buriedBedSediment(me) result(m_np_buried)
-        class(AbstractBedSediment)  :: me                                                   !! This AbstractBedSediment instance
-        real(dp)            :: m_np_buried(C%npDim(1), C%npDim(2), C%npDim(3))      !! Mass of buried NM [kg/m2]
-        m_np_buried = me%m_np(C%nSedimentLayers+3,:,:,:)
+    function get_m_contaminant_l(me, l) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        integer, intent(in) :: l
+        type(Result0D) :: r
+        type(Contaminant) :: m_contaminant_l
+        type(Result) :: res
+        if (.not. allocated(me%m_contaminant)) then
+            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+            return
+        end if
+        if (l < 1 .or. l > C%nSedimentLayers) then
+            call r%addError(ErrorInstance(code=106, message="Invalid layer index"))
+            return
+        end if
+        res = m_contaminant_l%create()
+        if (res%hasCriticalError()) then
+            call r%addErrors(res%getErrors())
+            return
+        end if
+        call m_contaminant_l%add(me%m_contaminant(2+l))
+        allocate(r%data, source=m_contaminant_l)
+        call r%setErrors()
     end function
 
-end module
+    function get_C_contaminant_l(me, l) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        integer, intent(in) :: l
+        type(Result3D) :: r
+        real(dp), allocatable :: C_contaminant_l(:,:,:)
+        type(Contaminant) :: m_contaminant_l
+        type(Result0D) :: res
+        if (.not. allocated(me%m_contaminant)) then
+            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+            return
+        end if
+        if (l < 1 .or. l > C%nSedimentLayers) then
+            call r%addError(ErrorInstance(code=106, message="Invalid layer index"))
+            return
+        end if
+        res = me%get_m_contaminant_l(l)
+        if (res%hasError()) then
+            call r%addErrors(res%getErrors())
+            return
+        end if
+        select type (data => res%getData())
+            type is (Contaminant)
+                m_contaminant_l = data
+            class default
+                call r%addError(ErrorInstance(code=106, message="Invalid data type in Result0D"))
+                return
+        end select
+        allocate(C_contaminant_l(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        if (C%sedimentLayerDepth(l) > C%epsilon) then
+            C_contaminant_l = m_contaminant_l%c / C%sedimentLayerDepth(l)
+        else
+            C_contaminant_l = 0.0_dp
+        end if
+        allocate(r%data, source=C_contaminant_l)
+        call r%setErrors()
+        deallocate(C_contaminant_l)
+    end function
+
+    function get_C_contaminant_l_byMass(me, l) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        integer, intent(in) :: l
+        type(Result3D) :: r
+        real(dp), allocatable :: C_contaminant_l_byMass(:,:,:)
+        type(Contaminant) :: m_contaminant_l
+        real(dp) :: layerMass
+        type(Result0D) :: res
+        if (.not. allocated(me%m_contaminant)) then
+            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+            return
+        end if
+        if (l < 1 .or. l > C%nSedimentLayers) then
+            call r%addError(ErrorInstance(code=106, message="Invalid layer index"))
+            return
+        end if
+        res = me%get_m_contaminant_l(l)
+        if (res%hasError()) then
+            call r%addErrors(res%getErrors())
+            return
+        end if
+        select type (data => res%getData())
+            type is (Contaminant)
+                m_contaminant_l = data
+            class default
+                call r%addError(ErrorInstance(code=106, message="Invalid data type in Result0D"))
+                return
+        end select
+        allocate(C_contaminant_l_byMass(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        layerMass = me%Mf_bed_by_layer(l)
+        if (layerMass > C%epsilon) then
+            C_contaminant_l_byMass = m_contaminant_l%c / layerMass
+        else
+            C_contaminant_l_byMass = 0.0_dp
+        end if
+        allocate(r%data, source=C_contaminant_l_byMass)
+        call r%setErrors()
+        deallocate(C_contaminant_l_byMass)
+    end function
+
+    function get_m_contaminant_buried(me) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        type(Result0D) :: r
+        type(Contaminant) :: m_contaminant_buried
+        type(Result) :: res
+        if (.not. allocated(me%m_contaminant)) then
+            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+            return
+        end if
+        res = m_contaminant_buried%create()
+        if (res%hasCriticalError()) then
+            call r%addErrors(res%getErrors())
+            return
+        end if
+        call m_contaminant_buried%add(me%m_contaminant(C%nSedimentLayers+3))
+        allocate(r%data, source=m_contaminant_buried)
+        call r%setErrors()
+    end function
+
+    subroutine finaliseBedSediment(me)
+        class(AbstractBedSediment), intent(inout) :: me
+        integer :: i
+        if (allocated(me%m_contaminant)) then
+            do i = 1, size(me%m_contaminant)
+                call me%m_contaminant(i)%finalise()
+            end do
+            deallocate(me%m_contaminant)
+        end if
+        if (allocated(me%colBedSedimentLayers)) deallocate(me%colBedSedimentLayers)
+        if (allocated(me%delta_sed)) deallocate(me%delta_sed)
+        if (allocated(me%delta_sed_csr)) deallocate(me%delta_sed_csr)
+    end subroutine
+end module                     

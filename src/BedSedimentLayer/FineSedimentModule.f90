@@ -8,30 +8,30 @@ module FineSedimentModule
     !> Definition of `FineSediment` class. Nonpolymorphic.
     type, public :: FineSediment
         character(len=256) :: name = "Undefined FineSediment"        !! A name for the object
-        real(dp), public :: M_f_l                                       !! LOCAL fine sediment mass [kg m-2]
+        real(dp), public :: M_f_l                                    !! LOCAL fine sediment mass [kg m-2]
         real(dp), private :: M_f_l_backup                            !! LOCAL backup copy of fine sediment mass [kg m-2]
         real(dp), private :: V_w_l = 0.0_dp                          !! LOCAL volume of water associated with fine sediment [m3 m-2]
         real(dp), allocatable :: f_comp(:)                           !! Fractional composition [-]
-        real, allocatable :: pd_comp(:)                          !! LOCAL storage of fractional particle densities [kg m-3]
+        real(dp), allocatable :: pd_comp(:)                          !! LOCAL storage of fractional particle density [kg m-3]
         integer :: nfComp                                            !! LOCAL number of fractional composition terms
         logical :: isCreated = .false.                               !! LOCAL has this object been created?
     contains
-        procedure, public :: create => createFineSediment           ! sets up by reading variables required for computations
-        procedure, public :: destroy => destroyFineSediment         ! finalises by doing all necessary deallocations
-        procedure, public :: set => setFS                           ! set properties, using either fine sediment volume or mass
-        procedure, public :: V_f => getFSVol                        ! returns the fine sediment volume [m3 m-2]
-        procedure, public :: M_f => getFSMass                       ! returns the fine sediment mass [kg m-2]
-        procedure, public :: M_f_backup => getFSMassBackup          ! returns the backup fine sediment mass [kg m-2]
-        procedure, public :: backup_M_f => setFSMassBackup          ! back up the fine sediment mass [kg m-2]
-        procedure, public :: V_w => getWVol                         ! returns the water volume [kg m-2]
-        procedure, public :: rho_part => pdens                      ! returns the fine sediment particle density [kg m-3]
-        procedure, public :: audit_comp => audit_fcomp              ! check the fractional composition
-        procedure, public :: IsEmpty => empty                       ! check for presence of sediment and water
-        procedure, public :: IsNotEmpty => notempty                 ! check for presence of sediment and water
-        procedure, public :: ClearAll => ClearAll                   ! clear all fine sediment and water from the object
-        procedure, public :: mix => Mix                             ! mix this sediment into another
-        procedure, public :: repstat => ReportStatusToConsole       ! report the properties of this sediment to the console
-        procedure, public :: repmass => ReportMassToConsole         ! report the fine sediment mass of this sediment to the console
+        procedure, public :: create => createFineSediment
+        procedure, public :: destroy => destroyFineSediment
+        procedure, public :: set => setFS
+        procedure, public :: V_f => getFSVol
+        procedure, public :: M_f => getFSMass
+        procedure, public :: M_f_backup => getFSMassBackup
+        procedure, public :: backup_M_f => setFSMassBackup
+        procedure, public :: V_w => getWVol
+        procedure, public :: rho_part => pdens
+        procedure, public :: audit_comp => audit_fcomp
+        procedure, public :: IsEmpty => empty
+        procedure, public :: IsNotEmpty => notempty
+        procedure, public :: ClearAll => ClearAll
+        procedure, public :: mix => Mix
+        procedure, public :: repstat => ReportStatusToConsole
+        procedure, public :: repmass => ReportMassToConsole
     end type
 
     !> Result object with operator for FineSediment scalar data

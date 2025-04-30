@@ -7,6 +7,7 @@ module ReachModule
     use netcdf
     use DataInputModule, only: DATASET
     use DefaultsModule, only: defaultSlope
+    use ContaminantModule
     implicit none
 
     !> `ReachPointer` used for `Reach` inflows array, so the elements within can
@@ -67,7 +68,7 @@ module ReachModule
         ! Getters
         procedure :: Q_outflow_final => Q_outflow_finalReach
         procedure :: j_spm_outflow_final => j_spm_outflow_finalReach
-        procedure :: j_np_outflow_final => j_np_outflow_finalReach
+        procedure :: j_contaminant_outflow_final => j_contaminant_outflow_finalReach
         procedure :: Q_outflow
         procedure :: Q_inflows
         procedure :: Q_runoff
@@ -77,20 +78,14 @@ module ReachModule
         procedure :: j_spm_runoff
         procedure :: j_spm_transfers
         procedure :: j_spm_deposit
-        procedure :: j_np_outflow
-        procedure :: j_np_inflows
-        procedure :: j_np_runoff
-        procedure :: j_np_transfer
-        procedure :: j_np_deposit
-        procedure :: j_np_diffusesource
-        procedure :: j_np_pointsource
-        procedure :: j_transformed_outflow
-        procedure :: j_transformed_deposit
-        procedure :: j_transformed_diffusesource
-        procedure :: j_transformed_pointsource
-        procedure :: j_dissolved_outflow
-        procedure :: j_dissolved_diffusesource
-        procedure :: j_dissolved_pointsource
+        procedure :: get_j_contaminant_outflow => j_contaminant_outflow
+        procedure :: get_j_contaminant_inflows => j_contaminant_inflows
+        procedure :: get_j_contaminant_runoff => j_contaminant_runoff
+        procedure :: get_j_contaminant_transfer => j_contaminant_transfer
+        procedure :: get_j_contaminant_deposit => j_contaminant_deposit
+        procedure :: get_j_contaminant_diffusesource => j_contaminant_diffusesource
+        procedure :: get_j_contaminant_pointsource => j_contaminant_pointsource
+        procedure :: finalise => finaliseReach
     end type
 
     !> Container type for `class(Reach)`, the actual type of the `Reach` class.
@@ -104,24 +99,46 @@ module ReachModule
 
     !> Allocate memory for arrays and set any initial values
     subroutine allocateAndInitialiseReach(me)
-        class(Reach) :: me              !! This Reach instance
+        class(Reach), intent(inout) :: me        !! This Reach instance
+        type(Result) :: r               !! Result object for error handling
         ! WaterBody initialises the variables common to all water bodies
         call me%WaterBody%allocateAndInitialise()
         ! Defaults
         me%n = C%n_river
+        ! Initialize Contaminant objects
+        call r%addErrors(.errors. me%m_contaminant%create_from_data( &
+            DATASET%nc, &
+            'water', &
+            DATASET%contaminantDensity, &
+            DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%riverAttachmentEfficiency, &
+            DATASET%estuaryAttachmentEfficiency, &
+            DATASET%contaminant_k_diss_pristine, &
+            DATASET%contaminant_k_diss_transformed, &
+            DATASET%contaminant_k_transform_pristine, &
+            DATASET%waterTemperature(C%startDate%yearday()) &
+        ))
+        if (r%hasCriticalError()) call ERROR_HANDLER%trigger(errors=.errors.r)
+    end subroutine
+
+    subroutine finaliseReach(me)
+        class(Reach), intent(inout) :: me
+        call me%WaterBody%finalise()
+        if (allocated(me%inflowsArr)) deallocate(me%inflowsArr)
+        if (allocated(me%inflows)) deallocate(me%inflows)
+        if (allocated(me%domainOutflow)) deallocate(me%domainOutflow)
     end subroutine
 
     !> Parse the input data for this reach. This function is called at the start of every
     !! chunk for batch runs.
     subroutine parseNewBatchDataReach(me)
-        class(Reach) :: me
-
+        class(Reach), intent(inout) :: me
     end subroutine
 
     !> Set the settling rate [/s]
     subroutine setSettlingRateReach(me, T_water_t)
         class(Reach) :: me                      !! This `Reach` instance
-        real         :: T_water_t               !! Water temperature on this timestep
+        real(dp)     :: T_water_t               !! Water temperature on this timestep
         integer      :: i                       ! Size class iterator
 
         if (.not. isZero(me%depth)) then
@@ -130,27 +147,15 @@ module ReachModule
             do i = 1, C%nSizeClassesSpm
                 me%W_settle_spm(i) = me%calculateSettlingVelocity( &
                     C%d_spm(i), &
-                    DATASET%spmDensityBySizeClass(i), &       ! Average of the fractional comps. TODO: Change to work with actual fractional comps.
+                    DATASET%spmDensityBySizeClass(i), &
                     T_water_t, &
                     alphaDep=DATASET%depositionAlpha(me%x, me%y), &
                     betaDep=DATASET%depositionBeta(me%x, me%y) &
                 )
             end do
             me%k_settle = me%W_settle_spm / me%depth
-
-            ! NP: Calculate this to pass to Reactor
-            do i = 1, C%nSizeClassesNM
-                me%W_settle_np(i) = me%calculateSettlingVelocity( &
-                    C%d_nm(i), &
-                    DATASET%nmDensity, &
-                    T_water_t, &
-                    alphaDep=DATASET%depositionAlpha(me%x, me%y), &
-                    betaDep=DATASET%depositionBeta(me%x, me%y) &
-                )
-            end do
         else
             me%W_settle_spm = 0.0_dp
-            me%W_settle_np = 0.0_dp
             me%k_settle = 0.0_dp
         end if
     end subroutine
@@ -198,52 +203,42 @@ module ReachModule
 
     !> Get the inflows from point and diffuse sources for this timestep 
     subroutine updateSourcesReach(me, t)
-        class(Reach)   :: me        !! This SoilProfile instance
-        integer         :: t        !! This timestep index
-        integer         :: i        !! Iterator for sources
+        class(Reach) :: me        !! This Reach instance
+        integer :: t              !! This timestep index
+        integer :: i              !! Iterator for sources
         ! Diffuse sources converted from kg/m2/timestep to kg/reach/timestep
         do i = 1, me%nDiffuseSources
             call me%diffuseSources(i)%update(t)
-            me%j_nm%diffuseSources = me%j_nm%diffuseSources + me%diffuseSources(i)%j_np_diffuseSource * me%surfaceArea
-            me%j_nm_transformed%diffuseSources = me%j_nm_transformed%diffuseSources &
-                                                     + me%diffuseSources(i)%j_transformed_diffuseSource * me%surfaceArea
-            me%j_dissolved%diffuseSources = me%j_dissolved%diffuseSources &
-                                                + me%diffuseSources(i)%j_dissolved_diffuseSource * me%surfaceArea
+            call me%j_contaminant_diffuseSources%add_scaled(me%diffuseSources(i)%j_contaminant, me%surfaceArea)
         end do
         ! Point sources are kg/point
         do i = 1, me%nPointSources
             call me%pointSources(i)%update(t)
-            me%j_nm%pointSources = me%j_nm%pointSources + me%pointSources(i)%j_np_pointSource
-            me%j_nm_transformed%pointSources = me%j_nm_transformed%pointSources &
-                                                 + me%pointSources(i)%j_transformed_pointSource
-            me%j_dissolved%pointSources = me%j_dissolved%pointSources &
-                                            + me%pointSources(i)%j_dissolved_pointSource
-        end do 
+            call me%j_contaminant_pointSources%add(me%pointSources(i)%j_contaminant_pointSource)
+        end do
     end subroutine
 
     !> Set the sediment yields from soil and bank erosion, and distribute correctly
     !! across size classes
-    subroutine setErosionYieldsReach(me, soilErosionYield, q_overland, contributingArea, NMYield, NMTransformedYield)
-        class(Reach)  :: me                                 !! This reach
-        real(dp) :: soilErosionYield(C%nSizeClassesSPM)     !! Soil erosion yield from the soil profile [kg/timestep]
-        real(dp) :: q_overland                              !! Overland flow [m3/m2/timestep]
-        real(dp) :: contributingArea                        !! Contributing area to this reach [m2]
-        real(dp) :: NMYield(C%npDim(1), C%npDim(2), C%npDim(3)) !! NM yield from soil erosion [kg/timestep]
-        real(dp) :: NMTransformedYield(C%npDim(1), C%npDim(2), C%npDim(3)) !! NM yield from soil erosion [kg/timestep]
-        real(dp) :: ratio                                   ! Ratio of unscaled to scaled, to scale NM by
+    subroutine setErosionYieldsReach(me, soilErosionYield, q_overland, contributingArea, contaminantYield)
+        class(Reach)  :: me                                              !! This reach
+        real(dp) :: soilErosionYield(:)                                  !! Soil erosion yield from the soil profile [kg/timestep]
+        real(dp) :: q_overland                                           !! Overland flow [m3/m2/timestep]
+        real(dp) :: contributingArea                                     !! Contributing area to this reach [m2]
+        type(Contaminant) :: contaminantYield                            !! Contaminant yield from soil erosion [kg/timestep]
+        real(dp) :: ratio                                                ! Ratio of unscaled to scaled, to scale Contaminant by
         ! We need to use the sediment transport capacity to scale eroded sediment. Sediment transport
         ! capacity is stored in me%sedimentTransportCapacity and has units of kg/m2/timestep
         me%j_spm%soilErosion = me%scaleErosionBySedimentTransportCapacity(soilErosionYield, q_overland, contributingArea)
         ratio = divideCheckZero(sum(me%j_spm%soilErosion), sum(soilErosionYield))
-        me%j_nm%soilErosion = flushToZero(ratio * NMYield)
-        me%j_nm_transformed%soilErosion = flushToZero(ratio * NMTransformedYield)
+        call me%j_contaminant_soilErosion%multiply_scalar(contaminantYield, ratio)
         ! Calculate bank erosion rate, if we're meant to be modelling it
         if (C%includeBankErosion) then
             ! Calculate bank erosion based on the flow and use the sediment distribution to split
             me%j_spm%bankErosion = me%calculateBankErosionRate( &
                 abs(me%Q_in_total), &
                 DATASET%bankErosionAlpha(me%x, me%y), &
-                DATASET%bankErosionBeta(me%x, me%y), &
+                DATASET%bankErosionBeta( me%x, me%y), &
                 me%length, &
                 me%depth &
             ) * me%distributionSediment
@@ -287,11 +282,11 @@ module ReachModule
         ! Retrieve the amount of water to be taken from the reach
         V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
         ! Subtract that volume for the reach (as a depth). This doesn't have any effect on
-        ! the model calculations, as the model recalculates depth depth on hydrology at the
+        ! the model calculations, as the model recalculates depth depth on the hydrology at the
         ! start of every timestep. However, it is this updated depth that is saved to data.
         me%depth = max(me%depth - V_water_toDeposit, 0.0_dp)
 
-        ! Add any errors that occured in the deposit procedure
+        ! Add any errors that occurred in the deposit procedure
         call rslt%addToTrace("Depositing SPM to BedSediment")
     end function
 
@@ -300,7 +295,7 @@ module ReachModule
     subroutine setResuspensionRateReach(me, Q, T_water_t)
         class(Reach)    :: me                           !! This `Reach` instance
         real(dp)        :: Q                            !! Flow rate to set resuspension rate based on [m/s]
-        real            :: T_water_t                    !! Water temperature on this timestep [deg C]
+        real(dp)        :: T_water_t                    !! Water temperature on this timestep [deg C]
         real(dp)        :: d_max                        ! Maximum resuspendable particle size [m]
         integer         :: i                            ! Iterator
         real(dp)        :: M_prop(C%nSizeClassesSpm)    ! Proportion of size class that can be resuspended [-]
@@ -312,7 +307,7 @@ module ReachModule
             ! Calculate maximum resuspendable particle size and proportion of each
             ! size class that can be resuspended. Changes on each timestep as dependent
             ! on river depth
-            d_max = 9.994*sqrt(me%alpha_resus*C%g*me%depth*me%slope)**2.5208 
+            d_max = 9.994*sqrt(me%alpha_resus*C%g*me%depth*me%slope)**2.5208
             ! Calculate proportion of each size class that can be resuspended
             do i = 1, C%nSizeClassesSpm
                 ! Calculate the proportion of size class that can be resuspended
@@ -330,12 +325,12 @@ module ReachModule
             f_fr = 4 * me%depth / (me%width + 2 * me%depth)
             ! Set k_resus using the above [/s]
             me%k_resus = me%calculateResuspension( &
-                beta = me%beta_resus, &
-                L = me%length*me%f_m, &
-                W = me%width, &
-                M_prop = M_prop, &
-                omega = omega, &
-                f_fr = f_fr &
+                beta=me%beta_resus, &
+                L=me%length*me%f_m, &
+                W=me%width, &
+                M_prop=M_prop, &
+                omega=omega, &
+                f_fr=f_fr &
             )
         else
             me%k_resus = 0.0_dp                                 ! If there's no inflow
@@ -358,22 +353,21 @@ module ReachModule
     !! Reference: [Zhiyao et al, 2008](https://doi.org/10.1016/S1674-2370(15)30017-X).
     function calculateSettlingVelocity(me, d, rho_particle, T, alphaDep, betaDep) result(W)
         class(Reach), intent(in) :: me                          !! The `Reach` instance
-        real, intent(in) :: d                                   !! Sediment particle diameter [m]
-        real, intent(in) :: rho_particle                        !! Sediment particulate density [kg/m3]
-        real, intent(in) :: T                                   !! Temperature [C]
-        real, intent(in) :: alphaDep                            !! Alpha calibration parameter
-        real, intent(in) :: betaDep                             !! Beta calibration parameter
+        real(dp), intent(in) :: d                               !! Sediment particle diameter [m]
+        real(dp), intent(in) :: rho_particle                    !! Sediment particulate density [kg/m3]
+        real(dp), intent(in) :: T                               !! Temperature [C]
+        real(dp), intent(in) :: alphaDep                        !! Alpha calibration parameter
+        real(dp), intent(in) :: betaDep                         !! Beta calibration parameter
         real(dp) :: W                                           !! Calculated settling velocity [m/s]
         real(dp) :: dStar                                       ! Dimensionless particle diameter.
         real(dp) :: dStarTerm                                   ! Local storage for d* term, to check if it's < 0
         ! Settling only occurs if SPM particle density is greater than density of water
-        if ((rho_particle > C%rho_w(T))) then
-            dStar = ((rho_particle/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d   ! Calculate the dimensionless particle diameter
+        if (rho_particle > C%rho_w(T)) then
+            dStar = ((rho_particle/C%rho_w(T) - 1)*C%g/C%nu_w(T)**2)**(1.0_dp/3.0_dp) * d
             dStarTerm = alphaDep + betaDep * dStar ** (1.714285714_dp)
             if (dStarTerm > 0.0) then
                 W = max( &
-                    (C%nu_w(T)/d) * dStar**3 * (alphaDep + betaDep &                          ! Calculate the settling velocity
-                        * dStar**(1.714285714_dp))**(-0.875_dp), &
+                    (C%nu_w(T)/d) * dStar**3 * (alphaDep + betaDep * dStar**(1.714285714_dp))**(-0.875_dp), &
                     0.0_dp &
                 )
             else
@@ -520,21 +514,25 @@ module ReachModule
         Q_outflow_final = me%Q_final%outflow
     end function
 
-    !> Return the SPM discahrge.
     function j_spm_outflow_finalReach(me) result(j_spm_outflow_final)
         class(Reach) :: me
         real(dp) :: j_spm_outflow_final(C%nSizeClassesSpm)
         j_spm_outflow_final = me%j_spm_final%outflow
     end function
 
-    !> Return the SPM discahrge.
-    function j_np_outflow_finalReach(me) result(j_np_outflow_final)
-        class(Reach) :: me
-        real(dp) :: j_np_outflow_final(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_outflow_final = me%j_nm_final%outflow
+    function j_contaminant_outflow_finalReach(me) result(result_out)
+        class(Reach), intent(in) :: me
+        type(Contaminant) :: result_out
+        type(Result) :: r
+        r = result_out%create()
+        if (r%hasCriticalError()) then
+            call ERROR_HANDLER%trigger(errors=.errors.r)
+            return
+        end if
+        result_out = me%j_contaminant_final
     end function
 
-    function Q_outflow(me)
+    function Q_outflow(me) 
         class(Reach) :: me
         real(dp) :: Q_outflow
         Q_outflow = me%Q%outflow
@@ -570,120 +568,79 @@ module ReachModule
         j_spm_inflows = me%j_spm%inflow
     end function
 
-    function j_spm_runoff(me)
+    function j_spm_runoff(me) 
         class(Reach) :: me
         real(dp) :: j_spm_runoff(C%nSizeClassesSpm)
         j_spm_runoff = me%j_spm%soilErosion
     end function
 
-    function j_spm_transfers(me)
+    function j_spm_transfers(me) 
         class(Reach) :: me
         real(dp) :: j_spm_transfers(C%nSizeClassesSpm)
         j_spm_transfers = me%j_spm%transfers
     end function
 
-    function j_spm_deposit(me)
+    function j_spm_deposit(me) 
         class(Reach) :: me
         real(dp) :: j_spm_deposit(C%nSizeClassesSpm)
         j_spm_deposit = me%j_spm%deposition + me%j_spm%resuspension
     end function
 
-    !> Get the outflow from NM flux array
-    function j_np_outflow(me)
+    function j_contaminant_outflow(me)
         class(Reach) :: me
-        real(dp) :: j_np_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_outflow = me%j_nm%outflow
+        type(Contaminant) :: j_contaminant_outflow
+        type(Result) :: r
+        r = j_contaminant_outflow%create()
+        j_contaminant_outflow = me%j_contaminant_outflow
     end function
 
-    !> Get the inflowing NM from NM flux array
-    function j_np_inflows(me)
+    function j_contaminant_inflows(me)
         class(Reach) :: me
-        real(dp) :: j_np_inflows(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_inflows = me%j_nm%inflow
+        type(Contaminant) :: j_contaminant_inflows
+        type(Result) :: r
+        r = j_contaminant_inflows%create()
+        j_contaminant_inflows = me%j_contaminant_inflow
     end function
 
-    !> Get the total runoff from NM flux array
-    function j_np_runoff(me)
+    function j_contaminant_runoff(me)
         class(Reach) :: me
-        real(dp) :: j_np_runoff(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_runoff = me%j_nm%soilErosion 
+        type(Contaminant) :: j_contaminant_runoff
+        type(Result) :: r
+        r = j_contaminant_runoff%create()
+        j_contaminant_runoff = me%j_contaminant_runoff
     end function
 
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_np_transfer(me)
+    function j_contaminant_transfer(me)
         class(Reach) :: me
-        real(dp) :: j_np_transfer(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_transfer = me%j_nm%transfers
+        type(Contaminant) :: j_contaminant_transfer
+        type(Result) :: r
+        r = j_contaminant_transfer%create()
+        j_contaminant_transfer = me%j_contaminant_transfers
     end function
 
-    !> Get the total deposited NM (settling + resus) from NM flux array
-    function j_np_deposit(me)
+    function j_contaminant_deposit(me)
         class(Reach) :: me
-        real(dp) :: j_np_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_deposit = me%j_nm%deposition + me%j_nm%resuspension
+        type(Contaminant) :: j_contaminant_deposit
+        type(Result) :: r
+        r = j_contaminant_deposit%create()
+        call j_contaminant_deposit%add(me%j_contaminant_deposition)
+        call j_contaminant_deposit%add(me%j_contaminant_resuspension)
     end function
 
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_np_diffusesource(me)
+    function j_contaminant_diffusesource(me)
         class(Reach) :: me
-        real(dp) :: j_np_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_diffuseSource = me%j_nm%diffuseSources
+        type(Contaminant) :: j_contaminant_diffusesource
+        type(Result) :: r
+        r = j_contaminant_diffusesource%create()
+        j_contaminant_diffusesource = me%j_contaminant_diffuseSources
     end function
 
-    !> Get the total point source fluxes from NM flux array
-    function j_np_pointsource(me)
+    function j_contaminant_pointsource(me)
         class(Reach) :: me
-        real(dp) :: j_np_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_np_pointSource = me%j_nm%pointSources
+        type(Contaminant) :: j_contaminant_pointsource
+        type(Result) :: r
+        r = j_contaminant_pointsource%create()
+        j_contaminant_pointsource = me%j_contaminant_pointSources
     end function
-
-    !> Get the outflow from transformed flux array
-    function j_transformed_outflow(me)
-        class(Reach) :: me
-        real(dp) :: j_transformed_outflow(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_outflow = me%j_nm_transformed%outflow
-    end function
-
-    function j_transformed_deposit(me)
-        class(Reach) :: me
-        real(dp) :: j_transformed_deposit(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_deposit = me%j_nm_transformed%deposition + me%j_nm_transformed%resuspension
-    end function
-
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_transformed_diffusesource(me)
-        class(Reach) :: me
-        real(dp) :: j_transformed_diffusesource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_diffusesource = me%j_nm_transformed%diffuseSources
-    end function
-
-    !> Get the total point source fluxes from NM flux array
-    function j_transformed_pointsource(me)
-        class(Reach) :: me
-        real(dp) :: j_transformed_pointsource(C%npDim(1), C%npDim(2), C%npDim(3))
-        j_transformed_pointSource = me%j_nm_transformed%pointSources
-    end function
-
-    !> Get the outflow from dissolved flux array
-    function j_dissolved_outflow(me)
-        class(Reach) :: me
-        real(dp) :: j_dissolved_outflow
-        j_dissolved_outflow = me%j_dissolved%outflow
-    end function
-
-    !> Get the total diffuse source fluxes from NM flux array
-    function j_dissolved_diffusesource(me)
-        class(Reach) :: me
-        real(dp) :: j_dissolved_diffusesource
-        j_dissolved_diffusesource = me%j_dissolved%diffuseSources
-    end function
-
-    !> Get the total point source fluxes from NM flux array
-    function j_dissolved_pointsource(me)
-        class(Reach) :: me
-        real(dp) :: j_dissolved_pointsource
-        j_dissolved_pointSource = me%j_dissolved%pointSources
-    end function
-
 
 end module

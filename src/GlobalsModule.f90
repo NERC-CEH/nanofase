@@ -8,6 +8,11 @@ module GlobalsModule
     use ErrorInstanceModule
     use ResultModule, only: Result
     implicit none
+
+    ! Contaminant state constants
+    integer, parameter :: FREE_CONTAMINANT = 1
+    integer, parameter :: ATTACHED_CONTAMINANT = 2
+    integer, parameter :: SPM_CONTAMINANT_START = 3
     
     type(ErrorCriteria)             :: ERROR_HANDLER                        ! Global error handling
     integer, parameter              :: dp = selected_real_kind(15, 307)     ! Double precision
@@ -40,7 +45,7 @@ module GlobalsModule
         logical             :: includeSoilLayerBreakdown        !! Include breakdown of data over soil layers?
         character(len=5)    :: soilPECUnits                     !! What units to use for soil PEC - kg/m3 or kg/kg dw?
         character(len=5)    :: sedimentPECUnits                 !! What units to use for sediment PEC - kg/m4 or kg/kg dw?
-        logical             :: includeSoilStateBreakdown        !! Should the breakdown of NM state (free vs attached) be included?
+        logical             :: includeSoilStateBreakdown        !! Should the breakdown of Contaminant state (free vs attached) be included?
         logical             :: includeSedimentFluxes            !! Should sediment fluxes to/from waterbodies be included?
         logical             :: includeSpmSizeClassBreakdown     !! Should the breakdown of SPM size classes be included?
         logical             :: includeSoilErosionYields         !! Should sediment fluxes to/from waterbodies be included?
@@ -54,11 +59,11 @@ module GlobalsModule
         integer             :: timeStep                         !! The timestep to run the model on [s]
         integer             :: nTimeSteps                       !! The number of timesteps
         real(dp)            :: epsilon = 1e-10                  !! Used as proximity to check whether variable as equal
-        integer             :: warmUpPeriod                     !! How long before we start inputting NM (to give flows to reach steady state)?
+        integer             :: warmUpPeriod                     !! How long before we start inputting Contaminant (to give flows to reach steady state)?
         logical             :: triggerWarnings                  !! Should error warnings be printed to the console?
         logical             :: hasSimulationMask = .false.      !! Are we meant to mask the simulation (i.e. only use a subset of the input dataset)?
         character(len=256)  :: simulationMaskPath = ""          !! Path to NetCDF simulation mask
-        logical             :: ignoreNM                         !! If .true., miss out costly NM calculations. Useful for sediment calibration, NM PECs will be invalid
+        logical             :: ignoreContaminant                !! If .true., miss out costly Contaminant calculations. Useful for sediment calibration, Contaminant PECs will be invalid
         logical             :: bashColors                       !! Should output to the console use ANSI color codes?
 
         ! Checkpointing
@@ -118,20 +123,20 @@ module GlobalsModule
         real(dp) :: T = 15.0_dp             !! Temperature [C]
 
         ! Size class distributions
-        real, allocatable :: d_spm(:)                       !! Suspended particulate matter size class diameters [m]
-        real, allocatable :: d_spm_low(:)                   !! Lower bound when treating each size class as distribution [m]
-        real, allocatable :: d_spm_upp(:)                   !! Upper bound when treating each size class as distribution [m]
-        real, allocatable :: d_nm(:)                        !! Nanomaterial size class diameters [m]
-        real, allocatable :: sedimentParticleDensities(:)   !! Sediment particle densities [kg m-3]
+        real(dp), allocatable :: d_spm(:)                       !! Suspended particulate matter size class diameters [m]
+        real(dp), allocatable :: d_spm_low(:)                   !! Lower bound when treating each size class as distribution [m]
+        real(dp), allocatable :: d_spm_upp(:)                   !! Upper bound when treating each size class as distribution [m]
+        real(dp), allocatable :: d_contaminant(:)               !! Contaminant size class diameters [m]
+        real(dp), allocatable :: sedimentParticleDensities(:)   !! Sediment particle densities [kg m-3]
         integer :: nSizeClassesSpm                          !! Number of sediment particle size classes
-        integer :: nSizeClassesNM                           !! Number of nanoparticle size classes
         integer :: nFracCompsSpm                            !! Number of sediment fractional compositions
-        integer :: nFormsNM                                 !! Number of NM forms (e.g. pristine, transformed, etc)
-        integer :: nExtraStatesNM                           !! Number of NM states other than heteroaggregated to SPM
+        integer :: nContaminantSizeClasses                  !! Number of contaminant size classes
+        integer :: nContaminantForms                        !! Number of contaminant forms (e.g. pristine, transformed, etc)
+        integer :: nContaminantExtraStates                  !! Number of contaminant states other than heteroaggregated to SPM
         integer, allocatable :: defaultDistributionSediment(:) !! Default imposed size distribution for sediment
-        integer, allocatable :: defaultDistributionNP(:)    !! Default imposed size distribution for NPs
-        integer :: npDim(3)                                 !! Default dimensions for arrays of NM
-        integer :: ionicDim                                 !! Default dimensions for ionic metal
+        integer, allocatable :: defaultDistributionContaminant(:) !! Default imposed size distribution for contaminants
+        integer :: contaminantDim(3)                        !! Default dimensions for arrays of contaminant
+        integer :: ionicDim                                 !! Default dimensions for ionic metal 
 
       contains
         procedure :: rho_w      ! Density of water
@@ -148,7 +153,7 @@ module GlobalsModule
     subroutine GLOBALS_INIT()
         integer :: n, i                                     ! Iterators
         integer :: nmlIOStat                                ! IO status for namelist reading
-        type(ErrorInstance) :: errors(17)                   ! ErrorInstances to be added to ErrorHandler
+        type(ErrorInstance) :: errors(18)                   ! ErrorInstances to be added to ErrorHandler
         character(len=256) :: configFilePath, batchRunFilePath
         integer :: configFilePathLength, batchRunFilePathLength
         ! Values from config file
@@ -160,32 +165,67 @@ module GlobalsModule
         character(len=3) :: netcdf_write_mode
         character(len=32) :: output_hash
         integer, allocatable :: n_timesteps_per_chunk(:)
-        integer :: n_nm_size_classes, n_nm_forms, n_nm_extra_states, warm_up_period, n_spm_size_classes, &
-            n_fractional_compositions, n_chunks
-        integer :: timestep, n_timesteps, n_soil_layers, n_sediment_layers, min_estuary_timestep
-        real :: min_stream_slope
+        integer :: n_contaminant_size_classes
+        integer :: n_contaminant_forms
+        integer :: n_contaminant_extra_states
+        integer :: warm_up_period
+        integer :: n_spm_size_classes
+        integer :: n_fractional_compositions
+        integer :: n_chunks
+        integer :: timestep
+        integer :: n_timesteps
+        integer :: n_soil_layers
+        integer :: n_sediment_layers
+        integer :: min_estuary_timestep
+    
+        real(dp) :: min_stream_slope
         real(dp) :: epsilon, delta
-        real, allocatable :: soil_layer_depth(:), nm_size_classes(:), spm_size_classes(:), &
-            sediment_particle_densities(:), sediment_layer_depth(:)
-        logical :: error_output, include_bioturbation, include_attachment, include_point_sources, include_bed_sediment, &
-            write_csv, write_netcdf, write_metadata_as_comment, include_sediment_layer_breakdown, &
-            include_soil_layer_breakdown, include_soil_state_breakdown, save_checkpoint, reinstate_checkpoint, &
-            preserve_timestep, trigger_warnings, run_to_steady_state, include_sediment_fluxes, include_soil_erosion_yields, &
-            write_to_log, include_spm_size_class_breakdown, include_clay_enrichment, include_waterbody_breakdown, &
-            write_compartment_stats, ignore_nm, include_estuary, bash_colors, save_checkpoint_after_warm_up, include_bank_erosion, &
-            include_soil_erosion
-        
+        real(dp), allocatable :: soil_layer_depth(:)
+        real(dp), allocatable :: contaminant_size_classes(:)
+        real(dp), allocatable :: spm_size_classes(:)
+        real(dp), allocatable :: sediment_particle_densities(:)
+        real(dp), allocatable :: sediment_layer_depth(:)
+        logical :: error_output
+        logical :: include_bioturbation
+        logical :: include_attachment
+        logical :: include_point_sources
+        logical :: include_bed_sediment
+        logical :: write_csv
+        logical :: write_netcdf
+        logical :: write_metadata_as_comment
+        logical :: include_sediment_layer_breakdown
+        logical :: include_soil_layer_breakdown
+        logical :: include_soil_state_breakdown
+        logical :: save_checkpoint
+        logical :: reinstate_checkpoint
+        logical :: preserve_timestep
+        logical :: trigger_warnings
+        logical :: run_to_steady_state
+        logical :: include_sediment_fluxes
+        logical :: include_soil_erosion_yields
+        logical :: write_to_log
+        logical :: include_spm_size_class_breakdown
+        logical :: include_clay_enrichment
+        logical :: include_waterbody_breakdown
+        logical :: write_compartment_stats
+        logical :: include_estuary
+        logical :: bash_colors
+        logical :: save_checkpoint_after_warm_up
+        logical :: include_bank_erosion
+        logical :: include_soil_erosion
+        logical :: ignore_contaminant
+
         ! Config file namelists
-        namelist /allocatable_array_sizes/ n_soil_layers, n_nm_size_classes, n_spm_size_classes, &
+        namelist /allocatable_array_sizes/ n_soil_layers, n_contaminant_size_classes, n_spm_size_classes, &
             n_fractional_compositions, n_sediment_layers
-        namelist /nanomaterial/ n_nm_forms, n_nm_extra_states, nm_size_classes
+        namelist /contaminant/ n_contaminant_forms, n_contaminant_extra_states, contaminant_size_classes
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv, include_sediment_fluxes, &
             include_soil_erosion_yields, include_spm_size_class_breakdown, include_waterbody_breakdown, write_compartment_stats, &
             write_netcdf, netcdf_write_mode
         namelist /run/ timestep, n_timesteps, epsilon, error_output, log_file_path, start_date, warm_up_period, &
-            description, trigger_warnings, simulation_mask, write_to_log, output_hash, ignore_nm, bash_colors
+            description, trigger_warnings, simulation_mask, write_to_log, output_hash, ignore_contaminant, bash_colors
         namelist /checkpoint/ checkpoint_file, save_checkpoint, reinstate_checkpoint, preserve_timestep, &
             save_checkpoint_after_warm_up
         namelist /steady_state/ run_to_steady_state, mode, delta
@@ -199,43 +239,42 @@ module GlobalsModule
         namelist /chunks/ input_files, constants_files, start_dates, n_timesteps_per_chunk
 
         ! Defaults, which will be overwritten if present in config file
-        ! TODO move all defaults to DefaultsModule.f90
-        write_to_log = configDefaults%writeToLog                                ! True
-        write_csv = configDefaults%writeCSV                                     ! True
-        write_netcdf = configDefaults%writeNetCDF                               ! False
-        netcdf_write_mode = configDefaults%netCDFWriteMode                      ! 'end'
-        output_hash = configDefaults%outputHash                                 ! ''
-        description = configDefaults%description                                ! 'NanoFASE model run'
-        batch_description = configDefaults%description                          ! 'NanoFASE model run'
-        write_metadata_as_comment = configDefaults%writeMetadataAsComment       ! True
-        include_sediment_layer_breakdown = configDefaults%includeSedimentLayerBreakdown  ! True
-        include_soil_layer_breakdown = configDefaults%includeSoilLayerBreakdown  ! True
-        include_soil_state_breakdown = configDefaults%includeSoilStateBreakdown ! False
-        include_sediment_fluxes = configDefaults%includeSedimentFluxes          ! False
-        include_spm_size_class_breakdown = configDefaults%includeSpmSizeClassBreakdown  ! False
-        include_soil_erosion_yields = configDefaults%includeSoilErosionYields   ! False
-        include_clay_enrichment = configDefaults%includeClayEnrichment          ! False
-        soil_pec_units = configDefaults%soilPECUnits                            ! kg/kg
-        sediment_pec_units = configDefaults%sedimentPECUnits                    ! kg/kg
-        save_checkpoint = configDefaults%saveCheckpoint                         ! False
-        save_checkpoint_after_warm_up = configDefaults%saveCheckpointAfterWarmUp ! False
-        checkpoint_file = configDefaults%checkpointFile                         ! ./checkpoint.dat
-        reinstate_checkpoint = configDefaults%reinstateCheckpoint               ! False
-        preserve_timestep = configDefaults%preserveTimeStep                     ! False
-        run_to_steady_state = configDefaults%runToSteadyState                   ! False
-        delta = configDefaults%steadyStateDelta                                 ! 1e-5
-        mode = configDefaults%steadyStateMode                                   ! 'sediment_size_distribution'
-        simulation_mask = configDefaults%simulationMask                         ! ''
-        min_stream_slope = configDefaults%minStreamSlope                        ! 0.001
-        min_estuary_timestep = configDefaults%minEstuaryTimestep                ! 3600
-        include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown  ! True
-        write_compartment_stats = configDefaults%writeCompartmentStats          ! False
-        ignore_nm = configDefaults%ignoreNM                                     ! False
-        include_estuary = configDefaults%includeEstuary                         ! True
-        include_bank_erosion = configDefaults%includeBankErosion                ! True
-        warm_up_period = configDefaults%warmUpPeriod                            ! 0
-        bash_colors = configDefaults%bashColors                                 ! True
-        include_soil_erosion = configDefaults%includeSoilErosion                ! True
+        write_to_log = configDefaults%writeToLog
+        write_csv = configDefaults%writeCSV
+        write_netcdf = configDefaults%writeNetCDF
+        netcdf_write_mode = configDefaults%netCDFWriteMode
+        output_hash = configDefaults%outputHash
+        description = configDefaults%description
+        batch_description = configDefaults%description
+        write_metadata_as_comment = configDefaults%writeMetadataAsComment
+        include_sediment_layer_breakdown = configDefaults%includeSedimentLayerBreakdown
+        include_soil_layer_breakdown = configDefaults%includeSoilLayerBreakdown
+        include_soil_state_breakdown = configDefaults%includeSoilStateBreakdown
+        include_sediment_fluxes = configDefaults%includeSedimentFluxes
+        include_spm_size_class_breakdown = configDefaults%includeSpmSizeClassBreakdown
+        include_soil_erosion_yields = configDefaults%includeSoilErosionYields
+        include_clay_enrichment = configDefaults%includeClayEnrichment
+        soil_pec_units = configDefaults%soilPECUnits
+        sediment_pec_units = configDefaults%sedimentPECUnits
+        save_checkpoint = configDefaults%saveCheckpoint
+        save_checkpoint_after_warm_up = configDefaults%saveCheckpointAfterWarmUp
+        checkpoint_file = configDefaults%checkpointFile
+        reinstate_checkpoint = configDefaults%reinstateCheckpoint
+        preserve_timestep = configDefaults%preserveTimeStep
+        run_to_steady_state = configDefaults%runToSteadyState
+        delta = configDefaults%steadyStateDelta
+        mode = configDefaults%steadyStateMode
+        simulation_mask = configDefaults%simulationMask
+        min_stream_slope = configDefaults%minStreamSlope
+        min_estuary_timestep = configDefaults%minEstuaryTimestep
+        include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown
+        write_compartment_stats = configDefaults%writeCompartmentStats
+        ignore_contaminant = .false.
+        include_estuary = configDefaults%includeEstuary
+        include_bank_erosion = configDefaults%includeBankErosion
+        warm_up_period = configDefaults%warmUpPeriod
+        bash_colors = configDefaults%bashColors
+        include_soil_erosion = configDefaults%includeSoilErosion
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -253,61 +292,51 @@ module GlobalsModule
         ! If this is a batch run, then open the batch run config file and store the data from it
         if (batchRunFilePathLength > 0) then
             C%isBatchRun = .true.
-            ! Open and read the namelists
             open(iouBatchConfig, file=trim(batchRunFilePath), status="old")
             read(iouBatchConfig, nml=batch_config); rewind(iouBatchConfig)
             C%nChunks = n_chunks
-            ! Allocate variables based on the number of batches
             allocate(input_files(C%nChunks), &
-                constants_files(C%nChunks), &
-                start_dates(C%nChunks), &
-                n_timesteps_per_chunk(C%nChunks))
-            ! Now we can read the other variables in
+                    constants_files(C%nChunks), &
+                    start_dates(C%nChunks), &
+                    n_timesteps_per_chunk(C%nChunks))
             read(iouBatchConfig, nml=chunks)
-            ! Store these in config variables
             allocate(C%batchInputFiles, source=input_files)
             allocate(C%batchConstantFiles, source=constants_files)
             allocate(C%batchStartDates(C%nChunks))
             allocate(C%batchNTimesteps, source=n_timesteps_per_chunk)
-            ! Turn the datetime string into a datetime object
             do i = 1, C%nChunks
                 C%batchStartDates(i) = f_strptime(start_dates(i))
             end do
-            ! Close the file
             close(iouBatchConfig)
         end if
 
-        read(iouConfig, nml=allocatable_array_sizes); rewind(iouConfig)
-        ! Use the allocatable array sizes to allocate those arrays (allocatable arrays
-        ! must be allocated before being read in to)
+        ! Read all namelists in a single pass through the file.
+        ! This requires the .nml file to have the namelist groups in this order.
+        read(iouConfig, nml=allocatable_array_sizes)
         allocate(soil_layer_depth(n_soil_layers))
         allocate(sediment_layer_depth(n_sediment_layers))
-        allocate(nm_size_classes(n_nm_size_classes))
+        allocate(contaminant_size_classes(n_contaminant_size_classes))
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(sediment_particle_densities(n_fractional_compositions))
-        ! Carry on reading in the different config groups
-        read(iouConfig, nml=nanomaterial); rewind(iouConfig)
-        read(iouConfig, nml=data); rewind(iouConfig)
-        read(iouConfig, nml=output); rewind(iouConfig)
-        read(iouConfig, nml=run); rewind(iouConfig)
-        ! Checkpoint and steady state - check if groups exist before reading
-        read(iouConfig, nml=checkpoint, iostat=nmlIOStat); rewind(iouConfig)
-        if (nmlIOStat .ge. 0) read(iouConfig, nml=checkpoint); rewind(iouConfig)
-        read(iouConfig, nml=steady_state, iostat=nmlIOStat); rewind(iouConfig)
-        if (nmlIOStat .ge. 0) read(iouConfig, nml=steady_state); rewind(iouConfig)
-        read(iouConfig, nml=soil); rewind(iouConfig)
-        read(iouConfig, nml=sediment); rewind(iouConfig)
-        read(iouConfig, nml=water, iostat=nmlIOStat); rewind(iouConfig)
-        if (nmlIOStat .ge. 0) read(iouConfig, nml=water); rewind(iouConfig)
+        rewind(iouConfig)
+        read(iouConfig, nml=contaminant)
+        read(iouConfig, nml=data)
+        read(iouConfig, nml=output)
+        read(iouConfig, nml=run)
+        read(iouConfig, nml=checkpoint)
+        read(iouConfig, nml=steady_state)
+        read(iouConfig, nml=soil)
+        read(iouConfig, nml=sediment)
+        read(iouConfig, nml=water)
         read(iouConfig, nml=sources)
         close(iouConfig)
-        
+
         ! Store this data in the Globals variable
-        ! Nanomaterial
-        C%nSizeClassesNM = n_nm_size_classes
-        C%nFormsNM = n_nm_forms
-        C%nExtraStatesNM = n_nm_extra_states
-        allocate(C%d_nm, source=nm_size_classes)
+        ! Contaminant
+        C%nContaminantSizeClasses = n_contaminant_size_classes
+        C%nContaminantForms = n_contaminant_forms
+        C%nContaminantExtraStates = n_contaminant_extra_states
+        allocate(C%d_contaminant, source=contaminant_size_classes)
         ! Data
         C%inputFile = input_file
         C%constantsFile = constants_file
@@ -346,7 +375,7 @@ module GlobalsModule
             C%hasSimulationMask = .true.
             C%simulationMaskPath = simulation_mask
         end if
-        C%ignoreNM = ignore_nm
+        C%ignoreContaminant = ignore_contaminant
         C%warmUpPeriod = warm_up_period
         C%bashColors = bash_colors
         ! Checkpointing
@@ -394,7 +423,7 @@ module GlobalsModule
             C%batchStartDate = C%batchStartDates(1)
             C%batchEndDate = C%batchStartDates(C%nChunks) + timedelta(C%batchNTimesteps(C%nChunks) - 1)
         else
-            C%nTimestepsInBatch = C%nTimesteps
+            C%nTimestepsInBatch = C%nTimeSteps
             C%batchStartDate = C%startDate
             C%batchEndDate = C%startDate + timedelta(C%nTimeSteps - 1)
             allocate(C%batchNTimesteps(1))
@@ -403,38 +432,28 @@ module GlobalsModule
 
         allocate(C%d_spm_low(C%nSizeClassesSpm))
         allocate(C%d_spm_upp(C%nSizeClassesSpm))
-        ! Set the upper and lower bounds of each size class, if treated as a distribution
         do n = 1, C%nSizeClassesSpm
-            ! Set the upper and lower limit of the size class's distributions
             if (n == C%nSizeClassesSpm) then
-                C%d_spm_upp(n) = 1                                              ! failsafe overall upper size limit
+                C%d_spm_upp(n) = 1.0_dp
             else
-                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2     ! Halfway between d_1 and d_2
-            end if                
+                C%d_spm_upp(n) = C%d_spm(n+1) - (C%d_spm(n+1)-C%d_spm(n))/2.0_dp
+            end if
         end do
         do n = 1, C%nSizeClassesSpm
             if (n == 1) then
-                C%d_spm_low(n) = 0                                              ! Particles can be any size below d_upp,1
+                C%d_spm_low(n) = 0.0_dp
             else
-                C%d_spm_low(n) = C%d_spm_upp(n-1)                               ! lower size boundary equals upper size boundary of lower size class
+                C%d_spm_low(n) = C%d_spm_upp(n-1)
             end if
-        end do        
+        end do
 
-        ! Array to store default NM and ionic array dimensions. NM:
-        !   1: NP size class
-        !   2: form (core, shell, coating, corona)
-        !   3: state (free, bound, heteroaggregated)
-        ! Ionic: Form (free ion, solution, adsorbed)
-        C%npDim = [C%nSizeClassesNM, C%nFormsNM, C%nSizeClassesSpm + C%nExtraStatesNM]
-        
+        C%contaminantDim = [C%nContaminantSizeClasses, C%nContaminantForms, C%nSizeClassesSpm + C%nContaminantExtraStates]
+
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
-        ! File operations
         errors(2) = ErrorInstance(code=200, message="File not found.")
         errors(3) = ErrorInstance(code=201, message="Variable not found in input file.")
-        ! Numerical calculations
         errors(6) = ErrorInstance(code=300, message="Newton's method failed to converge.")
-        ! Grid and geography
         errors(7) = ErrorInstance(code=401, &
             message="Invalid RiverReach inflow reference. Inflow must be from a neighbouring RiverReach.")
         errors(8) = ErrorInstance(code=402, &
@@ -448,26 +467,18 @@ module GlobalsModule
         errors(11) = ErrorInstance(code=405, &
             message="RiverReach lengths specified in input data sum to greater than straight-line river branch " // &
                         "length. Are you sure this is intended?", isCritical=.false.)
-        ! River routing
-        errors(11) = ErrorInstance(code=500, &
+        errors(12) = ErrorInstance(code=500, &
             message="All SPM advected from RiverReach.", isCritical=.false.)
-        errors(12) = ErrorInstance(code=501, &
+        errors(13) = ErrorInstance(code=501, &
             message="No input data provided for required SubRiver - check nSubRivers is correct.")
-        ! Soil
-        errors(13) = ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.)
-        ! General
-        errors(14) = ErrorInstance(code=901, message="Invalid RiverReach type index provided.")
-        errors(15) = ErrorInstance(code=902, message="Invalid Biota index provided.")
-        errors(16) = ErrorInstance(code=903, message="Invalid Reactor index provided.")
-        errors(17) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
+        errors(14) = ErrorInstance(code=600, message="All water removed from SoilLayer.", isCritical=.false.)
+        errors(15) = ErrorInstance(code=901, message="Invalid RiverReach type index provided.")
+        errors(16) = ErrorInstance(code=902, message="Invalid Biota index provided.")
+        errors(17) = ErrorInstance(code=903, message="Invalid Reactor index provided.")
+        errors(18) = ErrorInstance(code=904, message="Invalid BedSedimentLayer index provided.")
 
-        ! Add custom errors to the error handler
         call ERROR_HANDLER%init(errors=errors, triggerWarnings=C%triggerWarnings, on=error_output)
-        
-        ! Auditing the config. Must be done after error handler and logger
-        ! have been initialised
         call C%audit()
-
     end subroutine
 
     !> Audit the config file options
@@ -520,11 +531,11 @@ module GlobalsModule
     !! [D. R. Maidment, Handbook of Hydrology (2012)](https://books.google.co.uk/books/about/Handbook_of_hydrology.html?id=4_9OAAAAMAAJ)
     function rho_w(me, T, S)
         class(GlobalsType), intent(in) :: me                    !! This `Constants` instance
-        real, intent(in) :: T                                   !! Temperature \( T \) [deg C]
+        real(dp), intent(in) :: T                                   !! Temperature \( T \) [deg C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: rho_w                                       !! Density of water \( \rho_w \) [kg/m**3].
         if (present(S)) then
-            rho_w = 1000.0_dp*(1-(T+288.9414_dp)/(508929.2_dp*(T+68.12963_dp))*(T-3.9863_dp)**2) &
+        rho_w = 1000.0_dp*(1-(T+288.9414_dp)/(508929.2_dp*(T+68.12963_dp))*(T-3.9863_dp)**2) &
                     + (0.824493_dp - 0.0040899_dp*T + 0.000076438_dp*T**2 - 0.00000082467_dp*T**3 + 0.0000000053675_dp*T**4)*S &
                     + (-0.005724_dp + 0.00010227_dp*T - 0.0000016546_dp*T**2)*S**(3.0_dp/2.0_dp) &
                     + 0.00048314_dp*S**2
@@ -541,7 +552,7 @@ module GlobalsModule
     !! Reference: [T. Al-Shemmeri](http://varunkamboj.typepad.com/files/engineering-fluid-mechanics-1.pdf)
     function nu_w(me, T, S)
         class(GlobalsType), intent(in) :: me                    !! This Globals instance
-        real, intent(in) :: T                                   !! Temperature \( T \) [deg C]
+        real(dp), intent(in) :: T                                   !! Temperature \( T \) [deg C]
         real(dp), intent(in), optional :: S                     !! Salinity \( S \) [g/kg]
         real(dp) :: nu_w                                        !! Kinematic viscosity of water \( \nu_{\text{w}} \)
         if (present(S)) then
@@ -558,7 +569,7 @@ module GlobalsModule
     !! Reference: [T. Al-Shemmeri](http://varunkamboj.typepad.com/files/engineering-fluid-mechanics-1.pdf)
     function mu_w(me, T)
         class(GlobalsType), intent(in) :: me
-        real, intent(in) :: T
+        real(dp), intent(in) :: T
         real(dp) :: mu_w
         mu_w = (2.414e-5_dp * 10.0_dp**(247.8_dp/((T+273.15_dp)-140.0_dp)))
     end function

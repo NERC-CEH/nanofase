@@ -1,14 +1,15 @@
-!> Module containing definition of abstract base class AbstractSoilProfile
 module AbstractSoilProfileModule
     use GlobalsModule
     use AbstractSoilLayerModule
     use ResultModule, only: Result
+    use ContaminantModule
+    use DataInputModule, only: DATASET
     implicit none
 
-    !> Abstract base class for soil profiles. Defines properties and methods required in any implmentation
+    !> Abstract base class for soil profiles. Defines properties and methods required in any implementation
     !! of an AbstractSoilProfile class. This class acts as a container for a collection of SoilLayer objects,
-    !! which collectively define the layout of the SoilProfile. The SoilLayer class routes, water, eroded
-    !! soil (and ultimately NM) through a layer of soil
+    !! which collectively define the layout of the SoilProfile. The SoilLayer class routes water, eroded
+    !! soil (and ultimately contaminants) through a layer of soil
     type, abstract, public :: AbstractSoilProfile
         ! Setup and dimensions
         character(len=256)      :: ref                                  !! A reference name for the object
@@ -17,18 +18,6 @@ module AbstractSoilProfileModule
         integer                 :: p                                    !! SoilProfile index
         type(SoilLayerElement), allocatable :: colSoilLayers(:)         !! Array of `SoilLayerElement` objects to hold the soil layers
         real(dp)                :: area                                 !! The surface area of the `SoilProfile`
-        ! Nanomaterial
-        real(dp), allocatable   :: m_np(:,:,:)                          !! Mass of NM currently in profile [kg]
-        real(dp), allocatable   :: m_np_in(:,:,:)                       !! Mass of NM deposited to profile on a time step [kg]
-        real(dp), allocatable   :: m_np_buried(:,:,:)                   !! Cumulative mass of NM "lost" from the bottom `SoilLayer` [kg]
-        real(dp), allocatable   :: m_np_eroded(:,:,:)                   !! Mass of NM eroded on current timestep [kg]
-        real(dp), allocatable   :: m_transformed(:,:,:)                 !! Mass of transformed NM currently in profile [kg]
-        real(dp), allocatable   :: m_transformed_in(:,:,:)              !! Mass of transformed NM deposited to profile on a time step [kg]
-        real(dp), allocatable   :: m_transformed_buried(:,:,:)          !! Cumulative mass of transformed NM "lost" from the bottom `SoilLayer` [kg]
-        real(dp), allocatable   :: m_transformed_eroded(:,:,:)          !! Mass of transformed NM eroded on current timestep [kg]
-        real(dp), allocatable   :: m_dissolved                          !! Mass of dissolved NM currently in profile [kg]
-        real(dp), allocatable   :: m_dissolved_in                       !! Mass of dissolved NM deposited to profile on a time step [kg]
-        real(dp), allocatable   :: m_dissolved_buried                   !! Cumulative mass of dissolved NM "lost" from the bottom `SoilLayer` [kg]
         ! Hydrology and met
         real(dp)                :: n_river                              !! Manning's roughness coefficient for the river
         real(dp)                :: V_pool                               !! Pooled water from top SoilLayer for this timestep [m3 m-2]
@@ -36,13 +25,11 @@ module AbstractSoilProfileModule
         real                    :: q_precip                             !! Precipitation for this time step [m3 m-2 s-1]
         real, allocatable       :: q_evap_timeSeries(:)                 !! Time series of evapotranspiration data [m3 m-2 s-1]
         real                    :: q_evap                               !! Evapotranspiration for this time step [m3 m-2 s-1]
-        real(dp)                :: q_in
-            !! Infiltration for this time step: \( q_{\text{in}} = q_{\text{precip}} - q_{\text{evap}} \) [m3 m-2 s-1]
+        real(dp)                :: q_in                                 !! Infiltration for this time step: \( q_{\text{in}} = q_{\text{precip}} - q_{\text{evap}} \) [m3 m-2 s-1]
         real(dp)                :: WC_sat                               !! Water content at saturation [m3 m-3]
         real(dp)                :: WC_FC                                !! Water content at field capacity [m3 m-3]
         real(dp)                :: K_s                                  !! Saturated hydraulic conductivity [m s-1]
         real(dp)                :: V_buried                             !! Volume of buried water (from the bottom `SoilLayer`) [m3 m-2]
-            !! Total volume of water lost from the bottom of the SoilProfile, over the complete model run [m3 m-2]
         ! Soil properties. Sand + silt + clay = 100 %
         real                    :: sandContent                          !! Sand content of the soil [%]
         real                    :: siltContent                          !! Silt content of the soil [%]
@@ -68,23 +55,24 @@ module AbstractSoilProfileModule
         real(dp)                :: sedimentTransportCapacity            !! Maximum erodable sediment [kg/m2/timestep]
         real(dp), allocatable   :: distributionSediment(:)              !! Distribution to split sediment into
         logical                 :: isUrban = .false.                    !! Is this an urban soil?
+        type(Contaminant)       :: m_contaminant                       !! Total contaminant mass in profile [kg]
+        type(Contaminant)       :: m_contaminant_in                    !! Contaminant deposited to profile on a time step [kg]
+        type(Contaminant)       :: m_contaminant_buried                !! Cumulative contaminant "lost" from the bottom `SoilLayer` [kg]
+        type(Contaminant)       :: m_contaminant_eroded                !! Contaminant eroded on current timestep [kg]
       contains
-        procedure(createAbstractSoilProfile), deferred                      :: create
-        procedure(updateAbstractSoilProfile), deferred                      :: update
-        procedure(percolateAbstractSoilProfile), deferred                   :: percolate
-        procedure(erodeAbstractSoilProfile), deferred                       :: erode
-        procedure(bioturbationAbstractSoilProfile), deferred                :: bioturbation
-        procedure(imposeSizeDistributionAbstractSoilProfile), deferred      :: imposeSizeDistribution
-        procedure(calculateSizeDistributionAbstractSoilProfile), deferred   :: calculateSizeDistribution
-        procedure(calculateAverageGrainSizeAbstractSoilProfile), deferred   :: calculateAverageGrainSize
-        procedure(parseInputDataAbstractSoilProfile), deferred              :: parseInputData
-        procedure(parseNewBatchDataAbstractSoilProfile), deferred           :: parseNewBatchData
-        procedure(get_m_np_AbstractSoilProfile), deferred                   :: get_m_np
-        procedure(get_m_transformed_AbstractSoilProfile), deferred          :: get_m_transformed
-        procedure(get_m_dissolved_AbstractSoilProfile), deferred            :: get_m_dissolved
-        procedure(get_C_np_AbstractSoilProfile), deferred                   :: get_C_np
-        procedure(get_C_transformed_AbstractSoilProfile), deferred          :: get_C_transformed
-        procedure(get_C_dissolved_AbstractSoilProfile), deferred            :: get_C_dissolved
+        procedure(createAbstractSoilProfile), deferred :: create
+        procedure(updateAbstractSoilProfile), deferred :: update
+        procedure(percolateAbstractSoilProfile), deferred :: percolate
+        procedure(erodeAbstractSoilProfile), deferred :: erode
+        procedure(bioturbationAbstractSoilProfile), deferred :: bioturbation
+        procedure(imposeSizeDistributionAbstractSoilProfile), deferred :: imposeSizeDistribution
+        procedure(calculateSizeDistributionAbstractSoilProfile), deferred :: calculateSizeDistribution
+        procedure(calculateAverageGrainSizeAbstractSoilProfile), deferred :: calculateAverageGrainSize
+        procedure(parseInputDataAbstractSoilProfile), deferred :: parseInputData
+        procedure(parseNewBatchDataAbstractSoilProfile), deferred :: parseNewBatchData
+        procedure(get_m_contaminant_AbstractSoilProfile), deferred :: get_m_contaminant
+        procedure(get_C_contaminant_AbstractSoilProfile), deferred :: get_C_contaminant
+        procedure :: finalise => finaliseSoilProfile
     end type
 
     !> Container type for `class(AbstractSoilProfile)` such that a polymorphic
@@ -120,31 +108,27 @@ module AbstractSoilProfileModule
         end function
 
         !> Perform the AbstractSoilProfile's simulation for one timestep
-        function updateAbstractSoilProfile(me, t, j_np_diffuseSource, j_transformed_diffuseSource, &
-                                           j_dissolved_diffuseSource) result(r)
+        function updateAbstractSoilProfile(me, t, j_contaminant_diffuseSource) result(r)
             use GlobalsModule, only: dp
             use ResultModule, only: Result
+            use ContaminantModule
             import AbstractSoilProfile
-            class(AbstractSoilProfile) :: me                                !! This AbstractSoilProfile instance
-            integer                 :: t                                    !! The current time step
-            real(dp)                :: j_np_diffuseSource(:,:,:)            !! Difffuse source of NM for this timestep [kg/m2/timestep]
-            real(dp)                :: j_transformed_diffuseSource(:,:,:)   !! Diffuse source of transformed NM for this timestep [kg/m2/timestep]
-            real(dp)                :: j_dissolved_diffuseSource            !! Diffuse source of dissolved species for this timestep [kg/m2/timestep]
-            type(Result)            :: r                                    !! Result object to return
+            class(AbstractSoilProfile)    :: me                                !! This AbstractSoilProfile instance
+            integer                       :: t                                 !! The current time step
+            type(Contaminant), intent(in) :: j_contaminant_diffuseSource       !! Diffuse source of contaminant for this timestep
+            type(Result)                  :: r                                 !! Result object to return
         end function
 
         !> Percolate water through the AbstractSoilProfile for the current time step
-        function percolateAbstractSoilProfile(me, t, j_np_diffuseSource, j_transformed_diffuseSource, &
-                                              j_dissolved_diffuseSource) result(r)
+        function percolateAbstractSoilProfile(me, t, j_contaminant_diffuseSource) result(r)
             use GlobalsModule, only: dp
             use ResultModule, only: Result
+            use ContaminantModule
             import AbstractSoilProfile
-            class(AbstractSoilProfile) :: me                                !! This AbstractSoilProfile instance
-            integer                 :: t                                    !! The current time step
-            real(dp)                :: j_np_diffuseSource(:,:,:)            !! Diffuse source of NM for this timestep [kg/m2/timestep]
-            real(dp)                :: j_transformed_diffuseSource(:,:,:)   !! Diffuse source of transformed NM for this time step [kg/m2/timestep]
-            real(dp)                :: j_dissolved_diffuseSource            !! Diffuse source of dissolved species for this time step [kg/m2/timestep]
-            type(Result)            :: r                                    !! The Result object to return
+            class(AbstractSoilProfile)    :: me                                !! This AbstractSoilProfile instance
+            integer                       :: t                                 !! The current time step
+            type(Contaminant), intent(in) :: j_contaminant_diffuseSource       !! Diffuse source of contaminant for this timestep
+            type(Result)                  :: r                                 !! The Result object to return
         end function
 
         !> Erode soil for the current time step
@@ -189,16 +173,6 @@ module AbstractSoilProfileModule
             real                        :: d_grain                          !! The average grain size
         end function
 
-        function calculateClayEnrichmentAbstractSoilProfile(me, ssd, k_dist, a) result(ssdEnriched)
-            use GlobalsModule, only: C, dp
-            import AbstractSoilProfile
-            class(AbstractSoilProfile)  :: me                               !! This AbstractSoilProfile instance
-            real(dp)                    :: ssd(C%nSizeClassesSpm)           !! Original sediment size distribution
-            real(dp)                    :: k_dist                           !! Enrichment scaling factor
-            real(dp)                    :: a                                !! Enrichment skew factor
-            real(dp)                    :: ssdEnriched(C%nSizeClassesSpm)   !! Enriched sediment size distribution
-        end function
-
         !> Parses the input data for the `AbstractSoilProfile` from the data file
         function parseInputDataAbstractSoilProfile(me) result(r)
             use ResultModule, only: Result
@@ -212,48 +186,41 @@ module AbstractSoilProfileModule
             class(AbstractSoilProfile) :: me
         end subroutine
 
-        function get_m_np_AbstractSoilProfile(me) result(m_np)
-            use GlobalsModule, only: C, dp
+        function get_m_contaminant_AbstractSoilProfile(me) result(m_contaminant)
+            use ContaminantModule
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
-            real(dp), allocatable :: m_np(:,:,:)
+            type(Contaminant) :: m_contaminant
         end function
 
-        function get_m_transformed_AbstractSoilProfile(me) result(m_transformed)
-            use GlobalsModule, only: C, dp
-            import AbstractSoilProfile
-            class(AbstractSoilProfile) :: me
-            real(dp), allocatable :: m_transformed(:,:,:)
-        end function
-
-        function get_m_dissolved_AbstractSoilProfile(me) result(m_dissolved)
+        function get_C_contaminant_AbstractSoilProfile(me) result(C_contaminant)
             use GlobalsModule, only: dp
             import AbstractSoilProfile
             class(AbstractSoilProfile) :: me
-            real(dp) :: m_dissolved
+            real(dp), allocatable :: C_contaminant(:,:,:)
         end function
-
-        function get_C_np_AbstractSoilProfile(me) result(C_np)
-            use GlobalsModule, only: C, dp
-            import AbstractSoilProfile
-            class(AbstractSoilProfile) :: me
-            real(dp), allocatable :: C_np(:,:,:)
-        end function
-
-        function get_C_transformed_AbstractSoilProfile(me) result(C_transformed)
-            use GlobalsModule, only: C, dp
-            import AbstractSoilProfile
-            class(AbstractSoilProfile) :: me
-            real(dp), allocatable :: C_transformed(:,:,:)
-        end function
-
-        function get_C_dissolved_AbstractSoilProfile(me) result(C_dissolved)
-            use GlobalsModule, only: dp
-            import AbstractSoilProfile
-            class(AbstractSoilProfile) :: me
-            real(dp) :: C_dissolved
-        end function
-    
     end interface
 
+contains
+
+    subroutine finaliseSoilProfile(me)
+        class(AbstractSoilProfile) :: me
+        integer :: i
+        call me%m_contaminant%finalise()
+        call me%m_contaminant_in%finalise()
+        call me%m_contaminant_buried%finalise()
+        call me%m_contaminant_eroded%finalise()
+        if (allocated(me%colSoilLayers)) then
+            do i = 1, size(me%colSoilLayers)
+                if (allocated(me%colSoilLayers(i)%item)) then
+                    call me%colSoilLayers(i)%item%finalise()
+                end if
+            end do
+            deallocate(me%colSoilLayers)
+        end if
+        if (allocated(me%q_precip_timeSeries)) deallocate(me%q_precip_timeSeries)
+        if (allocated(me%q_evap_timeSeries)) deallocate(me%q_evap_timeSeries)
+        if (allocated(me%erodedSediment)) deallocate(me%erodedSediment)
+        if (allocated(me%distributionSediment)) deallocate(me%distributionSediment)
+    end subroutine
 end module
