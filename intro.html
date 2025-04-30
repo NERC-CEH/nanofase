@@ -192,6 +192,7 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="users/input-data.html">Input data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="users/nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="users/flow-dir-dem-conditioning.html">Flow direction and DEM conditioning</a></li>
 <li class="toctree-l2"><a class="reference internal" href="users/netcdf-namelist-input.html">NetCDF and namelist input data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="users/parameter-reference.html">Model parameter reference</a></li>
 </ul>
@@ -435,7 +436,7 @@ document.write(`
 </div>
 <section id="quickstart-guide">
 <h2>Quickstart guide<a class="headerlink" href="#quickstart-guide" title="Link to this heading">#</a></h2>
-<p>The easiest way to install the model is to use the <a class="reference internal" href="#%5Bhttps://fpm.fortran-lang.org/en/install/index.html#install%5D(https://fpm.fortran-lang.org/install/index.html#install)"><span class="xref myst">Fortran Package Manager</span></a>, which can be installed using Conda (<code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">-c</span> <span class="pre">conda-forge</span> <span class="pre">fpm</span></code>). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see <a class="reference internal" href="getting-started/building-the-model.html"><span class="std std-doc">Building the model</span></a>).</p>
+<p>The easiest way to install the model is to use the <a class="reference external" href="https://fpm.fortran-lang.org/install/index.html#installing-fpm">Fortran Package Manager</a>, which can be installed using Conda (<code class="docutils literal notranslate"><span class="pre">conda</span> <span class="pre">install</span> <span class="pre">-c</span> <span class="pre">conda-forge</span> <span class="pre">fpm</span></code>). The model also requires a recent version of GFortran, NetCDF Fortran and Git installed (see <a class="reference internal" href="getting-started/building-the-model.html"><span class="std std-doc">Building the model</span></a>).</p>
 <p>Clone the code (make sure to <code class="docutils literal notranslate"><span class="pre">--recurse-submodules</span></code>) and use <em>fpm</em> to install:</p>
 <div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:NERC-CEH/nanofase.git<span class="w"> </span>--recurse-submodules
 <span class="gp">$ </span><span class="nb">cd</span><span class="w"> </span>nanofase

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data output &#8212; NanoFASE</title>
+    <title>Flow direction and DEM conditioning &#8212; NanoFASE</title>
   
   
   
@@ -57,11 +57,11 @@
     <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
     <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
     <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'users/output';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'users/flow-dir-dem-conditioning';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Example workflows" href="example-workflows.html" />
-    <link rel="prev" title="Model parameter reference" href="parameter-reference.html" />
+    <link rel="next" title="NetCDF and namelist input data" href="netcdf-namelist-input.html" />
+    <link rel="prev" title="Compiling data with the NanoFASE data module" href="nanofase-data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -187,14 +187,14 @@
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Users</span></p>
 <ul class="current nav bd-sidenav">
-<li class="toctree-l1 has-children"><a class="reference internal" href="input-data.html">Input data</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="input-data.html">Input data</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="flow-dir-dem-conditioning.html">Flow direction and DEM conditioning</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Flow direction and DEM conditioning</a></li>
 <li class="toctree-l2"><a class="reference internal" href="netcdf-namelist-input.html">NetCDF and namelist input data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parameter-reference.html">Model parameter reference</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Data output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Data output</a></li>
 <li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
 <li class="toctree-l1"><a class="reference internal" href="temporal-period.html">Running the model for different temporal periods</a></li>
 <li class="toctree-l1"><a class="reference internal" href="batch.html">Batch runs</a></li>
@@ -287,7 +287,7 @@
       
       
       
-      <li><a href="https://github.com/nerc-ceh/nanofase/issues/new?title=Issue%20on%20page%20%2Fusers/output.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/nerc-ceh/nanofase/issues/new?title=Issue%20on%20page%20%2Fusers/flow-dir-dem-conditioning.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -317,7 +317,7 @@
       
       
       
-      <li><a href="../_sources/users/output.md" target="_blank"
+      <li><a href="../_sources/users/flow-dir-dem-conditioning.md" target="_blank"
    class="btn btn-sm btn-download-source-button dropdown-item"
    title="Download source file"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -401,7 +401,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Data output</h1>
+    <h1>Flow direction and DEM conditioning</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -411,8 +411,8 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration">Configuration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">Output files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directly-providing-flow-dir">Directly providing <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calculating-flow-dir-from-a-dem">Calculating <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> from a DEM</a></li>
 </ul>
             </nav>
         </div>
@@ -424,33 +424,44 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="data-output">
-<h1>Data output<a class="headerlink" href="#data-output" title="Link to this heading">#</a></h1>
-<p>Data output is handled by the <a class="reference download internal" download="" href="../_downloads/acbb8e5a32fb426800bcb037569c18ca/DataOutputModule.f90"><span class="xref download myst"><code class="docutils literal notranslate"><span class="pre">DataOutput</span></code></span></a> class and configured in the <a class="reference internal" href="#../../config/config.example.nml"><span class="xref myst">model config file</span></a>. Output is to a series of text files:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">summary.md</span></code>: A plain-text summary of the model simulation, including compartmental mean PECs. These means are simply a summary of what is output in the following CSV files.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">output_water.csv</span></code>: Output data for every waterbody.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">output_sediment.csv</span></code>: Output data for each waterbody’s bed sediment.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">output_soil.csv</span></code>: Output for each soil profile.</p></li>
-</ul>
-<!-- - `output_soil_biota.csv`: Output data for biota in each soil profile. -->
-<!-- - `output_water_biota.csv`: Output data for biota in each water body. -->
-<section id="configuration">
-<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading">#</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">&amp;output</span></code> group in the <a class="reference download internal" download="" href="../_downloads/6316d035efad1368d2a95e314a4eeb91/config.example.nml"><span class="xref download myst">model config file</span></a> is responsible for configuring data output. The following options are available:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">write_metadata_as_comment</span></code>: Should metadata (largely column descriptions) be writen to the header of each CSV file as <code class="docutils literal notranslate"><span class="pre">#</span></code> delimited comments? Top tip: If you turn metadata on and are using Pandas to read the data, then make sure to use the <code class="docutils literal notranslate"><span class="pre">comment</span></code> argument when reading the CSV: <code class="docutils literal notranslate"><span class="pre">df</span> <span class="pre">=</span> <span class="pre">pd.read_csv('output_water.csv',</span> <span class="pre">comment='#')</span></code>. <em>Defaults to true.</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">include_waterbody_breakdown</span></code>: For surface waters, should data for each waterbody be output, or should it be aggregated to grid cell level? <em>Defaults to true.</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">include_sediment_layer_breakdown</span></code>: Should data for each sediment layer be output, or only summaries of the whole sediment profile? <em>Defaults to true.</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">include_soil_layer_breakdown</span></code>: Should data for each soil layer be output, or only summaries of the whole soil profile? <em>Defaults to true.</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">include_soil_state_breakdown</span></code>: Should the breakdown of soil NM into free and attached states be output? Bear in mind that outputting a layer and state breakdown may result in particularly large output files. <em>Defaults to false.</em></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">include_sediment_fluxes</span></code>: Should the fluxes of sediment from/to waterbodies be included in the output (e.g. soil erosion, bank erosion, deposition/resuspension).</p></li>
-</ul>
-<p>In addition, two options to specific the units for concentrations (kg/m3 or kg/kg) in soils and sediments will soon be available: <code class="docutils literal notranslate"><span class="pre">soil_pec_units</span></code> and <code class="docutils literal notranslate"><span class="pre">sediment_pec_units</span></code>. Watch this space.</p>
+  <section class="tex2jax_ignore mathjax_ignore" id="flow-direction-and-dem-conditioning">
+<h1>Flow direction and DEM conditioning<a class="headerlink" href="#flow-direction-and-dem-conditioning" title="Link to this heading">#</a></h1>
+<p>The model routes water by using a flow direction raster, which uses standard eight-direction (D8) flow direction enconding. In <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>, this flow direction can either be provided by the <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> parameter, or <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> can attempt to deduce it from a digital elevation model (DEM) provided by the <code class="docutils literal notranslate"><span class="pre">dem</span></code> parameter.</p>
+<div class="important admonition">
+<p class="admonition-title"><code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> or <code class="docutils literal notranslate"><span class="pre">dem</span></code> as a basis for the grid</p>
+<p>Either the <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code>, or if <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> isn’t present, the <code class="docutils literal notranslate"><span class="pre">dem</span></code> variable, is used as the basis for the grid that defines the NetCDF file output by <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>. That is, parameters such as the CRS, bounds, resolution and mask are obtained from this variable. <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> does not do any reprojection of rasters from other grid systems (therefore, all provided rasters should be the same CRS and resolution), but it does clip rasters to the extent of <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code>/<code class="docutils literal notranslate"><span class="pre">dem</span></code>. This clipping includes masking over nodata values in <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code>/<code class="docutils literal notranslate"><span class="pre">dem</span></code>, and therefore it is one of these variable that decides which grid cells are modelled.</p>
+</div>
+<section id="directly-providing-flow-dir">
+<h2>Directly providing <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code><a class="headerlink" href="#directly-providing-flow-dir" title="Link to this heading">#</a></h2>
+<figure class="align-right">
+<img alt="../_images/flowdir.gif" src="../_images/flowdir.gif" />
+</figure>
+<p>If the <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> variable is present in <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>’s config, this will be used as the flow direction (regardless of whether <code class="docutils literal notranslate"><span class="pre">dem</span></code> is present). This variable should be a raster (openable by <a class="reference external" href="https://rasterio.readthedocs.io/en/latest/index.html">Rasterio</a>) and have an integer data type with either D8 values or nodata values.</p>
+<p>This flow direction <em>must</em> be resolved, otherwise running the model with it will fail. By resolved, we mean that all non-masked (nodata) cells must have a non-zero D8 value (1, 2, 4, 8, 16, 32, 64, 128), and that these values must not result in “pools” where cells flow into each other (e.g. neighbouring cells with the northerly cell having <code class="docutils literal notranslate"><span class="pre">flow_dir=4</span></code> and a southerly cell having <code class="docutils literal notranslate"><span class="pre">flow_dir=64</span></code>).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> group in the config file must contain a <code class="docutils literal notranslate"><span class="pre">path</span></code>, and optionally a <code class="docutils literal notranslate"><span class="pre">crs</span></code> value. The CRS is usually deduced from the provided raster, but in the case of rasters with ill-defined CRSs, the <code class="docutils literal notranslate"><span class="pre">crs</span></code> option gives the ability to override this. Note that this <em>does not</em> reproject the raster to this CRS, it simply assigns the CRS to the raster.</p>
 </section>
-<section id="output-files">
-<h2>Output files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
-<p>Column descriptions are given in the file metadata (if <code class="docutils literal notranslate"><span class="pre">write_metadata_as_comment</span></code> is set to <code class="docutils literal notranslate"><span class="pre">.true.</span></code>). For water, each row represents an individual waterbody on a timestep, if <code class="docutils literal notranslate"><span class="pre">include_waterbody_breakdown</span></code> is <code class="docutils literal notranslate"><span class="pre">.true.</span></code>, or aggregated to grid cell level if <code class="docutils literal notranslate"><span class="pre">.false.</span></code>. For soils and sediment, each row represents the entire soil/sediment profile in a grid cell on a particular timestep.</p>
+<section id="calculating-flow-dir-from-a-dem">
+<h2>Calculating <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> from a DEM<a class="headerlink" href="#calculating-flow-dir-from-a-dem" title="Link to this heading">#</a></h2>
+<p>Alternatively, if the <code class="docutils literal notranslate"><span class="pre">dem</span></code> variable is present and <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> is not, the model will <em>attempt</em> to deduce the flow direction from this DEM. To achieve this, either a <em>conditioned</em> DEM should be provided, or the config option <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> must be present to instruct <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> to attempt to condition the DEM.</p>
+<p>By <em>conditioned</em>, we mean that no pits, depressions or flats should be present in the DEM, as these will prevent a fully-resolved flow direction from being calculated. If an unconditioned DEM is provided (and the <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> option is not specified), <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> will raise an error. There are <a class="reference external" href="https://mattbartos.com/pysheds/">numerous</a> <a class="reference external" href="https://richdem.readthedocs.io/">tools</a> <a class="reference external" href="https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html">available</a> that can help condition DEMs.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> is present, <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> will attempt to condition the DEM using <a class="reference external" href="https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#BreachDepressionsLeastCost">Whitebox Tools’ <code class="docutils literal notranslate"><span class="pre">breach_depressions_least_cost</span></code> routine</a>. This is a fairly robust tool that is usually able to resolve most DEMs without significant alterations, but it might not work in all cases. <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> can either be <code class="docutils literal notranslate"><span class="pre">True</span></code>, or be a dict of further config options:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">condition_dem</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># If `save_dem_to_path` is set, the conditioned DEM will be saved to this path</span>
+<span class="w">  </span><span class="c1"># (even if the conditioning hasn&#39;t fully worked). If not, a temporary directory</span>
+<span class="w">  </span><span class="c1"># is used and the resulting DEM is deleted after the processing.</span>
+<span class="w">  </span><span class="nt">save_dem_to_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./dem.tif</span>
+<span class="w">  </span><span class="c1"># Additional config options specified here will be passed to `breach_depressions_least_cost`</span>
+<span class="w">  </span><span class="c1"># See https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#BreachDepressionsLeastCost</span>
+<span class="w">  </span><span class="c1"># If a value for `callback` is provided, it is ignored as we implement our own callback to</span>
+<span class="w">  </span><span class="c1"># deal with errors. The only required (by Whitebox) parameter is `dist`, which specifies</span>
+<span class="w">  </span><span class="c1"># the maximum search distance for breach paths in cells. The default value used in nfdata is 10000.</span>
+<span class="w">  </span><span class="nt">dist</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10000</span>
+</pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Currently, <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>’s flow direction algorithm assumes that nodata (masked) cells and cells immediately outside of the DEM’s bounding box are at a very low elevation, therefore forcing the flow direction from neighbouring cells towards them. Effectively, this means that nodata cells and the region outside of the DEM are treated as waterbodies into which neighbouring cell drain. Therefore, we only recommend to use this flow direction calculation functionality if this is a valid assumption for your scenario, otherwise you should provide a pre-resolved flow direction raster.</p>
+</div>
 </section>
 </section>
 
@@ -485,20 +496,20 @@ document.write(`
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="parameter-reference.html"
+       href="nanofase-data.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Model parameter reference</p>
+        <p class="prev-next-title">Compiling data with the NanoFASE data module</p>
       </div>
     </a>
     <a class="right-next"
-       href="example-workflows.html"
+       href="netcdf-namelist-input.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Example workflows</p>
+        <p class="prev-next-title">NetCDF and namelist input data</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -518,8 +529,8 @@ document.write(`
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration">Configuration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">Output files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directly-providing-flow-dir">Directly providing <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calculating-flow-dir-from-a-dem">Calculating <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> from a DEM</a></li>
 </ul>
   </nav></div>
 

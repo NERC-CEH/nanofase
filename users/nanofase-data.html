@@ -60,7 +60,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'users/nanofase-data';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="NetCDF and namelist input data" href="netcdf-namelist-input.html" />
+    <link rel="next" title="Flow direction and DEM conditioning" href="flow-dir-dem-conditioning.html" />
     <link rel="prev" title="Input data" href="input-data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -189,6 +189,7 @@
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="input-data.html">Input data</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow-dir-dem-conditioning.html">Flow direction and DEM conditioning</a></li>
 <li class="toctree-l2"><a class="reference internal" href="netcdf-namelist-input.html">NetCDF and namelist input data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parameter-reference.html">Model parameter reference</a></li>
 </ul>
@@ -422,9 +423,11 @@ document.write(`
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#constants-file-output-constants-file">Constants file - <code class="docutils literal notranslate"><span class="pre">output.constants_file</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#root-dir"><code class="docutils literal notranslate"><span class="pre">root_dir</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#land-use-config-land-use-config">Land use config - <code class="docutils literal notranslate"><span class="pre">land_use_config</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#dem-conditioning-condition-dem">DEM conditioning - <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">Parameters</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#flow-direction-and-dem">Flow direction and DEM</a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#point-source-emissions-and-temporal-profiles">Point source emissions and temporal profiles</a></li>
 </ul>
 </li>
@@ -554,19 +557,40 @@ options:
 <section id="setup">
 <h3>Setup<a class="headerlink" href="#setup" title="Link to this heading">#</a></h3>
 <p>The <code class="docutils literal notranslate"><span class="pre">create</span></code> and <code class="docutils literal notranslate"><span class="pre">edit</span></code> config files follow a similar layout. A variety of setup data is required and in the examples is placed at the top of the file. This includes file paths to input and output path, and model config info (e.g. timestep info):</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Setup</span>
-<span class="nt">nanomaterial</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TiO2</span><span class="w">                                    </span><span class="c1"># Name of the nanomaterial. Not used in model.</span>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Name of the nanomaterial. Not used in the model.</span>
+<span class="nt">nanomaterial</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">TiO2</span>
+<span class="c1"># Where do you want the output NetCDF and constants files to be stored?</span>
 <span class="nt">output</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">nc_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.nc</span><span class="w">                                  </span><span class="c1"># Where do you want the output NetCDF file to be stored?</span>
-<span class="w">  </span><span class="nt">constants_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./constants.nml</span><span class="w">                     </span><span class="c1"># Where do you want the output constants file to be stored?</span>
-<span class="nt">constants_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.example/thames_tio2_2015/constants.yaml</span><span class="w">    </span><span class="c1"># Where is the input constants file?</span>
-<span class="nt">land_use_config</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.example/thames_tio2_2015/land_use.yaml</span><span class="w">    </span><span class="c1"># Where is the input land use config file?</span>
-<span class="nt">root_dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.example/thames_tio2_2015/</span><span class="w">            </span><span class="c1"># Root dir, can be used in path variables below as &lt;root_dir&gt;</span>
-<span class="nt">iso3</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">GBR</span><span class="w">                                             </span><span class="c1"># iso3 code for country modelled</span>
+<span class="w">  </span><span class="nt">nc_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.nc</span>
+<span class="w">  </span><span class="nt">constants_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./constants.nml</span>
+<span class="c1"># Where is the input constants file?</span>
+<span class="nt">constants_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.example/thames_tio2_2015/constants.yaml</span>
+<span class="c1"># Where is the input land use config file (optional)?</span>
+<span class="nt">land_use_config</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.example/thames_tio2_2015/land_use.yaml</span>
+<span class="c1"># Root directory can be used in path variables below as &lt;root_dir&gt; (optional)</span>
+<span class="nt">root_dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./data.example/thames_tio2_2015/</span>
+<span class="c1"># ISO3 code using for filtering point source emissions to specific countries</span>
+<span class="nt">iso3</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">GBR</span>
+<span class="c1"># Number of timesteps, length of each timestep (in seconds) and start date</span>
+<span class="c1"># for the model run</span>
 <span class="nt">time</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">n</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">365</span><span class="w">                                              </span><span class="c1"># Number of timesteps to run the model for</span>
-<span class="w">  </span><span class="nt">dt</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">86400</span><span class="w">                                           </span><span class="c1"># Length of each timestep in seconds</span>
-<span class="w">  </span><span class="nt">start_date</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2015-01-01</span><span class="w">                              </span><span class="c1"># Start date for the model run</span>
+<span class="w">  </span><span class="nt">n</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">365</span>
+<span class="w">  </span><span class="nt">dt</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">86400</span>
+<span class="w">  </span><span class="nt">start_date</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2015-01-01</span>
+<span class="c1"># If the `condition_dem` config option is present, the compiler will attempt to remove</span>
+<span class="c1"># pits, depressions and flat areas from the DEM using WhiteboxTools&#39;</span>
+<span class="c1"># `breach_depressions_least_cost`. It can either be True or a dict of config options</span>
+<span class="nt">condition_dem</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># If `save_dem_to_path` is set, the conditioned DEM will be saved to this path</span>
+<span class="w">  </span><span class="c1"># (even if the conditioning hasn&#39;t fully worked). If not, a temporary directory</span>
+<span class="w">  </span><span class="c1"># is used and the resulting DEM is deleted after the processing.</span>
+<span class="w">  </span><span class="nt">save_dem_to_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./dem.tif</span>
+<span class="w">  </span><span class="c1"># Additional config options specified here will be passed to `breach_depressions_least_cost`</span>
+<span class="w">  </span><span class="c1"># See https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#BreachDepressionsLeastCost</span>
+<span class="w">  </span><span class="c1"># If a value for `callback` is provided, it is ignored as we implement our own callback to</span>
+<span class="w">  </span><span class="c1"># deal with errors. The only required (by Whitebox) parameter is `dist`, which specifies</span>
+<span class="w">  </span><span class="c1"># the maximum search distance for breach paths in cells. The default value used in nfdata is 10000.</span>
+<span class="w">  </span><span class="nt">dist</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10000</span>
 </pre></div>
 </div>
 <div class="admonition warning">
@@ -647,6 +671,11 @@ options:
 </tbody>
 </table>
 </div>
+<p>(nanofase-data:dem-conditioning)</p>
+</section>
+<section id="dem-conditioning-condition-dem">
+<h4>DEM conditioning - <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code><a class="headerlink" href="#dem-conditioning-condition-dem" title="Link to this heading">#</a></h4>
+<p>See <a class="reference internal" href="flow-dir-dem-conditioning.html"><span class="doc std std-doc">Flow direction and DEM conditioning</span></a>.</p>
 </section>
 </section>
 <section id="parameters">
@@ -664,6 +693,10 @@ options:
 <p class="sidebar-title">Time-varying emissions</p>
 <p>Individual model runs have constant emissions for the whole run. However, individual model runs can be chained together in a multi-year model run, each year having different areal emissions. See <a class="reference internal" href="batch.html"><span class="doc std std-doc">Batch runs</span></a>. This is how multi-year simulations with varying areal emissions are currently performed.</p>
 </aside>
+<section id="flow-direction-and-dem">
+<h4>Flow direction and DEM<a class="headerlink" href="#flow-direction-and-dem" title="Link to this heading">#</a></h4>
+<p>See <a class="reference internal" href="flow-dir-dem-conditioning.html"><span class="doc std std-doc">Flow direction and DEM conditioning</span></a> for details on the <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> and <code class="docutils literal notranslate"><span class="pre">dem</span></code> variables.</p>
+</section>
 <section id="point-source-emissions-and-temporal-profiles">
 <span id="nanofase-data-point-emissions"></span><h4>Point source emissions and temporal profiles<a class="headerlink" href="#point-source-emissions-and-temporal-profiles" title="Link to this heading">#</a></h4>
 <p>Unlike areal source emissions, which are (currently) constant throughout the model run, point sources can have a temporal profile applied and this makes their input a little more complicated than most variables (though I am working on making it simpler than it currently is).</p>
@@ -745,11 +778,11 @@ options:
       </div>
     </a>
     <a class="right-next"
-       href="netcdf-namelist-input.html"
+       href="flow-dir-dem-conditioning.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">NetCDF and namelist input data</p>
+        <p class="prev-next-title">Flow direction and DEM conditioning</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -781,9 +814,11 @@ options:
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#constants-file-output-constants-file">Constants file - <code class="docutils literal notranslate"><span class="pre">output.constants_file</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#root-dir"><code class="docutils literal notranslate"><span class="pre">root_dir</span></code></a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#land-use-config-land-use-config">Land use config - <code class="docutils literal notranslate"><span class="pre">land_use_config</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#dem-conditioning-condition-dem">DEM conditioning - <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parameters">Parameters</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#flow-direction-and-dem">Flow direction and DEM</a></li>
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#point-source-emissions-and-temporal-profiles">Point source emissions and temporal profiles</a></li>
 </ul>
 </li>

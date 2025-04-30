@@ -25,6 +25,17 @@ If you are manually creating this NetCDF file, pay careful attention to units, w
 
 This selection of parameters pertains to the geographical region modelled, such as its climate, topography and soil properties.
 
+(input-data:flow_dir)=
+`int flow_dir(y, x)`
+: *Required, unitless* \
+Flow direction of water in the grid cell, relating to the topography. In `nfdata`, this can be [deduced from the DEM](flow-dir-dem-conditioning). Uses the standard eight-direction (D8) flow direction encoding.
+
+```{figure} ../img/flowdir.gif
+---
+align: right
+---
+```
+
 (input-data:dem)=
 `int dem(y, x)`
 : *Optional, if not present then default slope of 0.0005 m/m is assumed. Units: dm. Standard name: `height_above_mean_sea_level`.* \
@@ -245,17 +256,8 @@ Grid resolution - the size of each grid cell.
 : *Required, units: metres* \
 Coordinates of the bounding box for the model grid, in order (left, top, right, bottom).
 
-The following variables are ultimately deduced from the [digital elevation model](input-data:dem) (DEM) and are used to define the surface water network within the model, meaning the surface water network is automatically deduced and does not need to be provided as an input (see [](conceptual-structure:surface-water-network)).
+The following variables are ultimately deduced from the [digital elevation model](input-data:dem) (DEM) and/or [flow direction](input-data:flow_dir) and are used to define the surface water network within the model, meaning the surface water network is automatically deduced and does not need to be provided as an input (see [](conceptual-structure:surface-water-network)).
 
-```{figure} ../img/flowdir.gif
----
-align: right
----
-```
-
-`int flow_dir(y, x)`
-: *Required, unitless* \
-Flow direction of water in the grid cell, relating to the topography and deduced from the [DEM](input-data:dem). Uses the standard eight-direction (D8) flow direction encoding.
 
 `short outflow(y, x, d)`
 : *Required, unitless* \

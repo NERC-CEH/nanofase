@@ -63,7 +63,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Model parameter reference" href="parameter-reference.html" />
-    <link rel="prev" title="Compiling data with the NanoFASE data module" href="nanofase-data.html" />
+    <link rel="prev" title="Flow direction and DEM conditioning" href="flow-dir-dem-conditioning.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -191,6 +191,7 @@
 <ul class="current nav bd-sidenav">
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="input-data.html">Input data</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="flow-dir-dem-conditioning.html">Flow direction and DEM conditioning</a></li>
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">NetCDF and namelist input data</a></li>
 <li class="toctree-l2"><a class="reference internal" href="parameter-reference.html">Model parameter reference</a></li>
 </ul>
@@ -468,6 +469,14 @@ document.write(`
 <section id="environmental-parameters">
 <h3>Environmental parameters<a class="headerlink" href="#environmental-parameters" title="Link to this heading">#</a></h3>
 <p>This selection of parameters pertains to the geographical region modelled, such as its climate, topography and soil properties.</p>
+<dl class="simple myst" id="input-data-flow-dir">
+<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">flow_dir(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required, unitless</em> <br />
+Flow direction of water in the grid cell, relating to the topography. In <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>, this can be <a class="reference internal" href="flow-dir-dem-conditioning.html"><span class="doc std std-doc">deduced from the DEM</span></a>. Uses the standard eight-direction (D8) flow direction encoding.</p>
+</dd>
+</dl>
+<figure class="align-right">
+<img alt="../_images/flowdir.gif" src="../_images/flowdir.gif" />
+</figure>
 <dl class="simple myst" id="input-data-dem">
 <dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">dem(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Optional, if not present then default slope of 0.0005 m/m is assumed. Units: dm. Standard name: <code class="docutils literal notranslate"><span class="pre">height_above_mean_sea_level</span></code>.</em> <br />
 Digital elevation model (height above mean sea level). In the model, this is only used to calculate slope, whilst in the NanoFASE data module, it is used to calculate numerous <a class="reference internal" href="#netcdf-namelist-input-secondary-derived-variables"><span class="std std-ref">secondary variables</span></a> for input to the model.</p>
@@ -671,14 +680,8 @@ Grid resolution - the size of each grid cell.</p>
 Coordinates of the bounding box for the model grid, in order (left, top, right, bottom).</p>
 </dd>
 </dl>
-<p>The following variables are ultimately deduced from the <a class="reference internal" href="#input-data-dem"><span class="std std-ref">digital elevation model</span></a> (DEM) and are used to define the surface water network within the model, meaning the surface water network is automatically deduced and does not need to be provided as an input (see <a class="reference internal" href="../theory/conceptual-structure.html#conceptual-structure-surface-water-network"><span class="std std-ref">Surface water network</span></a>).</p>
-<figure class="align-right">
-<img alt="../_images/flowdir.gif" src="../_images/flowdir.gif" />
-</figure>
+<p>The following variables are ultimately deduced from the <a class="reference internal" href="#input-data-dem"><span class="std std-ref">digital elevation model</span></a> (DEM) and/or <a class="reference internal" href="#input-data-flow-dir"><span class="std std-ref">flow direction</span></a> and are used to define the surface water network within the model, meaning the surface water network is automatically deduced and does not need to be provided as an input (see <a class="reference internal" href="../theory/conceptual-structure.html#conceptual-structure-surface-water-network"><span class="std std-ref">Surface water network</span></a>).</p>
 <dl class="simple myst">
-<dt><code class="docutils literal notranslate"><span class="pre">int</span> <span class="pre">flow_dir(y,</span> <span class="pre">x)</span></code></dt><dd><p><em>Required, unitless</em> <br />
-Flow direction of water in the grid cell, relating to the topography and deduced from the <a class="reference internal" href="#input-data-dem"><span class="std std-ref">DEM</span></a>. Uses the standard eight-direction (D8) flow direction encoding.</p>
-</dd>
 <dt><code class="docutils literal notranslate"><span class="pre">short</span> <span class="pre">outflow(y,</span> <span class="pre">x,</span> <span class="pre">d)</span></code></dt><dd><p><em>Required, unitless</em> <br />
 The (x, y) index of the outflow grid cell.</p>
 </dd>
@@ -903,12 +906,12 @@ Array that must be the same lenth as the number of sediment size classes (<code 
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="nanofase-data.html"
+       href="flow-dir-dem-conditioning.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Compiling data with the NanoFASE data module</p>
+        <p class="prev-next-title">Flow direction and DEM conditioning</p>
       </div>
     </a>
     <a class="right-next"
