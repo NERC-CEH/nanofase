@@ -116,19 +116,40 @@ The examples are annotated and should be self-explanatory. However, there are a 
 The `create` and `edit` config files follow a similar layout. A variety of setup data is required and in the examples is placed at the top of the file. This includes file paths to input and output path, and model config info (e.g. timestep info):
 
 ```yaml
-# Setup
-nanomaterial: TiO2                                    # Name of the nanomaterial. Not used in model.
+# Name of the nanomaterial. Not used in the model.
+nanomaterial: TiO2
+# Where do you want the output NetCDF and constants files to be stored?
 output:
-  nc_file: ./data.nc                                  # Where do you want the output NetCDF file to be stored?
-  constants_file: ./constants.nml                     # Where do you want the output constants file to be stored?
-constants_file: ./data.example/thames_tio2_2015/constants.yaml    # Where is the input constants file?
-land_use_config: ./data.example/thames_tio2_2015/land_use.yaml    # Where is the input land use config file?
-root_dir: ./data.example/thames_tio2_2015/            # Root dir, can be used in path variables below as <root_dir>
-iso3: GBR                                             # iso3 code for country modelled
+  nc_file: ./data.nc
+  constants_file: ./constants.nml
+# Where is the input constants file?
+constants_file: ./data.example/thames_tio2_2015/constants.yaml
+# Where is the input land use config file (optional)?
+land_use_config: ./data.example/thames_tio2_2015/land_use.yaml
+# Root directory can be used in path variables below as <root_dir> (optional)
+root_dir: ./data.example/thames_tio2_2015/
+# ISO3 code using for filtering point source emissions to specific countries
+iso3: GBR
+# Number of timesteps, length of each timestep (in seconds) and start date
+# for the model run
 time:
-  n: 365                                              # Number of timesteps to run the model for
-  dt: 86400                                           # Length of each timestep in seconds
-  start_date: 2015-01-01                              # Start date for the model run
+  n: 365
+  dt: 86400
+  start_date: 2015-01-01
+# If the `condition_dem` config option is present, the compiler will attempt to remove
+# pits, depressions and flat areas from the DEM using WhiteboxTools'
+# `breach_depressions_least_cost`. It can either be True or a dict of config options
+condition_dem:
+  # If `save_dem_to_path` is set, the conditioned DEM will be saved to this path
+  # (even if the conditioning hasn't fully worked). If not, a temporary directory
+  # is used and the resulting DEM is deleted after the processing.
+  save_dem_to_path: ./dem.tif
+  # Additional config options specified here will be passed to `breach_depressions_least_cost`
+  # See https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#BreachDepressionsLeastCost
+  # If a value for `callback` is provided, it is ignored as we implement our own callback to
+  # deal with errors. The only required (by Whitebox) parameter is `dist`, which specifies
+  # the maximum search distance for breach paths in cells. The default value used in nfdata is 10000.
+  dist: 10000
 ```
 
 ```{warning}
@@ -201,6 +222,11 @@ For reference, the NanoFASE land use categories are:
   - `other`
 ```
 
+(nanofase-data:dem-conditioning)
+#### DEM conditioning - `condition_dem`
+
+See [](./flow-dir-dem-conditioning).
+
 
 (nanofase-data:parameters)=
 ### Parameters
@@ -221,6 +247,10 @@ A few parameters require additional information:
 ```{margin} Time-varying emissions
 Individual model runs have constant emissions for the whole run. However, individual model runs can be chained together in a multi-year model run, each year having different areal emissions. See [](batch). This is how multi-year simulations with varying areal emissions are currently performed.
 ```
+
+#### Flow direction and DEM
+
+See [](flow-dir-dem-conditioning) for details on the `flow_dir` and `dem` variables.
 
 (nanofase-data:point-emissions)=
 #### Point source emissions and temporal profiles

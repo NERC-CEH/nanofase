@@ -14,6 +14,7 @@ parts:
     - file: users/input-data
       sections:
         - file: users/nanofase-data
+        - file: users/flow-dir-dem-conditioning
         - file: users/netcdf-namelist-input
         - file: users/parameter-reference
     - file: users/output
