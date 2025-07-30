@@ -54,7 +54,7 @@
     river_attachment_efficiency = 0.01
     estuary_attachment_efficiency = 0.01
     estuary_tidal_m2 = 2.25
-    estuary_ tidal_s2 = 0.62
+    estuary_tidal_s2 = 0.62
     estuary_mean_depth_expa = 19.4
     estuary_mean_depth_expb = 1.46e-05
     estuary_width_expa = 12548

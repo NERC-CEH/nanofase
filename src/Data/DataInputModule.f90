@@ -1033,6 +1033,7 @@ module DataInputModule
         class(Database)         :: me
         character(len=*)        :: constantsFile
         integer                 :: nmlIOStat
+        character(len=256)      :: nmlIOMsg
         integer :: n_biota, n_contaminant_size_classes, n_default_spm_size_distribution, &
                 n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
                 n_initial_c_org, n_k_growth, n_k_uptake_contaminant, n_k_elim_contaminant, &
@@ -1306,33 +1307,37 @@ module DataInputModule
         end if
         rewind(iouConstants)
 
-        read(iouConstants, nml=earthworm_densities, iostat=nmlIOStat)
+        read(iouConstants, nml=earthworm_densities, iostat=nmlIOStat, iomsg=nmlIOMsg)
         if (nmlIOStat /= 0) then
-            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read earthworm_densities namelist"))
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read earthworm_densities namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
             close(iouConstants)
             return
         end if
         rewind(iouConstants)
 
-        read(iouConstants, nml=soil, iostat=nmlIOStat)
+        read(iouConstants, nml=soil, iostat=nmlIOStat, iomsg=nmlIOMsg)
         if (nmlIOStat /= 0) then
-            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read soil namelist"))
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read soil namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
             close(iouConstants)
             return
         end if
         rewind(iouConstants)
 
-        read(iouConstants, nml=water, iostat=nmlIOStat)
+        read(iouConstants, nml=water, iostat=nmlIOStat, iomsg=nmlIOMsg)
         if (nmlIOStat /= 0) then
-            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read water namelist"))
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read water namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
             close(iouConstants)
             return
         end if
         rewind(iouConstants)
 
-        read(iouConstants, nml=sediment, iostat=nmlIOStat)
+        read(iouConstants, nml=sediment, iostat=nmlIOStat, iomsg=nmlIOMsg)
         if (nmlIOStat /= 0) then
-            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read sediment namelist"))
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read sediment namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
             close(iouConstants)
             return
         end if
