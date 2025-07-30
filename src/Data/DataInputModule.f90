@@ -1121,7 +1121,6 @@ module DataInputModule
         k_transform_pristine = default_k_transform_pristine
         estuary_meandering_factor = 0.0
         river_meandering_factor = 0.0
-        porosity = 0.0
         shear_rate = defaultShearRate
         min_water_temperature = defaultMinWaterTemperature
         max_water_temperature = defaultMaxWaterTemperature
