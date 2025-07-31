@@ -7,22 +7,22 @@ module ReactorModule
     implicit none
 
     type, public, extends(AbstractReactor) :: Reactor
-    character(len=100) :: compartment
-    real(dp) :: T_water  
-    real(dp), allocatable :: C_spm(:)
-    real(dp), allocatable :: W_settle_spm(:)
-    real :: G  
-    real(dp), allocatable :: k_att(:)
-    real(dp) :: alpha_att
-    real(dp) :: velocity  
-contains
-    procedure :: create => createReactor
-    procedure :: update => updateReactor
-    procedure :: finalise => finaliseReactor
-    procedure :: parseInputData => parseInputDataReactor
-end type
+        character(len=100) :: compartment
+        real(dp) :: T_water  
+        real(dp), allocatable :: C_spm(:)
+        real(dp), allocatable :: W_settle_spm(:)
+        real :: G  
+        real(dp), allocatable :: k_att(:)
+        real(dp) :: alpha_att
+        real(dp) :: velocity  
+      contains
+        procedure :: create => createReactor
+        procedure :: update => updateReactor
+        procedure :: finalise => finaliseReactor
+        procedure :: parseInputData => parseInputDataReactor
+    end type
 
-contains
+  contains
 
     function createReactor(me, x, y, compartment, contaminant_in, volume, T_water, &
                       C_spm, W_settle_spm, G, k_att, alpha_att, velocity) result(r)
