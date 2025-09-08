@@ -5,6 +5,7 @@ module ContaminantModule
     use mo_netcdf
     use DataInputModule, only: DATASET
     use LoggerModule, only: LOGR
+    use ConstantsDefaultsModule
     implicit none
 
     type, public :: Contaminant
@@ -61,7 +62,11 @@ module ContaminantModule
 
 contains
 
-    ! Local function to replace str from UtilModule
+    !> Local function to replace str from UtilModule.
+    !! This is included locally to avoid introducing a dependency on UtilModule,
+    !! which could potentially create circular dependencies in the module graph.
+    !! If UtilModule's str is needed elsewhere, consider importing it, but here
+    !! it's isolated for simplicity.
     function int_to_string(i) result(s)
         integer, intent(in) :: i
         character(len=20) :: s
@@ -69,6 +74,8 @@ contains
         s = trim(adjustl(s))
     end function
 
+    !> Negate a Contaminant object by multiplying its mass-related fields by -1.
+    !! Properties (rho_contaminant, rates, etc.) are copied from the original.
     function negate_contaminant(this) result(negated)
         type(Contaminant), intent(in) :: this
         type(Contaminant) :: negated
@@ -92,6 +99,11 @@ contains
         negated%compartment = this%compartment
     end function
 
+    !> Add two Contaminant objects, summing their mass fields (c and m_dissolved).
+    !! Properties (rho_contaminant, rates, etc.) are taken from the first operand ('this').
+    !! Note: This makes addition non-commutative for properties (A + B != B + A in terms of properties).
+    !! Always use the left operand as the base for properties. This behavior is intentional
+    !! to preserve the primary contaminant's characteristics; document usage accordingly.
     function add_contaminant(this, other) result(sum_result)
         type(Contaminant), intent(in) :: this
         type(Contaminant), intent(in) :: other
@@ -116,51 +128,82 @@ contains
         sum_result%compartment = this%compartment
     end function
 
+    !> Initialize a Contaminant object, allocating arrays and setting default values to zero.
+    !! Adds defensive finalize, dimension checks, and verbose logging.
     function contaminant_create(this) result(r)
         class(Contaminant), intent(inout) :: this
         type(Result) :: r
         integer :: alloc_stat
         type(ErrorInstance) :: err(1)
+        integer :: nx, nf, nz
 
-        if (C%contaminantDim(3) < SPM_CONTAMINANT_START + C%nSizeClassesSpm - 1) then
-            err(1) = ErrorInstance(code=900, message='Contaminant state dimension too small')
+        nx = C%contaminantDim(1)
+        nf = C%contaminantDim(2)
+        nz = C%contaminantDim(3)
+
+        call LOGR%add("Contaminant%create: requested dims = (" // trim(int_to_string(nx)) // "," // &
+                    trim(int_to_string(nf)) // "," // trim(int_to_string(nz)) // "); nSPM=" // &
+                    trim(int_to_string(C%nSizeClassesSpm)))
+        ! Defensive: clear any previous allocation
+        if (allocated(this%c) .or. allocated(this%k_hetero) .or. allocated(this%W_settle_contaminant) .or. &
+            allocated(this%individualContaminantMass) .or. allocated(this%C_contaminant_free_particle)) then
+            call LOGR%add("Contaminant%create: finalising previous allocation")
+            call this%finalise()
+        end if
+
+        ! Hard checks on dimensions
+        if (min(nx, nf, nz) <= 0) then
+            err(1) = ErrorInstance(code=900, message='Contaminant dims must all be > 0')
             call r%addError(err(1))
             call LOGR%toFile(errors=r%errors)
             return
         end if
-        allocate(this%c(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)), &
-                 this%k_hetero(C%contaminantDim(1), C%nSizeClassesSpm), &
-                 this%W_settle_contaminant(C%contaminantDim(1)), &
-                 this%individualContaminantMass(C%contaminantDim(1)), &
-                 this%C_contaminant_free_particle(C%contaminantDim(1)), &
-                 stat=alloc_stat)
+        if (nz < SPM_CONTAMINANT_START + C%nSizeClassesSpm - 1) then
+            err(1) = ErrorInstance(code=900, message='Contaminant state dimension too small for SPM classes')
+            call r%addError(err(1))
+            call LOGR%toFile(errors=r%errors)
+            return
+        end if
+
+        allocate(this%c(nx, nf, nz), &
+                this%k_hetero(nx, C%nSizeClassesSpm), &
+                this%W_settle_contaminant(nx), &
+                this%individualContaminantMass(nx), &
+                this%C_contaminant_free_particle(nx), &
+                stat=alloc_stat)
+
         if (alloc_stat /= 0) then
             err(1) = ErrorInstance(code=901, message='Contaminant allocation failed')
             call r%addError(err(1))
             call LOGR%toFile(errors=r%errors)
             return
         end if
-        this%c = 0.0_dp
-        this%m_dissolved = 0.0_dp
-        this%k_hetero = 0.0_dp
-        this%W_settle_contaminant = 0.0_dp
-        this%individualContaminantMass = 0.0_dp
-        this%C_contaminant_free_particle = 0.0_dp
-        this%rho_contaminant = 0.0_dp
-        this%k_diss_pristine = 0.0_dp
-        this%k_diss_transformed = 0.0_dp
-        this%k_transform_pristine = 0.0_dp
-        this%alpha_hetero = 0.0_dp
-        this%alpha_att = 0.0_dp
-        this%compartment = ''
+
+        this%c                          = 0.0_dp
+        this%m_dissolved                = 0.0_dp
+        this%k_hetero                   = 0.0_dp
+        this%W_settle_contaminant       = 0.0_dp
+        this%individualContaminantMass  = 0.0_dp
+        this%C_contaminant_free_particle= 0.0_dp
+        this%rho_contaminant            = 0.0_dp
+        this%k_diss_pristine            = 0.0_dp
+        this%k_diss_transformed         = 0.0_dp
+        this%k_transform_pristine       = 0.0_dp
+        this%alpha_hetero               = 0.0_dp
+        this%alpha_att                  = 0.0_dp
+        this%compartment                = ''
+
+        call LOGR%add("Contaminant%create: allocation OK")
     end function
 
-    function contaminant_create_from_data(this, data, compartment, contaminantDensity, &
+
+    !> Create a Contaminant from input data, setting properties and calculating settling velocities.
+    !! Adds a warning if scalar/class counts disagree; keeps single create path and debug logs.
+    function contaminant_create_from_data(this, compartment, contaminantDensity, &
                                         soilAttachmentEfficiency, riverAttachmentEfficiency, &
                                         estuaryAttachmentEfficiency, k_diss_pristine, &
                                         k_diss_transformed, k_transform_pristine, waterTemperature) result(r)
         class(Contaminant), intent(inout) :: this
-        type(NcDataset), intent(in), optional :: data
         character(len=*), intent(in) :: compartment
         real(dp), intent(in) :: contaminantDensity
         real(dp), intent(in) :: soilAttachmentEfficiency
@@ -171,57 +214,60 @@ contains
         real(dp), intent(in) :: k_transform_pristine
         real(dp), intent(in) :: waterTemperature
         type(Result) :: r
-        type(NcVariable) :: var
         type(ErrorInstance) :: err(1)
         integer :: n
 
+        call LOGR%add("Contaminant%create_from_data: compartment=" // trim(compartment))
         r = this%create()
         if (r%hasCriticalError()) then
             call LOGR%toFile(errors=r%errors)
             return
         end if
-        this%compartment = compartment
-        this%rho_contaminant = contaminantDensity
-        this%k_diss_pristine = k_diss_pristine
-        this%k_diss_transformed = k_diss_transformed
+
+        ! Sanity: warn if scalar count and allocated dimension differ
+        if (C%nContaminantSizeClasses /= C%contaminantDim(1)) then
+            err(1) = ErrorInstance(code=902, &
+                message="Mismatch: nContaminantSizeClasses /= contaminantDim(1); proceeding with contaminantDim(1)", &
+                isCritical=.false.)
+            call r%addError(err(1))
+            call LOGR%toFile(errors=r%errors)
+            call r%clear()
+        end if
+
+        this%compartment          = compartment
+        this%rho_contaminant      = contaminantDensity
+        this%k_diss_pristine      = k_diss_pristine
+        this%k_diss_transformed   = k_diss_transformed
         this%k_transform_pristine = k_transform_pristine
+
         select case (compartment)
-            case ('soil')
+            case ('soil','atmospheric')
                 this%alpha_hetero = soilAttachmentEfficiency
-                this%alpha_att = soilAttachmentEfficiency
+                this%alpha_att    = soilAttachmentEfficiency
             case ('water')
                 this%alpha_hetero = riverAttachmentEfficiency
-                this%alpha_att = riverAttachmentEfficiency
-            case ('estuary')
+                this%alpha_att    = riverAttachmentEfficiency
+            case ('estuary','sediment')
                 this%alpha_hetero = estuaryAttachmentEfficiency
-                this%alpha_att = estuaryAttachmentEfficiency
-            case ('sediment')
-                this%alpha_hetero = estuaryAttachmentEfficiency
-                this%alpha_att = estuaryAttachmentEfficiency
+                this%alpha_att    = estuaryAttachmentEfficiency
             case default
                 err(1) = ErrorInstance(code=900, message="Invalid compartment: " // trim(compartment))
                 call r%addErrors(err)
                 call LOGR%toFile(errors=r%errors)
                 return
         end select
-        do n = 1, C%nContaminantSizeClasses
+
+        do n = 1, C%contaminantDim(1)
             this%W_settle_contaminant(n) = this%calculateSettlingVelocity( &
-                C%d_contaminant(n), this%rho_contaminant, waterTemperature)
+                DATASET%contaminantSizeClasses(n), this%rho_contaminant, waterTemperature)
             this%individualContaminantMass(n) = this%rho_contaminant * (4.0_dp/3.0_dp) * &
-                C%pi * (C%d_contaminant(n)/2.0_dp)**3
+                C%pi * (DATASET%contaminantSizeClasses(n)/2.0_dp)**3
         end do
-        if (present(data)) then
-            var = data%getVariable('c')
-            if (data%hasVariable('c')) then
-                call var%getData(this%c)
-            end if
-            var = data%getVariable('m_dissolved')
-            if (data%hasVariable('m_dissolved')) then
-                call var%getData(this%m_dissolved)
-            end if
-        end if
+
+        call LOGR%add("Contaminant%create_from_data: parameters set and settling velocities computed")
     end function
 
+    !> Add the mass fields of another Contaminant to this one (in-place addition).
     subroutine contaminant_add(this, addition)
         class(Contaminant), intent(inout) :: this
         type(Contaminant), intent(in) :: addition
@@ -229,6 +275,7 @@ contains
         this%m_dissolved = this%m_dissolved + addition%m_dissolved
     end subroutine
 
+    !> Add a scaled version of another Contaminant's mass fields to this one.
     subroutine contaminant_add_scaled(this, addition, scale)
         class(Contaminant), intent(inout) :: this
         type(Contaminant), intent(in) :: addition
@@ -237,6 +284,7 @@ contains
         this%m_dissolved = this%m_dissolved + addition%m_dissolved * scale
     end subroutine
 
+    !> Multiply a Contaminant by a scalar, returning a new Contaminant with scaled masses.
     function multiply_contaminant_scalar(this, scalar) result(product)
         type(Contaminant), intent(in) :: this
         real(dp), intent(in) :: scalar
@@ -261,6 +309,7 @@ contains
         product%compartment = this%compartment
     end function
 
+    !> Set this Contaminant's masses to a scaled copy of the source's masses.
     subroutine contaminant_multiply_scalar(this, source, scalar)
         class(Contaminant), intent(inout) :: this
         type(Contaminant), intent(in) :: source
@@ -285,6 +334,7 @@ contains
         this%compartment = source%compartment
     end subroutine
 
+    !> Divide the contaminant's masses by a denominator, returning a new object; sets to zero if denominator is near zero.
     function contaminant_divideCheckZero(this, denominator) result(divided)
         class(Contaminant), intent(in) :: this
         real(dp), intent(in) :: denominator
@@ -316,12 +366,14 @@ contains
         divided%compartment = this%compartment
     end function
 
+    !> Reset the contaminant's mass fields to zero without deallocating arrays.
     subroutine contaminant_empty(this)
         class(Contaminant), intent(inout) :: this
         if (allocated(this%c)) this%c = 0.0_dp
         this%m_dissolved = 0.0_dp
     end subroutine
 
+    !> Deallocate all allocated arrays in the Contaminant and reset compartment.
     subroutine contaminant_finalise(this)
         class(Contaminant), intent(inout) :: this
         if (allocated(this%c)) deallocate(this%c)
@@ -333,6 +385,7 @@ contains
         this%compartment = ''
     end subroutine
 
+    !> Update the contaminant based on compartment type, dispatching to specific update methods.
     function contaminant_update(this, dt, T_water, C_spm, W_settle_spm, G, volume, compartment, k_att, alpha_att) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt, T_water
@@ -378,6 +431,7 @@ contains
         end select
     end function
 
+    !> Update for water/estuary: Calculate particle concentrations, perform heteroaggregation, dissolution, and transformation.
     function contaminant_update_water(this, dt, T_water, C_spm, W_settle_spm, G, volume) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt, T_water
@@ -392,9 +446,10 @@ contains
             C_spm_particle(s) = this%calculateParticleConcentration(C_spm(s), &
                 real(sum(C%sedimentParticleDensities)/C%nSizeClassesSpm,dp), real(C%d_spm(s),dp))
         end do
-        do n = 1, C%nContaminantSizeClasses
+        do n = 1, C%contaminantDim(1)
+            ! FIX: Use the initialized DATASET%contaminantSizeClasses instead of uninitialized C%d_contaminant
             this%C_contaminant_free_particle(n) = this%calculateParticleConcentration( &
-                sum(this%c(n,:,FREE_CONTAMINANT))/volume, this%rho_contaminant, real(C%d_contaminant(n),dp))
+                sum(this%c(n,:,FREE_CONTAMINANT))/volume, this%rho_contaminant, DATASET%contaminantSizeClasses(n))
         end do
         call r%addErrors(.errors. this%heteroaggregation(dt, T_water, C_spm, W_settle_spm, C_spm_particle))
         call r%addErrors(.errors. this%dissolution(dt))
@@ -402,6 +457,7 @@ contains
         deallocate(C_spm_particle)
     end function
 
+    !> Update for sediment: Similar to water update, focusing on heteroaggregation, dissolution, and transformation.
     function contaminant_update_sediment(this, dt, T_water, C_spm, W_settle_spm, G, volume) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt, T_water
@@ -416,9 +472,10 @@ contains
             C_spm_particle(s) = this%calculateParticleConcentration(C_spm(s), &
                 real(sum(C%sedimentParticleDensities)/C%nSizeClassesSpm,dp), real(C%d_spm(s),dp))
         end do
-        do n = 1, C%nContaminantSizeClasses
+        do n = 1, C%contaminantDim(1)
+            ! FIX: Use the initialized DATASET%contaminantSizeClasses instead of uninitialized C%d_contaminant
             this%C_contaminant_free_particle(n) = this%calculateParticleConcentration( &
-                sum(this%c(n,:,FREE_CONTAMINANT))/volume, this%rho_contaminant, real(C%d_contaminant(n),dp))
+                sum(this%c(n,:,FREE_CONTAMINANT))/volume, this%rho_contaminant, DATASET%contaminantSizeClasses(n))
         end do
         call r%addErrors(.errors. this%heteroaggregation(dt, T_water, C_spm, W_settle_spm, C_spm_particle))
         call r%addErrors(.errors. this%dissolution(dt))
@@ -426,6 +483,7 @@ contains
         deallocate(C_spm_particle)
     end function
 
+    !> Update for soil: Includes heteroaggregation, attachment to soil matrix, dissolution, and transformation.
     function contaminant_update_soil(this, dt, T_water, C_spm, W_settle_spm, G, volume, k_att, alpha_att) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt, T_water
@@ -441,9 +499,10 @@ contains
             C_spm_particle(s) = this%calculateParticleConcentration(C_spm(s), &
                 real(sum(C%sedimentParticleDensities)/C%nSizeClassesSpm,dp), real(C%d_spm(s),dp))
         end do
-        do n = 1, C%nContaminantSizeClasses
+        do n = 1, C%contaminantDim(1)
+            ! FIX: Use the initialized DATASET%contaminantSizeClasses instead of uninitialized C%d_contaminant
             this%C_contaminant_free_particle(n) = this%calculateParticleConcentration( &
-                sum(this%c(n,:,FREE_CONTAMINANT))/volume, this%rho_contaminant, real(C%d_contaminant(n),dp))
+                sum(this%c(n,:,FREE_CONTAMINANT))/volume, this%rho_contaminant, DATASET%contaminantSizeClasses(n))
         end do
         call r%addErrors(.errors. this%heteroaggregation(dt, T_water, C_spm, W_settle_spm, C_spm_particle))
         call r%addErrors(.errors. this%attachment(dt, k_att, alpha_att))
@@ -452,23 +511,24 @@ contains
         deallocate(C_spm_particle)
     end function
 
+    !> Perform heteroaggregation: Calculate collision rates, update heteroaggregation rates, and transfer mass from free to attached states.
     function contaminant_heteroaggregation(this, dt, T_water, C_spm, W_settle_spm, C_spm_particle) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt, T_water
         real(dp), intent(in) :: C_spm(:)
         real(dp), intent(in) :: W_settle_spm(:), C_spm_particle(:)
         type(Result) :: r
-        real(dp) :: k_coll(C%nContaminantSizeClasses, C%nSizeClassesSpm)
+        real(dp) :: k_coll(C%contaminantDim(1), C%nSizeClassesSpm)
         integer :: s, n, f
         real(dp) :: dm_hetero, G  
         G = 0.0_dp  
         k_coll = this%calculateCollisionRate(T_water, G, W_settle_spm)
         do s = 1, C%nSizeClassesSpm
-            do n = 1, C%nContaminantSizeClasses
+            do n = 1, C%contaminantDim(1)
                 this%k_hetero(n,s) = k_coll(n,s) * this%alpha_hetero * C_spm_particle(s)
             end do
         end do
-        do n = 1, C%nContaminantSizeClasses
+        do n = 1, C%contaminantDim(1)
             do f = 1, C%nContaminantForms
                 dm_hetero = min(sum(this%k_hetero(n,:))*dt*this%c(n,f,FREE_CONTAMINANT), this%c(n,f,FREE_CONTAMINANT))
                 this%c(n,f,FREE_CONTAMINANT) = this%c(n,f,FREE_CONTAMINANT) - dm_hetero
@@ -482,6 +542,7 @@ contains
         end do
     end function
 
+    !> Perform attachment to matrix: Transfer mass from free to attached state based on attachment rates.
     function contaminant_attachment(this, dt, k_att, alpha_att) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt
@@ -489,7 +550,7 @@ contains
         type(Result) :: r
         integer :: n, f
         real(dp) :: dm_att
-        do n = 1, C%nContaminantSizeClasses
+        do n = 1, C%contaminantDim(1)
             do f = 1, C%nContaminantForms
                 dm_att = min(k_att(n) * alpha_att * dt * this%c(n,f,FREE_CONTAMINANT), this%c(n,f,FREE_CONTAMINANT))
                 this%c(n,f,FREE_CONTAMINANT) = this%c(n,f,FREE_CONTAMINANT) - dm_att
@@ -498,11 +559,12 @@ contains
         end do
     end function
 
+    !> Perform dissolution: Transfer mass from particulate forms to dissolved based on dissolution rates.
     function contaminant_dissolution(this, dt) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt
         type(Result) :: r
-        real(dp) :: dm_diss(C%nContaminantSizeClasses, C%nContaminantForms, C%contaminantDim(3))
+        real(dp) :: dm_diss(C%contaminantDim(1), C%nContaminantForms, C%contaminantDim(3))
         integer :: f
         do f = 1, C%nContaminantForms
             if (f == 1) then
@@ -515,11 +577,12 @@ contains
         end do
     end function
 
+    !> Perform transformation: Transfer mass from pristine to transformed form if multiple forms exist.
     function contaminant_transformation(this, dt) result(r)
         class(Contaminant), intent(inout) :: this
         real(dp), intent(in) :: dt
         type(Result) :: r
-        real(dp) :: dm_transform(C%nContaminantSizeClasses, C%nContaminantForms, C%contaminantDim(3))
+        real(dp) :: dm_transform(C%contaminantDim(1), C%nContaminantForms, C%contaminantDim(3))
         if (C%nContaminantForms > 1) then
             dm_transform = 0.0_dp
             dm_transform(:,1,:) = min(this%k_transform_pristine * dt * this%c(:,1,:), this%c(:,1,:))
@@ -528,6 +591,7 @@ contains
         end if
     end function
 
+    !> Calculate total concentration (sum of all masses divided by volume).
     function contaminant_getConcentration(this, volume) result(r)
         class(Contaminant), intent(in) :: this
         real(dp), intent(in) :: volume
@@ -545,37 +609,42 @@ contains
         end if
     end function
 
+    !> Get concentrations of free (non-attached) contaminant.
     function contaminant_get_free(this) result(C_free)
         class(Contaminant), intent(in) :: this
         real(dp) :: C_free(C%contaminantDim(1), C%contaminantDim(2))
         C_free = this%c(:,:,FREE_CONTAMINANT)
     end function
 
+    !> Get concentrations of attached contaminant.
     function contaminant_get_attached(this) result(C_attached)
         class(Contaminant), intent(in) :: this
         real(dp) :: C_attached(C%contaminantDim(1), C%contaminantDim(2))
         C_attached = this%c(:,:,ATTACHED_CONTAMINANT)
     end function
 
+    !> Calculate collision rates between contaminant and SPM particles using Brownian, shear, and differential settling terms.
     function contaminant_calculateCollisionRate(this, T_water, G, W_settle_spm) result(k_coll)
         class(Contaminant), intent(in) :: this
         real(dp), intent(in) :: T_water
         real(dp), intent(in) :: G
         real(dp), intent(in) :: W_settle_spm(:)
-        real(dp) :: k_coll(C%nContaminantSizeClasses, C%nSizeClassesSpm)
+        real(dp) :: k_coll(C%contaminantDim(1), C%nSizeClassesSpm)
         integer :: n, s
         do s = 1, C%nSizeClassesSpm
-            do n = 1, C%nContaminantSizeClasses
+            do n = 1, C%contaminantDim(1)
+                ! FIX: Use the initialized DATASET%contaminantSizeClasses instead of uninitialized C%d_contaminant
                 k_coll(n,s) = (2.0_dp*C%k_B*(T_water+273.15_dp)/(3.0_dp*C%mu_w(T_water))) &
-                            * (C%d_spm(s)/2.0_dp + C%d_contaminant(n)/2.0_dp)**2 / &
-                              ((C%d_spm(s)/2.0_dp)*(C%d_contaminant(n)/2.0_dp)) &
-                            + (4.0_dp/3.0_dp)*G*(C%d_contaminant(n)/2.0_dp + C%d_spm(s)/2.0_dp)**3 &
-                            + C%pi*(C%d_spm(s)/2.0_dp+C%d_contaminant(n)/2.0_dp)**2 * &
+                            * (C%d_spm(s)/2.0_dp + DATASET%contaminantSizeClasses(n)/2.0_dp)**2 / &
+                              ((C%d_spm(s)/2.0_dp)*(DATASET%contaminantSizeClasses(n)/2.0_dp)) &
+                            + (4.0_dp/3.0_dp)*G*(DATASET%contaminantSizeClasses(n)/2.0_dp + C%d_spm(s)/2.0_dp)**3 &
+                            + C%pi*(C%d_spm(s)/2.0_dp+DATASET%contaminantSizeClasses(n)/2.0_dp)**2 * &
                               abs(this%W_settle_contaminant(n) - W_settle_spm(s))
             end do
         end do
     end function
 
+    !> Calculate number concentration of particles from mass concentration, density, and diameter.
     function contaminant_calculateParticleConcentration(this, C_mass, rho_particle, d) result(C_particle)
         class(Contaminant), intent(in) :: this
         real(dp), intent(in) :: C_mass, rho_particle, d
@@ -583,12 +652,13 @@ contains
         C_particle = C_mass / (rho_particle*(4.0_dp/3.0_dp)*C%pi*(d/2.0_dp)**3)
     end function
 
+    !> Calculate attachment rate to porous media using colloid filtration theory.
     function contaminant_calculateAttachmentRate(this, T_water, porosity, d_grain, velocity) result(k_att)
         class(Contaminant), intent(in) :: this
         real(dp), intent(in) :: T_water
         real(dp), intent(in) :: porosity, d_grain
         real(dp), intent(in), optional :: velocity
-        real(dp) :: k_att(C%nContaminantSizeClasses)
+        real(dp) :: k_att(C%contaminantDim(1))
         integer :: i
         real(dp) :: gamma, r_i, kBT, N_G, N_VDW, N_Pe, N_R, A_s, eta_grav, eta_intercept, eta_Brownian, eta_0, lambda_filter, D_i
         real(dp) :: v
@@ -606,8 +676,9 @@ contains
         kBT = C%k_B * (T_water + 273.15_dp)
         N_VDW = DATASET%soilHamakerConstant / kBT
         A_s = 2.0_dp * (1.0_dp - gamma**5) / (2.0_dp - 3.0_dp*gamma + 3.0_dp*gamma**5 - 2.0_dp*gamma**6)
-        do i = 1, C%nContaminantSizeClasses
-            r_i = real(C%d_contaminant(i),dp) * 0.5_dp
+        do i = 1, C%contaminantDim(1)
+            ! FIX: Use the initialized DATASET%contaminantSizeClasses instead of uninitialized C%d_contaminant
+            r_i = DATASET%contaminantSizeClasses(i) * 0.5_dp
             D_i = kBT / (6.0_dp * C%pi * C%mu_w(T_water) * r_i)
             N_Pe = v * d_grain / D_i
             N_G = 2.0_dp * r_i**2 * (DATASET%soilParticleDensity - C%rho_w(T_water)) * C%g &
@@ -622,6 +693,7 @@ contains
         end do
     end function
 
+    !> Calculate settling velocity using Stokes' law.
     function contaminant_calculateSettlingVelocity(this, d, rho_particle, T_water) result(W_settle)
         class(Contaminant), intent(in) :: this
         real(dp), intent(in) :: d, rho_particle

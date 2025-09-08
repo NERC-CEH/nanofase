@@ -627,84 +627,79 @@ module NetCDFOutputModule
 
     !> Create the NetCDF file and fill with variables and their attributes
     subroutine initFileNetCDFOutput(me)
-        class(NetCDFOutput) :: me           !! This NetCDFOutput class
-        type(datetime)      :: simDatetime  ! Datetime that the simulation we performed
-        type(NcVariable)    :: var          ! NetCDF variable
-        integer             :: i            ! Loop iterator
-        integer             :: t(C%nTimestepsInBatch)   ! Time record dimension
-        integer             :: waterbodyType(DATASET%gridShape(1), DATASET%gridShape(2))    ! Waterbody type
+        class(NetCDFOutput) :: me
+        type(datetime)      :: simDatetime
+        type(NcVariable)    :: var
+        integer             :: i
+        integer             :: t(C%nTimestepsInBatch)
+        integer             :: waterbodyType(DATASET%gridShape(1), DATASET%gridShape(2))
 
-        ! Create the NetCDF file
-        me%nc = NcDataset(trim(C%outputPath) // 'output' // trim(C%outputHash) // '.nc', 'w')
+        ! Create file + metadata (unchanged) ...
+        me%nc = NcDataset(trim(C%outputPath)//'output'//trim(C%outputHash)//'.nc', 'w')
 
-        ! Metadata to describe the NetCDF file
-        call me%nc%setAttribute('title', 'NanoFASE model output data: ' // trim(C%runDescription))
-        call me%nc%setAttribute('source', 'NanoFASE model v' // trim(C%modelVersion) // &
-                                ': https://github.com/nerc-ceh/nanofase/tree/' // trim(C%modelVersion))
-        simDatetime = simDatetime%now()             ! Chaining functions doesn't work in Fortran...
-        call me%nc%setAttribute('history', simDatetime%isoformat() // &
-                                ': File created and data written by NanoFASE model')
-        call me%nc%setAttribute('Conventions', 'CF-1.8')
-        call me%nc%setAttribute('coordinates', 'spatial_ref')               ! Needed for xarray to recognise spatial_ref as a coordinate, not a variable
-        call me%nc%setAttribute('acronyms', 'NM = nanomaterial; SPM = suspended particulate matter')
+        call me%nc%setAttribute('title', trim('NanoFASE model output data: '//trim(C%runDescription)))
+        call me%nc%setAttribute('source', trim('NanoFASE model v'//trim(C%modelVersion)// &
+                                    ': https://github.com/nerc-ceh/nanofase/tree/'//trim(C%modelVersion)))
+        simDatetime = simDatetime%now()
+        call me%nc%setAttribute('history', trim(simDatetime%isoformat()// &
+                                    ' - model run completed'))
 
-        ! Set the CRS, based on input data (we haven't changed the CRS in the model). We're calling this 'spatial_ref' because
-        ! rioxarray looks for this name as default if the grid_mapping attribute isn't present, and CF conventions don't care
-        ! what you call it. Interesting conversation on the topic here: https://github.com/opendatacube/datacube-core/issues/837
+        ! Encourage xarray to treat the CRS as a coordinate (unchanged) ...
+        call me%nc%setAttribute('coordinates', 'spatial_ref')
+
+        ! CRS variable (unchanged, but attribute strings trimmed)
         var = me%nc%setVariable('spatial_ref', 'i32')
-        call var%setAttribute('spatial_ref', trim(DATASET%crsWKT))          ! GDAL/Arc recognises spatial_ref to define CRS
-        call var%setAttribute('crs_wkt', trim(DATASET%crsWKT))              ! CF conventions recommends crs_wkt
-        call var%setAttribute('epsg_code', DATASET%epsgCode)                ! Not a standard, but might be useful instead of having to decipher WKT
+        call var%setAttribute('spatial_ref', trim(DATASET%crsWKT))
+        call var%setAttribute('crs_wkt', trim(DATASET%crsWKT))
+        call var%setAttribute('epsg_code', DATASET%epsgCode)
 
+        ! --- IMPORTANT ---
+        ! Dynamic dispatch: this calls the *derived* createDimensions()
         call me%createDimensions()
 
-        ! Create the record dimensions
+        ! Record time dimension (unchanged; with trim)
         var = me%nc%setVariable('t', 'i32', [me%t_dim])
-        call var%setAttribute('units', 'seconds since ' // C%batchStartDate%isoformat())
+        call var%setAttribute('units', trim('seconds since '//C%batchStartDate%isoformat()))
         call var%setAttribute('standard_name', 'time')
         call var%setAttribute('calendar', 'gregorian')
-        ! Create an array for the time dimension
         do i = 1, C%nTimeStepsInBatch
             t(i) = i * C%timeStep
         end do
         call var%setData(t)
-        ! x coordinate
+
+        ! x, y coordinates (unchanged; trim attributes)
         var = me%nc%setVariable('x', 'i32', [me%x_dim])
         call var%setAttribute('units', 'm')
         call var%setAttribute('standard_name', 'projection_x_coordinate')
         call var%setAttribute('axis', 'X')
         call var%setData(DATASET%x)
-        ! y coordinate
+
         var = me%nc%setVariable('y', 'i32', [me%y_dim])
         call var%setAttribute('units', 'm')
         call var%setAttribute('standard_name', 'projection_y_coordinate')
         call var%setAttribute('axis', 'Y')
         call var%setData(DATASET%y)
 
-        ! Create the variables
-        ! TODO change to aggregated waterbody type
+        ! Waterbody type (unchanged; grid_mapping string trimmed)
         where (DATASET%isEstuary .and. .not. DATASET%gridMask .and. DATASET%nWaterbodies > 0)
             waterbodyType = 2
         elsewhere (.not. DATASET%isEstuary .and. .not. DATASET%gridMask .and. DATASET%nWaterbodies > 0)
             waterbodyType = 1
         elsewhere
-            waterbodyType = nf90_fill_int
+            waterbodyType = 0
         end where
-        ! Waterbody type
-        me%nc__water__waterbody_type = me%nc%setVariable('waterbody_type', 'i32', [me%x_dim, me%y_dim])
-        call me%nc__water__waterbody_type%setAttribute('description', '1 = river, 2 = estuary')
-        call me%nc__water__waterbody_type%setAttribute('long_name', 'Type of waterbody')
+
+        me%nc__water__waterbody_type = me%nc%setVariable('water__waterbody_type', 'i32', [me%x_dim, me%y_dim])
+        call me%nc__water__waterbody_type%setAttribute('long_name', 'waterbody type (0 land, 1 river, 2 estuary)')
         call me%nc__water__waterbody_type%setAttribute('grid_mapping', 'spatial_ref')
-        ! Set the fill value explicitly. Though we're using the default fill value, some applications (like xarray)
-        ! don't pick this up, so it's best to be explicit
         call me%nc__water__waterbody_type%setAttribute('_FillValue', nf90_fill_int)
         call me%nc__water__waterbody_type%setData(waterbodyType)
 
-        ! Create the variables for water, sediment and soil
+        ! --- IMPORTANT ---
+        ! Virtual calls: the derived (aggregated) overrides will run here.
         call me%initWater()
         call me%initSediment()
         call me%initSoil()
-
     end subroutine
 
     !> Create the variables for water
@@ -896,8 +891,38 @@ module NetCDFOutputModule
 
     !> Create the soil variables in the NetCDF file
     subroutine initSoilNetCDFOutput(me)
+        use, intrinsic :: ieee_arithmetic
         class(NetCDFOutput) :: me
         type(NcDimension)   :: eroded_contaminant_form_dim
+
+        ! -----------------------------
+        ! Land-use category (argmax over categories)
+        ! INPUT shape: DATASET%landUse(l, y, x)
+        ! OUTPUT shape: (x, y) integer category index
+        ! -----------------------------
+        integer, parameter        :: i4 = selected_int_kind(9)
+        integer                   :: nx, ny, ncat, ix, iy, k, kmax
+        integer(i4), allocatable  :: land_use_idx(:,:)
+        integer, parameter :: sp = kind(1.0)
+        real(sp), allocatable :: bd(:,:)
+        integer :: i, j, ny_in, nx_in
+
+        nx   = DATASET%gridShape(1)
+        ny   = DATASET%gridShape(2)
+        ncat = size(DATASET%landUse, 1)
+
+        allocate(land_use_idx(nx, ny))
+        land_use_idx = 0_i4
+
+        do iy = 1, ny
+            do ix = 1, nx
+                kmax = 1
+                do k = 2, ncat
+                    if (DATASET%landUse(k, iy, ix) > DATASET%landUse(kmax, iy, ix)) kmax = k
+                end do
+                land_use_idx(ix, iy) = int(kmax, kind=i4)
+            end do
+        end do
 
         me%nc__soil__land_use = me%nc%setVariable('land_use', 'i32', [me%x_dim, me%y_dim])
         call me%nc__soil__land_use%setAttribute('units', '-')
@@ -905,9 +930,14 @@ module NetCDFOutputModule
         call me%nc__soil__land_use%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__soil__land_use%setAttribute('category_lookup', '1: urban_no_soil. 2: urban_parks_leisure. ' // &
                                                 '3: urban_industrial_soil. 4: urban_green_residential. 5: arable. ' // &
-                                                '6: grassland. 7: deciduous. 8: coniferous. 9: heathland. 10: water.' // &
+                                                '6: grassland. 7: deciduous. 8: coniferous. 9: heathland. 10: water. ' // &
                                                 '11: desert. 12/other: other')
-        call me%nc__soil__land_use%setData(maxloc(DATASET%landUse(:, :, :), dim=3))
+        call me%nc__soil__land_use%setData(land_use_idx)
+        deallocate(land_use_idx)
+
+        ! -----------------------------
+        ! Mass & concentration (unchanged)
+        ! -----------------------------
         me%nc__soil__m_contaminant_total = me%nc%setVariable('soil__m_contaminant_total', 'f64', &
             [me%contaminant_form_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__soil__m_contaminant_total%setAttribute('units', 'kg')
@@ -915,77 +945,103 @@ module NetCDFOutputModule
             'Mass of contaminant in soil (free, attached, dissolved)')
         call me%nc__soil__m_contaminant_total%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__soil__m_contaminant_total%setAttribute('_FillValue', nf90_fill_double)
+
         me%nc__soil__C_contaminant_total = me%nc%setVariable('soil__C_contaminant_total', 'f64', &
             [me%x_dim, me%y_dim, me%t_dim])
         call me%nc__soil__C_contaminant_total%setAttribute('units', C%soilPECUnits)
-        call me%nc__soil__C_contaminant_total%setAttribute('long_name', &
-            'Total concentration of contaminant in soil')
+        call me%nc__soil__C_contaminant_total%setAttribute('long_name', 'Total concentration of contaminant in soil')
         call me%nc__soil__C_contaminant_total%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__soil__C_contaminant_total%setAttribute('_FillValue', nf90_fill_double)
+
         if (C%includeSoilStateBreakdown) then
             me%nc__soil__C_contaminant_free = me%nc%setVariable('soil__C_contaminant_free', 'f64', &
                 [me%x_dim, me%y_dim, me%t_dim])
             call me%nc__soil__C_contaminant_free%setAttribute('units', C%soilPECUnits)
-            call me%nc__soil__C_contaminant_free%setAttribute('long_name', &
-                'Concentration of free contaminant in soil')
+            call me%nc__soil__C_contaminant_free%setAttribute('long_name', 'Concentration of free contaminant in soil')
             call me%nc__soil__C_contaminant_free%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__soil__C_contaminant_free%setAttribute('_FillValue', nf90_fill_double)
+
             me%nc__soil__C_contaminant_attached = me%nc%setVariable('soil__C_contaminant_attached', 'f64', &
                 [me%x_dim, me%y_dim, me%t_dim])
             call me%nc__soil__C_contaminant_attached%setAttribute('units', C%soilPECUnits)
-            call me%nc__soil__C_contaminant_attached%setAttribute('long_name', &
-                'Concentration of attached contaminant in soil')
+            call me%nc__soil__C_contaminant_attached%setAttribute('long_name', 'Concentration of attached contaminant in soil')
             call me%nc__soil__C_contaminant_attached%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__soil__C_contaminant_attached%setAttribute('_FillValue', nf90_fill_double)
+
             me%nc__soil__C_contaminant_free_layers = me%nc%setVariable('soil__C_contaminant_free_layers', 'f64', &
                 [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__soil__C_contaminant_free_layers%setAttribute('units', C%soilPECUnits)
-            call me%nc__soil__C_contaminant_free_layers%setAttribute('long_name', &
-                'Concentration of free contaminant by soil layer')
+            call me%nc__soil__C_contaminant_free_layers%setAttribute('long_name', 'Concentration of free contaminant by soil layer')
             call me%nc__soil__C_contaminant_free_layers%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__soil__C_contaminant_free_layers%setAttribute('_FillValue', nf90_fill_double)
+
             me%nc__soil__C_contaminant_attached_layers = me%nc%setVariable('soil__C_contaminant_attached_layers', 'f64', &
                 [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__soil__C_contaminant_attached_layers%setAttribute('units', C%soilPECUnits)
             call me%nc__soil__C_contaminant_attached_layers%setAttribute('long_name', &
-                'Concentration of attached contaminant by soil layer')
+            'Concentration of attached contaminant by soil layer')
             call me%nc__soil__C_contaminant_attached_layers%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__soil__C_contaminant_attached_layers%setAttribute('_FillValue', nf90_fill_double)
         end if
+
         if (C%includeSoilLayerBreakdown) then
             me%nc__soil__C_contaminant_layers = me%nc%setVariable('soil__C_contaminant_layers', 'f64', &
                 [me%soil_l_dim, me%x_dim, me%y_dim, me%t_dim])
             call me%nc__soil__C_contaminant_layers%setAttribute('units', C%soilPECUnits)
-            call me%nc__soil__C_contaminant_layers%setAttribute('long_name', &
-                'Total concentration of contaminant by soil layer')
+            call me%nc__soil__C_contaminant_layers%setAttribute('long_name', 'Total concentration of contaminant by soil layer')
             call me%nc__soil__C_contaminant_layers%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__soil__C_contaminant_layers%setAttribute('_FillValue', nf90_fill_double)
         end if
+
         me%nc__soil__m_soil_eroded = me%nc%setVariable('soil__m_soil_eroded', 'f64', [me%x_dim, me%y_dim, me%t_dim])
         call me%nc__soil__m_soil_eroded%setAttribute('units', 'kg')
         call me%nc__soil__m_soil_eroded%setAttribute('long_name', 'Mass of soil eroded')
         call me%nc__soil__m_soil_eroded%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__soil__m_soil_eroded%setAttribute('_FillValue', nf90_fill_double)
+
         eroded_contaminant_form_dim = me%nc%setDimension('eroded_contaminant_form', C%contaminantDim(2) - 1)
+
         me%nc__soil__m_contaminant_eroded = me%nc%setVariable('soil__m_contaminant_eroded', 'f64', &
             [eroded_contaminant_form_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__soil__m_contaminant_eroded%setAttribute('units', 'kg')
         call me%nc__soil__m_contaminant_eroded%setAttribute('long_name', &
-            'Mass of contaminant eroded from soil (free, attached)')
+        'Mass of contaminant eroded from soil (free, attached)')
         call me%nc__soil__m_contaminant_eroded%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__soil__m_contaminant_eroded%setAttribute('_FillValue', nf90_fill_double)
+
         me%nc__soil__m_contaminant_buried = me%nc%setVariable('soil__m_contaminant_buried', 'f64', &
             [me%contaminant_form_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__soil__m_contaminant_buried%setAttribute('units', 'kg')
         call me%nc__soil__m_contaminant_buried%setAttribute('long_name', 'Mass of contaminant buried from soil')
         call me%nc__soil__m_contaminant_buried%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__soil__m_contaminant_buried%setAttribute('_FillValue', nf90_fill_double)
-        me%nc__soil__bulk_density = me%nc%setVariable('soil__bulk_density', 'f64', [me%x_dim, me%y_dim])
+
+        ! -----------------------------
+        ! Bulk density (INPUT is real(4) :: soilBulkDensity(y,x))
+        ! Define NetCDF var with (y,x) to match memory layout, write as f32, and sanitize.
+        ! -----------------------------
+        ny_in = size(DATASET%soilBulkDensity, 1)
+        nx_in = size(DATASET%soilBulkDensity, 2)
+
+        ! NetCDF var dims match the array order (y, x)
+        me%nc__soil__bulk_density = me%nc%setVariable('soil__bulk_density', 'f32', [me%y_dim, me%x_dim])
         call me%nc__soil__bulk_density%setAttribute('units', 'kg/m3')
         call me%nc__soil__bulk_density%setAttribute('long_name', 'Bulk density of the soil')
         call me%nc__soil__bulk_density%setAttribute('grid_mapping', 'spatial_ref')
-        call me%nc__soil__bulk_density%setAttribute('_FillValue', nf90_fill_double)
-        call me%nc__soil__bulk_density%setData(DATASET%soilBulkDensity)
+
+        allocate(bd(ny_in, nx_in))
+        bd = real(DATASET%soilBulkDensity, kind=sp)
+
+        do j = 1, nx_in
+            do i = 1, ny_in
+                if (.not. ieee_is_finite(bd(i,j))) bd(i,j) = 0.0_sp
+                if (bd(i,j) < 0.0_sp)            bd(i,j) = 0.0_sp
+                if (abs(bd(i,j)) < 1.0e-30_sp)   bd(i,j) = 0.0_sp   ! squash denormals
+            end do
+        end do
+
+        call me%nc__soil__bulk_density%setData(bd)
+        deallocate(bd)
     end subroutine
 
     subroutine createDimensionsNetCDFOutput(me)

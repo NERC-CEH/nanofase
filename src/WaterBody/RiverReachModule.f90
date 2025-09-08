@@ -34,35 +34,82 @@ module RiverReachModule
 contains
 
     !> Create this RiverReach with the provided grid cell and waterbody indices (x, y, w)
-    !! and sediment size class distribution
+    !! and sediment size class distribution. Avoid double allocation of m_contaminant.
     function createRiverReach(me, x, y, w, distributionSediment) result(rslt)
-        class(RiverReach), intent(inout) :: me                     !! This `RiverReach` instance
-        integer, intent(in) :: x                                   !! Grid cell x-position index
-        integer, intent(in) :: y                                   !! Grid cell y-position index
-        integer, intent(in) :: w                                   !! Water body index within the cell
-        real(dp), intent(in) :: distributionSediment(C%nSizeClassesSPM) !! Distribution to split sediment across size classes
-        type(Result) :: rslt                                       !! Result object to return errors in
-        integer :: i                                               ! Iterator
+        class(RiverReach), intent(inout) :: me
+        integer, intent(in) :: x, y, w
+        real(dp), intent(in) :: distributionSediment(C%nSizeClassesSpm)
+        type(Result) :: rslt
+        integer :: i, s
+        real(dp) :: T0, rho_s
+        integer :: istat
 
-        ! Set reach references (indices set in WaterBody%create) and grid cell area.
-        ! Diffuse and point sources are created in WaterBody%create
+        ! Create base waterbody and set ref
         call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, distributionSediment))
         me%ref = trim(ref("RiverReach", x, y, w))
 
-        ! Parse input data and allocate/initialise variables. The order here is important:
-        ! allocation depends on the input data.
+        ! Parse all grid-based inputs for the reach
         call rslt%addErrors(.errors. me%parseInputData())
-        call rslt%addErrors(.errors. me%m_contaminant%create())
+
+        ! Create the contaminant object for WATER (sizes, rates, etc.)
+        call rslt%addErrors(.errors. me%m_contaminant%create_from_data( &
+            compartment='water', &
+            contaminantDensity=DATASET%contaminantDensity, &
+            soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
+            riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
+            estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
+            k_diss_pristine=DATASET%contaminant_k_diss_pristine, &
+            k_diss_transformed=DATASET%contaminant_k_diss_transformed, &
+            k_transform_pristine=DATASET%contaminant_k_transform_pristine, &
+            waterTemperature=DATASET%waterTemperature(C%startDate%yearday()) ))
         if (allocated(DATASET%initialContaminantConcsWater)) then
             me%m_contaminant%c = DATASET%initialContaminantConcsWater(me%x, me%y, :, :, :)
             if (allocated(DATASET%initialDissolvedConcsWater)) then
                 me%m_contaminant%m_dissolved = DATASET%initialDissolvedConcsWater(me%x, me%y)
             end if
+            call LOGR%toFile("RiverReach%create: applied initial contaminant concentrations")
         end if
 
-        ! Create the BedSediment for this RiverReach
+        ! ---------------------------
+        ! NEW: compute W_settle_spm here from constants (no DATASET%spmSizeClasses)
+        ! ---------------------------
+        ! (Re)allocate W_settle_spm safely
+        if (allocated(me%W_settle_spm)) deallocate(me%W_settle_spm)
+        allocate(me%W_settle_spm(C%nSizeClassesSpm), stat=istat)
+        if (istat /= 0) then
+            allocate(me%W_settle_spm(1))
+            me%W_settle_spm = 0.0_dp
+        end if
+
+        T0 = DATASET%waterTemperature(C%startDate%yearday())
+        do s = 1, C%nSizeClassesSpm
+            if (allocated(DATASET%spmDensityBySizeClass)) then
+                if (size(DATASET%spmDensityBySizeClass) >= s) then
+                    rho_s = DATASET%spmDensityBySizeClass(s)
+                else
+                    rho_s = C%sedimentParticleDensities(s)
+                end if
+            else
+                rho_s = C%sedimentParticleDensities(s)
+            end if
+            ! Stokes settling using contaminant helper routine
+            me%W_settle_spm(s) = me%m_contaminant%calculateSettlingVelocity( &
+                                    d = C%d_spm(s), rho_particle = rho_s, T_water = T0)
+        end do
+        ! ---------------------------
+
+        ! Make sure we have an SPM concentration vector to pass to the reactor
+        ! (Re)allocate C_spm safely
+        if (allocated(me%C_spm)) deallocate(me%C_spm)
+        allocate(me%C_spm(C%nSizeClassesSpm), stat=istat)
+        if (istat /= 0) then
+            allocate(me%C_spm(1))
+            me%C_spm = 0.0_dp
+        end if
+
+        ! Create the bed and reactor
         allocate(BedSediment :: me%bedSediment)
-        allocate(Reactor :: me%reactor)
+        allocate(Reactor     :: me%reactor)
         call rslt%addErrors([ &
             .errors. me%bedSediment%create(me%x, me%y, me%w), &
             .errors. me%reactor%create( &
@@ -70,10 +117,9 @@ contains
                 me%m_contaminant, me%volume, &
                 DATASET%waterTemperature(C%startDate%yearday()), &
                 C_spm=me%C_spm, W_settle_spm=me%W_settle_spm, &
-                G=DATASET%shearRate, velocity=me%velocity) &
-        ])
+                G=DATASET%shearRate, velocity=me%velocity) ])
 
-        ! Allocate and create the correct number of biota objects for this reach
+        ! Water biota creation as before...
         allocate(me%biotaIndices(0))
         if (DATASET%hasBiota) then
             do i = 1, DATASET%nBiota
@@ -83,15 +129,15 @@ contains
                 end if
             end do
         end if
-
         allocate(me%biota(me%nBiota))
         do i = 1, me%nBiota
             call rslt%addErrors(.errors. me%biota(i)%create(me%biotaIndices(i)))
         end do
-        
+
         call rslt%addToTrace('Creating ' // trim(me%ref))
         call LOGR%toFile("Creating " // trim(me%ref) // ": success")
     end function
+
 
     subroutine updateSources(me, t)
         class(RiverReach) :: me
@@ -340,22 +386,113 @@ contains
     function parseInputDataRiverReach(me) result(rslt)
         class(RiverReach), intent(inout) :: me
         type(Result) :: rslt
+        integer :: nx, ny
+        logical :: okA, okB, okSa, okSb, okSc
 
+        ! Basic constants
         me%f_m = DATASET%riverMeanderingFactor
-        me%alpha_hetero = merge(DATASET%estuaryAttachmentEfficiency, DATASET%riverAttachmentEfficiency, &
-                                DATASET%isEstuary(me%x, me%y))
-        me%alpha_resus = DATASET%resuspensionAlpha(me%x, me%y)
-        me%beta_resus = DATASET%resuspensionBeta(me%x, me%y)
-        me%a_stc = DATASET%sedimentTransport_a(me%x, me%y)
-        me%b_stc = DATASET%sedimentTransport_b(me%x, me%y)
-        me%c_stc = DATASET%sedimentTransport_c(me%x, me%y)
+        me%alpha_hetero = merge( DATASET%estuaryAttachmentEfficiency, &
+                                DATASET%riverAttachmentEfficiency,  &
+                                DATASET%isEstuary(me%x, me%y) )
+
+        ! --- resuspensionAlpha(x,y) with fallback ---
+        okA = .false.
+        if (allocated(DATASET%resuspensionAlpha)) then
+            if (size(DATASET%resuspensionAlpha,1) > 0 .and. &
+                size(DATASET%resuspensionAlpha,2) > 0) then
+                nx = size(DATASET%resuspensionAlpha,1)
+                ny = size(DATASET%resuspensionAlpha,2)
+                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) then
+                    me%alpha_resus = DATASET%resuspensionAlpha(me%x, me%y)
+                    okA = .true.
+                end if
+            end if
+        end if
+        if (.not. okA) then
+            ! No grid available -> disable resuspension by default (safe for test runs)
+            me%alpha_resus = 0.0_dp
+            call LOGR%toFile("parseInputDataRiverReach: resuspensionAlpha not available; using 0.")
+        end if
+
+        ! --- resuspensionBeta(x,y) with fallback ---
+        okB = .false.
+        if (allocated(DATASET%resuspensionBeta)) then
+            if (size(DATASET%resuspensionBeta,1) > 0 .and. &
+                size(DATASET%resuspensionBeta,2) > 0) then
+                nx = size(DATASET%resuspensionBeta,1)
+                ny = size(DATASET%resuspensionBeta,2)
+                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) then
+                    me%beta_resus = DATASET%resuspensionBeta(me%x, me%y)
+                    okB = .true.
+                end if
+            end if
+        end if
+        if (.not. okB) then
+            me%beta_resus = 0.0_dp
+            call LOGR%toFile("parseInputDataRiverReach: resuspensionBeta not available; using 0.")
+        end if
+
+        ! --- sediment transport coefficients with fallback ---
+        okSa = .false.; okSb = .false.; okSc = .false.
+
+        if (allocated(DATASET%sedimentTransport_a)) then
+            if (size(DATASET%sedimentTransport_a,1) > 0 .and. &
+                size(DATASET%sedimentTransport_a,2) > 0) then
+                nx = size(DATASET%sedimentTransport_a,1)
+                ny = size(DATASET%sedimentTransport_a,2)
+                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) then
+                    me%a_stc = DATASET%sedimentTransport_a(me%x, me%y)
+                    okSa = .true.
+                end if
+            end if
+        end if
+        if (.not. okSa) then
+            me%a_stc = 0.0_dp
+            call LOGR%toFile("parseInputDataRiverReach: sedimentTransport_a not available; using 0.")
+        end if
+
+        if (allocated(DATASET%sedimentTransport_b)) then
+            if (size(DATASET%sedimentTransport_b,1) > 0 .and. &
+                size(DATASET%sedimentTransport_b,2) > 0) then
+                nx = size(DATASET%sedimentTransport_b,1)
+                ny = size(DATASET%sedimentTransport_b,2)
+                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) then
+                    me%b_stc = DATASET%sedimentTransport_b(me%x, me%y)
+                    okSb = .true.
+                end if
+            end if
+        end if
+        if (.not. okSb) then
+            me%b_stc = 0.0_dp
+            call LOGR%toFile("parseInputDataRiverReach: sedimentTransport_b not available; using 0.")
+        end if
+
+        if (allocated(DATASET%sedimentTransport_c)) then
+            if (size(DATASET%sedimentTransport_c,1) > 0 .and. &
+                size(DATASET%sedimentTransport_c,2) > 0) then
+                nx = size(DATASET%sedimentTransport_c,1)
+                ny = size(DATASET%sedimentTransport_c,2)
+                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) then
+                    me%c_stc = DATASET%sedimentTransport_c(me%x, me%y)
+                    okSc = .true.
+                end if
+            end if
+        end if
+        if (.not. okSc) then
+            me%c_stc = 0.0_dp
+            call LOGR%toFile("parseInputDataRiverReach: sedimentTransport_c not available; using 0.")
+        end if
+
+        ! Water temperature (vector over day-of-year)
         me%T_water = DATASET%waterTemperature
 
+        ! Inflow/outflow topology & reach geometry
         call rslt%addErrors(.errors. me%parseInflowsAndOutflow())
         call me%setReachLengthAndSlope()
 
-        call rslt%addToTrace('Parsing input data')
+        call rslt%addToTrace('Parsing input data (RiverReach)')
     end function
+
     
     !> Calculate the width \( W \) of the river based on the discharge:
     !! $$

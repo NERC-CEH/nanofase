@@ -105,98 +105,113 @@ module BedSedimentModule
     !! Initialised `BedSediment` object, including all layers and included `FineSediment`
     !! objects
     function createBedSediment1(me, x, y, w) result(r)
-    class(BedSediment) :: me                                    !! Self-reference
-    integer :: x                                                !! x index of the containing water body
-    integer :: y                                                !! y index of the containing water body
-    integer :: w                                                !! w index of the containing water body
-    type(Result) :: r                                           !! Returned `Result` object
-    type(BedSedimentLayer), allocatable :: bsl1                 ! LOCAL object of type BedSedimentLayer, for implementation of polymorphism
-    integer :: L                                                ! LOCAL loop counter
-    integer :: allst                                            ! LOCAL array allocation status
-    character(len=256) :: tr                                    ! LOCAL error trace
-    character(len=16), parameter :: ms = "Allocation error"     ! LOCAL allocation error message
-    type(ErrorInstance) :: err(1)
+        class(BedSediment) :: me
+        integer            :: x, y, w
+        type(Result)       :: r
+        type(BedSedimentLayer), allocatable :: bsl1
+        integer            :: L, allst
+        character(len=256) :: tr
+        character(len=16), parameter :: ms = "Allocation error"
+        type(ErrorInstance) :: err(1)
+        integer :: nx, ny
+        logical :: inbounds
 
-    me%name = trim(ref('BedSediment', x, y, w))
-    me%nSizeClasses = C%nSizeClassesSpm                         ! set number of size classes from global value
-    me%nfComp = C%nFracCompsSpm                                 ! set number of compositional fractions from global value
-    tr = trim(me%name) // "%createBedSediment1"                 ! procedure name as trace
+        me%name = trim(ref('BedSediment', x, y, w))
+        ! >>> FIX: set indices so later DATASET(x,y,...) lookups are valid
+        me%x = x
+        me%y = y
+        ! <<<
 
-    ! Initialise Contaminant mass pools matrix
-    allocate(me%m_contaminant(C%nSedimentLayers + 3), stat=allst)
-    if (allst /= 0) then
-        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
-        call r%addError(err(1))
-        call LOGR%toFile(errors=err)
-        return
-    end if
-    do L = 1, C%nSedimentLayers + 3
-        ! Pass DATASET%nc and provide required arguments from DATASET
-        r = me%m_contaminant(L)%create_from_data( &
-            data=DATASET%nc, &
-            compartment='sediment', &
-            contaminantDensity=DATASET%contaminantDensity, &
-            soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
-            riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
-            estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
-            k_diss_pristine=DATASET%contaminant_k_diss_pristine, &
-            k_diss_transformed=DATASET%contaminant_k_diss_transformed, &
-            k_transform_pristine=DATASET%contaminant_k_transform_pristine, &
-            waterTemperature=DATASET%waterTemperature(1) &  ! Use first timestep or adjust as needed
-        )
-        if (r%hasCriticalError()) then
-            call LOGR%toFile(errors=r%getErrors())
-            return
-        end if
-        if (L > 2 .and. allocated(DATASET%initialContaminantConcsSediment)) then
-            me%m_contaminant(L)%c = DATASET%initialContaminantConcsSediment(me%x, me%y, :, :, :)
-            if (allocated(DATASET%initialDissolvedConcsSediment)) then
-                me%m_contaminant(L)%m_dissolved = DATASET%initialDissolvedConcsSediment(me%x, me%y)
-            end if
-        end if
-    end do
+        me%nSizeClasses = C%nSizeClassesSpm
+        me%nfComp       = C%nFracCompsSpm
+        tr = trim(me%name) // "%createBedSediment1"
 
-    allocate(me%colBedSedimentLayers(C%nSedimentLayers), stat=allst)
-    if (allst /= 0) then
-        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
-        call r%addError(err(1))
-        call LOGR%toFile(errors=err)
-        return
-    end if
-    me%n_delta_sed = C%nSedimentLayers + 3
-    allocate(me%delta_sed(C%nSedimentLayers + 3, C%nSedimentLayers + 3, me%nSizeClasses), stat=allst)
-    if (allst /= 0) then
-        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
-        call r%addError(err(1))
-        call LOGR%toFile(errors=err)
-        return
-    end if
-    me%delta_sed = 0.0_dp
-    allocate(me%delta_sed_csr(C%nSizeClassesSpm), stat=allst)
-    if (allst /= 0) then
-        err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
-        call r%addError(err(1))
-        call LOGR%toFile(errors=err)
-        return
-    end if
-
-    do L = 1, C%nSedimentLayers
-        allocate(bsl1)
-        call r%addErrors(.errors. bsl1%create(L))
-        allocate(me%colBedSedimentLayers(L)%item, source=bsl1, stat=allst)
-        deallocate(bsl1)
+        ! Initialise Contaminant mass pools matrix
+        allocate(me%m_contaminant(C%nSedimentLayers + 3), stat=allst)
         if (allst /= 0) then
             err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
             call r%addError(err(1))
             call LOGR%toFile(errors=err)
             return
         end if
-        if (r%hasCriticalError()) then
-            call r%addToTrace(tr)
+
+        do L = 1, C%nSedimentLayers + 3
+            r = me%m_contaminant(L)%create_from_data( &
+                compartment='sediment', &  ! keep as used before; 'soil' also acceptable if your API expects it
+                contaminantDensity=DATASET%contaminantDensity, &
+                soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
+                riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
+                estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
+                k_diss_pristine=DATASET%contaminant_k_diss_pristine, &
+                k_diss_transformed=DATASET%contaminant_k_diss_transformed, &
+                k_transform_pristine=DATASET%contaminant_k_transform_pristine, &
+                waterTemperature=real(DATASET%waterTemperature(1), dp) )
+            if (r%hasCriticalError()) then
+                call LOGR%toFile(errors=r%getErrors())
+                return
+            end if
+
+            ! Seed initial concentrations for actual sediment layers (L>2) if provided
+            if (L > 2 .and. allocated(DATASET%initialContaminantConcsSediment)) then
+                nx = size(DATASET%initialContaminantConcsSediment, 1)
+                ny = size(DATASET%initialContaminantConcsSediment, 2)
+                inbounds = (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny)
+                if (inbounds) then
+                    me%m_contaminant(L)%c = DATASET%initialContaminantConcsSediment(me%x, me%y, :, :, :)
+                    if (allocated(DATASET%initialDissolvedConcsSediment)) then
+                        me%m_contaminant(L)%m_dissolved = DATASET%initialDissolvedConcsSediment(me%x, me%y)
+                    end if
+                else
+                    me%m_contaminant(L)%c          = 0.0_dp
+                    me%m_contaminant(L)%m_dissolved = 0.0_dp
+                end if
+            end if
+        end do
+
+        allocate(me%colBedSedimentLayers(C%nSedimentLayers), stat=allst)
+        if (allst /= 0) then
+            err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+            call r%addError(err(1))
+            call LOGR%toFile(errors=err)
             return
         end if
-    end do
-end function
+
+        me%n_delta_sed = C%nSedimentLayers + 3
+        allocate(me%delta_sed(C%nSedimentLayers + 3, C%nSedimentLayers + 3, me%nSizeClasses), stat=allst)
+        if (allst /= 0) then
+            err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+            call r%addError(err(1))
+            call LOGR%toFile(errors=err)
+            return
+        end if
+        me%delta_sed = 0.0_dp
+
+        allocate(me%delta_sed_csr(C%nSizeClassesSpm), stat=allst)
+        if (allst /= 0) then
+            err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+            call r%addError(err(1))
+            call LOGR%toFile(errors=err)
+            return
+        end if
+
+        do L = 1, C%nSedimentLayers
+            allocate(bsl1)
+            call r%addErrors(.errors. bsl1%create(L))
+            allocate(me%colBedSedimentLayers(L)%item, source=bsl1, stat=allst)
+            deallocate(bsl1)
+            if (allst /= 0) then
+                err(1) = ErrorInstance(code=1, message=ms, trace=[tr])
+                call r%addError(err(1))
+                call LOGR%toFile(errors=err)
+                return
+            end if
+            if (r%hasCriticalError()) then
+                call r%addToTrace(tr)
+                return
+            end if
+        end do
+    end function
+
 
     !> **Function purpose**                                         <br>
     !! Deallocate all allocatable variables and call destroy methods for all

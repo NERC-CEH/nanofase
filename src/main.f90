@@ -1,16 +1,17 @@
 !-------------------------------------------------------------------------------!
-!> NanoFASE model                                                               !
+!> FASE model                                                               !
 !> --------------                                                               !
-!> Contaminant Fate And Speciation in the Environment                           !
+!> Fate And Speciation in the Environment                           !
 !>                                                                              !
-!> Authors: Sam Harrison (sharrison@ceh.ac.uk)                                  !
+!> Authors: Sam Harrison (sharrison@ceh.ac.uk)    
+!>          Cansu Uluseker                              !
 !>          Stephen Lofts                                                       !
 !>          Virginie Keller                                                     !
 !>          Michael Hutchins                                                    !
 !>          Richard Williams                                                    !
 !> Institute: UK Centre for Ecology & Hydrology                                 !
 !> Repository: https://github.com/nerc-ceh/nanofase                             !
-!> Documentation: https://github.com/nerc-ceh/nanofase                          !
+!> Documentation: https://nerc-ceh.github.io/nanofase                           !
 !> Changelog: https://github.com/NERC-CEH/nanofase/blob/develop/CHANGELOG.md    !
 !> License: BSD 3-Clause,                                                       !
 !>          https://github.com/NERC-CEH/nanofase/blob/develop/LICENSE           !

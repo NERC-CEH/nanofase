@@ -10,10 +10,10 @@ module EstuaryReachModule
     implicit none
 
     type, public, extends(Reach) :: EstuaryReach
-        real(dp) :: meanDepth               !! Mean estuary depth for use in tidal depth calculations [m]
-        real(dp) :: distanceToMouth         !! Distance to the mouth of the estuary [m]
-        real(dp) :: tidalM2                 !! Tidal harmonic coefficient M2 [-]
-        real(dp) :: tidalS2                 !! Tidal harmonic coefficient S2 [-]
+        real(dp) :: meanDepth           !! Mean estuary depth for use in tidal depth calculations [m]
+        real(dp) :: distanceToMouth     !! Distance to the mouth of the estuary [m]
+        real(dp) :: tidalM2             !! Tidal harmonic coefficient M2 [-]
+        real(dp) :: tidalS2             !! Tidal harmonic coefficient S2 [-]
       contains
         procedure :: create => createEstuaryReach
         procedure :: update => updateEstuaryReach
@@ -30,18 +30,17 @@ module EstuaryReachModule
 contains
 
     function createEstuaryReach(me, x, y, w, distributionSediment) result(rslt)
-        class(EstuaryReach), intent(inout)      :: me
-        integer,        intent(in)              :: x, y, w
-        real(dp),       intent(in)              :: distributionSediment(C%nSizeClassesSPM)
-        type(Result)                            :: rslt
-        integer                                 :: i
+        class(EstuaryReach), intent(inout)     :: me
+        integer,           intent(in)           :: x, y, w
+        real(dp),        intent(in)           :: distributionSediment(C%nSizeClassesSPM)
+        type(Result)                          :: rslt
+        integer                               :: i
 
         call rslt%addErrors(.errors. me%WaterBody%create(x, y, w, distributionSediment))
         me%ref = trim(ref("EstuaryReach", x, y, w))
 
         call rslt%addErrors(.errors. me%parseInputData())
         call rslt%addErrors(.errors. me%m_contaminant%create_from_data( &
-            DATASET%nc, &
             'estuary', &
             DATASET%contaminantDensity, &
             DATASET%soilConstantAttachmentEfficiency, &
@@ -168,7 +167,7 @@ contains
 
         do i = 1, nDisp
             call me%updateDisplacement(t, i, dt, dQ_in, dj_spm_erosion, dj_spm_inflow, &
-                                       dj_contaminant_erosion_sources, dj_contaminant_inflow, T_water_t)
+                                      dj_contaminant_erosion_sources, dj_contaminant_inflow, T_water_t)
         end do
 
         call j_contaminant_in_total%finalise()
@@ -198,7 +197,7 @@ contains
     end subroutine
 
     subroutine updateDisplacementEstuaryReach(me, t, d, dt, dQ_in, dj_spm_erosion, dj_spm_inflow, &
-                                             dj_contaminant_erosion_sources, dj_contaminant_inflow, T_water)
+                                              dj_contaminant_erosion_sources, dj_contaminant_inflow, T_water)
         class(EstuaryReach), intent(inout) :: me
         integer, intent(in) :: t, d
         real(dp), intent(in) :: dt, dQ_in
@@ -328,9 +327,9 @@ contains
         class(EstuaryReach), intent(inout) :: me
         type(Result) :: rslt
         me%distanceToMouth = me%calculateDistanceToMouth(DATASET%x(me%x), DATASET%y(me%y), &
-                                                         DATASET%estuaryMeanderingFactor, &
-                                                         DATASET%estuaryMouthCoords(1), &
-                                                         DATASET%estuaryMouthCoords(2))
+                                                        DATASET%estuaryMeanderingFactor, &
+                                                        DATASET%estuaryMouthCoords(1), &
+                                                        DATASET%estuaryMouthCoords(2))
         me%width = DATASET%estuaryWidthExpA * exp(-DATASET%estuaryWidthExpB * me%distanceToMouth)
         me%meanDepth = DATASET%estuaryMeanDepthExpA * exp(-DATASET%estuaryMeanDepthExpB * me%distanceToMouth)
         me%f_m = DATASET%estuaryMeanderingFactor

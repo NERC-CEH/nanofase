@@ -66,25 +66,24 @@ module GridCellModule
 
     !> Create a GridCell with coordinates x and y.
     function createGridCell(me, x, y, isEmpty) result(rslt)
-        class(GridCell), target :: me                   !! The `GridCell` instance.
-        type(Result)            :: rslt                 !! The `Result` object to return.
-        integer                 :: x, y                 !! Spatial index of the grid cell
-        logical, optional       :: isEmpty              !! Is anything to be simulated in this `GridCell`?
-        type(SoilProfile)       :: soilProfile          ! The soil profile contained in this GridCell
-        type(Result)            :: rslt_temp            ! Temporary Result for error handling
-        character(len=100)      :: compartment          ! Compartment for contaminant initialization
+        class(GridCell), target :: me               !! The `GridCell` instance.
+        type(Result)           :: rslt               !! The `Result` object to return.
+        integer                :: x, y               !! Spatial index of the grid cell
+        logical, optional      :: isEmpty            !! Is anything to be simulated in this `GridCell`?
+        type(SoilProfile)      :: soilProfile        ! The soil profile contained in this GridCell
+        type(Result)           :: rslt_temp          ! Temporary Result for error handling
+        character(len=100)     :: compartment        ! Compartment for contaminant initialization
         character(len=7) :: comp_wat
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%colSoilProfiles(1))
         allocate(me%j_contaminant_diffuseSource(2)) ! Two diffuse sources (soil, atmospheric)
         if (me%aggregatedReachType == 'riv') then
-            comp_wat = 'water'//repeat(' ',2)   ! make it length=7
+            comp_wat = 'water'//repeat(' ',2)    ! make it length=7
         else
             comp_wat = 'estuary'
         end if
         rslt_temp = me%contaminant_water%create_from_data( &
-            DATASET%nc, &
             trim(comp_wat), &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
@@ -92,21 +91,21 @@ module GridCellModule
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         call rslt%addErrors(.errors. rslt_temp)
         rslt_temp = me%contaminant_sediment%create_from_data( &
-            DATASET%nc, 'sediment', &
+            'sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         call rslt%addErrors(.errors. rslt_temp)
         rslt_temp = me%j_contaminant_diffuseSource(1)%create_from_data( &
-            DATASET%nc, 'soil', &
+            'soil', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         call rslt%addErrors(.errors. rslt_temp)
         rslt_temp = me%j_contaminant_diffuseSource(2)%create_from_data( &
-            DATASET%nc, 'atmospheric', &
+            'atmospheric', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
@@ -117,9 +116,9 @@ module GridCellModule
         ! Set the GridCell's position, whether it's empty and its name
         me%x = x
         me%y = y
-        if (present(isEmpty)) me%isEmpty = isEmpty      ! isEmpty defaults to false if not present
-        me%ref = trim(ref("GridCell", x, y))            ! ref() interface is from the Util module
-        me%nSoilProfiles = 0                            ! Default to no soil profiles
+        if (present(isEmpty)) me%isEmpty = isEmpty    ! isEmpty defaults to false if not present
+        me%ref = trim(ref("GridCell", x, y))          ! ref() interface is from the Util module
+        me%nSoilProfiles = 0                          ! Default to no soil profiles
         
         ! Only carry on if there's stuff to be simulated for this GridCell
         if (.not. me%isEmpty) then
@@ -159,7 +158,7 @@ module GridCellModule
         call rslt%addToTrace("Creating " // trim(me%ref))
         call LOGR%toFile(errors = .errors. rslt)
         call ERROR_HANDLER%trigger(errors = .errors. rslt)
-        call rslt%clear()                  ! Clear errors from the Result object so they're not reported twice
+        call rslt%clear()              ! Clear errors from the Result object so they're not reported twice
         if (.not. me%isEmpty) then
             call LOGR%toConsole(" > Creating " // trim(me%ref) // ": "//COLOR_GREEN//"success"//COLOR_RESET)
             call LOGR%toFile("Creating " // trim(me%ref) // ": success")
@@ -172,8 +171,8 @@ module GridCellModule
     !> Finalise creation should be done after routing is complete, and is meant for
     !! procedures that rely on waterbodies being linked to their inflows/outflow
     subroutine finaliseCreateGridCell(me)
-        class(GridCell) :: me               !! This GridCell instance
-        integer         :: i                ! Iterator
+        class(GridCell) :: me            !! This GridCell instance
+        integer         :: i             ! Iterator
         ! Snap point sources to the closest reach
         call me%snapPointSourcesToReach()
         ! Run each waterbody's finalise creation method, which at the moment
@@ -185,13 +184,13 @@ module GridCellModule
     end subroutine
 
     subroutine snapPointSourcesToReachGridCell(me)
-        class(GridCell)     :: me                       !! The GridCell instance
-        integer             :: i, j                     ! Iterators
-        real, allocatable   :: lineParams(:,:)
-        real, allocatable   :: distanceToReach(:)
-        real                :: x0, y0
-        real                :: fracIndices(2)
-        integer             :: reachIndexToSnapTo
+        class(GridCell)      :: me                  !! The GridCell instance
+        integer              :: i, j                ! Iterators
+        real, allocatable    :: lineParams(:,:)
+        real, allocatable    :: distanceToReach(:)
+        real                 :: x0, y0
+        real                 :: fracIndices(2)
+        integer              :: reachIndexToSnapTo
 
         ! Make sure there are no point sources already allocated
         do i = 1, me%nReaches
@@ -239,8 +238,8 @@ module GridCellModule
 
     !> Create the reaches within this grid cell
     function createReaches(me) result(rslt)
-        class(GridCell), target :: me           !! This GridCell instance
-        type(Result) :: rslt                    !! The Result object to return any errors in
+        class(GridCell), target :: me        !! This GridCell instance
+        type(Result) :: rslt                  !! The Result object to return any errors in
         integer :: i
         ! Loop through waterbodies and create them
         do i = 1, me%nReaches
@@ -263,11 +262,11 @@ module GridCellModule
 
     !> Perform the simulations required for an individual time step
     subroutine updateGridCell(me, t, isWarmUp)
-        class(GridCell) :: me               !! The GridCell instance
-        integer         :: t                !! The timestep we're on
-        logical         :: isWarmUp         !! Are we in a warm up period?
-        type(Result)    :: r                ! Result object
-        integer         :: i                ! Iterator
+        class(GridCell) :: me            !! The GridCell instance
+        integer         :: t             !! The timestep we're on
+        logical         :: isWarmUp      !! Are we in a warm up period?
+        type(Result)    :: r             ! Result object
+        integer         :: i             ! Iterator
         type(Contaminant) :: temp_contaminant
         character(len=100) :: compartment
 
@@ -275,9 +274,12 @@ module GridCellModule
         if (.not. me%isEmpty) then
             do i = 1, size(me%j_contaminant_diffuseSource)
                 call me%j_contaminant_diffuseSource(i)%finalise()
-                compartment = merge('soil       ', 'atmospheric', i == 1)  ! pad 'soil' to length 11
+                if (i == 1) then
+                    compartment = 'soil'
+                else
+                    compartment = 'atmospheric'
+                end if
                 call r%addErrors(.errors. me%j_contaminant_diffuseSource(i)%create_from_data( &
-                    DATASET%nc, &
                     compartment, &
                     DATASET%contaminantDensity, &
                     DATASET%soilConstantAttachmentEfficiency, &
@@ -327,13 +329,13 @@ module GridCellModule
     !! wrong outflow isn't used as an inflow for another `RiverReach` whilst the reaches
     !! are looped through.
     subroutine finaliseUpdateGridCell(me)
-        class(GridCell) :: me               !! This GridCell instance
-        integer         :: rr               ! Iterator for reaches
+        class(GridCell) :: me            !! This GridCell instance
+        integer         :: rr            ! Iterator for reaches
         if (.not. me%isEmpty) then
             do rr = 1, me%nReaches
                 call me%colRiverReaches(rr)%item%finaliseUpdate()
             end do
-            me%isUpdated = .false.      ! Reset updated flag for the next timestep
+            me%isUpdated = .false.    ! Reset updated flag for the next timestep
         end if
     end subroutine
 
@@ -341,11 +343,11 @@ module GridCellModule
     function demandsGridCell(me) result(r)
         class(GridCell) :: me
         type(Result)    :: r
-        integer         :: pcLossUrban = 0                      ! TODO where should this come from?
-        integer         :: pcLossRural = 0                      ! TODO where should this come from?
-        integer         :: pcLossLivestockConsumption = 10      ! TODO where should this come from?
-        real(dp)        :: cattleDemandPerCapita = 140         ! TODO where should this come from?
-        real(dp)        :: sheepGoatDemandPerCapita = 70       ! TODO where should this come from?
+        integer         :: pcLossUrban = 0                   ! TODO where should this come from?
+        integer         :: pcLossRural = 0                   ! TODO where should this come from?
+        integer         :: pcLossLivestockConsumption = 10   ! TODO where should this come from?
+        real(dp)        :: cattleDemandPerCapita = 140       ! TODO where should this come from?
+        real(dp)        :: sheepGoatDemandPerCapita = 70     ! TODO where should this come from?
         real(dp)        :: totalUrbanDemand
         real(dp)        :: totalLivestockDemand
         real(dp)        :: totalRuralDemand
@@ -353,11 +355,11 @@ module GridCellModule
         ! TODO Population increase factor is excluded here - check this is okay?
         ! I'm thinking that population increase can be factored into population
         ! numbers in dataset instead
-        totalUrbanDemand = (me%urbanPopulation * me%urbanDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossUrban)   ! [Mm3/day]
+        totalUrbanDemand = (me%urbanPopulation * me%urbanDemandPerCapita * 1.0e-9)/(1.0_dp - 0.01_dp * pcLossUrban)    ![Mm3/day]
         totalLivestockDemand = ((me%cattlePopulation * cattleDemandPerCapita + me%sheepGoatPopulation * sheepGoatDemandPerCapita) &
                                 * 0.01_dp * pcLossLivestockConsumption * 1.0e-9) / (1.0_dp - 0.01_dp * pcLossRural)
         totalRuralDemand = ((me%totalPopulation - me%urbanPopulation) * me%ruralDemandPerCapita * 1.0e-9) &
-                            / (1.0_dp - 0.01_dp * pcLossRural)
+                           / (1.0_dp - 0.01_dp * pcLossRural)
         ! TODO See Virginie's email 29/08/2018
     end function
     
@@ -373,59 +375,96 @@ module GridCellModule
     !! input data.
     subroutine parseInputDataGridCell(me)
         class(GridCell) :: me
+
         allocate(me%q_runoff_timeSeries(C%nTimeSteps))
         allocate(me%q_evap_timeSeries(C%nTimeSteps))
         allocate(me%q_precip_timeSeries(C%nTimeSteps))
         allocate(me%T_water_timeSeries(C%nTimeSteps))
-        me%dx = DATASET%gridRes(1)
-        me%dy = DATASET%gridRes(2)
+
+        me%dx   = DATASET%gridRes(1)
+        me%dy   = DATASET%gridRes(2)
         me%area = me%dx * me%dy
+
         me%nReaches = DATASET%nWaterbodies(me%x, me%y)
         allocate(me%colRiverReaches(me%nReaches))
         allocate(me%reachTypes(me%nReaches))
+
         if (DATASET%isEstuary(me%x, me%y)) then
-            me%reachTypes = 'est'
+            me%reachTypes          = 'est'
             me%aggregatedReachType = 'est'
         else
-            me%reachTypes = 'riv'
+            me%reachTypes          = 'riv'
             me%aggregatedReachType = 'riv'
         end if
-        me%n_river = 0.035_dp
+
+        me%n_river            = 0.035_dp
         me%T_water_timeSeries = 10.0_dp
-        me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
-        me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
-        me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
+
+        ! Guarded reads from DATASET
+        if (allocated(DATASET%runoff)) then
+            me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
+        else
+            me%q_runoff_timeSeries = 0.0_dp
+        end if
+
+        if (allocated(DATASET%precip)) then
+            me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
+        else
+            me%q_precip_timeSeries = 0.0_dp
+        end if
+
+        if (allocated(DATASET%evap)) then
+            me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
+        else
+            me%q_evap_timeSeries = 0.0_dp
+        end if
     end subroutine
 
     subroutine parseNewBatchDataGridCell(me)
-        class(GridCell) :: me          !! This grid cell instance
-        integer :: i                   ! Iterators
+        class(GridCell) :: me        !! This grid cell instance
+        integer :: i                 ! Iterator
 
         if (.not. me%isEmpty) then
-            ! Allocate arrays to store flows in
-            deallocate(me%q_runoff_timeSeries, &
-                       me%q_evap_timeSeries, &
-                       me%q_precip_timeSeries, &
-                       me%T_water_timeSeries)
+            ! Reallocate time series for new batch
+            if (allocated(me%q_runoff_timeSeries))   deallocate(me%q_runoff_timeSeries)
+            if (allocated(me%q_evap_timeSeries))     deallocate(me%q_evap_timeSeries)
+            if (allocated(me%q_precip_timeSeries))   deallocate(me%q_precip_timeSeries)
+            if (allocated(me%T_water_timeSeries))    deallocate(me%T_water_timeSeries)
+
             allocate(me%q_runoff_timeSeries(C%nTimeSteps))
             allocate(me%q_evap_timeSeries(C%nTimeSteps))
             allocate(me%q_precip_timeSeries(C%nTimeSteps))
             allocate(me%T_water_timeSeries(C%nTimeSteps))
 
-            me%n_river = 0.035_dp
+            me%n_river            = 0.035_dp
             me%T_water_timeSeries = 10.0_dp
-            me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
-            me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
-            me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
 
-            ! Parse this batch's soil data
+            ! Guarded reads from DATASET for new batch
+            if (allocated(DATASET%runoff)) then
+                me%q_runoff_timeSeries = DATASET%runoff(me%x, me%y, :)
+            else
+                me%q_runoff_timeSeries = 0.0_dp
+            end if
+
+            if (allocated(DATASET%precip)) then
+                me%q_precip_timeSeries = DATASET%precip(me%x, me%y, :)
+            else
+                me%q_precip_timeSeries = 0.0_dp
+            end if
+
+            if (allocated(DATASET%evap)) then
+                me%q_evap_timeSeries = DATASET%evap(me%x, me%y, :)
+            else
+                me%q_evap_timeSeries = 0.0_dp
+            end if
+
+            ! Parse batch soil data
             call me%colSoilProfiles(1)%item%parseNewBatchData()
 
-            ! Number of point sources per grid cell might have changed, so we
-            ! need to re-snap them to the closest reach
+            ! Re-snap point sources to closest reach
             call me%snapPointSourcesToReach()
-            ! Now loop through reaches and alter size of j matrices to account
-            ! for potentially different number of point sources
+
+            ! Allow reaches to resize internal arrays for new batch
             do i = 1, me%nReaches
                 call me%colRiverReaches(i)%item%parseNewBatchData()
             end do
@@ -438,9 +477,9 @@ module GridCellModule
 
     !> Get the outflow from this grid cell, which is the sum of the branch outflows
     function get_Q_outflowGridCell(me) result(Q_outflow)
-        class(GridCell) :: me               !! This `GridCell` instance
-        real(dp)        :: Q_outflow        !! Outflow from this grid cell [m3/timestep]
-        integer         :: i                ! Iterator
+        class(GridCell) :: me            !! This `GridCell` instance
+        real(dp)        :: Q_outflow     !! Outflow from this grid cell [m3/timestep]
+        integer         :: i             ! Iterator
         Q_outflow = 0
         ! Loop through the reaches and sum up the outflow from those that are a grid cell outflow
         do i = 1, me%nReaches
@@ -452,9 +491,9 @@ module GridCellModule
 
     !> Get the outflow of SPM from this grid cell
     function get_j_spm_outflowGridCell(me) result(j_spm_outflow)
-        class(GridCell) :: me                       !! This `GridCell` instance
+        class(GridCell) :: me                 !! This `GridCell` instance
         real(dp) :: j_spm_outflow(C%nSizeClassesSpm)    !! Outflow from this grid cell [kg/timestep]
-        integer         :: i                        ! Iterator
+        integer         :: i                 ! Iterator
         j_spm_outflow = 0.0_dp
         ! Loop through reaches and sum the SPM outflow for the grid cell outflows
         do i = 1, me%nReaches
@@ -466,9 +505,9 @@ module GridCellModule
 
     !> Get the total mass of SPM currently in the GridCell
     function get_m_spmGridCell(me) result(m_spm)
-        class(GridCell) :: me                   !! This `GridCell` instance
+        class(GridCell) :: me              !! This `GridCell` instance
         real(dp)        :: m_spm(C%nSizeClassesSpm) !! SPM mass in this reach
-        integer         :: i                ! Iterator
+        integer         :: i             ! Iterator
         m_spm = 0.0_dp
         ! Loop through the reaches and sum the SPM masses
         do i = 1, me%nReaches
@@ -478,9 +517,9 @@ module GridCellModule
 
     !> Get the mass of SPM inflowing to this grid cell
     function get_j_spm_inflowGridCell(me) result(j_spm_inflow)
-        class(GridCell) :: me               !! This grid cell instance
+        class(GridCell) :: me            !! This grid cell instance
         real(dp)        :: j_spm_inflow(C%nSizeClassesSpm)! Total mass of SPM inflowing [kg/timestep]
-        integer         :: i                ! Iterator
+        integer         :: i             ! Iterator
         j_spm_inflow = 0.0_dp
         ! Loop through the inflows and sum the inflowing SPM
         do i = 1, me%nReaches
@@ -494,9 +533,9 @@ module GridCellModule
     !! Note this may be different to eroded yields from the soil profile due to the
     !! sediment transport capacity limited inputs to water bodies
     function get_j_spm_soilErosionGridCell(me) result(j_spm_soilErosion)
-        class(GridCell) :: me               !! This grid cell instance
+        class(GridCell) :: me            !! This grid cell instance
         real(dp)        :: j_spm_soilErosion(C%nSizeClassesSpm) ! Total mass of soil erosion [kg/timestep]
-        integer         :: i                ! Iterator
+        integer         :: i             ! Iterator
         j_spm_soilErosion = 0.0_dp
         ! Loop through water bodies and sum the eroded soil
         do i = 1, me%nReaches
@@ -506,9 +545,9 @@ module GridCellModule
 
     !> Get the total mass of bank erosion into water bodies in this grid cell
     function get_j_spm_bankErosionGridCell(me) result(j_spm_bankErosion)
-        class(GridCell) :: me               !! This grid cell instance
+        class(GridCell) :: me            !! This grid cell instance
         real(dp)        :: j_spm_bankErosion(C%nSizeClassesSpm) ! Total mass of bank erosion [kg/timestep]
-        integer         :: i                ! Iterator
+        integer         :: i             ! Iterator
         j_spm_bankErosion = 0.0_dp
         ! Loop through water bodies and sum the bank erosion
         do i = 1, me%nReaches
@@ -518,9 +557,9 @@ module GridCellModule
 
     !> Get the total mass of deposited SPM in this cell
     function get_j_spm_depositionGridCell(me) result(j_spm_deposition)
-        class(GridCell) :: me               !! This grid cell instance
+        class(GridCell) :: me            !! This grid cell instance
         real(dp)        :: j_spm_deposition(C%nSizeClassesSpm) ! Total mass of deposited SPM [kg/timestep]
-        integer         :: i                ! Iterator
+        integer         :: i             ! Iterator
         j_spm_deposition = 0.0_dp
         ! Loop through water bodies and sum the deposited SPM 
         do i = 1, me%nReaches
@@ -530,9 +569,9 @@ module GridCellModule
 
     !> Get the total mass of resuspended SPM in this cell
     function get_j_spm_resuspensionGridCell(me) result(j_spm_resuspension)
-        class(GridCell) :: me               !! This grid cell instance
+        class(GridCell) :: me            !! This grid cell instance
         real(dp)        :: j_spm_resuspension(C%nSizeClassesSpm) ! Total mass of resuspended SPM [kg/timestep]
-        integer         :: i                ! Iterator
+        integer         :: i             ! Iterator
         j_spm_resuspension = 0.0_dp
         ! Loop through water bodies and sum the resuspended SPM 
         do i = 1, me%nReaches
@@ -561,75 +600,68 @@ module GridCellModule
 
     !> Get the total mass of Contaminant currently in the sediment in the GridCell
     function get_m_contaminant_sedimentGridCell(me) result(m_contaminant)
-    class(GridCell) :: me
-    type(Contaminant) :: m_contaminant, tmp_cont
-    integer :: w
-    type(Result) :: rslt
-    type(Result0D) :: res
+        class(GridCell) :: me
+        type(Contaminant) :: m_contaminant, tmp_cont
+        integer :: w
+        type(Result)  :: rslt
+        type(Result0D) :: r0
 
-    ! Initialize the result Contaminant object
-    rslt = m_contaminant%create_from_data( &
-        DATASET%nc, 'sediment', &
-        DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
-        DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
-        DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
-        DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
-    if (rslt%hasCriticalError()) then
-        call rslt%addToTrace("Failed to create m_contaminant in get_m_contaminant_sedimentGridCell")
-        call LOGR%toFile(errors=rslt%errors)
-        call ERROR_HANDLER%trigger(errors=rslt%errors)
-        return
-    end if
-
-    ! Sum up each reach’s sediment contaminant, weighted by bedArea
-    do w = 1, me%nReaches
-        ! call the reach method, capture its Result0D
-        res = me%colRiverReaches(w)%item%bedSediment%get_m_contaminant()
-        if (res%hasError()) then
-        call res%addToTrace("Failed to get contaminant in reach " // trim(str(w)))
-        call LOGR%toFile(errors=res%errors)
-        call ERROR_HANDLER%trigger(errors=res%errors)
-        return
+        rslt = m_contaminant%create_from_data('sediment', &
+            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
+            DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
+            DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
+        if (rslt%hasCriticalError()) then
+            call rslt%addToTrace("Failed to create m_contaminant in get_m_contaminant_sedimentGridCell")
+            call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
 
-        ! extract the Contaminant out of the Result0D
-        select type (data => res%getData())
-        type is (Contaminant)
-        tmp_cont = data
-        class default
-        call res%addError(ErrorInstance(code=106, message="Invalid data type in Result0D for get_m_contaminant"))
-        call res%addToTrace("Failed to extract Contaminant in reach " // trim(str(w)))
-        call LOGR%toFile(errors=res%errors)
-        call ERROR_HANDLER%trigger(errors=res%errors)
-        return
-        end select
+        do w = 1, me%nReaches
+            r0 = me%colRiverReaches(w)%item%bedSediment%get_m_contaminant()
+            if (r0%hasError()) then
+                call r0%addToTrace("get_m_contaminant() failed for reach "//trim(str(w)))
+                call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
+            end if
+            select type (data => r0%getData())
+            type is (Contaminant)
+                tmp_cont = data
+            class default
+                call rslt%addError(ErrorInstance(code=106, message="Result0D did not contain Contaminant"))
+                call ERROR_HANDLER%trigger(errors=rslt%errors); return
+            end select
+            call m_contaminant%add_scaled(tmp_cont, me%colRiverReaches(w)%item%bedArea)
+        end do
+    end function get_m_contaminant_sedimentGridCell
 
-        ! accumulate, scaling by the bed area
-        call m_contaminant%add(tmp_cont * me%colRiverReaches(w)%item%bedArea)
-    end do
-    end function
-   
+    
     !> Get the total mass of sediment in this grid cell
     function get_sediment_massGridCell(me) result(sediment_mass) 
-        class(GridCell) :: me                   !! This GridCell instance
-        real(dp)        :: sediment_mass        !! Mass of sediment in grid cell [kg]
-        integer         :: i                    ! Iterator
+        class(GridCell) :: me                  !! This GridCell instance
+        real(dp)        :: sediment_mass       !! Mass of sediment in grid cell [kg]
+        integer         :: i                   ! Iterator
         sediment_mass = 0.0_dp
         do i = 1, me%nReaches
             sediment_mass = sediment_mass + me%colRiverReaches(i)%item%bedSediment%Mf_bed_all() &
-                            * me%colRiverReaches(i)%item%bedArea
+                                          * me%colRiverReaches(i)%item%bedArea
         end do
     end function
 
     !> Get the average SPM concentration in the grid cell, weighted by water volume in 
     !! each of the water bodies
     function get_C_spmGridCell(me) result(C_spm)
-        class(GridCell)         :: me                       !! This grid cell
-        real(dp), allocatable   :: C_spm(:)                 !! Average SPM concentration in grid cell
+        class(GridCell)         :: me                    !! This grid cell
+        real(dp), allocatable   :: C_spm(:)              !! Average SPM concentration in grid cell
         real(dp)                :: C_spm_w(me%nReaches,C%nSizeClassesSpm)
         real(dp)                :: volumes(me%nReaches)
-        integer                 :: i                        !! Iterator for water bodies
-        allocate(C_spm(C%nSizeClassesSpm))
+        integer                 :: i                     !! Iterator for water bodies
+        integer                 :: istat
+
+        allocate(C_spm(C%nSizeClassesSpm), stat=istat)
+        if (istat /= 0) then
+            allocate(C_spm(1))
+            C_spm = 0.0_dp
+            return
+        end if
         ! Loop over the water bodies in this cell and get SPM and volume
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
@@ -650,37 +682,41 @@ module GridCellModule
         real            :: lineParams(3)                !! Line parameters to return
         integer         :: x_in, y_in, x_out, y_out     ! Inflow and outflow indices of this reach
         real            :: x0, y0, x1, y1, a, b, c      ! Inflow and outflow coords and line params
-        ! Calculate the point of the inflow and outflow of each reach
+
+        ! Inflow point: first inflow reach if present, else centre (headwater)
         if (me%colRiverReaches(i)%item%nInflows > 0) then
             x_in = me%colRiverReaches(i)%item%inflows(1)%item%x
             y_in = me%colRiverReaches(i)%item%inflows(1)%item%y
             x0 = (x_in + 0.5) + 0.5 * (me%x - x_in)
             y0 = (y_in + 0.5) + 0.5 * (me%y - y_in)
-        else        ! Must be the centre of the cell (headwater)
+        else
             x0 = me%x + 0.5
             y0 = me%y + 0.5
         end if
-        ! Get the outflow i coords, whether it's in the model domain or not
+
+        ! Outflow point: either linked reach or grid outflow from DATASET
         if (.not. me%colRiverReaches(i)%item%isDomainOutflow) then
             x_out = me%colRiverReaches(i)%item%outflow%item%x
             y_out = me%colRiverReaches(i)%item%outflow%item%y
         else
-            x_out = DATASET%outflow(1, me%x, me%y)
-            y_out = DATASET%outflow(2, me%x, me%y)
+            ! NOTE: NetCDF stored as outflow(y, x, d) -> Fortran indexing (d, y, x)
+            x_out = DATASET%outflow(1, me%y, me%x)
+            y_out = DATASET%outflow(2, me%y, me%x)
         end if
+
         x1 = (x_out + 0.5) + 0.5 * (me%x - x_out)
         y1 = (y_out + 0.5) + 0.5 * (me%y - y_out)
-        ! Calculate the parameters to the general straight line
-        ! ax + bx + c = 0 from this, which can be used to calculate
-        ! distance to point
-        if ((x1 - x0) /= 0) then
-            a = -(y1 - y0)/(x1 - x0)
-            b = 1
+
+        ! General line ax + by + c = 0 through (x0,y0) and (x1,y1)
+        if ((x1 - x0) /= 0.0) then
+            a = -(y1 - y0) / (x1 - x0)
+            b = 1.0
         else
-            a = 1
-            b = 0
+            a = 1.0
+            b = 0.0
         end if
         c = -(a * x0 + b * y0)
+
         lineParams = [a, b, c]
     end function
 
@@ -695,7 +731,7 @@ module GridCellModule
         type(Contaminant) :: tmp_cont
         type(Result) :: rslt
 
-        rslt = cont%create_from_data(DATASET%nc, 'soil', &
+        rslt = cont%create_from_data('soil', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
@@ -721,7 +757,7 @@ module GridCellModule
 
     !> Weighted mean water‑phase contaminant concentration in this grid cell
     function get_C_contaminant_waterGridCell(me) result(cont)
-        class(GridCell)   :: me
+        class(GridCell)  :: me
         type(Contaminant) :: cont
         real(dp), allocatable :: arr(:,:,:)
         real(dp) :: partial(me%nReaches, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
@@ -732,32 +768,18 @@ module GridCellModule
         type(Result) :: rslt
         character(len=7) :: compstr
 
-        !--- choose compartment name ---
-        if (me%aggregatedReachType == 'riv') then
-            compstr = 'water'//repeat(' ',2)
-        else
-            compstr = 'estuary'
-        end if
+        compstr = merge('water  ', 'estuary', me%aggregatedReachType /= 'riv')
 
-        !--- initialize our Contaminant object from data ---
-        rslt = cont%create_from_data( &
-            DATASET%nc, trim(compstr), &
-            DATASET%contaminantDensity, &
-            DATASET%soilConstantAttachmentEfficiency, &
-            DATASET%riverAttachmentEfficiency, &
-            DATASET%estuaryAttachmentEfficiency, &
-            DATASET%contaminant_k_diss_pristine, &
-            DATASET%contaminant_k_diss_transformed, &
-            DATASET%contaminant_k_transform_pristine, &
-            real(DATASET%waterTemperature(1), dp) )
+        rslt = cont%create_from_data(trim(compstr), &
+            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
+            DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
+            DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         if (rslt%hasCriticalError()) then
             call rslt%addToTrace("Failed to create Contaminant in get_C_contaminant_waterGridCell")
-            call LOGR%toFile(errors=rslt%errors)
-            call ERROR_HANDLER%trigger(errors=rslt%errors)
-            return
+            call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
 
-        !--- build per‑reach concentration (c/volume) and weight (volume) ---
         do i = 1, me%nReaches
             tmp_cont = me%colRiverReaches(i)%item%get_m_contaminant()
             vol      = me%colRiverReaches(i)%item%volume
@@ -770,137 +792,114 @@ module GridCellModule
             end if
         end do
 
-        !--- compute weighted average across reaches ---
         arr = weightedAverage(partial, weights)
-
-        !--- store result and return ---
         cont%c = arr
-    end function 
+    end function get_C_contaminant_waterGridCell
+
 
     !> Get the current weighted mean sediment PEC [kg/kg] in this grid cell,
     !! weighted by the current sediment masses in the cell
     function get_C_contaminant_sedimentGridCell(me) result(cont)
         class(GridCell) :: me
-        type(Contaminant) :: cont
+        type(Contaminant) :: cont, tmp_cont
         real(dp), allocatable :: arr(:,:,:)
         real(dp) :: partial(me%nReaches, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
         real(dp) :: weights(me%nReaches)
         integer :: i
-        type(Contaminant) :: tmp_cont
-        type(Result0D) :: res
-        type(Result) :: rslt
+        type(Result)  :: rslt
+        type(Result0D) :: r0
+        real(dp) :: m_reach
 
-        ! Initialize the result Contaminant object
-        rslt = cont%create_from_data(DATASET%nc, 'sediment', &
+        rslt = cont%create_from_data('sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         if (rslt%hasCriticalError()) then
             call rslt%addToTrace("Failed to create cont in get_C_contaminant_sedimentGridCell")
-            call LOGR%toFile(errors=rslt%errors)
-            call ERROR_HANDLER%trigger(errors=rslt%errors)
-            return
+            call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
 
-        ! Build per-reach concentrations normalized to sediment mass (kg/kg)
         do i = 1, me%nReaches
-            associate(bs => me%colRiverReaches(i)%item%bedSediment)
-                res = bs%get_m_contaminant()
-                if (res%hasError()) then
-                    call res%addToTrace("Failed to get contaminant in reach " // trim(str(i)))
-                    call LOGR%toFile(errors=res%errors)
-                    call ERROR_HANDLER%trigger(errors=res%errors)
-                    return
+            associate (reach => me%colRiverReaches(i)%item)
+                r0 = reach%bedSediment%get_m_contaminant()
+                if (r0%hasError()) then
+                    call r0%addToTrace("get_m_contaminant() failed for reach "//trim(str(i)))
+                    call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
                 end if
-                select type (data => res%getData())
-                    type is (Contaminant)
-                        tmp_cont = data
-                    class default
-                        call res%addError(ErrorInstance(code=106, message="Invalid data type in Result0D for get_m_contaminant"))
-                        call res%addToTrace("Failed to extract Contaminant in reach " // trim(str(i)))
-                        call LOGR%toFile(errors=res%errors)
-                        call ERROR_HANDLER%trigger(errors=res%errors)
-                        return
+                select type (data => r0%getData())
+                type is (Contaminant)
+                    tmp_cont = data
+                class default
+                    call rslt%addError(ErrorInstance(code=106, message="Result0D did not contain Contaminant"))
+                    call ERROR_HANDLER%trigger(errors=rslt%errors); return
                 end select
-                if (bs%Mf_bed_all() > C%epsilon) then
-                    partial(i,:,:,:) = tmp_cont%c / bs%Mf_bed_all()
+
+                m_reach = reach%bedSediment%Mf_bed_all()
+                if (m_reach > C%epsilon) then
+                    partial(i,:,:,:) = tmp_cont%c / m_reach
                 else
                     partial(i,:,:,:) = 0.0_dp
                 end if
-                weights(i) = bs%Mf_bed_all() * me%colRiverReaches(i)%item%bedArea
+                weights(i) = m_reach * reach%bedArea
             end associate
         end do
 
-        ! Compute weighted average
         arr = weightedAverage(partial, weights)
-
-        ! Wrap into Contaminant
         cont%c = arr
-end function
+    end function get_C_contaminant_sedimentGridCell
 
     !> Weighted mean sediment PEC [kg/m3] in this grid cell
     function get_C_contaminant_sediment_byVolumeGridCell(me) result(cont)
         class(GridCell) :: me
-        type(Contaminant) :: cont
+        type(Contaminant) :: cont, tmp_cont
         real(dp), allocatable :: arr(:,:,:)
         real(dp) :: partial(me%nReaches, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
         real(dp) :: weights(me%nReaches)
         integer :: i
-        type(Contaminant) :: tmp_cont
-        type(Result0D) :: res
-        type(Result) :: rslt
-        real(dp) :: layerVol
+        type(Result)  :: rslt
+        type(Result0D) :: r0
+        real(dp) :: vol_reach
 
-        ! Initialize the result Contaminant object
-        rslt = cont%create_from_data(DATASET%nc, 'sediment', &
+        rslt = cont%create_from_data('sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         if (rslt%hasCriticalError()) then
             call rslt%addToTrace("Failed to create cont in get_C_contaminant_sediment_byVolumeGridCell")
-            call LOGR%toFile(errors=rslt%errors)
-            call ERROR_HANDLER%trigger(errors=rslt%errors)
-            return
+            call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
 
-        ! Build per-reach concentrations normalized to sediment volume (kg/m3)
-        layerVol = sum(C%sedimentLayerDepth)
         do i = 1, me%nReaches
-            associate(bs => me%colRiverReaches(i)%item%bedSediment)
-                res = bs%get_m_contaminant()
-                if (res%hasError()) then
-                    call res%addToTrace("Failed to get contaminant in reach " // trim(str(i)))
-                    call LOGR%toFile(errors=res%errors)
-                    call ERROR_HANDLER%trigger(errors=res%errors)
-                    return
+            associate (reach => me%colRiverReaches(i)%item)
+                r0 = reach%bedSediment%get_m_contaminant()
+                if (r0%hasError()) then
+                    call r0%addToTrace("get_m_contaminant() failed for reach "//trim(str(i)))
+                    call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
                 end if
-                select type (data => res%getData())
-                    type is (Contaminant)
-                        tmp_cont = data
-                    class default
-                        call res%addError(ErrorInstance(code=106, message="Invalid data type in Result0D for get_m_contaminant"))
-                        call res%addToTrace("Failed to extract Contaminant in reach " // trim(str(i)))
-                        call LOGR%toFile(errors=res%errors)
-                        call ERROR_HANDLER%trigger(errors=res%errors)
-                        return
+                select type (data => r0%getData())
+                type is (Contaminant)
+                    tmp_cont = data
+                class default
+                    call rslt%addError(ErrorInstance(code=106, message="Result0D did not contain Contaminant"))
+                    call ERROR_HANDLER%trigger(errors=rslt%errors); return
                 end select
-                if (layerVol > C%epsilon) then
-                    partial(i,:,:,:) = tmp_cont%c / (me%colRiverReaches(i)%item%bedArea * layerVol)
+
+                vol_reach = reach%bedArea * sum(C%sedimentLayerDepth)    ! m3
+                if (vol_reach > C%epsilon) then
+                    partial(i,:,:,:) = tmp_cont%c / vol_reach
                 else
                     partial(i,:,:,:) = 0.0_dp
                 end if
-                weights(i) = me%colRiverReaches(i)%item%bedArea * layerVol
+                weights(i) = vol_reach
             end associate
         end do
 
-        ! Compute weighted average
         arr = weightedAverage(partial, weights)
-
-        ! Wrap into Contaminant
         cont%c = arr
-    end function
+    end function get_C_contaminant_sediment_byVolumeGridCell
+
 
     !> Weighted mean sediment PEC [kg/kg] for layer l in this grid cell
     function get_C_contaminant_sediment_lGridCell(me, l) result(cont)
@@ -916,7 +915,7 @@ end function
         type(Result) :: rslt
 
         ! Initialize the result Contaminant object
-        rslt = cont%create_from_data(DATASET%nc, 'sediment', &
+        rslt = cont%create_from_data('sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
@@ -944,7 +943,7 @@ end function
                     class default
                         call res%addError(ErrorInstance(code=106, message="Invalid data type in Result0D for get_m_contaminant_l"))
                         call res%addToTrace("Failed to extract Contaminant for layer " &
-                        // trim(str(l)) // " in reach " // trim(str(i)))
+                         // trim(str(l)) // " in reach " // trim(str(i)))
                         call LOGR%toFile(errors=res%errors)
                         call ERROR_HANDLER%trigger(errors=res%errors)
                         return
@@ -979,7 +978,7 @@ end function
     type(Result) :: rslt
 
     ! Initialize the result Contaminant object
-    rslt = cont%create_from_data(DATASET%nc, 'sediment', &
+    rslt = cont%create_from_data('sediment', &
         DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
         DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
         DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
@@ -1007,7 +1006,7 @@ end function
                 class default
                     call res%addError(ErrorInstance(code=106, message="Invalid data type in Result0D for get_m_contaminant_l"))
                     call res%addToTrace("Failed to extract Contaminant for layer " &
-                    // trim(str(l)) // " in reach " // trim(str(i)))
+                     // trim(str(l)) // " in reach " // trim(str(i)))
                     call LOGR%toFile(errors=res%errors)
                     call ERROR_HANDLER%trigger(errors=res%errors)
                     return
@@ -1032,38 +1031,40 @@ end function
     !> Get the mass of Contaminant buried for all the bed sediments in this grid cell
     function get_m_contaminant_buried_sedimentGridCell(me) result(m_contaminant_buried)
         class(GridCell) :: me
-        type(Contaminant) :: m_contaminant_buried
+        type(Contaminant) :: m_contaminant_buried, tmp_cont
         integer :: i
-        type(Result) :: rslt
-        type(Contaminant) :: temp_contaminant
+        type(Result)  :: rslt
+        type(Result0D) :: r0
 
-        rslt = m_contaminant_buried%create_from_data(DATASET%nc, 'sediment', &
+        rslt = m_contaminant_buried%create_from_data('sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         if (rslt%hasCriticalError()) then
             call rslt%addToTrace("Failed to create m_contaminant_buried in get_m_contaminant_buried_sedimentGridCell")
-            call LOGR%toFile(errors=rslt%errors)
-            call ERROR_HANDLER%trigger(errors=rslt%errors)
-            return
+            call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
+
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
-                ! Access the buried contaminant pool directly
-                if (allocated(reach%bedSediment%m_contaminant)) then
-                    temp_contaminant = reach%bedSediment%m_contaminant(C%nSedimentLayers + 3)
-                    call m_contaminant_buried%add(temp_contaminant * reach%bedArea)
-                else
-                    call rslt%addError(ErrorInstance(code=105, message="Contaminant array not allocated in BedSediment"))
-                    call rslt%addToTrace("Error in get_m_contaminant_buried_sedimentGridCell for reach " // trim(str(i)))
-                    call LOGR%toFile(errors=rslt%errors)
-                    call ERROR_HANDLER%trigger(errors=rslt%errors)
-                    return
+                r0 = reach%bedSediment%get_m_contaminant_buried()
+                if (r0%hasError()) then
+                    call r0%addToTrace("get_m_contaminant_buried() failed for reach "//trim(str(i)))
+                    call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
                 end if
+                select type (data => r0%getData())
+                type is (Contaminant)
+                    tmp_cont = data
+                class default
+                    call rslt%addError(ErrorInstance(code=106, message="Result0D did not contain Contaminant"))
+                    call ERROR_HANDLER%trigger(errors=rslt%errors); return
+                end select
+                call m_contaminant_buried%add_scaled(tmp_cont, reach%bedArea)
             end associate
         end do
-    end function
+    end function get_m_contaminant_buried_sedimentGridCell
+
 
     !> Get the sum of Contaminant deposition for this grid cell 
     function get_j_contaminant_depositionGridCell(me) result(j_contaminant_deposition)
@@ -1073,7 +1074,7 @@ end function
         type(Result) :: rslt
 
         rslt = j_contaminant_deposition%create_from_data( &
-            DATASET%nc, 'sediment', &
+            'sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
@@ -1098,7 +1099,7 @@ end function
         type(Result) :: rslt
 
         rslt = j_contaminant_resuspension%create_from_data( &
-            DATASET%nc, 'sediment', &
+            'sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
@@ -1165,9 +1166,9 @@ end function
 
     !> Get the total volume of water [m3] in this grid cell
     function getWaterVolumeGridCell(me) result(waterVolume)
-        class(GridCell) :: me               !! This GridCell instance
-        real(dp)        :: waterVolume      !! Water volume [m3] 
-        integer         :: i                ! Iterator
+        class(GridCell) :: me            !! This GridCell instance
+        real(dp)        :: waterVolume   !! Water volume [m3] 
+        integer         :: i             ! Iterator
         waterVolume = 0.0_dp
         do i = 1, me%nReaches
             waterVolume = waterVolume + me%colRiverReaches(i)%item%volume
@@ -1190,9 +1191,9 @@ end function
 
     !> Get the total bed sediment area [m2] in this grid cell
     function getBedSedimentAreaGridCell(me) result(bedArea)
-        class(GridCell) :: me               !! This GridCell instance
-        real(dp)        :: bedArea          !! Bed sediment area [m2]
-        integer         :: i                ! Iterator
+        class(GridCell) :: me            !! This GridCell instance
+        real(dp)        :: bedArea       !! Bed sediment area [m2]
+        integer         :: i             ! Iterator
         bedArea = 0.0_dp
         do i = 1, me%nReaches
             bedArea = bedArea + me%colRiverReaches(i)%item%bedArea
@@ -1201,14 +1202,14 @@ end function
 
     !> Get the total mass of sediment [kg] in this grid cell
     function getBedSedimentMassGridCell(me) result(sedimentMass)
-        class(GridCell) :: me               !! This GridCell instance
-        real(dp)        :: sedimentMass     !! Bed sediment mass [kg]
-        integer         :: i                ! Iterator
+        class(GridCell) :: me            !! This GridCell instance
+        real(dp)        :: sedimentMass  !! Bed sediment mass [kg]
+        integer         :: i             ! Iterator
         sedimentMass = 0.0_dp
         do i = 1, me%nReaches
             sedimentMass = sedimentMass &
                 + me%colRiverReaches(i)%item%bedSediment%Mf_bed_all() &             ! Sediment mass in this reach, kg/m2
-                * me%colRiverReaches(i)%item%bedArea                                ! Multiply by bed area to get total mass in this reach 
+                * me%colRiverReaches(i)%item%bedArea                               ! Multiply by bed area to get total mass in this reach 
         end do
     end function
 
@@ -1232,5 +1233,6 @@ end function
             volumes(i) = me%colRiverReaches(i)%item%volume
         end do
         C_dissolved_water = weightedAverage(C_dissolved_water_w, volumes)
-    end function
+    end function get_C_dissolved_waterGridCell
+
 end module

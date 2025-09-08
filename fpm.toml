@@ -18,3 +18,4 @@ main = "main.f90"
 
 [build]
 link = ["netcdf", "netcdff"]
+
