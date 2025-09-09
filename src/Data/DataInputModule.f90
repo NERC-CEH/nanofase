@@ -1093,11 +1093,7 @@ module DataInputModule
 
         read(iouConstants, nml=water, iostat=nmlIOStat, iomsg=nmlIOMsg)
         if (nmlIOStat /= 0) then
-<<<<<<< HEAD
             call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read water namelist" &
-=======
-             call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read water namelist" &
->>>>>>> b6dadf2bd29f965f129fb65122a99107086dd2b2
                                                                              // " with message: " // trim(nmlIOMsg)))
             close(iouConstants)
             return
