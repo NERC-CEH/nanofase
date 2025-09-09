@@ -18,7 +18,6 @@ module SoilLayerModule
         procedure :: update => updateSoilLayer
         procedure :: addPooledWater => addPooledWaterSoilLayer
         procedure :: erode => erodeSoilLayer
-        procedure :: attachment => attachmentSoilLayer
         procedure :: calculateAttachmentRate => calculateAttachmentRateSoilLayer
         procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer
         procedure :: parseInputData => parseInputDataSoilLayer
@@ -27,27 +26,25 @@ module SoilLayerModule
 
   contains
     !> Create this `SoilLayer` and call the input data parsing procedure
-    !> Create this `SoilLayer` and call the input data parsing procedure
-    !> Create this `SoilLayer` and call the input data parsing procedure
     function createSoilLayer(me, x, y, p, l, WC_sat, WC_FC, K_s, area, bulkDensity, d_grain, porosity, earthwormDensity) result(r)
-        class(SoilLayer) :: me                          !! This `SoilLayer` instance
-        integer, intent(in) :: x                        !! Containing `GridCell` x index
-        integer, intent(in) :: y                        !! Containing `GridCell` y index
-        integer, intent(in) :: p                        !! Containing `SoilProfile` index
-        integer, intent(in) :: l                        !! Layer index
-        real(dp), intent(in) :: WC_sat                  !! Water content at saturation [m3/m3]
-        real(dp), intent(in) :: WC_FC                   !! Water content at field capacity [m3/m3]
-        real(dp), intent(in) :: K_s                     !! Saturated hydraulic conductivity [m/s]
-        real(dp), intent(in) :: area                    !! Area of the containing SoilProfile [m2]
-        real(dp), intent(in) :: bulkDensity             !! Bulk density [kg/m3]
-        real(dp), intent(in) :: d_grain                 !! Average grain diameter [m]
-        real(dp), intent(in) :: porosity                !! Porosity [-]
-        real(dp), intent(in) :: earthwormDensity        !! Earthworm density [individuals/m2]
-        integer :: i                                    ! Iterator
-        type(Result) :: r                               !! The `Result` object to return, with any errors from parsing input data.
-        integer :: allocStat                            ! Allocation status
-        real(dp) :: T_water_t                           ! Water temperature for initialization [deg C]
-        type(datetime) :: currentDate                   ! Current date for water temperature
+        class(SoilLayer) :: me                  !! This `SoilLayer` instance
+        integer, intent(in) :: x                  !! Containing `GridCell` x index
+        integer, intent(in) :: y                  !! Containing `GridCell` y index
+        integer, intent(in) :: p                  !! Containing `SoilProfile` index
+        integer, intent(in) :: l                  !! Layer index
+        real(dp), intent(in) :: WC_sat            !! Water content at saturation [m3/m3]
+        real(dp), intent(in) :: WC_FC             !! Water content at field capacity [m3/m3]
+        real(dp), intent(in) :: K_s               !! Saturated hydraulic conductivity [m/s]
+        real(dp), intent(in) :: area              !! Area of the containing SoilProfile [m2]
+        real(dp), intent(in) :: bulkDensity       !! Bulk density [kg/m3]
+        real(dp), intent(in) :: d_grain           !! Average grain diameter [m]
+        real(dp), intent(in) :: porosity          !! Porosity [-]
+        real(dp), intent(in) :: earthwormDensity  !! Earthworm density [individuals/m2]
+        integer :: i                              ! Iterator
+        type(Result) :: r                         !! The `Result` object to return, with any errors from parsing input data.
+        integer :: allocStat                      ! Allocation status
+        real(dp) :: T_water_t                     ! Water temperature for initialization [deg C]
+        type(datetime) :: currentDate             ! Current date for water temperature
 
         ! Set the metadata and area
         me%x = x
@@ -68,17 +65,17 @@ module SoilLayerModule
         T_water_t = DATASET%waterTemperature(currentDate%yearday())
 
         ! Initialize Contaminant objects
+        ! FIX: Removed the invalid DATASET%nc argument and switched to keyword-based passing.
         call r%addErrors(.errors. me%m_contaminant%create_from_data( &
-            DATASET%nc, &
-            'soil', &
-            DATASET%contaminantDensity, &
-            DATASET%soilConstantAttachmentEfficiency, &
-            DATASET%riverAttachmentEfficiency, &  ! Added missing argument
-            DATASET%estuaryAttachmentEfficiency, &
-            DATASET%contaminant_k_diss_pristine, &
-            DATASET%contaminant_k_diss_transformed, &
-            DATASET%contaminant_k_transform_pristine, &
-            T_water_t &
+            compartment='soil', &
+            contaminantDensity=DATASET%contaminantDensity, &
+            soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
+            riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
+            estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
+            k_diss_pristine=DATASET%contaminant_k_diss_pristine, &
+            k_diss_transformed=DATASET%contaminant_k_diss_transformed, &
+            k_transform_pristine=DATASET%contaminant_k_transform_pristine, &
+            waterTemperature=T_water_t &
         ))
 
         ! Initialize other Contaminant objects
@@ -109,7 +106,7 @@ module SoilLayerModule
         ! Set saturation and field capacity volumes [m3/m2] based on depth of layer
         me%V_sat = WC_sat * me%depth
         me%V_FC = WC_FC * me%depth
-        me%K_s = K_s                                    ! Hydraulic conductivity [m/s]
+        me%K_s = K_s                             ! Hydraulic conductivity [m/s]
 
         ! Allocate and create the Biota object
         allocate(me%biotaIndices(0))
@@ -152,7 +149,7 @@ module SoilLayerModule
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = DATASET%waterTemperature(currentDate%yearday())
 
-        ! Set the inflow to this SoilLayer and store initial water in layer
+        ! Set the inflow to this this SoilLayer and store initial water in layer
         me%q_in = q_in
         initial_V_w = me%V_w
 
@@ -202,13 +199,6 @@ module SoilLayerModule
         me%V_w = min(me%V_w + V_pool, me%V_sat)         ! Add pooled water, up to a maximum of V_sat
     end function
 
-
-    subroutine attachmentSoilLayer(me, T_water_t)
-        class(SoilLayer) :: me
-        real(dp) :: T_water_t
-        ! Handled by update_soil in ReactorModule
-    end subroutine
-
     !> Erode NM from this soil layer
     !! TODO bulk density could be stored in this object, not passed, probably same with area
     function erodeSoilLayer(me, erodedSediment, bulkDensity, area) result(r)
@@ -257,14 +247,51 @@ module SoilLayerModule
     !! accordingly, including allocation of arrays that depend on
     !! input data
     function parseInputDataSoilLayer(me) result(r)
-       class(SoilLayer) :: me
-        type(Result) :: r
-        me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
+        class(SoilLayer) :: me
+        type(Result)     :: r
+        logical :: have2D
+        integer :: nx, ny
+
+        have2D = .false.
+        if (allocated(DATASET%soilAttachmentEfficiency)) then
+            if (size(DATASET%soilAttachmentEfficiency,1) > 0 .and. &
+                size(DATASET%soilAttachmentEfficiency,2) > 0) then
+                nx = size(DATASET%soilAttachmentEfficiency,1)
+                ny = size(DATASET%soilAttachmentEfficiency,2)
+                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) have2D = .true.
+            end if
+        end if
+
+        if (have2D) then
+            me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
+        else
+            ! Fallback to configured constant if the 2-D field is absent/empty/out of bounds
+            me%alpha_att = DATASET%soilConstantAttachmentEfficiency
+        end if
+
+        call r%addToTrace("Parsing input data (soil layer)")
     end function
 
     subroutine parseNewBatchDataSoilLayer(me)
-       class(SoilLayer) :: me
-        me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
+        class(SoilLayer) :: me
+        logical :: have2D
+        integer :: nx, ny
+
+        have2D = .false.
+        if (allocated(DATASET%soilAttachmentEfficiency)) then
+            if (size(DATASET%soilAttachmentEfficiency,1) > 0 .and. &
+                size(DATASET%soilAttachmentEfficiency,2) > 0) then
+                nx = size(DATASET%soilAttachmentEfficiency,1)
+                ny = size(DATASET%soilAttachmentEfficiency,2)
+                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) have2D = .true.
+            end if
+        end if
+
+        if (have2D) then
+            me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
+        else
+            me%alpha_att = DATASET%soilConstantAttachmentEfficiency
+        end if
     end subroutine
 
 end module

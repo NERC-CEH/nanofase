@@ -6,7 +6,7 @@ module ReachModule
     use WaterBodyModule
     use netcdf
     use DataInputModule, only: DATASET
-    use DefaultsModule, only: defaultSlope
+    use ConstantsDefaultsModule, only: defaultSlope
     use ContaminantModule
     implicit none
 
@@ -107,7 +107,6 @@ module ReachModule
         me%n = C%n_river
         ! Initialize Contaminant objects
         call r%addErrors(.errors. me%m_contaminant%create_from_data( &
-            DATASET%nc, &
             'water', &
             DATASET%contaminantDensity, &
             DATASET%soilConstantAttachmentEfficiency, &

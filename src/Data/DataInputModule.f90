@@ -5,6 +5,7 @@
 module DataInputModule
     use mo_netcdf
     use DefaultsModule
+    use ConstantsDefaultsModule
     use GlobalsModule, only: dp, C, FREE_CONTAMINANT, ATTACHED_CONTAMINANT
     use ResultModule, only: Result
     use ErrorInstanceModule, only: ErrorInstance
@@ -207,83 +208,84 @@ module DataInputModule
         class(Database)     :: me
         type(NcDataset)     :: nc_simulationMask
         type(NcVariable)    :: var
-        character(len=*)    :: inputFile
-        character(len=*)    :: constantsFile
+        character(len=* )   :: inputFile, constantsFile
         type(Result)        :: rslt
-        integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
-        integer, allocatable :: isEstuaryInt(:,:)
+        ! temps returned by mo_netcdf in Fortran order (reversed NetCDF dims)
+        integer, allocatable :: outflow_dxy(:,:,:)
+        integer, allocatable :: inflows_dwxy(:,:,:,:)
+        integer, allocatable :: isHeadwaterInt_xy(:,:), isEstuaryInt_xy(:,:)
+        integer, allocatable :: nWaterbodies_xy(:,:)
         integer, allocatable :: simulationMask(:,:)
-        
-        ! Open the dataset and parse constants NML file
+        integer :: nx, ny
+
+        ! Open the dataset and parse constants
         me%nc = NcDataset(inputFile, 'r')
         call me%parseConstants(constantsFile)
-        
-        ! Variable units: These will already have been converted to the correct
-        ! units for use in the model by nanofase-data (the input data compilation
-        ! script). Hence, no maths need be done on variables here to convert and
-        ! thus no FPEs will occur from the masked (_FillValue) values - the model will
-        ! check the relevant variables for these *when they are used*.
 
-        ! GRID AND COORDINATE VARIABLES
-        var = me%nc%getVariable('grid_shape')
-        call var%getData(me%gridShape)
-        var = me%nc%getVariable('grid_res')
-        call var%getData(me%gridRes)
-        var = me%nc%getVariable('grid_bounds')
-        call var%getData(me%gridBounds)
-        var = me%nc%getVariable('x')
-        call var%getData(me%x)
-        allocate(me%x_l(me%gridShape(1)))
-        me%x_l = me%x - 0.5 * me%gridRes(1)
-        var = me%nc%getVariable('y')
-        call var%getData(me%y)
-        allocate(me%y_u(me%gridShape(2)))
-        me%y_u = me%y + 0.5 * me%gridRes(2)
-        var = me%nc%getVariable('crs')
-        call var%getAttribute('crs_wkt', me%crsWKT)
+        ! GRID / COORDS
+        var = me%nc%getVariable('grid_shape');  call var%getData(me%gridShape)
+        var = me%nc%getVariable('grid_res');    call var%getData(me%gridRes)
+        var = me%nc%getVariable('grid_bounds'); call var%getData(me%gridBounds)
+        var = me%nc%getVariable('x');           call var%getData(me%x)
+        var = me%nc%getVariable('y');           call var%getData(me%y)
+        allocate(me%x_l(size(me%x))); me%x_l = me%x - 0.5 * me%gridRes(1)
+        allocate(me%y_u(size(me%y))); me%y_u = me%y + 0.5 * me%gridRes(2)
+        var = me%nc%getVariable('crs'); call var%getAttribute('crs_wkt', me%crsWKT)
 
-        ! ROUTING VARIABLES
-        var = me%nc%getVariable('outflow')
-        call var%getData(me%outflow)
-        var = me%nc%getVariable('inflows')
-        call var%getData(me%inflows)
-        var = me%nc%getVariable('is_headwater')
-        call var%getData(isHeadwaterInt)
-        me%isHeadwater = ulgcl(isHeadwaterInt)      ! Convert uint1 to logical
-        var = me%nc%getVariable('n_waterbodies')
-        call var%getData(me%nWaterbodies)
+        nx = me%gridShape(1)
+        ny = me%gridShape(2)
+
+        ! ROUTING (getData already reversed dims to Fortran order)
+        ! outflow: file (y,x,d) -> returned (d,x,y) => model (d,x,y)
+        var = me%nc%getVariable('outflow');  call var%getData(outflow_dxy)
+        if (allocated(me%outflow)) deallocate(me%outflow)
+        allocate(me%outflow( size(outflow_dxy,1), size(outflow_dxy,2), size(outflow_dxy,3) ))
+        me%outflow = outflow_dxy
+        deallocate(outflow_dxy)
+
+        ! inflows: file (y,x,w,d) -> returned (d,w,x,y) => model (d,w,x,y)
+        var = me%nc%getVariable('inflows');  call var%getData(inflows_dwxy)
+        if (allocated(me%inflows)) deallocate(me%inflows)
+        allocate(me%inflows( size(inflows_dwxy,1), size(inflows_dwxy,2), &
+                            size(inflows_dwxy,3), size(inflows_dwxy,4) ))
+        me%inflows = inflows_dwxy
+        deallocate(inflows_dwxy)
+
+        ! headwater / n_waterbodies / estuary: file (y,x) -> returned (x,y) => model (x,y)
+        var = me%nc%getVariable('is_headwater');  call var%getData(isHeadwaterInt_xy)
+        me%isHeadwater = ulgcl(isHeadwaterInt_xy)
+        deallocate(isHeadwaterInt_xy)
+
+        var = me%nc%getVariable('n_waterbodies'); call var%getData(nWaterbodies_xy)
+        me%nWaterbodies = nWaterbodies_xy
+        deallocate(nWaterbodies_xy)
         me%maxNWaterbodies = maxval(me%nWaterbodies)
-        ! If we're meant to be including the estuary, then get the is_estuary variable
+
         if (C%includeEstuary) then
-            var = me%nc%getVariable('is_estuary')
-            call var%getData(isEstuaryInt)
-            me%isEstuary = ulgcl(isEstuaryInt)          ! Convert uint1 to logical
+            var = me%nc%getVariable('is_estuary'); call var%getData(isEstuaryInt_xy)
+            me%isEstuary = ulgcl(isEstuaryInt_xy)
+            deallocate(isEstuaryInt_xy)
         else
-            allocate(me%isEstuary(me%gridShape(1), me%gridShape(2)))
-            me%isEstuary = .false.
+            allocate(me%isEstuary(nx, ny)); me%isEstuary = .false.
         end if
 
-        ! Use the nWaterbodies array to set the grid mask
-        allocate(me%gridMask(me%gridShape(1), me%gridShape(2)))
+        ! Grid mask from nWaterbodies
+        allocate(me%gridMask(nx, ny))
         me%gridMask = me%mask(me%nWaterbodies)
 
-        ! Meandering factors are set using grid resolution, if not present in constants,
-        ! so they must be set after grid resolution pulled for NetCDF file (here), as
-        ! opposed to in the constants parsing routine
-        if (isZero(me%riverMeanderingFactor)) then
-            me%riverMeanderingFactor = me%calculateMeanderingFactorFromCellSize()
-        end if
-        if (isZero(me%estuaryMeanderingFactor)) then
-            me%estuaryMeanderingFactor = me%calculateMeanderingFactorFromCellSize()
-        end if
+        ! Derive meandering factors from grid size if not set in constants
+        if (isZero(me%riverMeanderingFactor))   me%riverMeanderingFactor   = &
+            me%calculateMeanderingFactorFromCellSize()
+        if (isZero(me%estuaryMeanderingFactor)) me%estuaryMeanderingFactor = &
+            me%calculateMeanderingFactorFromCellSize()
 
-        ! Read the variables that can be updated on each batch (i.e. not geographical)
+        ! Chunk-varying variables
         call me%readBatchVariables()
 
-        ! Close the dataset
+        ! Close input dataset
         call me%nc%close()
 
-        ! Has a simulation mask been provided?
+        ! Simulation mask (same reversal: file (y,x) -> returned (x,y))
         if (C%hasSimulationMask) then
             nc_simulationMask = NcDataset(C%simulationMaskPath, 'r')
             var = nc_simulationMask%getVariable('simulation_mask')
@@ -291,14 +293,13 @@ module DataInputModule
             me%simulationMask = ulgcl(simulationMask)
             me%nNonMaskedCells = count(me%simulationMask)
         else
-            allocate(me%simulationMask(me%gridShape(1), me%gridShape(2)))
+            allocate(me%simulationMask(nx, ny))
             me%simulationMask = .true.
             me%nNonMaskedCells = count(.not. me%gridMask)
         end if
 
-        ! Do the auditing
+        ! Audit & log
         call rslt%addErrors(.errors. me%audit())
-
         call rslt%addToTrace('Initialising database')
         call ERROR_HANDLER%trigger(errors=.errors.rslt)
         call LOGR%toFile("Initialising database: success")
@@ -308,22 +309,20 @@ module DataInputModule
     !> Update the database based on data for a new chunk (k), or for the only chunk if this
     !! isn't a batch run.
     subroutine updateDatabase(me, k)
-        class(Database) :: me               !! This Database instance
-        integer         :: k                !! The index of this chunk, used to access correct config options
+        class(Database) :: me
+        integer         :: k
 
         ! Get the config options for this chunk
-        C%inputFile = C%batchInputFiles(k)
+        C%inputFile   = C%batchInputFiles(k)
         C%constantsFile = C%batchConstantFiles(k)
-        C%nTimeSteps = C%batchNTimesteps(k)
-        C%startDate = C%batchStartDates(k)
+        C%nTimeSteps  = C%batchNTimesteps(k)
+        C%startDate   = C%batchStartDates(k)
 
-        ! Read in the new constants file
         call me%parseConstants(C%constantsFile)
 
-        ! Open the new dataset
         me%nc = NcDataset(C%inputFile, 'r')
 
-        ! Deallocate the previous chunk's variables
+        ! Deallocate previous-chunk vars
         if (allocated(me%t)) deallocate(me%t)
         if (allocated(me%soilAttachmentRate)) deallocate(me%soilAttachmentRate)
         if (allocated(me%soilAttachmentEfficiency)) deallocate(me%soilAttachmentEfficiency)
@@ -357,676 +356,447 @@ module DataInputModule
         if (allocated(me%emissionsPointWaterDissolvedContaminant)) &
             deallocate(me%emissionsPointWaterDissolvedContaminant)
 
-        ! Read this chunk's variables
         call me%readBatchVariables()
-        
-        ! Close the dataset
         call me%nc%close()
     end subroutine
 
     !> Read variables in for the new chunk as part of a batch run
     subroutine readBatchVariablesDatabase(me)
-        class(Database)     :: me               ! This Database instance
-        type(NcVariable)    :: var              ! NetCDF variable
-        type(NcDimension)   :: p_dim            ! NetCDF dimensions for point sources
-        integer             :: x, y, n, s, f, st, p  ! Grid cell and dimension iterators
-        integer             :: alloc_stat       ! Allocation status
-        character(len=256)  :: varname          ! Variable name for logging
-        real(dp), allocatable :: temp_array(:,:,:)  ! Temporary array for reading 3D NetCDF data
-        real(dp), allocatable :: temp_array_4d(:,:,:,:)  ! Temporary array for reading 4D NetCDF data
+        class(Database)     :: me
+        type(NcVariable)    :: var
+        type(NcDimension)   :: p_dim
+        logical :: haveCoordVar
+        integer :: n
+        integer :: alloc_stat
+        integer :: nx, ny, nt, nforms, nsizes, np
+        integer :: f_pris, f_mat, f_tra
 
-        ! Allocate emissions arrays
-        allocate( &
-            me%emissionsArealSoilContaminant(me%gridShape(1), me%gridShape(2), &
-                C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)), &
-            me%emissionsArealWaterContaminant(me%gridShape(1), me%gridShape(2), &
-                C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)), &
-            me%emissionsAtmosphericDryDepoContaminant(me%gridShape(1), me%gridShape(2), &
-                C%nTimesteps, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)), &
-            me%emissionsAtmosphericWetDepoContaminant(me%gridShape(1), me%gridShape(2), &
-                C%nTimesteps, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)), &
-            me%emissionsPointWaterContaminant(me%gridShape(1), me%gridShape(2), C%nTimesteps, &
-                me%maxPointSources, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)), &
-            stat=alloc_stat)
-        if (alloc_stat /= 0) then
-            call ERROR_HANDLER%trigger(error=ErrorInstance(message="Emission allocation failed"))
-        end if
+        ! temp arrays with explicit ranks that match legacy file vars
+        real(dp), allocatable :: A2(:,:)          ! (x,y)
+        real(dp), allocatable :: A3(:,:,:)        ! (x,y,t)
+        real(dp), allocatable :: COORD4(:,:,:,:)  ! (x,y,p,d)
+        real(dp), allocatable :: A4(:,:,:,:)      ! (x,y,t,p) 
 
-        ! Initialize with zeros
-        me%emissionsArealSoilContaminant = 0.0_dp
-        me%emissionsArealWaterContaminant = 0.0_dp
-        me%emissionsAtmosphericDryDepoContaminant = 0.0_dp
-        me%emissionsAtmosphericWetDepoContaminant = 0.0_dp
-        me%emissionsPointWaterContaminant = 0.0_dp
+        nx     = me%gridShape(1)
+        ny     = me%gridShape(2)
+        nt     = C%nTimeSteps
+        nsizes = C%contaminantDim(1)
+        nforms = C%contaminantDim(2)
 
-        ! Soil emissions
-        varname = "emissions_areal_soil_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2)), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do st = 1, C%contaminantDim(3)
-                call var%getData(temp_array_4d)
-                me%emissionsArealSoilContaminant(:,:,:,:,st) = temp_array_4d
-            end do
-            deallocate(temp_array_4d)
+        ! Legacy form indices (cap to available number of forms)
+        f_pris = 1
+        f_mat  = merge(2, 1, nforms >= 2)
+        f_tra  = merge(3, 1, nforms >= 3)
+
+        !----------------------
+        ! BASIC TIME SERIES
+        !----------------------
+        if (me%nc%hasVariable('quickflow')) then
+            var = me%nc%getVariable('quickflow')         ! (t,y,x) in file
+            if (allocated(me%quickflow)) deallocate(me%quickflow)
+            allocate(me%quickflow(nx,ny,nt))
+            call var%getData(me%quickflow)               ! library reverses -> (x,y,t)
         else
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing "//trim(varname)//"; trying old variable names", &
-                isCritical=.false.)])
-            if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
-                var = me%nc%getVariable('emissions_areal_soil_pristine')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealSoilContaminant(:,:,1,1,FREE_CONTAMINANT) = temp_array(:,:,1)
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsArealSoilContaminant(:,:,n,1,FREE_CONTAMINANT) = &
-                        me%emissionsArealSoilContaminant(:,:,1,1,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
-                var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealSoilContaminant(:,:,1,2,FREE_CONTAMINANT) = temp_array(:,:,1)
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsArealSoilContaminant(:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsArealSoilContaminant(:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
-                var = me%nc%getVariable('emissions_areal_soil_transformed')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealSoilContaminant(:,:,1,2,FREE_CONTAMINANT) = temp_array(:,:,1)
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsArealSoilContaminant(:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsArealSoilContaminant(:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
+            if (allocated(me%quickflow)) deallocate(me%quickflow)
+            allocate(me%quickflow(nx,ny,nt))
+            me%quickflow = 0.0_dp
         end if
 
-        varname = "emissions_areal_soil_dissolved_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), 1), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%emissionsArealSoilDissolvedContaminant = temp_array(:,:,1)
-            deallocate(temp_array)
+        if (me%nc%hasVariable('runoff')) then
+            var = me%nc%getVariable('runoff')
+            if (allocated(me%runoff)) deallocate(me%runoff)
+            allocate(me%runoff(nx,ny,nt))
+            call var%getData(me%runoff)
         else
-            allocate(me%emissionsArealSoilDissolvedContaminant(me%gridShape(1), me%gridShape(2)))
-            if (me%nc%hasVariable('emissions_areal_soil_dissolved')) then
-                var = me%nc%getVariable('emissions_areal_soil_dissolved')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), 1), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealSoilDissolvedContaminant = temp_array(:,:,1)
-                deallocate(temp_array)
-                call LOGR%toFile(errors=[ErrorInstance( &
-                    message="Using legacy variable 'emissions_areal_soil_dissolved'", &
-                    isCritical=.false.)])
-            else
-                me%emissionsArealSoilDissolvedContaminant = 0.0_dp
-            end if
+            if (allocated(me%runoff)) deallocate(me%runoff)
+            allocate(me%runoff(nx,ny,nt))
+            me%runoff = 0.0_dp
         end if
 
-        varname = "emissions_areal_water_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2)), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do st = 1, C%contaminantDim(3)
-                call var%getData(temp_array_4d)
-                me%emissionsArealWaterContaminant(:,:,:,:,st) = temp_array_4d
-            end do
-            deallocate(temp_array_4d)
+        if (me%nc%hasVariable('precip')) then
+            var = me%nc%getVariable('precip')
+            if (allocated(me%precip)) deallocate(me%precip)
+            allocate(me%precip(nx,ny,nt))
+            call var%getData(me%precip)
         else
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing "//trim(varname)//"; trying old variable names", &
-                isCritical=.false.)])
-            if (me%nc%hasVariable('emissions_areal_water_pristine')) then
-                var = me%nc%getVariable('emissions_areal_water_pristine')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealWaterContaminant(:,:,1,1,FREE_CONTAMINANT) = temp_array(:,:,1)
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsArealWaterContaminant(:,:,n,1,FREE_CONTAMINANT) = &
-                        me%emissionsArealWaterContaminant(:,:,1,1,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
-                var = me%nc%getVariable('emissions_areal_water_matrixembedded')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealWaterContaminant(:,:,1,2,FREE_CONTAMINANT) = temp_array(:,:,1)
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsArealWaterContaminant(:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsArealWaterContaminant(:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_areal_water_transformed')) then
-                var = me%nc%getVariable('emissions_areal_water_transformed')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealWaterContaminant(:,:,1,2,FREE_CONTAMINANT) = temp_array(:,:,1)
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsArealWaterContaminant(:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsArealWaterContaminant(:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
+            if (allocated(me%precip)) deallocate(me%precip)
+            allocate(me%precip(nx,ny,nt))
+            me%precip = 0.0_dp
         end if
 
-        varname = "emissions_areal_water_dissolved_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), 1), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%emissionsArealWaterDissolvedContaminant = temp_array(:,:,1)
-            deallocate(temp_array)
+        if (me%nc%hasVariable('evap')) then
+            var = me%nc%getVariable('evap')
+            if (allocated(me%evap)) deallocate(me%evap)
+            allocate(me%evap(nx,ny,nt))
+            call var%getData(me%evap)
         else
-            allocate(me%emissionsArealWaterDissolvedContaminant(me%gridShape(1), me%gridShape(2)))
-            if (me%nc%hasVariable('emissions_areal_water_dissolved')) then
-                var = me%nc%getVariable('emissions_areal_water_dissolved')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), 1), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsArealWaterDissolvedContaminant = temp_array(:,:,1)
-                deallocate(temp_array)
-                call LOGR%toFile(errors=[ErrorInstance( &
-                    message="Using legacy variable 'emissions_areal_water_dissolved'", &
-                    isCritical=.false.)])
-            else
-                me%emissionsArealWaterDissolvedContaminant = 0.0_dp
-            end if
+            if (allocated(me%evap)) deallocate(me%evap)
+            allocate(me%evap(nx,ny,nt))
+            me%evap = 0.0_dp
         end if
 
-        varname = "emissions_atmospheric_drydepo_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%nTimesteps, C%contaminantDim(1)), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do f = 1, C%contaminantDim(2)
-                do st = 1, C%contaminantDim(3)
-                    call var%getData(temp_array_4d)
-                    me%emissionsAtmosphericDryDepoContaminant(:,:,:,:,f,st) = temp_array_4d
-                end do
-            end do
-            deallocate(temp_array_4d)
-        else
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing "//trim(varname)//"; trying old variable names", &
-                isCritical=.false.)])
-            if (me%nc%hasVariable('emissions_atmospheric_drydepo_pristine')) then
-                var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,1,FREE_CONTAMINANT) = temp_array
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,1,FREE_CONTAMINANT) = &
-                        me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,1,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_atmospheric_drydepo_matrixembedded')) then
-                var = me%nc%getVariable('emissions_atmospheric_drydepo_matrixembedded')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) = temp_array
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
-                var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) = temp_array
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-        end if
-
-        varname = "emissions_atmospheric_drydepo_dissolved_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%emissionsAtmosphericDryDepoDissolvedContaminant = temp_array
-            deallocate(temp_array)
-        else
-            allocate(me%emissionsAtmosphericDryDepoDissolvedContaminant( &
-                me%gridShape(1), me%gridShape(2), C%nTimesteps))
-            if (me%nc%hasVariable('emissions_atmospheric_drydepo_dissolved')) then
-                var = me%nc%getVariable('emissions_atmospheric_drydepo_dissolved')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericDryDepoDissolvedContaminant = temp_array
-                deallocate(temp_array)
-                call LOGR%toFile(errors=[ErrorInstance( &
-                    message="Using legacy variable 'emissions_atmospheric_drydepo_dissolved'", &
-                    isCritical=.false.)])
-            else
-                me%emissionsAtmosphericDryDepoDissolvedContaminant = 0.0_dp
-            end if
-        end if
-
-        varname = "emissions_atmospheric_wetdepo_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%nTimesteps, C%contaminantDim(1)), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do f = 1, C%contaminantDim(2)
-                do st = 1, C%contaminantDim(3)
-                    call var%getData(temp_array_4d)
-                    me%emissionsAtmosphericWetDepoContaminant(:,:,:,:,f,st) = temp_array_4d
-                end do
-            end do
-            deallocate(temp_array_4d)
-        else
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing "//trim(varname)//"; trying old variable names", &
-                isCritical=.false.)])
-            if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
-                var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,1,FREE_CONTAMINANT) = temp_array
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,1,FREE_CONTAMINANT) = &
-                        me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,1,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_atmospheric_wetdepo_matrixembedded')) then
-                var = me%nc%getVariable('emissions_atmospheric_wetdepo_matrixembedded')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) = temp_array
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-            if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
-                var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) = temp_array
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
-            end if
-        end if
-
-        varname = "emissions_atmospheric_wetdepo_dissolved_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%emissionsAtmosphericWetDepoDissolvedContaminant = temp_array
-            deallocate(temp_array)
-        else
-            allocate(me%emissionsAtmosphericWetDepoDissolvedContaminant( &
-                me%gridShape(1), me%gridShape(2), C%nTimesteps))
-            if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
-                var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsAtmosphericWetDepoDissolvedContaminant = temp_array
-                deallocate(temp_array)
-                call LOGR%toFile(errors=[ErrorInstance( &
-                    message="Using legacy variable 'emissions_atmospheric_wetdepo_dissolved'", &
-                    isCritical=.false.)])
-            else
-                me%emissionsAtmosphericWetDepoDissolvedContaminant = 0.0_dp
-            end if
-        end if
-
+        !----------------------
+        ! POINT-SOURCE DIM
+        !----------------------
         if (me%nc%hasDimension('p')) then
-            p_dim = me%nc%getDimension('p')
+            p_dim              = me%nc%getDimension('p')
             me%maxPointSources = p_dim%getLength()
         else
             me%maxPointSources = 0
         end if
-        allocate(me%emissionsPointWaterContaminant(me%gridShape(1), me%gridShape(2), C%nTimesteps, me%maxPointSources, &
-                                                C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)), &
-                stat=alloc_stat)
-        if (alloc_stat /= 0) then
-            call ERROR_HANDLER%trigger(error=ErrorInstance(message="Point source emission allocation failed"))
-        end if
-        me%emissionsPointWaterContaminant = 0.0_dp
+        np = max(1, me%maxPointSources)
 
-        varname = "emissions_point_water_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%nTimesteps, me%maxPointSources), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do s = 1, C%contaminantDim(1)
-                do f = 1, C%contaminantDim(2)
-                    do st = 1, C%contaminantDim(3)
-                        call var%getData(temp_array_4d)
-                        me%emissionsPointWaterContaminant(:,:,:,:,s,f,st) = temp_array_4d
-                    end do
-                end do
+        !----------------------
+        ! DEALLOC & ALLOC EMISSIONS
+        !----------------------
+        if (allocated(me%emissionsArealSoilContaminant)) &
+            deallocate(me%emissionsArealSoilContaminant)
+        if (allocated(me%emissionsArealWaterContaminant)) &
+            deallocate(me%emissionsArealWaterContaminant)
+        if (allocated(me%emissionsAtmosphericDryDepoContaminant)) &
+            deallocate(me%emissionsAtmosphericDryDepoContaminant)
+        if (allocated(me%emissionsAtmosphericWetDepoContaminant)) &
+            deallocate(me%emissionsAtmosphericWetDepoContaminant)
+        if (allocated(me%emissionsPointWaterContaminant)) &
+            deallocate(me%emissionsPointWaterContaminant)
+        if (allocated(me%emissionsArealSoilDissolvedContaminant)) &
+            deallocate(me%emissionsArealSoilDissolvedContaminant)
+        if (allocated(me%emissionsArealWaterDissolvedContaminant)) &
+            deallocate(me%emissionsArealWaterDissolvedContaminant)
+        if (allocated(me%emissionsAtmosphericDryDepoDissolvedContaminant)) &
+            deallocate(me%emissionsAtmosphericDryDepoDissolvedContaminant)
+        if (allocated(me%emissionsAtmosphericWetDepoDissolvedContaminant)) &
+            deallocate(me%emissionsAtmosphericWetDepoDissolvedContaminant)
+        if (allocated(me%emissionsPointWaterDissolvedContaminant)) &
+            deallocate(me%emissionsPointWaterDissolvedContaminant)
+        if (allocated(me%emissionsPointWaterCoords)) &
+            deallocate(me%emissionsPointWaterCoords)
+
+        allocate( &
+            me%emissionsArealSoilContaminant( nx, ny, nsizes, nforms, C%contaminantDim(3) ), &
+            me%emissionsArealWaterContaminant( nx, ny, nsizes, nforms, C%contaminantDim(3) ), &
+            me%emissionsAtmosphericDryDepoContaminant( nx, ny, nt, nsizes, nforms, &
+                                                    C%contaminantDim(3) ), &
+            me%emissionsAtmosphericWetDepoContaminant( nx, ny, nt, nsizes, nforms, &
+                                                    C%contaminantDim(3) ), &
+            me%emissionsPointWaterContaminant( nx, ny, nt, np, nsizes, nforms, &
+                                            C%contaminantDim(3) ), &
+            me%emissionsArealSoilDissolvedContaminant( nx, ny ), &
+            me%emissionsArealWaterDissolvedContaminant( nx, ny ), &
+            me%emissionsAtmosphericDryDepoDissolvedContaminant( nx, ny, nt ), &
+            me%emissionsAtmosphericWetDepoDissolvedContaminant( nx, ny, nt ), &
+            me%emissionsPointWaterDissolvedContaminant( nx, ny, nt ), &
+            stat=alloc_stat )
+
+        if (alloc_stat /= 0) then
+            call ERROR_HANDLER%trigger( &
+                error=ErrorInstance(message='Emission allocation failed') )
+            return
+        end if
+
+        me%emissionsArealSoilContaminant                   = 0.0_dp
+        me%emissionsArealWaterContaminant                  = 0.0_dp
+        me%emissionsAtmosphericDryDepoContaminant          = 0.0_dp
+        me%emissionsAtmosphericWetDepoContaminant          = 0.0_dp
+        me%emissionsPointWaterContaminant                  = 0.0_dp
+        me%emissionsArealSoilDissolvedContaminant          = 0.0_dp
+        me%emissionsArealWaterDissolvedContaminant         = 0.0_dp
+        me%emissionsAtmosphericDryDepoDissolvedContaminant = 0.0_dp
+        me%emissionsAtmosphericWetDepoDissolvedContaminant = 0.0_dp
+        me%emissionsPointWaterDissolvedContaminant         = 0.0_dp
+
+        !-----------------------------------
+        ! AREAL EMISSIONS (2-D y,x → (x,y))
+        !-----------------------------------
+        if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
+            var = me%nc%getVariable('emissions_areal_soil_pristine')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
             end do
-            deallocate(temp_array_4d)
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
+            var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilContaminant(:,:,1,f_mat,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
+            var = me%nc%getVariable('emissions_areal_soil_transformed')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilContaminant(:,:,1,f_tra,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_water_pristine')) then
+            var = me%nc%getVariable('emissions_areal_water_pristine')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
+            var = me%nc%getVariable('emissions_areal_water_matrixembedded')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterContaminant(:,:,1,f_mat,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_water_transformed')) then
+            var = me%nc%getVariable('emissions_areal_water_transformed')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterContaminant(:,:,1,f_tra,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_soil_dissolved')) then
+            var = me%nc%getVariable('emissions_areal_soil_dissolved')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilDissolvedContaminant = A2
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_water_dissolved')) then
+            var = me%nc%getVariable('emissions_areal_water_dissolved')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterDissolvedContaminant = A2
+            deallocate(A2)
+        end if
+
+        !-----------------------------------------
+        ! ATMOSPHERIC DEPOSITION (3-D t,y,x → (x,y,t))
+        !-----------------------------------------
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_pristine')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_pris,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_matrixembedded')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_matrixembedded')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_mat,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_tra,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_pris,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_matrixembedded')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_matrixembedded')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_mat,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_tra,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_dissolved')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_dissolved')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoDissolvedContaminant = A3
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoDissolvedContaminant = A3
+            deallocate(A3)
+        end if
+
+        !-----------------------------------------
+        ! POINT-SOURCE COORDS (4-D x,y,p,2)
+        !-----------------------------------------
+        haveCoordVar = .false.
+        if (me%nc%hasVariable('emissions_point_water_contaminant_coords')) then
+            var = me%nc%getVariable('emissions_point_water_contaminant_coords')
+            haveCoordVar = .true.
+        else if (me%nc%hasVariable('emissions_point_water_pristine_coords')) then
+            var = me%nc%getVariable('emissions_point_water_pristine_coords')
+            haveCoordVar = .true.
+        else if (me%nc%hasVariable('emissions_point_water_matrixembedded_coords')) then
+            var = me%nc%getVariable('emissions_point_water_matrixembedded_coords')
+            haveCoordVar = .true.
+        end if
+
+        if (allocated(me%emissionsPointWaterCoords)) &
+            deallocate(me%emissionsPointWaterCoords)
+        allocate(me%emissionsPointWaterCoords(nx, ny, me%maxPointSources, 2))
+
+        if (haveCoordVar) then
+            allocate(COORD4(nx, ny, me%maxPointSources, 2))
+            call var%getData(COORD4)      ! library returns (x,y,p,d)
+            me%emissionsPointWaterCoords = COORD4
+            deallocate(COORD4)
         else
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing "//trim(varname)//"; trying old variable names", &
-                isCritical=.false.)])
+            me%emissionsPointWaterCoords = nf90_fill_double
+        end if
+        
+        !-----------------------------------------
+        ! POINT-SOURCE EMISSIONS (4-D p,t,y,x → (x,y,t,p))
+        !-----------------------------------------
+        if (me%maxPointSources > 0) then
+
             if (me%nc%hasVariable('emissions_point_water_pristine')) then
                 var = me%nc%getVariable('emissions_point_water_pristine')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                do p = 1, me%maxPointSources
-                    me%emissionsPointWaterContaminant(:,:,:,p,1,1,FREE_CONTAMINANT) = temp_array
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
+                ! size=1 takes raw; n=2..nsizes distributed
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_pris,FREE_CONTAMINANT) = A4
+                do n = 2, nsizes
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_pris,FREE_CONTAMINANT) = &
+                        A4 * me%defaultDistributionContaminant(n)
                 end do
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsPointWaterContaminant(:,:,:,:,n,1,FREE_CONTAMINANT) = &
-                        me%emissionsPointWaterContaminant(:,:,:,:,1,1,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
+                deallocate(A4)
             end if
+
             if (me%nc%hasVariable('emissions_point_water_matrixembedded')) then
                 var = me%nc%getVariable('emissions_point_water_matrixembedded')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                do p = 1, me%maxPointSources
-                    me%emissionsPointWaterContaminant(:,:,:,p,1,2,FREE_CONTAMINANT) = temp_array
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_mat,FREE_CONTAMINANT) = A4
+                do n = 2, nsizes
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_mat,FREE_CONTAMINANT) = &
+                        A4 * me%defaultDistributionContaminant(n)
                 end do
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsPointWaterContaminant(:,:,:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsPointWaterContaminant(:,:,:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
+                deallocate(A4)
             end if
+
+            ! Optional: only if present in file
             if (me%nc%hasVariable('emissions_point_water_transformed')) then
                 var = me%nc%getVariable('emissions_point_water_transformed')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                do p = 1, me%maxPointSources
-                    me%emissionsPointWaterContaminant(:,:,:,p,1,2,FREE_CONTAMINANT) = temp_array
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_tra,FREE_CONTAMINANT) = A4
+                do n = 2, nsizes
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_tra,FREE_CONTAMINANT) = &
+                        A4 * me%defaultDistributionContaminant(n)
                 end do
-                deallocate(temp_array)
-                do n = 2, C%nContaminantSizeClasses
-                    me%emissionsPointWaterContaminant(:,:,:,:,n,2,FREE_CONTAMINANT) = &
-                        me%emissionsPointWaterContaminant(:,:,:,:,1,2,FREE_CONTAMINANT) * &
-                        me%defaultDistributionContaminant(n)
-                end do
+                deallocate(A4)
             end if
+
         end if
 
-        varname = "emissions_point_water_dissolved_contaminant"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%emissionsPointWaterDissolvedContaminant = temp_array
-            deallocate(temp_array)
-        else
-            allocate(me%emissionsPointWaterDissolvedContaminant( &
-                me%gridShape(1), me%gridShape(2), C%nTimesteps))
-            if (me%nc%hasVariable('emissions_point_water_dissolved')) then
-                var = me%nc%getVariable('emissions_point_water_dissolved')
-                allocate(temp_array(me%gridShape(1), me%gridShape(2), C%nTimesteps), stat=alloc_stat)
-                if (alloc_stat /= 0) then
-                    call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-                end if
-                call var%getData(temp_array)
-                me%emissionsPointWaterDissolvedContaminant = temp_array
-                deallocate(temp_array)
-                call LOGR%toFile(errors=[ErrorInstance( &
-                    message="Using legacy variable 'emissions_point_water_dissolved'", &
-                    isCritical=.false.)])
-            else
-                me%emissionsPointWaterDissolvedContaminant = 0.0_dp
-            end if
+        !-----------------------------------
+        ! INITIAL CONCENTRATIONS
+        !-----------------------------------
+        if (allocated(me%initialContaminantConcsSoil))     &
+            deallocate(me%initialContaminantConcsSoil)
+        if (allocated(me%initialContaminantConcsWater))    &
+            deallocate(me%initialContaminantConcsWater)
+        if (allocated(me%initialContaminantConcsSediment)) &
+            deallocate(me%initialContaminantConcsSediment)
+        if (allocated(me%initialDissolvedConcsSoil))       &
+            deallocate(me%initialDissolvedConcsSoil)
+        if (allocated(me%initialDissolvedConcsWater))      &
+            deallocate(me%initialDissolvedConcsWater)
+        if (allocated(me%initialDissolvedConcsSediment))   &
+            deallocate(me%initialDissolvedConcsSediment)
+
+        allocate(me%initialContaminantConcsSoil(   nx,ny,nsizes,nforms, &
+                                                C%contaminantDim(3)))
+        allocate(me%initialContaminantConcsWater(  nx,ny,nsizes,nforms, &
+                                                C%contaminantDim(3)))
+        allocate(me%initialContaminantConcsSediment(nx,ny,nsizes,nforms, &
+                                                    C%contaminantDim(3)))
+        allocate(me%initialDissolvedConcsSoil(     nx,ny))
+        allocate(me%initialDissolvedConcsWater(    nx,ny))
+        allocate(me%initialDissolvedConcsSediment( nx,ny))
+
+        me%initialContaminantConcsSoil     = 0.0_dp
+        me%initialContaminantConcsWater    = 0.0_dp
+        me%initialContaminantConcsSediment = 0.0_dp
+        me%initialDissolvedConcsSoil       = 0.0_dp
+        me%initialDissolvedConcsWater      = 0.0_dp
+        me%initialDissolvedConcsSediment   = 0.0_dp
+
+        if (me%nc%hasVariable('initial_dissolved_concentrations_soil')) then
+            var = me%nc%getVariable('initial_dissolved_concentrations_soil')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%initialDissolvedConcsSoil = A2
+            deallocate(A2)
+        end if
+        if (me%nc%hasVariable('initial_dissolved_concentrations_water')) then
+            var = me%nc%getVariable('initial_dissolved_concentrations_water')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%initialDissolvedConcsWater = A2
+            deallocate(A2)
+        end if
+        if (me%nc%hasVariable('initial_dissolved_concentrations_sediment')) then
+            var = me%nc%getVariable('initial_dissolved_concentrations_sediment')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%initialDissolvedConcsSediment = A2
+            deallocate(A2)
         end if
 
-        varname = "emissions_point_water_contaminant_coords"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), me%maxPointSources, 2), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            call var%getData(temp_array_4d)
-            me%emissionsPointWaterCoords = temp_array_4d
-            deallocate(temp_array_4d)
-        else
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing emissions_point_water_contaminant_coords", &
-                isCritical=.true.)])
-            me%maxPointSources = 0
-        end if
-
-        ! Initial concentrations
-        varname = "initial_contaminant_concentrations_soil"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2)), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do st = 1, C%contaminantDim(3)
-                call var%getData(temp_array_4d)
-                me%initialContaminantConcsSoil(:,:,:,:,st) = temp_array_4d
-            end do
-            deallocate(temp_array_4d)
-        else
-            allocate(me%initialContaminantConcsSoil( &
-                me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
-            me%initialContaminantConcsSoil = 0.0_dp
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing initial_contaminant_concentrations_soil; using zero", &
-                isCritical=.false.)])
-        end if
-
-        varname = "initial_dissolved_concentrations_soil"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), 1), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%initialDissolvedConcsSoil = temp_array(:,:,1)
-            deallocate(temp_array)
-        else
-            allocate(me%initialDissolvedConcsSoil(me%gridShape(1), me%gridShape(2)))
-            me%initialDissolvedConcsSoil = 0.0_dp
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing initial_dissolved_concentrations_soil; using zero", &
-                isCritical=.false.)])
-        end if
-
-        varname = "initial_contaminant_concentrations_water"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2)), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do st = 1, C%contaminantDim(3)
-                call var%getData(temp_array_4d)
-                me%initialContaminantConcsWater(:,:,:,:,st) = temp_array_4d
-            end do
-            deallocate(temp_array_4d)
-        else
-            allocate(me%initialContaminantConcsWater( &
-                me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
-            me%initialContaminantConcsWater = 0.0_dp
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing initial_contaminant_concentrations_water; using zero", &
-                isCritical=.false.)])
-        end if
-
-        varname = "initial_dissolved_concentrations_water"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), 1), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%initialDissolvedConcsWater = temp_array(:,:,1)
-            deallocate(temp_array)
-        else
-            allocate(me%initialDissolvedConcsWater(me%gridShape(1), me%gridShape(2)))
-            me%initialDissolvedConcsWater = 0.0_dp
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing initial_dissolved_concentrations_water; using zero", &
-                isCritical=.false.)])
-        end if
-
-        varname = "initial_contaminant_concentrations_sediment"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array_4d(me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2)), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary 4D array allocation failed"))
-            end if
-            do st = 1, C%contaminantDim(3)
-                call var%getData(temp_array_4d)
-                me%initialContaminantConcsSediment(:,:,:,:,st) = temp_array_4d
-            end do
-            deallocate(temp_array_4d)
-        else
-            allocate(me%initialContaminantConcsSediment( &
-                me%gridShape(1), me%gridShape(2), C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
-            me%initialContaminantConcsSediment = 0.0_dp
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing initial_contaminant_concentrations_sediment; using zero", &
-                isCritical=.false.)])
-        end if
-
-        varname = "initial_dissolved_concentrations_sediment"
-        if (me%nc%hasVariable(varname)) then
-            var = me%nc%getVariable(varname)
-            allocate(temp_array(me%gridShape(1), me%gridShape(2), 1), stat=alloc_stat)
-            if (alloc_stat /= 0) then
-                call ERROR_HANDLER%trigger(error=ErrorInstance(message="Temporary array allocation failed"))
-            end if
-            call var%getData(temp_array)
-            me%initialDissolvedConcsSediment = temp_array(:,:,1)
-            deallocate(temp_array)
-        else
-            allocate(me%initialDissolvedConcsSediment(me%gridShape(1), me%gridShape(2)))
-            me%initialDissolvedConcsSediment = 0.0_dp
-            call LOGR%toFile(errors=[ErrorInstance( &
-                message="Missing initial_dissolved_concentrations_sediment; using zero", &
-                isCritical=.false.)])
-        end if
-
+        ! Count point sources after coords are populated
+        call me%calculateNPointSources(me%maxPointSources)
     end subroutine readBatchVariablesDatabase
+
 
     !> Get the constants from the namelist file
     subroutine parseConstantsDatabase(me, constantsFile)
@@ -1110,16 +880,12 @@ module DataInputModule
         k_transform_pristine = default_k_transform_pristine
         soil_constant_attachment_efficiency = defaultSoilAttachmentEfficiency
         river_attachment_efficiency = defaultRiverAttachmentEfficiency
-        estuary_attachment_efficiency = defaultSoilAttachmentEfficiency
         resuspension_alpha_estuary = 0.0_dp
         resuspension_beta_estuary = 0.0_dp
         soil_constant_attachment_efficiency = real(defaultSoilAttachmentEfficiency, dp)
         river_attachment_efficiency = real(defaultRiverAttachmentEfficiency, dp)
         estuary_attachment_efficiency = defaultEstuaryAttachmentEfficiency
         darcy_velocity = defaultSoilDarcyVelocity
-        k_diss_pristine = default_k_diss_pristine
-        k_diss_transformed = default_k_diss_transformed
-        k_transform_pristine = default_k_transform_pristine
         estuary_meandering_factor = 0.0
         river_meandering_factor = 0.0
         shear_rate = defaultShearRate
@@ -1327,7 +1093,11 @@ module DataInputModule
 
         read(iouConstants, nml=water, iostat=nmlIOStat, iomsg=nmlIOMsg)
         if (nmlIOStat /= 0) then
+<<<<<<< HEAD
             call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read water namelist" &
+=======
+             call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read water namelist" &
+>>>>>>> b6dadf2bd29f965f129fb65122a99107086dd2b2
                                                                              // " with message: " // trim(nmlIOMsg)))
             close(iouConstants)
             return
@@ -1462,26 +1232,36 @@ module DataInputModule
         end if
     end function
 
-    !> Calculate the number of point sources per grid cell
+    ! Compute number of point sources per (x,y) cell by inspecting coordinates.
     subroutine calculateNPointSourcesDatabase(me, maxPointSources)
         class(Database) :: me
-        integer         :: maxPointSources
-        integer :: i, j, k, n
-        if (.not. allocated(me%nPointSources)) then
-            allocate(me%nPointSources(me%gridShape(1), me%gridShape(2)))
-        end if
+        integer, intent(in) :: maxPointSources
+        integer :: i, j, p
+        real(dp) :: px, py
+
+        if (allocated(me%nPointSources)) deallocate(me%nPointSources)
+        allocate(me%nPointSources(me%gridShape(1), me%gridShape(2)))
+        me%nPointSources = 0
+
+        if (.not. allocated(me%emissionsPointWaterCoords)) return
+        if (maxPointSources <= 0) return
+
         do j = 1, me%gridShape(2)
             do i = 1, me%gridShape(1)
-                n = 0
-                do k = 1, maxPointSources
-                    if (me%emissionsPointWaterCoords(i, j, k, 1) /= nf90_fill_double) then
-                        n = n + 1
+                do p = 1, maxPointSources
+                    px = me%emissionsPointWaterCoords(i, j, p, 1)
+                    py = me%emissionsPointWaterCoords(i, j, p, 2)
+                    if (px /= nf90_fill_double .and. py /= nf90_fill_double) then
+                        if ((abs(px) > C%epsilon .or. abs(py) > C%epsilon) .and. &
+                            .not. (px < -9.9e8_dp .and. py < -9.9e8_dp)) then
+                            me%nPointSources(i, j) = me%nPointSources(i, j) + 1
+                        end if
                     end if
                 end do
-                me%nPointSources(i, j) = n
             end do
         end do
-    end subroutine
+    end subroutine calculateNPointSourcesDatabase
+
 
     !> Check whether a set of coordinates (x,y) is in the model domain
     function inModelDomainDatabase(me, x, y) result(inModelDomain)
@@ -1547,41 +1327,46 @@ module DataInputModule
     !! $$
     function calculateWaterTemperatureTimeSeriesWaterBody(me, minTemp, maxTemp, minTempDay) result(waterTemperature)
         class(Database) :: me
-        real(dp)        :: minTemp 
-        real(dp)        :: maxTemp  
+        real(dp)        :: minTemp, maxTemp
         integer         :: minTempDay
-        real(dp)        :: waterTemperature(366)  
+        real(dp)        :: waterTemperature(366)
         integer         :: i
-        integer         :: days(366)
-        ! Integer range of days in year
-        days = [(i, i = 1, 366, 1)]
-        ! Calculate the water temperature timeseries using cos function
-        waterTemperature = - 0.5 * (maxTemp - minTemp) * cos(days * 2 * C%pi / 366 - minTempDay) &
-                           + (maxTemp + minTemp) / 2
-    end function
+        real(dp)        :: angle(366)
+
+        ! angle = 2*pi*(day - day_min)/366
+        do i = 1, 366
+            angle(i) = 2.0_dp*C%pi * real(i - minTempDay, dp) / 366.0_dp
+        end do
+
+        waterTemperature = 0.5_dp*(maxTemp - minTemp) * cos(angle) + 0.5_dp*(maxTemp + minTemp)
+    end function calculateWaterTemperatureTimeSeriesWaterBody
+
 
     !> Audit the database
     function auditDatabase(me) result(rslt)
-        class(Database) :: me           ! This Database
-        type(Result)    :: rslt         ! Result object to return errors in
-        integer         :: x, y, i      ! Iterators
-        integer         :: xy_in(2)     ! Inflow x and y
-        logical         :: simulationMaskError = .false.
+        class(Database) :: me
+        type(Result)    :: rslt
+        integer         :: x, y, i
+        integer         :: xi, yi
+        integer         :: nx, ny
+        logical         :: simulationMaskError
+
+        simulationMaskError = .false.
 
         ! Is the simulation mask self-contained (no inflows to area to simulate)?
         if (C%hasSimulationMask) then
-            do y = 1, me%gridShape(2)
-                do x = 1, me%gridShape(1)
-                    if (me%simulationMask(x,y)) then
-                        ! We're in the area to simulate, so check if there are inflows from
-                        ! outside the area to simulation
+            nx = me%gridShape(1)
+            ny = me%gridShape(2)
+            do y = 1, ny
+                do x = 1, nx
+                    if (me%simulationMask(x, y)) then
+                        ! me%inflows is (d,w,x,y) where d=2 holds (x,y) origin indices
                         do i = 1, size(me%inflows, dim=2)
-                            ! Is the inflow actually an inflow or a fill value
-                            if (me%inflows(1,i,x,y) >= 0) then
-                                xy_in = me%inflows(:,i,x,y)
-                                if (.not. me%simulationMask(xy_in(1), xy_in(2))) then
-                                    simulationMaskError = .true.
-                                end if
+                            xi = me%inflows(1, i, x, y)
+                            yi = me%inflows(2, i, x, y)
+                            ! Skip invalid/out-of-domain inflow indices
+                            if (xi >= 1 .and. xi <= nx .and. yi >= 1 .and. yi <= ny) then
+                                if (.not. me%simulationMask(xi, yi)) simulationMaskError = .true.
                             end if
                         end do
                     end if
@@ -1591,98 +1376,91 @@ module DataInputModule
 
         if (simulationMaskError) then
             call rslt%addError(ErrorInstance( &
-                message="Simulation mask provided has inflows from outside " // &
-                        "the area to simulate. Please provide a simulation mask that " // &
-                        "is self-contained." &
-            ))
+                message="Simulation mask provided has inflows from outside the area to " // &
+                        "simulate. Please provide a simulation mask that is self-contained." ))
         end if
 
-        ! Bounds checks for sediment calibration parameters
-        if (any(me%depositionAlpha < 0.0_dp)) then
-            call rslt%addError(ErrorInstance( &
-                message="Value provided for deposition_alpha must be greater than or equal to zero. " // &
-                        "At least one value provided is less than zero." &
-            ))
+        ! Bounds checks for sediment calibration parameters (arrays may be unallocated)
+        if (allocated(me%depositionAlpha)) then
+            if (any(me%depositionAlpha < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="Value provided for deposition_alpha must be >= 0. At least one < 0." ))
+            end if
         end if
-        if (any(me%resuspensionAlpha < 0.0_dp)) then
-            call rslt%addError(ErrorInstance( &
-                message="Value provided for resuspension_alpha must be greater than or equal to zero. " // &
-                        "At least one value provided is less than zero." &
-            ))
+        if (allocated(me%resuspensionAlpha)) then
+            if (any(me%resuspensionAlpha < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="Value provided for resuspension_alpha must be >= 0. At least one < 0." ))
+            end if
         end if
-        if (any(me%resuspensionBeta < 0.0_dp)) then
-            call rslt%addError(ErrorInstance( &
-                message="Value provided for resuspension_beta must be greater than or equal to zero. " // &
-                        "At least one value provided is less than zero." &
-            ))
+        if (allocated(me%resuspensionBeta)) then
+            if (any(me%resuspensionBeta < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="Value provided for resuspension_beta must be >= 0. At least one < 0." ))
+            end if
         end if
 
         ! Does sediment fractional composition sum to unity?
         if (.not. isZero(1.0_dp - sum(me%sedimentFractionalComposition))) then
-            call rslt%addError(ErrorInstance(message="sedimentFractionalComposition must sum to 1. Found: " // &
-                str(sum(me%sedimentFractionalComposition))))
+            call rslt%addError(ErrorInstance( &
+                message="sedimentFractionalComposition must sum to 1. Found: " // &
+                        str(sum(me%sedimentFractionalComposition)) ))
         end if
+
         if (any(me%defaultDistributionContaminant < 0.0)) then
-            call rslt%addError(ErrorInstance(message="defaultDistributionContaminant must be non-negative."))
+            call rslt%addError(ErrorInstance( &
+                message="defaultDistributionContaminant must be non-negative." ))
         end if
         if (.not. isZero(1.0_dp - sum(me%defaultDistributionContaminant))) then
-            call rslt%addError(ErrorInstance(message="defaultDistributionContaminant must sum to 1. Found: " // &
-                str(sum(me%defaultDistributionContaminant))))
+            call rslt%addError(ErrorInstance( &
+                message="defaultDistributionContaminant must sum to 1. Found: " // &
+                        str(sum(me%defaultDistributionContaminant)) ))
         end if
+
         if (me%contaminantDensity <= 0.0) then
-            call rslt%addError(ErrorInstance(message="contaminantDensity must be positive."))
+            call rslt%addError(ErrorInstance( &
+                message="contaminantDensity must be positive." ))
         end if
         if (any(me%contaminantSizeClasses <= 0.0)) then
-            call rslt%addError(ErrorInstance(message="contaminantSizeClasses must be positive."))
+            call rslt%addError(ErrorInstance( &
+                message="contaminantSizeClasses must be positive." ))
         end if
 
         ! Bounds checks for initial concentrations
         if (allocated(me%initialContaminantConcsSoil)) then
             if (any(me%initialContaminantConcsSoil < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="initialContaminantConcsSoil must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="initialContaminantConcsSoil must be non-negative. At least one < 0." ))
             end if
         end if
         if (allocated(me%initialContaminantConcsWater)) then
             if (any(me%initialContaminantConcsWater < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="initialContaminantConcsWater must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="initialContaminantConcsWater must be non-negative. At least one < 0." ))
             end if
         end if
         if (allocated(me%initialContaminantConcsSediment)) then
             if (any(me%initialContaminantConcsSediment < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="initialContaminantConcsSediment must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="initialContaminantConcsSediment must be non-negative. At least one < 0." ))
             end if
         end if
         if (allocated(me%initialDissolvedConcsSoil)) then
             if (any(me%initialDissolvedConcsSoil < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="initialDissolvedConcsSoil must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="initialDissolvedConcsSoil must be non-negative. At least one < 0." ))
             end if
         end if
         if (allocated(me%initialDissolvedConcsWater)) then
             if (any(me%initialDissolvedConcsWater < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="initialDissolvedConcsWater must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="initialDissolvedConcsWater must be non-negative. At least one < 0." ))
             end if
         end if
         if (allocated(me%initialDissolvedConcsSediment)) then
             if (any(me%initialDissolvedConcsSediment < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="initialDissolvedConcsSediment must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="initialDissolvedConcsSediment must be non-negative. At least one < 0." ))
             end if
         end if
 
@@ -1690,41 +1468,33 @@ module DataInputModule
         if (allocated(me%emissionsArealSoilDissolvedContaminant)) then
             if (any(me%emissionsArealSoilDissolvedContaminant < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="emissionsArealSoilDissolvedContaminant must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="emissionsArealSoilDissolvedContaminant must be >= 0. At least one < 0." ))
             end if
         end if
         if (allocated(me%emissionsArealWaterDissolvedContaminant)) then
             if (any(me%emissionsArealWaterDissolvedContaminant < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="emissionsArealWaterDissolvedContaminant must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="emissionsArealWaterDissolvedContaminant must be >= 0. At least one < 0." ))
             end if
         end if
         if (allocated(me%emissionsAtmosphericDryDepoDissolvedContaminant)) then
             if (any(me%emissionsAtmosphericDryDepoDissolvedContaminant < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="emissionsAtmosphericDryDepoDissolvedContaminant must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="emissionsAtmosphericDryDepoDissolvedContaminant must be >= 0. " // &
+                            "At least one < 0." ))
             end if
         end if
         if (allocated(me%emissionsAtmosphericWetDepoDissolvedContaminant)) then
             if (any(me%emissionsAtmosphericWetDepoDissolvedContaminant < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="emissionsAtmosphericWetDepoDissolvedContaminant must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="emissionsAtmosphericWetDepoDissolvedContaminant must be >= 0. " // &
+                            "At least one < 0." ))
             end if
         end if
         if (allocated(me%emissionsPointWaterDissolvedContaminant)) then
             if (any(me%emissionsPointWaterDissolvedContaminant < 0.0_dp)) then
                 call rslt%addError(ErrorInstance( &
-                    message="emissionsPointWaterDissolvedContaminant must be non-negative. " // &
-                            "At least one value is negative." &
-                ))
+                    message="emissionsPointWaterDissolvedContaminant must be >= 0. At least one < 0." ))
             end if
         end if
     end function

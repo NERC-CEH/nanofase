@@ -254,22 +254,51 @@ module WaterBodyModule
     subroutine allocateAndInitialiseWaterBody(me)
         class(WaterBody), intent(inout) :: me
         type(Result) :: rslt
-        allocate(me%C_spm(C%nSizeClassesSpm), &
-                 me%C_spm_final(C%nSizeClassesSpm), &
-                 me%m_spm(C%nSizeClassesSpm), &
-                 me%k_resus(C%nSizeClassesSpm), &
-                 me%k_settle(C%nSizeClassesSpm), &
-                 me%W_settle_spm(C%nSizeClassesSpm))
+
+        ! Be re-entry safe: deallocate before (re)allocating
+        if (allocated(me%C_spm))        deallocate(me%C_spm)
+        if (allocated(me%C_spm_final))  deallocate(me%C_spm_final)
+        if (allocated(me%m_spm))        deallocate(me%m_spm)
+        if (allocated(me%k_resus))      deallocate(me%k_resus)
+        if (allocated(me%k_settle))     deallocate(me%k_settle)
+        if (allocated(me%W_settle_spm)) deallocate(me%W_settle_spm)
+
+        allocate(me%C_spm(        C%nSizeClassesSpm))
+        allocate(me%C_spm_final(  C%nSizeClassesSpm))
+        allocate(me%m_spm(        C%nSizeClassesSpm))
+        allocate(me%k_resus(      C%nSizeClassesSpm))
+        allocate(me%k_settle(     C%nSizeClassesSpm))
+        allocate(me%W_settle_spm( C%nSizeClassesSpm))
+
+        me%C_spm          = 0.0_dp
+        me%C_spm_final    = 0.0_dp
+        me%m_spm          = 0.0_dp
+        me%k_resus        = 0.0_dp
+        me%k_settle       = 0.0_dp
+        me%W_settle_spm   = 0.0_dp
+        me%C_dissolved        = 0.0_dp
+        me%C_dissolved_final  = 0.0_dp
+        me%bedArea            = 0.0_dp
+        me%volume             = 0.0_dp
+
+        ! Ensure contaminant internals are clean before re-create
+        call me%m_contaminant%finalise()
+
         rslt = me%m_contaminant%create_from_data( &
-            DATASET%nc, 'water', &
-            DATASET%contaminantDensity, &
-            DATASET%soilConstantAttachmentEfficiency, &
-            DATASET%riverAttachmentEfficiency, &
-            DATASET%estuaryAttachmentEfficiency, &
-            DATASET%contaminant_k_diss_pristine, &
-            DATASET%contaminant_k_diss_transformed, &
-            DATASET%contaminant_k_transform_pristine, &
-            real(DATASET%waterTemperature(1), dp))
+            compartment='water', &
+            contaminantDensity = DATASET%contaminantDensity, &
+            soilAttachmentEfficiency = &
+                DATASET%soilConstantAttachmentEfficiency, &
+            riverAttachmentEfficiency = DATASET%riverAttachmentEfficiency, &
+            estuaryAttachmentEfficiency = &
+                DATASET%estuaryAttachmentEfficiency, &
+            k_diss_pristine     = DATASET%contaminant_k_diss_pristine, &
+            k_diss_transformed  = DATASET%contaminant_k_diss_transformed, &
+            k_transform_pristine= &
+                DATASET%contaminant_k_transform_pristine, &
+            waterTemperature    = real(DATASET%waterTemperature(1), dp) )
+
+        ! If this routine can be re-entered, (re)create flow objects too
         call rslt%addErrors(.errors. me%j_contaminant_inflow%create())
         call rslt%addErrors(.errors. me%j_contaminant_outflow%create())
         call rslt%addErrors(.errors. me%j_contaminant_runoff%create())
@@ -281,17 +310,8 @@ module WaterBodyModule
         call rslt%addErrors(.errors. me%j_contaminant_deposition%create())
         call rslt%addErrors(.errors. me%j_contaminant_resuspension%create())
         call rslt%addErrors(.errors. me%j_contaminant_final%create())
-        me%C_spm = 0.0_dp
-        me%C_spm_final = 0.0_dp
-        me%m_spm = 0.0_dp
-        me%C_dissolved = 0.0_dp
-        me%C_dissolved_final = 0.0_dp
-        me%k_resus = 0.0_dp
-        me%k_settle = 0.0_dp
-        me%W_settle_spm = 0.0_dp
-        me%bedArea = 0.0_dp
-        me%volume = 0.0_dp
     end subroutine
+
 
     !> Add a point source to this WaterBody 
     subroutine addPointSourceWaterBody(me, index)

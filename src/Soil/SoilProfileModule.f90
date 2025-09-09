@@ -397,207 +397,245 @@ contains
     !! accordingly, including the allocation of arrays that depend on
     !! this input data
     function parseInputDataSoilProfile(me) result(r)
-        class(SoilProfile)     :: me                        !! This `SoilProfile` instance
-        type(Result)            :: r                        !! `Result` object to return
-        integer                 :: landUse                  ! Index of max land use fraction in this profile
+        class(SoilProfile)     :: me
+        type(Result)           :: r
+        integer                :: landUse
+        logical                :: haveSoil2D, haveLU3D
+        integer                :: nx, ny, nlux, nluy, nluc
 
-        me%distributionSediment = DATASET%defaultSpmSizeDistribution ! TODO we can probably get rid of this, but check
-        me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
-        me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
-        me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
-        me%K_s = DATASET%soilHydraulicConductivity(me%x, me%y)
-        ! Soil hydraulic properties contain no data where in urban areas. For the moment,
-        ! until land cover properly incorporated into model, we'll use this as a proxy
-        ! for urban areas (which therefore contain no soil profile). In the future, we should
-        ! account for this properly by splitting grid cells into different soil profiles.
-        if (me%WC_sat == nf90_fill_real) me%WC_sat = 0.8
-        if (me%WC_FC == nf90_fill_real) me%WC_FC = 0.5
-        if (me%K_s == nf90_fill_real) me%K_s = 1e-6
-        if (me%bulkDensity == nf90_fill_real) me%bulkDensity = 1220
-
-        me%clayContent = DATASET%soilTextureClayContent(me%x, me%y)
-        me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
-        me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
-        me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
-        ! Check if clay, sand and silt sum to (nearly) 100%, and if not, default to
-        ! the average soil texture for Europe
-        if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
-            me%clayContent = 18.0
-            me%sandContent = 46.0
-            me%siltContent = 36.0
+        ! Defensive checks on dataset shapes before indexing
+        haveSoil2D = .false.
+        if (allocated(DATASET%soilBulkDensity)) then
+            nx = size(DATASET%soilBulkDensity, 1)
+            ny = size(DATASET%soilBulkDensity, 2)
+            if (nx > 0 .and. ny > 0 .and. me%x >= 1 .and. me%y >= 1 &
+                .and. me%x <= nx .and. me%y <= ny) haveSoil2D = .true.
         end if
-        if (me%coarseFragContent == nf90_fill_real) then
+
+        haveLU3D = .false.
+        if (allocated(DATASET%landUse)) then
+            nlux = size(DATASET%landUse, 1)
+            nluy = size(DATASET%landUse, 2)
+            nluc = size(DATASET%landUse, 3)
+            if (nlux > 0 .and. nluy > 0 .and. nluc > 0 .and. &
+                me%x >= 1 .and. me%y >= 1 .and. me%x <= nlux .and. me%y <= nluy) haveLU3D = .true.
+        end if
+
+        ! Base SPM distribution (kept even in fallback mode)
+        me%distributionSediment = DATASET%defaultSpmSizeDistribution
+
+        if (haveSoil2D) then
+            !--- Normal path: read spatial soil properties ---
+            me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
+            me%WC_sat      = DATASET%soilWaterContentSaturation(me%x, me%y)
+            me%WC_FC       = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
+            me%K_s         = DATASET%soilHydraulicConductivity(me%x, me%y)
+
+            if (me%WC_sat      == nf90_fill_real)    me%WC_sat      = 0.8
+            if (me%WC_FC       == nf90_fill_real)    me%WC_FC       = 0.5
+            if (me%K_s         == nf90_fill_real)    me%K_s         = 1e-6
+            if (me%bulkDensity == nf90_fill_real)    me%bulkDensity = 1220.0
+
+            me%clayContent      = DATASET%soilTextureClayContent(me%x, me%y)
+            me%sandContent      = DATASET%soilTextureSandContent(me%x, me%y)
+            me%siltContent      = DATASET%soilTextureSiltContent(me%x, me%y)
+            me%coarseFragContent= DATASET%soilTextureCoarseFragContent(me%x, me%y)
+
+            if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
+                me%clayContent = 18.0
+                me%sandContent = 46.0
+                me%siltContent = 36.0
+            end if
+            if (me%coarseFragContent == nf90_fill_real) me%coarseFragContent = 0.0
+
+            me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+            me%distributionSediment = me%calculateSizeDistribution( &
+                me%clayContent, me%siltContent, me%sandContent, C%includeClayEnrichment )
+
+            me%porosity = DATASET%soilDefaultPorosity
+
+            me%usle_C  = DATASET%soilUsleCFactor(me%x, me%y);  if (me%usle_C  == nf90_fill_double) me%usle_C  = 0.00055095
+            me%usle_P  = DATASET%soilUslePFactor(me%x, me%y);  if (me%usle_P  == nf90_fill_double) me%usle_P  = 1.0
+            me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y); if (me%usle_LS == nf90_fill_double) me%usle_LS = 0.3
+
+            if (haveLU3D) then
+                landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
+            else
+                landUse = 10  ! default to water if landUse missing
+            end if
+
+            select case (landUse)
+                case (1)
+                    me%earthwormDensity   = DATASET%earthwormDensityUrbanCapped
+                    me%dominantLandUseName= 'urban_no_soil'
+                case (2)
+                    me%earthwormDensity   = DATASET%earthwormDensityUrbanParks
+                    me%dominantLandUseName= 'urban_parks_leisure'
+                case (3)
+                    me%earthwormDensity   = DATASET%earthwormDensityUrbanGardens
+                    me%dominantLandUseName= 'urban_industrial_soil'
+                case (4)
+                    me%earthwormDensity   = DATASET%earthwormDensityUrbanGardens
+                    me%dominantLandUseName= 'urban_green_residential'
+                case (5)
+                    me%earthwormDensity   = DATASET%earthwormDensityArable
+                    me%dominantLandUseName= 'arable'
+                case (6)
+                    me%earthwormDensity   = DATASET%earthwormDensityGrassland
+                    me%dominantLandUseName= 'grassland'
+                case (7)
+                    me%earthwormDensity   = DATASET%earthwormDensityDeciduous
+                    me%dominantLandUseName= 'deciduous'
+                case (8)
+                    me%earthwormDensity   = DATASET%earthwormDensityConiferous
+                    me%dominantLandUseName= 'coniferous'
+                case (9)
+                    me%earthwormDensity   = DATASET%earthwormDensityHeathland
+                    me%dominantLandUseName= 'heathland'
+                case (10)
+                    me%earthwormDensity   = 0.0_dp
+                    me%dominantLandUseName= 'water'
+                case (11)
+                    me%earthwormDensity   = 0.0_dp
+                    me%dominantLandUseName= 'desert'
+                case default
+                    me%earthwormDensity   = 0.0_dp
+                    me%dominantLandUseName= 'other'
+            end select
+
+            me%isUrban = (me%dominantLandUseName == 'urban_no_soil')
+
+        else
+            !--- Fallback path: no soil grids -> treat as water/urban-no-soil; use safe defaults ---
+            me%bulkDensity = 1220.0_dp
+            me%WC_sat      = 0.8_dp
+            me%WC_FC       = 0.5_dp
+            me%K_s         = 1.0e-6_dp
+
+            me%clayContent       = 18.0
+            me%sandContent       = 46.0
+            me%siltContent       = 36.0
             me%coarseFragContent = 0.0
-        end if
-        ! Calculate the average grain diameter from soil texture
-        me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
-        me%distributionSediment = me%calculateSizeDistribution( &
-            me%clayContent, &
-            me%siltContent, &
-            me%sandContent, &
-            C%includeClayEnrichment &
-        )
-        me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
+            me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+            me%distributionSediment = me%calculateSizeDistribution( &
+                me%clayContent, me%siltContent, me%sandContent, C%includeClayEnrichment )
 
-        ! USLE params
-        me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
-        if (me%usle_C == nf90_fill_double) then
-            me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
-        end if
-        me%usle_P = DATASET%soilUslePFactor(me%x, me%y)
-        if (me%usle_P == nf90_fill_double) then
-            me%usle_P = 1.0                 ! If there's no data, assume no support practice
-        end if
-        me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y)
-        if (me%usle_LS == nf90_fill_double) then
-            me%usle_LS = 0.3                 ! Pick an average value if there's no data
-        end if
+            me%porosity = DATASET%soilDefaultPorosity
+            me%usle_C   = 0.00055095_dp
+            me%usle_P   = 1.0_dp
+            me%usle_LS  = 0.3_dp
 
-        ! Get earthworm density from land use. Select the maximum land use fraction and use all
-        ! of profile as that
-        landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
-        ! TODO get these values more intelligently
-        select case (landUse)
-            case (1)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
-                me%dominantLandUseName = 'urban_no_soil'
-            case (2)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanParks
-                me%dominantLandUseName = 'urban_parks_leisure'
-            case (3)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
-                me%dominantLandUseName = 'urban_industrial_soil'
-            case (4)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
-                me%dominantLandUseName = 'urban_green_residential'
-            case (5)
-                me%earthwormDensity = DATASET%earthwormDensityArable
-                me%dominantLandUseName = 'arable'
-            case (6)
-                me%earthwormDensity = DATASET%earthwormDensityGrassland
-                me%dominantLandUseName = 'grassland'
-            case (7)
-                me%earthwormDensity = DATASET%earthwormDensityDeciduous
-                me%dominantLandUseName = 'deciduous'
-            case (8)
-                me%earthwormDensity = DATASET%earthwormDensityConiferous
-                me%dominantLandUseName = 'coniferous'
-            case (9)
-                me%earthwormDensity = DATASET%earthwormDensityHeathland
-                me%dominantLandUseName = 'heathland'
-            case (10)
-                me%earthwormDensity = 0.0_dp
-                me%dominantLandUseName = 'water'
-            case (11)
-                me%earthwormDensity = 0.0_dp
-                me%dominantLandUseName = 'desert'
-            case default
-                me%earthwormDensity = 0.0_dp
-                me%dominantLandUseName = 'other'
-        end select
+            me%earthwormDensity    = 0.0_dp
+            me%dominantLandUseName = 'water'
+            me%isUrban             = .true.
+        end if
 
         ! Auditing
         call r%addError( &
-            ERROR_HANDLER%equal( &
-                value = sum(me%distributionSediment), &
-                criterion = 1.0_dp, &
-                epsilon = 1e-3, &
-                message = "Grain size distribution does not sum to 1 (100%). " &
-                            // "Have you set sediment size classes correctly?" &
-            ) &
-        )
+            ERROR_HANDLER%equal( value=sum(me%distributionSediment), criterion=1.0_dp, epsilon=1e-3, &
+            message="Grain size distribution does not sum to 1 (100%). Have you set sediment size classes correctly?" ) )
 
         me%erosivity_a1 = DATASET%soilErosivity_a1
         me%erosivity_a2 = DATASET%soilErosivity_a2
         me%erosivity_a3 = DATASET%soilErosivity_a3
-        me%erosivity_b = DATASET%soilErosivity_b
+        me%erosivity_b  = DATASET%soilErosivity_b
 
-        ! Add this procedure to the trace
-        call r%addToTrace('Parsing input data')
+        call r%addToTrace('Parsing input data (soil profile)')
     end function
 
     subroutine parseNewBatchDataSoilProfile(me)
         class(SoilProfile) :: me
-        integer :: landUse
+        integer            :: landUse
+        logical            :: haveSoil2D, haveLU3D
+        integer            :: nx, ny, nlux, nluy, nluc
 
-        ! These timeseries are passed to soil profile in create(), so we need to set again here
+        ! Refresh time series
         deallocate(me%q_evap_timeSeries, me%q_precip_timeSeries)
-        allocate(me%q_evap_timeSeries, source=DATASET%evap(me%x, me%y, :))
+        allocate(me%q_evap_timeSeries,   source=DATASET%evap(me%x, me%y, :))
         allocate(me%q_precip_timeSeries, source=DATASET%precip(me%x, me%y, :))
 
-        me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
-        me%WC_sat = DATASET%soilWaterContentSaturation(me%x, me%y)
-        me%WC_FC = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
-        me%K_s = DATASET%soilHydraulicConductivity(me%x, me%y)
-        ! Soil hydraulic properties contain no data where in urban areas. For the moment,
-        ! until land cover properly incorporated into model, we'll use this as a proxy
-        ! for urban areas (which therefore contain no soil profile). In the future, we should
-        ! account for this properly by splitting grid cells into different soil profiles.
-        if (me%WC_sat == nf90_fill_real) me%WC_sat = 0.8
-        if (me%WC_FC == nf90_fill_real) me%WC_FC = 0.5
-        if (me%K_s == nf90_fill_real) me%K_s = 1e-6
-        if (me%bulkDensity == nf90_fill_real) me%bulkDensity = 1220
-
-        me%clayContent = DATASET%soilTextureClayContent(me%x, me%y)
-        me%sandContent = DATASET%soilTextureSandContent(me%x, me%y)
-        me%siltContent = DATASET%soilTextureSiltContent(me%x, me%y)
-        me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
-        ! Check if clay, sand and silt sum to (nearly) 100%, and if not, default to
-        ! the average soil texture for Europe
-        if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
-            me%clayContent = 18.0
-            me%sandContent = 46.0
-            me%siltContent = 36.0
-        end if
-        if (me%coarseFragContent == nf90_fill_real) then
-            me%coarseFragContent = 0.0
-        end if
-        ! Calculate the average grain diameter from soil texture
-        me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
-        me%porosity = DATASET%soilDefaultPorosity       ! TODO change to be spatial
-
-        ! USLE params
-        me%usle_C = DATASET%soilUsleCFactor(me%x, me%y)
-        ! TODO make usle_C not temporal
-        if (me%usle_C == nf90_fill_double) then
-            me%usle_C = 0.00055095          ! Pick a small value to represent urban, if there's no data
-        end if
-        me%usle_P = DATASET%soilUslePFactor(me%x, me%y)
-        if (me%usle_P == nf90_fill_double) then
-            me%usle_P = 1.0                 ! If there's no data, assume no support practice
-        end if
-        me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y)
-        if (me%usle_LS == nf90_fill_double) then
-            me%usle_LS = 0.3                 ! Pick an average value if there's no data
+        ! Check availability of spatial layers
+        haveSoil2D = .false.
+        if (allocated(DATASET%soilBulkDensity)) then
+            nx = size(DATASET%soilBulkDensity, 1)
+            ny = size(DATASET%soilBulkDensity, 2)
+            if (nx > 0 .and. ny > 0 .and. me%x >= 1 .and. me%y >= 1 &
+                .and. me%x <= nx .and. me%y <= ny) haveSoil2D = .true.
         end if
 
-        ! Get earthworm density from land use. Select the maximum land use fraction and use all
-        ! of profile is that.
-        landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
-        ! TODO get these values more intelligently
-        select case (landUse)
-            case (1)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
-            case (2)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanParks
-            case (3)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
-            case (4)
-                me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
-            case (5)
-                me%earthwormDensity = DATASET%earthwormDensityArable
-            case (6)
-                me%earthwormDensity = DATASET%earthwormDensityGrassland
-            case (7)
-                me%earthwormDensity = DATASET%earthwormDensityDeciduous
-            case (8)
-                me%earthwormDensity = DATASET%earthwormDensityConiferous
-            case (9)
-                me%earthwormDensity = DATASET%earthwormDensityHeathland
-            case default
-                me%earthwormDensity = 0.0_dp
-        end select
+        haveLU3D = .false.
+        if (allocated(DATASET%landUse)) then
+            nlux = size(DATASET%landUse, 1)
+            nluy = size(DATASET%landUse, 2)
+            nluc = size(DATASET%landUse, 3)
+            if (nlux > 0 .and. nluy > 0 .and. nluc > 0 .and. &
+                me%x >= 1 .and. me%y >= 1 .and. me%x <= nlux .and. me%y <= nluy) haveLU3D = .true.
+        end if
+
+        if (haveSoil2D) then
+            me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
+            me%WC_sat      = DATASET%soilWaterContentSaturation(me%x, me%y)
+            me%WC_FC       = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
+            me%K_s         = DATASET%soilHydraulicConductivity(me%x, me%y)
+            if (me%WC_sat      == nf90_fill_real)    me%WC_sat      = 0.8
+            if (me%WC_FC       == nf90_fill_real)    me%WC_FC       = 0.5
+            if (me%K_s         == nf90_fill_real)    me%K_s         = 1e-6
+            if (me%bulkDensity == nf90_fill_real)    me%bulkDensity = 1220.0
+
+            me%clayContent       = DATASET%soilTextureClayContent(me%x, me%y)
+            me%sandContent       = DATASET%soilTextureSandContent(me%x, me%y)
+            me%siltContent       = DATASET%soilTextureSiltContent(me%x, me%y)
+            me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%x, me%y)
+            if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
+                me%clayContent = 18.0
+                me%sandContent = 46.0
+                me%siltContent = 36.0
+            end if
+            if (me%coarseFragContent == nf90_fill_real) me%coarseFragContent = 0.0
+
+            me%d_grain  = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+            me%porosity = DATASET%soilDefaultPorosity
+
+            me%usle_C  = DATASET%soilUsleCFactor(me%x, me%y);  if (me%usle_C  == nf90_fill_double) me%usle_C  = 0.00055095
+            me%usle_P  = DATASET%soilUslePFactor(me%x, me%y);  if (me%usle_P  == nf90_fill_double) me%usle_P  = 1.0
+            me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y); if (me%usle_LS == nf90_fill_double) me%usle_LS = 0.3
+
+            if (haveLU3D) then
+                landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
+            else
+                landUse = 10
+            end if
+            select case (landUse)
+                case (1);  me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
+                case (2);  me%earthwormDensity = DATASET%earthwormDensityUrbanParks
+                case (3);  me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+                case (4);  me%earthwormDensity = DATASET%earthwormDensityUrbanGardens
+                case (5);  me%earthwormDensity = DATASET%earthwormDensityArable
+                case (6);  me%earthwormDensity = DATASET%earthwormDensityGrassland
+                case (7);  me%earthwormDensity = DATASET%earthwormDensityDeciduous
+                case (8);  me%earthwormDensity = DATASET%earthwormDensityConiferous
+                case (9);  me%earthwormDensity = DATASET%earthwormDensityHeathland
+                case default
+                    me%earthwormDensity = 0.0_dp
+            end select
+            me%isUrban = (landUse == 1)
+
+        else
+            ! No soil grids in this batch: keep model stable with defaults
+            me%bulkDensity = 1220.0_dp
+            me%WC_sat      = 0.8_dp
+            me%WC_FC       = 0.5_dp
+            me%K_s         = 1.0e-6_dp
+            me%d_grain     = me%calculateAverageGrainSize(18.0, 36.0, 46.0)
+            me%porosity    = DATASET%soilDefaultPorosity
+            me%usle_C      = 0.00055095_dp
+            me%usle_P      = 1.0_dp
+            me%usle_LS     = 0.3_dp
+            me%earthwormDensity = 0.0_dp
+            me%isUrban     = .true.
+        end if
     end subroutine
+
 
     function get_m_contaminant_SoilProfile(me) result(m_contaminant)
         class(SoilProfile) :: me
