@@ -32,7 +32,7 @@
     <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=eba8b062" />
     <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
-    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
   
@@ -472,6 +472,72 @@ document.write(`
 <section id="meteorological-and-hydrological-parameters">
 <h3>Meteorological and hydrological parameters<a class="headerlink" href="#meteorological-and-hydrological-parameters" title="Link to this heading">#</a></h3>
 <div class="full-width docutils">
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Name(dimensions)</p></th>
+<th class="head"><p>Specified in</p></th>
+<th class="head"><p>Data type</p></th>
+<th class="head"><p>Required or optional</p></th>
+<th class="head"><p>Model units</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Potential source</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">flow_dir(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>int</p></td>
+<td><p>Optional in <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span> if <code class="docutils literal notranslate"><span class="pre">dem</span></code> present</p></td>
+<td><ul class="simple">
+<li></li>
+</ul>
+</td>
+<td><p>Flow direction using D8 indices. <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> will attempt to calculate this from <code class="docutils literal notranslate"><span class="pre">dem</span></code> if this is not provided in <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span>.</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dem(y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required in <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span>, optional in <span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span></p></td>
+<td><p>dm</p></td>
+<td><p>Digital elevation model (height above mean sea level). In the model, this is only used to calculate slope, which defaults to 0.0005 m/m. In the NanoFASE data module, it can be used to calculate flow direction. Standard name: <code class="docutils literal notranslate"><span class="pre">height_above_mean_sea_level</span></code></p></td>
+<td><p><a class="reference external" href="https://www.hydrosheds.org/">HydroSHEDS</a> or <a class="reference external" href="https://dataspace.copernicus.eu/explore-data/data-collections/copernicus-contributing-missions/collections-description/COP-DEM">Copernicus DEM</a></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">quickflow(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>m/dt</p></td>
+<td><p>Also called surface runoff, this is the component of runoff that is responsible for driving soil erosion.  Standard name: <code class="docutils literal notranslate"><span class="pre">surface_runoff_flux</span></code></p></td>
+<td><p>Usually obtained from a hydrological model</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">runoff(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>m/dt</p></td>
+<td><p>This is the total runoff (subsurface and surface) that is routed by the model to provide surface water flows.  Standard name: <code class="docutils literal notranslate"><span class="pre">runoff_flux</span></code></p></td>
+<td><p>Usually obtained from a hydrological model</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">precip(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Required</p></td>
+<td><p>m/dt</p></td>
+<td><p>Amount of precipitation, used to drive soil percolation. Standard name: <code class="docutils literal notranslate"><span class="pre">rainfall_flux</span></code></p></td>
+<td><p><a class="reference external" href="https://cds.climate.copernicus.eu/cdsapp#!/dataset/10.24381/cds.151d3ec6?tab=overview">Copernicus E-OBS</a> or <a class="reference external" href="https://doi.org/10.5285/dbf13dd5-90cd-457a-a986-f2f9dd97e93c">CEH-GEAR</a> for the UK</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">evap(t,</span> <span class="pre">y,</span> <span class="pre">x)</span></code></p></td>
+<td><p><span class="sd-sphinx-override sd-badge sd-bg-primary sd-bg-text-primary">data.nc</span> <span class="sd-sphinx-override sd-badge sd-bg-success sd-bg-text-success">config.yaml</span></p></td>
+<td><p>float</p></td>
+<td><p>Optional, defaults to 0</p></td>
+<td><p>m/dt</p></td>
+<td><p>Amount of evapotranspiration. Standard name: <code class="docutils literal notranslate"><span class="pre">water_evapotranspiration_flux</span></code></p></td>
+<td><p><a class="reference external" href="https://doi.org/10.3390/atmos13050772">Nistor et al, 2022</a> (data available <a class="reference external" href="https://doi.org/10.5281/zenodo.5899476">here</a>)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </div>
 </section>
 <section id="surface-water-parameters">
