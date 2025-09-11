@@ -115,6 +115,8 @@ module BedSedimentModule
         type(ErrorInstance) :: err(1)
         integer :: nx, ny
         logical :: inbounds
+        integer :: nComp, ii, jj
+        real(dp), allocatable :: I(:, :)
 
         me%name = trim(ref('BedSediment', x, y, w))
         ! >>> FIX: set indices so later DATASET(x,y,...) lookups are valid
@@ -193,6 +195,19 @@ module BedSedimentModule
             call LOGR%toFile(errors=err)
             return
         end if
+
+        ! Safe default: identity CSR so multiply() is a no-op until getMTCMatrix1 runs
+        nComp = C%nSedimentLayers + 3
+        allocate(I(nComp, nComp))
+        I = 0.0_dp
+        do ii = 1, nComp
+            I(ii, ii) = 1.0_dp
+        end do
+        do jj = 1, C%nSizeClassesSpm
+            me%delta_sed_csr(jj) = CSRMatrix(I)
+        end do
+        deallocate(I)
+
 
         do L = 1, C%nSedimentLayers
             allocate(bsl1)
@@ -273,38 +288,48 @@ module BedSedimentModule
     !! matrix delta_sed, which should already have been set prior to calling this procedure
     function transferContaminantBedSediment1(me, j_contaminant_dep) result(r)
         class(BedSediment), intent(inout) :: me
-        type(Contaminant), intent(in) :: j_contaminant_dep
+        type(Contaminant),  intent(in)    :: j_contaminant_dep
         type(Result) :: r
         type(ErrorInstance) :: err(1)
         real(dp), allocatable :: state_vector(:)
-        integer :: nCompartments, s, f, st, i
+        integer :: nCompartments, j, n, f, st_spm, i
         character(len=256) :: tr
 
         tr = trim(me%name) // "%transferContaminantBedSediment1"
         if (.not. allocated(me%m_contaminant)) then
             err(1) = ErrorInstance(code=105, message="Contaminant array not allocated", trace=[tr])
             call r%addError(err(1))
-            call LOGR%toFile(errors=err)
             return
         end if
+
         nCompartments = C%nSedimentLayers + 3
         allocate(state_vector(nCompartments))
-        do s = 1, C%contaminantDim(1)
-            do f = 1, C%contaminantDim(2)
-                do st = 1, C%contaminantDim(3)
+
+        ! Loop over SPM size classes and map to the contaminant "state" index
+        do j = 1, C%nSizeClassesSpm
+            st_spm = SPM_CONTAMINANT_START + j - 1
+
+            do n = 1, C%nContaminantSizeClasses
+                do f = 1, C%nContaminantForms
+                    ! Build [ dep ; layers+specials ] vector
                     state_vector = 0.0_dp
-                    state_vector(1) = j_contaminant_dep%c(s,f,st)
+                    state_vector(1) = j_contaminant_dep%c(n, f, st_spm)
                     do i = 2, nCompartments
-                        state_vector(i) = me%m_contaminant(i)%c(s,f,st)
+                        state_vector(i) = me%m_contaminant(i)%c(n, f, st_spm)
                     end do
-                    state_vector = me%delta_sed_csr(s)%multiply(state_vector)
-                    me%m_contaminant(1)%c(s,f,st) = state_vector(1)
+
+                    ! Multiply by the CSR for THIS SPM size class
+                    state_vector = me%delta_sed_csr(j)%multiply(state_vector)
+
+                    ! Write back
+                    me%m_contaminant(1)%c(n, f, st_spm) = state_vector(1)
                     do i = 2, nCompartments
-                        me%m_contaminant(i)%c(s,f,st) = state_vector(i)
+                        me%m_contaminant(i)%c(n, f, st_spm) = state_vector(i)
                     end do
                 end do
             end do
         end do
+
         deallocate(state_vector)
     end function
 

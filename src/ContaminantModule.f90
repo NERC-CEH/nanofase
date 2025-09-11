@@ -141,13 +141,13 @@ contains
         nf = C%contaminantDim(2)
         nz = C%contaminantDim(3)
 
-        call LOGR%add("Contaminant%create: requested dims = (" // trim(int_to_string(nx)) // "," // &
-                    trim(int_to_string(nf)) // "," // trim(int_to_string(nz)) // "); nSPM=" // &
-                    trim(int_to_string(C%nSizeClassesSpm)))
+        ! call LOGR%add("Contaminant%create: requested dims = (" // trim(int_to_string(nx)) // "," // &
+        !             trim(int_to_string(nf)) // "," // trim(int_to_string(nz)) // "); nSPM=" // &
+        !             trim(int_to_string(C%nSizeClassesSpm)))
         ! Defensive: clear any previous allocation
         if (allocated(this%c) .or. allocated(this%k_hetero) .or. allocated(this%W_settle_contaminant) .or. &
             allocated(this%individualContaminantMass) .or. allocated(this%C_contaminant_free_particle)) then
-            call LOGR%add("Contaminant%create: finalising previous allocation")
+            ! call LOGR%add("Contaminant%create: finalising previous allocation")
             call this%finalise()
         end if
 
@@ -193,7 +193,7 @@ contains
         this%alpha_att                  = 0.0_dp
         this%compartment                = ''
 
-        call LOGR%add("Contaminant%create: allocation OK")
+        ! call LOGR%add("Contaminant%create: allocation OK")
     end function
 
 
@@ -217,7 +217,7 @@ contains
         type(ErrorInstance) :: err(1)
         integer :: n
 
-        call LOGR%add("Contaminant%create_from_data: compartment=" // trim(compartment))
+        ! call LOGR%add("Contaminant%create_from_data: compartment=" // trim(compartment))
         r = this%create()
         if (r%hasCriticalError()) then
             call LOGR%toFile(errors=r%errors)
@@ -264,7 +264,7 @@ contains
                 C%pi * (DATASET%contaminantSizeClasses(n)/2.0_dp)**3
         end do
 
-        call LOGR%add("Contaminant%create_from_data: parameters set and settling velocities computed")
+        ! call LOGR%add("Contaminant%create_from_data: parameters set and settling velocities computed")
     end function
 
     !> Add the mass fields of another Contaminant to this one (in-place addition).

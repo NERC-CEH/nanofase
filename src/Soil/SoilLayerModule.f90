@@ -144,7 +144,14 @@ module SoilLayerModule
         integer :: i                                    ! Iterators
         type(datetime) :: currentDate                   ! Current date
         real(dp) :: T_water_t                           ! Water temperature on the current timestep [deg C]
-        
+
+        ! NEW: zero SPM arrays with correct model dimension
+        real(dp) :: C_spm_zero(C%nSizeClassesSpm)
+        real(dp) :: W_settle_zero(C%nSizeClassesSpm)
+
+        C_spm_zero    = 0.0_dp
+        W_settle_zero = 0.0_dp
+
         ! Get the current date to use to get the water temperature
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = DATASET%waterTemperature(currentDate%yearday())
@@ -156,14 +163,14 @@ module SoilLayerModule
         call me%m_contaminant%add(j_contaminant_in)
 
         ! Setting volume of water, pooled water and excess water, based on inflow
-        if (me%V_w + me%q_in < me%V_sat) then                   ! If water volume below V_sat after inflow
-            me%V_pool = 0.0_dp                                  ! No pooled water
-            me%V_w = me%V_w + me%q_in                           ! Update the volume based on inflow
-            me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)         ! Volume of water above V_FC
-        else if (me%V_w + me%q_in > me%V_sat) then              ! Else, water pooled above V_sat
-            me%V_pool = me%V_w + me%q_in - me%V_sat             ! Water pooled above V_sat
-            me%V_w = me%V_sat                                   ! Volume of water must be V_sat
-            me%V_excess = me%V_w - me%V_FC                      ! Volume must be above FC and so there is excess
+        if (me%V_w + me%q_in < me%V_sat) then
+            me%V_pool = 0.0_dp
+            me%V_w = me%V_w + me%q_in
+            me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)
+        else if (me%V_w + me%q_in > me%V_sat) then
+            me%V_pool = me%V_w + me%q_in - me%V_sat
+            me%V_w = me%V_sat
+            me%V_excess = me%V_w - me%V_FC
         end if
 
         ! Calculate volume percolated on this timestep [m3 m-2]
@@ -172,13 +179,17 @@ module SoilLayerModule
         if (.not. isZero(me%V_perc) .and. me%V_w > C%epsilon) then
             call me%j_contaminant_perc%multiply_scalar(me%m_contaminant, me%V_perc / me%V_w)
             me%j_contaminant_perc%c(:,:,ATTACHED_CONTAMINANT+1:) = 0.0_dp
-            me%j_contaminant_perc%c(:,:,ATTACHED_CONTAMINANT) = 0.0_dp
+            me%j_contaminant_perc%c(:,:,ATTACHED_CONTAMINANT)    = 0.0_dp
         end if
         call me%m_contaminant%add_scaled(me%j_contaminant_perc, -1.0_dp)
         me%V_w = me%V_w - me%V_perc
+
         me%k_att = me%calculateAttachmentRate(T_water_t)
-        call r%addErrors(.errors. me%m_contaminant%update(real(C%timeStep, dp), T_water_t, &
-            [0.0_dp], [0.0_dp], 0.0_dp, me%volume, 'soil', me%k_att, me%alpha_att))
+
+        ! *** FIXED CALL: pass full-length zero arrays, not [0.0_dp] ***
+        call r%addErrors(.errors. me%m_contaminant%update( &
+            real(C%timeStep, dp), T_water_t, C_spm_zero, W_settle_zero, 0.0_dp, me%volume, 'soil', me%k_att, me%alpha_att))
+
         if (isZero(me%V_w) .and. initial_V_w > 0) then
             call r%addError(ErrorInstance(600, isCritical=.false.))
         end if

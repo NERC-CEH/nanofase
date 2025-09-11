@@ -139,23 +139,56 @@ module ReachModule
         class(Reach) :: me                      !! This `Reach` instance
         real(dp)     :: T_water_t               !! Water temperature on this timestep
         integer      :: i                       ! Size class iterator
+        ! Local holders for depositional parameters; defaults are Zhiyao et al. constants
+        real(dp)     :: alphaDepVal, betaDepVal
+        logical      :: haveAlpha, haveBeta
+        integer      :: nxA, nyA, nxB, nyB
+
+        ! Defaults (used if rasters are missing or out-of-bounds)
+        alphaDepVal = 38.1_dp
+        betaDepVal  = 0.93_dp
+        haveAlpha   = .false.
+        haveBeta    = .false.
+
+        ! Try to read alpha from DATASET if available and in-bounds
+        if (allocated(DATASET%depositionAlpha)) then
+            if (size(DATASET%depositionAlpha) > 0) then
+                nxA = size(DATASET%depositionAlpha, 1)
+                nyA = size(DATASET%depositionAlpha, 2)
+                if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxA .and. me%y <= nyA) then
+                    alphaDepVal = DATASET%depositionAlpha(me%x, me%y)
+                    haveAlpha   = .true.
+                end if
+            end if
+        end if
+
+        ! Try to read beta from DATASET if available and in-bounds
+        if (allocated(DATASET%depositionBeta)) then
+            if (size(DATASET%depositionBeta) > 0) then
+                nxB = size(DATASET%depositionBeta, 1)
+                nyB = size(DATASET%depositionBeta, 2)
+                if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxB .and. me%y <= nyB) then
+                    betaDepVal = DATASET%depositionBeta(me%x, me%y)
+                    haveBeta   = .true.
+                end if
+            end if
+        end if
 
         if (.not. isZero(me%depth)) then
             ! SPM: Loop through the size classes and calculate settling velocity
-            ! TODO make calculateSettlingVelocity an elemental function
             do i = 1, C%nSizeClassesSpm
                 me%W_settle_spm(i) = me%calculateSettlingVelocity( &
-                    C%d_spm(i), &
-                    DATASET%spmDensityBySizeClass(i), &
-                    T_water_t, &
-                    alphaDep=DATASET%depositionAlpha(me%x, me%y), &
-                    betaDep=DATASET%depositionBeta(me%x, me%y) &
+                    d            = C%d_spm(i), &
+                    rho_particle = DATASET%spmDensityBySizeClass(i), &
+                    T            = T_water_t, &
+                    alphaDep     = alphaDepVal, &
+                    betaDep      = betaDepVal &
                 )
             end do
             me%k_settle = me%W_settle_spm / me%depth
         else
             me%W_settle_spm = 0.0_dp
-            me%k_settle = 0.0_dp
+            me%k_settle     = 0.0_dp
         end if
     end subroutine
 
@@ -226,23 +259,61 @@ module ReachModule
         real(dp) :: contributingArea                                     !! Contributing area to this reach [m2]
         type(Contaminant) :: contaminantYield                            !! Contaminant yield from soil erosion [kg/timestep]
         real(dp) :: ratio                                                ! Ratio of unscaled to scaled, to scale Contaminant by
+        logical :: haveAlpha, haveBeta
+        integer :: nxA, nyA, nxB, nyB
+        real(dp) :: alpha_bank_val, beta_bank_val
+
         ! We need to use the sediment transport capacity to scale eroded sediment. Sediment transport
         ! capacity is stored in me%sedimentTransportCapacity and has units of kg/m2/timestep
         me%j_spm%soilErosion = me%scaleErosionBySedimentTransportCapacity(soilErosionYield, q_overland, contributingArea)
         ratio = divideCheckZero(sum(me%j_spm%soilErosion), sum(soilErosionYield))
         call me%j_contaminant_soilErosion%multiply_scalar(contaminantYield, ratio)
-        ! Calculate bank erosion rate, if we're meant to be modelling it
+
+        ! --- Bank erosion (defensive against missing/empty DATASET fields) ---
         if (C%includeBankErosion) then
-            ! Calculate bank erosion based on the flow and use the sediment distribution to split
-            me%j_spm%bankErosion = me%calculateBankErosionRate( &
-                abs(me%Q_in_total), &
-                DATASET%bankErosionAlpha(me%x, me%y), &
-                DATASET%bankErosionBeta( me%x, me%y), &
-                me%length, &
-                me%depth &
-            ) * me%distributionSediment
+            
+
+            haveAlpha = .false.; haveBeta = .false.
+
+            ! Alpha: check allocation and bounds
+            if (allocated(DATASET%bankErosionAlpha)) then
+                if (size(DATASET%bankErosionAlpha) > 0) then
+                    nxA = size(DATASET%bankErosionAlpha, 1)
+                    nyA = size(DATASET%bankErosionAlpha, 2)
+                    if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxA .and. me%y <= nyA) then
+                        alpha_bank_val = DATASET%bankErosionAlpha(me%x, me%y)
+                        haveAlpha = .true.
+                    end if
+                end if
+            end if
+
+            ! Beta: check allocation and bounds
+            if (allocated(DATASET%bankErosionBeta)) then
+                if (size(DATASET%bankErosionBeta) > 0) then
+                    nxB = size(DATASET%bankErosionBeta, 1)
+                    nyB = size(DATASET%bankErosionBeta, 2)
+                    if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxB .and. me%y <= nyB) then
+                        beta_bank_val = DATASET%bankErosionBeta(me%x, me%y)
+                        haveBeta = .true.
+                    end if
+                end if
+            end if
+
+            if (haveAlpha .and. haveBeta) then
+                ! Calculate bank erosion based on the flow and split across size classes
+                me%j_spm%bankErosion = me%calculateBankErosionRate( &
+                    abs(me%Q_in_total), &
+                    alpha_bank_val, &
+                    beta_bank_val, &
+                    me%length, &
+                    me%depth &
+                ) * me%distributionSediment
+            else
+                ! Missing fields or out-of-bounds: safely disable bank erosion
+                me%j_spm%bankErosion = 0.0_dp
+            end if
         else
-            ! If we're not meant to be modelling bank erosion, then set it to zero
+            ! If we’re not modelling bank erosion, set it to zero
             me%j_spm%bankErosion = 0.0_dp
         end if
     end subroutine
@@ -257,9 +328,10 @@ module ReachModule
         real(dp)            :: V_water_toDeposit            !! Volume of water to deposit to bed sediment [m3/m2]
         type(FineSediment)  :: fineSed(C%nSizeClassesSpm)   ! FineSediment object to pass to BedSediment
         integer             :: n                            ! Loop iterator
+        integer, parameter  :: sp = kind(1.0)               ! single precision kind for matching
+
         ! Create the FineSediment object and add deposited SPM to it
-        ! (converting units of Mf_in to kg/m2), then give that object
-        ! to the BedSediment
+        ! (converting units of Mf_in to kg/m2), then give that object to the BedSediment
         spmDep_perArea = divideCheckZero(spmDep, me%bedArea)
         do n = 1, C%nSizeClassesSpm
             call fineSed(n)%create("FS", C%nFracCompsSpm)
@@ -269,20 +341,33 @@ module ReachModule
             )
         end do
 
+        V_water_toDeposit = 0.0_dp
+
         if (C%includeBedSediment) then
             ! Deposit the fine sediment to the bed sediment
-            depositRslt = Me%bedSediment%deposit(fineSed)
+            depositRslt = me%bedSediment%deposit(fineSed)
             call rslt%addErrors(.errors. depositRslt)
-            if (rslt%hasCriticalError()) then
-                return
+            if (rslt%hasCriticalError()) return
+
+            ! Safely extract the scalar from the 0D result, if present
+            if (allocated(depositRslt%data)) then
+                select type (d => depositRslt%data)
+                type is (real(dp))
+                    V_water_toDeposit = d
+                type is (real(sp))
+                    V_water_toDeposit = real(d, dp)
+                class default
+                    ! Not a real scalar we can use; fallback to zero
+                    V_water_toDeposit = 0.0_dp
+                end select
             end if
+
+            ! Clamp NaN / negative to zero
+            if (V_water_toDeposit /= V_water_toDeposit) V_water_toDeposit = 0.0_dp   ! NaN check
+            if (V_water_toDeposit < 0.0_dp)            V_water_toDeposit = 0.0_dp
         end if
-        ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
-        ! Retrieve the amount of water to be taken from the reach
-        V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
-        ! Subtract that volume for the reach (as a depth). This doesn't have any effect on
-        ! the model calculations, as the model recalculates depth depth on the hydrology at the
-        ! start of every timestep. However, it is this updated depth that is saved to data.
+
+        ! Reduce reach depth by deposited water volume (may be zero)
         me%depth = max(me%depth - V_water_toDeposit, 0.0_dp)
 
         ! Add any errors that occurred in the deposit procedure

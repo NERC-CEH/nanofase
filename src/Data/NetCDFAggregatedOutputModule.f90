@@ -86,7 +86,9 @@ contains
         real(dp) :: C_dissolved
         real(dp) :: volume
         type(Result0D) :: r
-        character(len=256) :: tr = "NetCDFAggregatedOutputModule%updateWaterNetCDFAggregatedOutput"
+        character(len=256) :: tr
+        tr = "NetCDFAggregatedOutputModule%updateWaterNetCDFAggregatedOutput"
+
         associate (cell => me%env%item%colGridCells(x,y)%item)
             if (cell%nReaches > 0) then
                 m_contaminant = cell%get_m_contaminant_water()
@@ -100,99 +102,120 @@ contains
                     call r%addError(ErrorInstance(code=901, message="Result0D data not allocated"))
                     return
                 end if
+
                 C_contaminant = r%getDataAsRealDP()
-                C_dissolved = m_contaminant%m_dissolved / cell%getWaterVolume()
-                j_contaminant_outflow = cell%get_j_contaminant_outflow()
-                j_contaminant_deposited = cell%get_j_contaminant_deposition()
+                C_dissolved   = m_contaminant%m_dissolved / cell%getWaterVolume()
+                j_contaminant_outflow     = cell%get_j_contaminant_outflow()
+                j_contaminant_deposited   = cell%get_j_contaminant_deposition()
                 j_contaminant_resuspended = cell%get_j_contaminant_resuspension()
                 volume = cell%getWaterVolume()
+
                 if (C%netCDFWriteMode == 'end') then
-                    me%output_agg_water__m_contaminant(x,y,tInChunk,FREE_CONTAMINANT) = &
+                    ! ---- form-first (form, x, y, t) ----
+                    me%output_agg_water__m_contaminant(FREE_CONTAMINANT,    x, y, tInChunk) = &
                         sum(m_contaminant%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__m_contaminant(x,y,tInChunk,ATTACHED_CONTAMINANT) = &
+                    me%output_agg_water__m_contaminant(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
                         sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__m_contaminant(x,y,tInChunk,C%contaminantDim(3)) = &
+                    me%output_agg_water__m_contaminant(C%contaminantDim(3),  x, y, tInChunk) = &
                         m_contaminant%m_dissolved
-                    me%output_agg_water__C_contaminant(x,y,tInChunk,FREE_CONTAMINANT) = C_contaminant
-                    me%output_agg_water__C_contaminant(x,y,tInChunk,ATTACHED_CONTAMINANT) = C_contaminant
-                    me%output_agg_water__C_contaminant(x,y,tInChunk,C%contaminantDim(3)) = C_dissolved
+
+                    ! store a value per form in the aggregated file
+                    me%output_agg_water__C_contaminant(FREE_CONTAMINANT,     x, y, tInChunk) = C_contaminant
+                    me%output_agg_water__C_contaminant(ATTACHED_CONTAMINANT, x, y, tInChunk) = C_contaminant
+                    me%output_agg_water__C_contaminant(C%contaminantDim(3),  x, y, tInChunk) = C_dissolved
+
                     if (C%includeSoilStateBreakdown) then
-                        me%output_agg_water__C_contaminant_free(x,y,tInChunk) = &
-                            sum(m_contaminant%get_free()) / cell%getWaterVolume()
-                        me%output_agg_water__C_contaminant_attached(x,y,tInChunk) = &
+                        me%output_agg_water__C_contaminant_free(   x, y, tInChunk) = &
+                            sum(m_contaminant%get_free())     / cell%getWaterVolume()
+                        me%output_agg_water__C_contaminant_attached(x, y, tInChunk) = &
                             sum(m_contaminant%get_attached()) / cell%getWaterVolume()
                     end if
-                    me%output_agg_water__j_contaminant_outflow(x,y,tInChunk,FREE_CONTAMINANT) = &
+
+                    me%output_agg_water__j_contaminant_outflow(FREE_CONTAMINANT,     x, y, tInChunk) = &
                         sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_outflow(x,y,tInChunk,ATTACHED_CONTAMINANT) = &
+                    me%output_agg_water__j_contaminant_outflow(ATTACHED_CONTAMINANT,  x, y, tInChunk) = &
                         sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_outflow(x,y,tInChunk,C%contaminantDim(3)) = &
+                    me%output_agg_water__j_contaminant_outflow(C%contaminantDim(3),   x, y, tInChunk) = &
                         j_contaminant_outflow%m_dissolved
-                    me%output_agg_water__j_contaminant_deposited(x,y,tInChunk,FREE_CONTAMINANT) = &
+
+                    me%output_agg_water__j_contaminant_deposited(FREE_CONTAMINANT,    x, y, tInChunk) = &
                         sum(j_contaminant_deposited%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_deposited(x,y,tInChunk,ATTACHED_CONTAMINANT) = &
+                    me%output_agg_water__j_contaminant_deposited(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
                         sum(j_contaminant_deposited%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_deposited(x,y,tInChunk,C%contaminantDim(3)) = &
+                    me%output_agg_water__j_contaminant_deposited(C%contaminantDim(3),  x, y, tInChunk) = &
                         j_contaminant_deposited%m_dissolved
-                    me%output_agg_water__j_contaminant_resuspended(x,y,tInChunk,FREE_CONTAMINANT) = &
+
+                    me%output_agg_water__j_contaminant_resuspended(FREE_CONTAMINANT,     x, y, tInChunk) = &
                         sum(j_contaminant_resuspended%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_resuspended(x,y,tInChunk,ATTACHED_CONTAMINANT) = &
+                    me%output_agg_water__j_contaminant_resuspended(ATTACHED_CONTAMINANT,  x, y, tInChunk) = &
                         sum(j_contaminant_resuspended%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_resuspended(x,y,tInChunk,C%contaminantDim(3)) = &
+                    me%output_agg_water__j_contaminant_resuspended(C%contaminantDim(3),   x, y, tInChunk) = &
                         j_contaminant_resuspended%m_dissolved
-                    me%output_agg_water__m_spm(x,y,tInChunk) = sum(cell%get_m_spm())
-                    me%output_agg_water__C_spm(x,y,tInChunk) = sum(cell%get_C_spm())
+
+                    me%output_agg_water__m_spm( x, y, tInChunk) = sum(cell%get_m_spm())
+                    me%output_agg_water__C_spm( x, y, tInChunk) = sum(cell%get_C_spm())
+
                     if (C%includeSedimentFluxes) then
-                        me%output_agg_water__m_spm_erosion(x,y,tInChunk) = sum(cell%get_j_spm_soilErosion())
-                        me%output_agg_water__m_spm_deposition(x,y,tInChunk) = sum(cell%get_j_spm_deposition())
-                        me%output_agg_water__m_spm_resuspended(x,y,tInChunk) = sum(cell%get_j_spm_resuspension())
-                        me%output_agg_water__m_spm_inflow(x,y,tInChunk) = sum(cell%get_j_spm_inflow())
-                        me%output_agg_water__m_spm_outflow(x,y,tInChunk) = sum(cell%get_j_spm_outflow())
-                        me%output_agg_water__m_spm_bank_erosion(x,y,tInChunk) = sum(cell%get_j_spm_bankErosion())
+                        me%output_agg_water__m_spm_erosion(    x, y, tInChunk) = sum(cell%get_j_spm_soilErosion())
+                        me%output_agg_water__m_spm_deposition( x, y, tInChunk) = sum(cell%get_j_spm_deposition())
+                        me%output_agg_water__m_spm_resuspended(x, y, tInChunk) = sum(cell%get_j_spm_resuspension())
+                        me%output_agg_water__m_spm_inflow(     x, y, tInChunk) = sum(cell%get_j_spm_inflow())
+                        me%output_agg_water__m_spm_outflow(    x, y, tInChunk) = sum(cell%get_j_spm_outflow())
+                        me%output_agg_water__m_spm_bank_erosion(x, y, tInChunk) = sum(cell%get_j_spm_bankErosion())
                     end if
-                    me%output_agg_water__volume(x,y,tInChunk) = volume
-                    me%output_agg_water__depth(x,y,tInChunk) = cell%getWaterDepth()
-                    me%output_agg_water__flow(x,y,tInChunk) = cell%get_Q_outflow() / C%timeStep
+
+                    me%output_agg_water__volume(x, y, tInChunk) = volume
+                    me%output_agg_water__depth( x, y, tInChunk) = cell%getWaterDepth()
+                    me%output_agg_water__flow(  x, y, tInChunk) = cell%get_Q_outflow() / C%timeStep
+
                 else if (C%netCDFWriteMode == 'itr') then
                     call me%nc__water__m_contaminant%setData([ &
                         sum(m_contaminant%c(:,:,FREE_CONTAMINANT)), &
                         sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)), &
-                        m_contaminant%m_dissolved], start=[1,x,y,t])
+                        m_contaminant%m_dissolved ], start=[1, x, y, t])
+
                     call me%nc__water__C_contaminant%setData([ &
                         C_contaminant, &
                         C_contaminant, &
-                        C_dissolved], start=[1,x,y,t])
+                        C_dissolved ], start=[1, x, y, t])
+
                     if (C%includeSoilStateBreakdown) then
                         call me%nc__water__C_contaminant_free%setData( &
-                            sum(m_contaminant%get_free()) / cell%getWaterVolume(), start=[x,y,t])
+                            sum(m_contaminant%get_free()) / cell%getWaterVolume(), start=[x, y, t])
                         call me%nc__water__C_contaminant_attached%setData( &
-                            sum(m_contaminant%get_attached()) / cell%getWaterVolume(), start=[x,y,t])
+                            sum(m_contaminant%get_attached()) / cell%getWaterVolume(), start=[x, y, t])
                     end if
+
                     call me%nc__water__j_contaminant_outflow%setData([ &
                         sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT)), &
                         sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT)), &
-                        j_contaminant_outflow%m_dissolved], start=[1,x,y,t])
+                        j_contaminant_outflow%m_dissolved ], start=[1, x, y, t])
+
                     call me%nc__water__j_contaminant_deposited%setData([ &
                         sum(j_contaminant_deposited%c(:,:,FREE_CONTAMINANT)), &
                         sum(j_contaminant_deposited%c(:,:,ATTACHED_CONTAMINANT)), &
-                        j_contaminant_deposited%m_dissolved], start=[1,x,y,t])
+                        j_contaminant_deposited%m_dissolved ], start=[1, x, y, t])
+
                     call me%nc__water__j_contaminant_resuspended%setData([ &
                         sum(j_contaminant_resuspended%c(:,:,FREE_CONTAMINANT)), &
                         sum(j_contaminant_resuspended%c(:,:,ATTACHED_CONTAMINANT)), &
-                        j_contaminant_resuspended%m_dissolved], start=[1,x,y,t])
-                    call me%nc__water__m_spm%setData(sum(cell%get_m_spm()), start=[x,y,t])
-                    call me%nc__water__C_spm%setData(sum(cell%get_C_spm()), start=[x,y,t])
+                        j_contaminant_resuspended%m_dissolved ], start=[1, x, y, t])
+
+                    call me%nc__water__m_spm%setData(sum(cell%get_m_spm()), start=[x, y, t])
+                    call me%nc__water__C_spm%setData(sum(cell%get_C_spm()), start=[x, y, t])
+
                     if (C%includeSedimentFluxes) then
-                        call me%nc__water__m_spm_erosion%setData(sum(cell%get_j_spm_soilErosion()), start=[x,y,t])
-                        call me%nc__water__m_spm_deposited%setData(sum(cell%get_j_spm_deposition()), start=[x,y,t])
-                        call me%nc__water__m_spm_resuspended%setData(sum(cell%get_j_spm_resuspension()), start=[x,y,t])
-                        call me%nc__water__m_spm_inflow%setData(sum(cell%get_j_spm_inflow()), start=[x,y,t])
-                        call me%nc__water__m_spm_outflow%setData(sum(cell%get_j_spm_outflow()), start=[x,y,t])
-                        call me%nc__water__m_spm_bank_erosion%setData(sum(cell%get_j_spm_bankErosion()), start=[x,y,t])
+                        call me%nc__water__m_spm_erosion%setData(   sum(cell%get_j_spm_soilErosion()), start=[x, y, t])
+                        call me%nc__water__m_spm_deposited%setData( sum(cell%get_j_spm_deposition()), start=[x, y, t])
+                        call me%nc__water__m_spm_resuspended%setData(sum(cell%get_j_spm_resuspension()), start=[x, y, t])
+                        call me%nc__water__m_spm_inflow%setData(    sum(cell%get_j_spm_inflow()),      start=[x, y, t])
+                        call me%nc__water__m_spm_outflow%setData(   sum(cell%get_j_spm_outflow()),     start=[x, y, t])
+                        call me%nc__water__m_spm_bank_erosion%setData(sum(cell%get_j_spm_bankErosion()), start=[x, y, t])
                     end if
-                    call me%nc__water__volume%setData(volume, start=[x,y,t])
-                    call me%nc__water__depth%setData(cell%getWaterDepth(), start=[x,y,t])
-                    call me%nc__water__flow%setData(cell%get_Q_outflow() / C%timeStep, start=[x,y,t])
+
+                    call me%nc__water__volume%setData(volume, start=[x, y, t])
+                    call me%nc__water__depth%setData(cell%getWaterDepth(), start=[x, y, t])
+                    call me%nc__water__flow%setData(cell%get_Q_outflow() / C%timeStep, start=[x, y, t])
                 end if
             end if
         end associate
@@ -205,7 +228,8 @@ contains
         real(dp), dimension(C%nSedimentLayers) :: C_cont_layers
         type(Contaminant) :: cont, cont_buried, layer_cont
         type(Result0D) :: r0
-        character(len=256) :: tr = "NetCDFAggregatedOutputModule%updateSedimentNetCDFAggregatedOutput"
+        character(len=256) :: tr
+        tr = "NetCDFAggregatedOutputModule%updateSedimentNetCDFAggregatedOutput"
 
         associate(cell => me%env%item%colGridCells(x,y)%item)
             if (cell%nReaches > 0) then
@@ -213,7 +237,7 @@ contains
                 cont = cell%get_m_contaminant_sediment()
                 ! Buried contaminant mass
                 cont_buried = cell%get_m_contaminant_buried_sediment()
-                ! Concentration in each sediment layer
+                ! Concentration in each sediment layer (total)
                 do l = 1, C%nSedimentLayers
                     layer_cont = cell%get_C_contaminant_sediment_l_byVolume(l)
                     r0 = layer_cont%getConcentration(1.0_dp)  ! Volume already built into getter
@@ -231,45 +255,58 @@ contains
                     C_cont_layers(l) = r0%getDataAsRealDP()
                 end do
 
-                ! Write into the aggregated arrays (end-of-chunk mode)
                 if (C%netCDFWriteMode == 'end') then
-                    me%output_agg_sediment__m_contaminant_total(x,y,tInChunk,FREE_CONTAMINANT) = &
+                    ! ---- form-first (form, x, y, t) ----
+                    me%output_agg_sediment__m_contaminant_total(FREE_CONTAMINANT,     x, y, tInChunk) = &
                         sum(cont%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_total(x,y,tInChunk,ATTACHED_CONTAMINANT) = &
+                    me%output_agg_sediment__m_contaminant_total(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
                         sum(cont%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_total(x,y,tInChunk,C%contaminantDim(3)) = &
+                    me%output_agg_sediment__m_contaminant_total(C%contaminantDim(3),  x, y, tInChunk) = &
                         cont%m_dissolved
-                    me%output_agg_sediment__m_contaminant_buried(x,y,tInChunk,FREE_CONTAMINANT) = &
+
+                    me%output_agg_sediment__m_contaminant_buried(FREE_CONTAMINANT,     x, y, tInChunk) = &
                         sum(cont_buried%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_buried(x,y,tInChunk,ATTACHED_CONTAMINANT) = &
+                    me%output_agg_sediment__m_contaminant_buried(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
                         sum(cont_buried%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_buried(x,y,tInChunk,C%contaminantDim(3)) = &
+                    me%output_agg_sediment__m_contaminant_buried(C%contaminantDim(3),  x, y, tInChunk) = &
                         cont_buried%m_dissolved
-                    me%output_agg_sediment__C_contaminant_total(x,y,tInChunk,FREE_CONTAMINANT) = &
-                        sum(cont%c(:,:,FREE_CONTAMINANT)) / cell%getBedSedimentMass()
-                    me%output_agg_sediment__C_contaminant_total(x,y,tInChunk,ATTACHED_CONTAMINANT) = &
-                        sum(cont%c(:,:,ATTACHED_CONTAMINANT)) / cell%getBedSedimentMass()
-                    me%output_agg_sediment__C_contaminant_total(x,y,tInChunk,C%contaminantDim(3)) = &
+
+                    me%output_agg_sediment__C_contaminant_total(FREE_CONTAMINANT,      x, y, tInChunk) = &
+                        sum(cont%c(:,:,FREE_CONTAMINANT))      / cell%getBedSedimentMass()
+                    me%output_agg_sediment__C_contaminant_total(ATTACHED_CONTAMINANT,  x, y, tInChunk) = &
+                        sum(cont%c(:,:,ATTACHED_CONTAMINANT))  / cell%getBedSedimentMass()
+                    me%output_agg_sediment__C_contaminant_total(C%contaminantDim(3),   x, y, tInChunk) = &
                         cont%m_dissolved / cell%getBedSedimentMass()
-                    me%output_agg_sediment__C_contaminant_layers(:,x,y,tInChunk,FREE_CONTAMINANT) = C_cont_layers
-                    me%output_agg_sediment__bed_area(x,y,tInChunk) = cell%getBedSedimentArea()
-                    me%output_agg_sediment__mass(x,y,tInChunk) = cell%getBedSedimentMass()
+
+                    ! layers-first (layer, form, x, y, t); store total into FREE slot
+                    me%output_agg_sediment__C_contaminant_layers(1:C%nSedimentLayers, FREE_CONTAMINANT, &
+                                                                x, y, tInChunk) = C_cont_layers
+
+                    me%output_agg_sediment__bed_area(x, y, tInChunk) = cell%getBedSedimentArea()
+                    me%output_agg_sediment__mass(    x, y, tInChunk) = cell%getBedSedimentMass()
+
                 else if (C%netCDFWriteMode == 'itr') then
                     call me%nc__sediment__m_contaminant_total%setData([ &
                         sum(cont%c(:,:,FREE_CONTAMINANT)), &
                         sum(cont%c(:,:,ATTACHED_CONTAMINANT)), &
-                        cont%m_dissolved], start=[1,x,y,t])
+                        cont%m_dissolved ], start=[1, x, y, t])
+
                     call me%nc__sediment__m_contaminant_buried%setData([ &
                         sum(cont_buried%c(:,:,FREE_CONTAMINANT)), &
                         sum(cont_buried%c(:,:,ATTACHED_CONTAMINANT)), &
-                        cont_buried%m_dissolved], start=[1,x,y,t])
+                        cont_buried%m_dissolved ], start=[1, x, y, t])
+
                     call me%nc__sediment__C_contaminant_total%setData([ &
-                        sum(cont%c(:,:,FREE_CONTAMINANT)) / cell%getBedSedimentMass(), &
-                        sum(cont%c(:,:,ATTACHED_CONTAMINANT)) / cell%getBedSedimentMass(), &
-                        cont%m_dissolved / cell%getBedSedimentMass()], start=[1,x,y,t])
-                    call me%nc__sediment__C_contaminant_layers%setData(C_cont_layers, start=[1,x,y,t])
-                    call me%nc__sediment__bed_area%setData(cell%getBedSedimentArea(), start=[x,y,t])
-                    call me%nc__sediment__mass%setData(cell%getBedSedimentMass(), start=[x,y,t])
+                        sum(cont%c(:,:,FREE_CONTAMINANT))      / cell%getBedSedimentMass(), &
+                        sum(cont%c(:,:,ATTACHED_CONTAMINANT))  / cell%getBedSedimentMass(), &
+                        cont%m_dissolved / cell%getBedSedimentMass() ], start=[1, x, y, t])
+
+                    ! write layers into FREE slot (form=1)
+                    call me%nc__sediment__C_contaminant_layers%setData( &
+                        C_cont_layers, start=[1, FREE_CONTAMINANT, x, y, t])
+
+                    call me%nc__sediment__bed_area%setData(cell%getBedSedimentArea(), start=[x, y, t])
+                    call me%nc__sediment__mass%setData(    cell%getBedSedimentMass(), start=[x, y, t])
                 end if
             end if
         end associate
@@ -472,48 +509,95 @@ contains
         real(dp), allocatable :: empty3DArray(:,:,:)
         real(dp), allocatable :: empty4DArray(:,:,:,:)
         real(dp), allocatable :: empty5DArraySediment(:,:,:,:,:)
+        integer :: nx, ny, nt, nls
 
-        allocate(empty2DArray(DATASET%gridShape(1), DATASET%gridShape(2)))
-        allocate(empty3DArray(DATASET%gridShape(1), DATASET%gridShape(2), C%batchNTimesteps(k)))
-        allocate(empty4DArray(C%contaminantDim(3), DATASET%gridShape(1), DATASET%gridShape(2), C%batchNTimesteps(k)))
+        nx  = DATASET%gridShape(1)
+        ny  = DATASET%gridShape(2)
+        nt  = C%batchNTimesteps(k)
+        nls = C%nSoilLayers
+
+        allocate(empty2DArray(nx, ny))
+        allocate(empty3DArray(nx, ny, nt))
+        allocate(empty4DArray(C%contaminantDim(3), nx, ny, nt))               ! (form,x,y,t)
         allocate(empty5DArraySediment(C%nSedimentLayers, C%contaminantDim(3), &
-            DATASET%gridShape(1), DATASET%gridShape(2), C%batchNTimesteps(k)))
+                                    nx, ny, nt))                             ! (layer,form,x,y,t)
         
-        empty2DArray = nf90_fill_double
-        empty3DArray = nf90_fill_double
-        empty4DArray = nf90_fill_double
+        empty2DArray         = nf90_fill_double
+        empty3DArray         = nf90_fill_double
+        empty4DArray         = nf90_fill_double
         empty5DArraySediment = nf90_fill_double
 
-        allocate(me%output_agg_water__m_contaminant, source=empty4DArray)
-        allocate(me%output_agg_water__C_contaminant, source=empty4DArray)
-        if (C%includeSoilStateBreakdown) then
-            allocate(me%output_agg_water__C_contaminant_free, source=empty3DArray)
-            allocate(me%output_agg_water__C_contaminant_attached, source=empty3DArray)
-        end if
-        allocate(me%output_agg_water__j_contaminant_outflow, source=empty4DArray)
+        ! ---- aggregated WATER/SEDIMENT (form-first) ----
+        allocate(me%output_agg_water__m_contaminant,           source=empty4DArray)
+        allocate(me%output_agg_water__C_contaminant,           source=empty4DArray)
+        allocate(me%output_agg_water__j_contaminant_outflow,   source=empty4DArray)
         allocate(me%output_agg_water__j_contaminant_deposited, source=empty4DArray)
         allocate(me%output_agg_water__j_contaminant_resuspended, source=empty4DArray)
+
         allocate(me%output_agg_water__m_spm, source=empty3DArray)
         allocate(me%output_agg_water__C_spm, source=empty3DArray)
         if (C%includeSedimentFluxes) then
-            allocate(me%output_agg_water__m_spm_erosion, source=empty3DArray)
-            allocate(me%output_agg_water__m_spm_deposition, source=empty3DArray)
-            allocate(me%output_agg_water__m_spm_resuspended, source=empty3DArray)
-            allocate(me%output_agg_water__m_spm_inflow, source=empty3DArray)
-            allocate(me%output_agg_water__m_spm_outflow, source=empty3DArray)
+            allocate(me%output_agg_water__m_spm_erosion,      source=empty3DArray)
+            allocate(me%output_agg_water__m_spm_deposition,   source=empty3DArray)
+            allocate(me%output_agg_water__m_spm_resuspended,  source=empty3DArray)
+            allocate(me%output_agg_water__m_spm_inflow,       source=empty3DArray)
+            allocate(me%output_agg_water__m_spm_outflow,      source=empty3DArray)
             allocate(me%output_agg_water__m_spm_bank_erosion, source=empty3DArray)
         end if
         allocate(me%output_agg_water__volume, source=empty3DArray)
-        allocate(me%output_agg_water__depth, source=empty3DArray)
-        allocate(me%output_agg_water__flow, source=empty3DArray)
+        allocate(me%output_agg_water__depth,  source=empty3DArray)
+        allocate(me%output_agg_water__flow,   source=empty3DArray)
+
         allocate(me%output_agg_sediment__m_contaminant_total, source=empty4DArray)
         allocate(me%output_agg_sediment__C_contaminant_total, source=empty4DArray)
         allocate(me%output_agg_sediment__C_contaminant_layers, source=empty5DArraySediment)
         allocate(me%output_agg_sediment__m_contaminant_buried, source=empty4DArray)
         allocate(me%output_agg_sediment__bed_area, source=empty3DArray)
-        allocate(me%output_agg_sediment__mass, source=empty3DArray)
-        allocate(me%output_agg_soil__land_use, source=empty2DArray)
-        allocate(me%output_agg_soil__bulk_density, source=empty2DArray)
+        allocate(me%output_agg_sediment__mass,     source=empty3DArray)
+
+        ! Reuse parent soil arrays (grid-cell level)
+        allocate(me%output_soil__land_use(1:nx, 1:ny))
+        me%output_soil__land_use = nf90_fill_double
+
+        allocate(me%output_soil__m_contaminant_total(1:3, 1:nx, 1:ny, 1:nt))
+        me%output_soil__m_contaminant_total = nf90_fill_double
+
+        allocate(me%output_soil__C_contaminant_total(1:nx, 1:ny, 1:nt))
+        me%output_soil__C_contaminant_total = nf90_fill_double
+
+        if (C%includeSoilStateBreakdown) then
+            allocate(me%output_soil__C_contaminant_free(1:nx, 1:ny, 1:nt))
+            me%output_soil__C_contaminant_free = nf90_fill_double
+
+            allocate(me%output_soil__C_contaminant_attached(1:nx, 1:ny, 1:nt))
+            me%output_soil__C_contaminant_attached = nf90_fill_double
+
+            allocate(me%output_soil__C_contaminant_free_layers(1:nls, 1:nx, 1:ny, 1:nt))
+            me%output_soil__C_contaminant_free_layers = nf90_fill_double
+
+            allocate(me%output_soil__C_contaminant_attached_layers(1:nls, 1:nx, 1:ny, 1:nt))
+            me%output_soil__C_contaminant_attached_layers = nf90_fill_double
+        end if
+
+        if (C%includeSoilLayerBreakdown) then
+            allocate(me%output_soil__C_contaminant_layers(1:nls, 1:nx, 1:ny, 1:nt))
+            me%output_soil__C_contaminant_layers = nf90_fill_double
+        end if
+
+        if (C%includeSoilErosionYields) then
+            allocate(me%output_soil__m_soil_eroded(1:nx, 1:ny, 1:nt))
+            me%output_soil__m_soil_eroded = nf90_fill_double
+
+            allocate(me%output_soil__m_contaminant_eroded(1:2, 1:nx, 1:ny, 1:nt))
+            me%output_soil__m_contaminant_eroded = nf90_fill_double
+        end if
+
+        allocate(me%output_soil__m_contaminant_buried(1:3, 1:nx, 1:ny, 1:nt))
+        me%output_soil__m_contaminant_buried = nf90_fill_double
+
+        allocate(me%output_soil__bulk_density(1:nx, 1:ny))
+        me%output_soil__bulk_density = nf90_fill_double
+
         deallocate(empty2DArray, empty3DArray, empty4DArray, empty5DArraySediment)
     end subroutine
 
@@ -528,36 +612,85 @@ contains
     subroutine finaliseChunkNetCDFAggregatedOutput(me, tStart)
         class(NetCDFAggregatedOutput) :: me
         integer :: tStart
-        call me%nc__water__m_contaminant%setData(me%output_agg_water__m_contaminant, start=[1,1,1,tStart])
-        call me%nc__water__C_contaminant%setData(me%output_agg_water__C_contaminant, start=[1,1,tStart])
+
+        call me%nc__water__m_contaminant%setData(      me%output_agg_water__m_contaminant,        &
+                                                    start=[1,1,1,tStart])
+        call me%nc__water__C_contaminant%setData(      me%output_agg_water__C_contaminant,        &
+                                                    start=[1,1,1,tStart])
         if (C%includeSoilStateBreakdown) then
-            call me%nc__water__C_contaminant_free%setData(me%output_agg_water__C_contaminant_free, start=[1,1,tStart])
-            call me%nc__water__C_contaminant_attached%setData(me%output_agg_water__C_contaminant_attached, start=[1,1,tStart])
+            call me%nc__water__C_contaminant_free%setData(    me%output_agg_water__C_contaminant_free,    &
+                                                            start=[1,1,tStart])
+            call me%nc__water__C_contaminant_attached%setData(me%output_agg_water__C_contaminant_attached, &
+                                                            start=[1,1,tStart])
         end if
-        call me%nc__water__j_contaminant_outflow%setData(me%output_agg_water__j_contaminant_outflow, start=[1,1,1,tStart])
-        call me%nc__water__j_contaminant_deposited%setData(me%output_agg_water__j_contaminant_deposited, start=[1,1,1,tStart])
-        call me%nc__water__j_contaminant_resuspended%setData(me%output_agg_water__j_contaminant_resuspended, start=[1,1,1,tStart])
-        call me%nc__water__m_spm%setData(me%output_agg_water__m_spm, start=[1,1,tStart])
-        call me%nc__water__C_spm%setData(me%output_agg_water__C_spm, start=[1,1,tStart])
+        call me%nc__water__j_contaminant_outflow%setData(    me%output_agg_water__j_contaminant_outflow,   &
+                                                            start=[1,1,1,tStart])
+        call me%nc__water__j_contaminant_deposited%setData(  me%output_agg_water__j_contaminant_deposited, &
+                                                            start=[1,1,1,tStart])
+        call me%nc__water__j_contaminant_resuspended%setData(me%output_agg_water__j_contaminant_resuspended,&
+                                                            start=[1,1,1,tStart])
+        call me%nc__water__m_spm%setData(                   me%output_agg_water__m_spm,                   &
+                                                            start=[1,1,tStart])
+        call me%nc__water__C_spm%setData(                   me%output_agg_water__C_spm,                   &
+                                                            start=[1,1,tStart])
         if (C%includeSedimentFluxes) then
-            call me%nc__water__m_spm_erosion%setData(me%output_agg_water__m_spm_erosion, start=[1,1,tStart])
-            call me%nc__water__m_spm_deposited%setData(me%output_agg_water__m_spm_deposition, start=[1,1,tStart])
-            call me%nc__water__m_spm_resuspended%setData(me%output_agg_water__m_spm_resuspended, start=[1,1,tStart])
-            call me%nc__water__m_spm_inflow%setData(me%output_agg_water__m_spm_inflow, start=[1,1,tStart])
-            call me%nc__water__m_spm_outflow%setData(me%output_agg_water__m_spm_outflow, start=[1,1,tStart])
-            call me%nc__water__m_spm_bank_erosion%setData(me%output_agg_water__m_spm_bank_erosion, start=[1,1,tStart])
+            call me%nc__water__m_spm_erosion%setData(       me%output_agg_water__m_spm_erosion,           &
+                                                            start=[1,1,tStart])
+            call me%nc__water__m_spm_deposited%setData(     me%output_agg_water__m_spm_deposition,        &
+                                                            start=[1,1,tStart])
+            call me%nc__water__m_spm_resuspended%setData(   me%output_agg_water__m_spm_resuspended,       &
+                                                            start=[1,1,tStart])
+            call me%nc__water__m_spm_inflow%setData(        me%output_agg_water__m_spm_inflow,            &
+                                                            start=[1,1,tStart])
+            call me%nc__water__m_spm_outflow%setData(       me%output_agg_water__m_spm_outflow,           &
+                                                            start=[1,1,tStart])
+            call me%nc__water__m_spm_bank_erosion%setData(  me%output_agg_water__m_spm_bank_erosion,      &
+                                                            start=[1,1,tStart])
         end if
-        call me%nc__water__volume%setData(me%output_agg_water__volume, start=[1,1,tStart])
-        call me%nc__water__depth%setData(me%output_agg_water__depth, start=[1,1,tStart])
-        call me%nc__water__flow%setData(me%output_agg_water__flow, start=[1,1,tStart])
-        call me%nc__sediment__m_contaminant_total%setData(me%output_agg_sediment__m_contaminant_total, start=[1,1,1,tStart])
-        call me%nc__sediment__C_contaminant_total%setData(me%output_agg_sediment__C_contaminant_total, start=[1,1,tStart])
-        call me%nc__sediment__C_contaminant_layers%setData(me%output_agg_sediment__C_contaminant_layers, start=[1,1,1,tStart])
-        call me%nc__sediment__m_contaminant_buried%setData(me%output_agg_sediment__m_contaminant_buried, start=[1,1,1,tStart])
-        call me%nc__sediment__bed_area%setData(me%output_agg_sediment__bed_area, start=[1,1,tStart])
-        call me%nc__sediment__mass%setData(me%output_agg_sediment__mass, start=[1,1,tStart])
-        call me%nc__soil__land_use%setData(me%output_agg_soil__land_use, start=[1,1])
-        call me%nc__soil__bulk_density%setData(me%output_agg_soil__bulk_density, start=[1,1])
+        call me%nc__water__volume%setData(                  me%output_agg_water__volume,                  &
+                                                            start=[1,1,tStart])
+        call me%nc__water__depth%setData(                   me%output_agg_water__depth,                   &
+                                                            start=[1,1,tStart])
+        call me%nc__water__flow%setData(                    me%output_agg_water__flow,                    &
+                                                            start=[1,1,tStart])
+
+        call me%nc__sediment__m_contaminant_total%setData(  me%output_agg_sediment__m_contaminant_total,  &
+                                                            start=[1,1,1,tStart])
+        call me%nc__sediment__C_contaminant_total%setData(  me%output_agg_sediment__C_contaminant_total,  &
+                                                            start=[1,1,1,tStart])
+        call me%nc__sediment__C_contaminant_layers%setData( me%output_agg_sediment__C_contaminant_layers, &
+                                                            start=[1,1,1,1,tStart])
+        call me%nc__sediment__m_contaminant_buried%setData( me%output_agg_sediment__m_contaminant_buried, &
+                                                            start=[1,1,1,tStart])
+        call me%nc__sediment__bed_area%setData(             me%output_agg_sediment__bed_area,             &
+                                                            start=[1,1,tStart])
+        call me%nc__sediment__mass%setData(                 me%output_agg_sediment__mass,                 &
+                                                            start=[1,1,tStart])
+
+        ! Parent soil variables (grid-cell level)
+        call me%nc__soil__m_contaminant_total%setData( me%output_soil__m_contaminant_total, &
+                                                    start=[1,1,1,tStart])
+        call me%nc__soil__C_contaminant_total%setData( me%output_soil__C_contaminant_total, &
+                                                    start=[1,1,tStart])
+
+        if (allocated(me%output_soil__C_contaminant_layers)) then
+            call me%nc__soil__C_contaminant_layers%setData( me%output_soil__C_contaminant_layers, &
+                                                            start=[1,1,1,tStart])
+        end if
+        if (allocated(me%output_soil__m_soil_eroded)) then
+            call me%nc__soil__m_soil_eroded%setData(       me%output_soil__m_soil_eroded,       &
+                                                        start=[1,1,tStart])
+            call me%nc__soil__m_contaminant_eroded%setData(me%output_soil__m_contaminant_eroded, &
+                                                        start=[1,1,1,tStart])
+        end if
+        call me%nc__soil__m_contaminant_buried%setData(    me%output_soil__m_contaminant_buried, &
+                                                        start=[1,1,1,tStart])
+
+        ! Optional static grid vars
+        !call me%nc__soil__land_use%setData(    me%output_soil__land_use,     start=[1,1])
+        !call me%nc__soil__bulk_density%setData(me%output_soil__bulk_density, start=[1,1])
+
+        ! Deallocate
         deallocate(me%output_agg_water__m_contaminant)
         deallocate(me%output_agg_water__C_contaminant)
         if (C%includeSoilStateBreakdown) then
@@ -586,7 +719,19 @@ contains
         deallocate(me%output_agg_sediment__m_contaminant_buried)
         deallocate(me%output_agg_sediment__bed_area)
         deallocate(me%output_agg_sediment__mass)
-        deallocate(me%output_agg_soil__land_use)
-        deallocate(me%output_agg_soil__bulk_density)
+
+        ! Parent soil arrays
+        deallocate(me%output_soil__land_use)
+        deallocate(me%output_soil__m_contaminant_total)
+        deallocate(me%output_soil__C_contaminant_total)
+        if (allocated(me%output_soil__C_contaminant_free))             deallocate(me%output_soil__C_contaminant_free)
+        if (allocated(me%output_soil__C_contaminant_attached))         deallocate(me%output_soil__C_contaminant_attached)
+        if (allocated(me%output_soil__C_contaminant_free_layers))      deallocate(me%output_soil__C_contaminant_free_layers)
+        if (allocated(me%output_soil__C_contaminant_attached_layers))  deallocate(me%output_soil__C_contaminant_attached_layers)
+        if (allocated(me%output_soil__C_contaminant_layers))           deallocate(me%output_soil__C_contaminant_layers)
+        if (allocated(me%output_soil__m_soil_eroded))                  deallocate(me%output_soil__m_soil_eroded)
+        if (allocated(me%output_soil__m_contaminant_eroded))           deallocate(me%output_soil__m_contaminant_eroded)
+        deallocate(me%output_soil__m_contaminant_buried)
+        deallocate(me%output_soil__bulk_density)
     end subroutine
 end module

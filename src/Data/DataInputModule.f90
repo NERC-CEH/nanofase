@@ -375,7 +375,8 @@ module DataInputModule
         real(dp), allocatable :: A2(:,:)          ! (x,y)
         real(dp), allocatable :: A3(:,:,:)        ! (x,y,t)
         real(dp), allocatable :: COORD4(:,:,:,:)  ! (x,y,p,d)
-        real(dp), allocatable :: A4(:,:,:,:)      ! (x,y,t,p) 
+        real(dp), allocatable :: A4(:,:,:,:)      ! (x,y,t,p)
+        real(dp), allocatable :: T2(:,:)          ! temp for spatial (x,y) → transpose → (y,x)
 
         nx     = me%gridShape(1)
         ny     = me%gridShape(2)
@@ -387,6 +388,193 @@ module DataInputModule
         f_pris = 1
         f_mat  = merge(2, 1, nforms >= 2)
         f_tra  = merge(3, 1, nforms >= 3)
+
+        ! ----------------------
+        ! SPATIAL SOIL VARIABLES
+        ! ----------------------
+        ! File vars are 2-D (y,x); the NetCDF helper returns (x,y) on getData.
+        ! We read into T2(nx,ny) and store as (y,x) to match NetCDFOutput expectations.
+
+        ! Soil bulk density [kg/m3]
+        if (me%nc%hasVariable('soil_bulk_density')) then
+            var = me%nc%getVariable('soil_bulk_density')
+            if (allocated(me%soilBulkDensity)) deallocate(me%soilBulkDensity)
+            allocate(T2(nx,ny)); call var%getData(T2)        ! (x,y)
+            allocate(me%soilBulkDensity(ny,nx))              ! (y,x)
+            me%soilBulkDensity = transpose(T2)               ! → (y,x)
+            deallocate(T2)
+        else
+            if (allocated(me%soilBulkDensity)) deallocate(me%soilBulkDensity)
+            allocate(me%soilBulkDensity(ny,nx))
+            me%soilBulkDensity = nf90_fill_real
+        end if
+
+        ! Soil water content at field capacity [cm3/cm3]
+        if (me%nc%hasVariable('soil_water_content_field_capacity')) then
+            var = me%nc%getVariable('soil_water_content_field_capacity')
+            if (allocated(me%soilWaterContentFieldCapacity)) deallocate(me%soilWaterContentFieldCapacity)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilWaterContentFieldCapacity(ny,nx))
+            me%soilWaterContentFieldCapacity = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilWaterContentFieldCapacity)) deallocate(me%soilWaterContentFieldCapacity)
+            allocate(me%soilWaterContentFieldCapacity(ny,nx))
+            me%soilWaterContentFieldCapacity = nf90_fill_real
+        end if
+
+        ! Soil water content at saturation [cm3/cm3]
+        if (me%nc%hasVariable('soil_water_content_saturation')) then
+            var = me%nc%getVariable('soil_water_content_saturation')
+            if (allocated(me%soilWaterContentSaturation)) deallocate(me%soilWaterContentSaturation)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilWaterContentSaturation(ny,nx))
+            me%soilWaterContentSaturation = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilWaterContentSaturation)) deallocate(me%soilWaterContentSaturation)
+            allocate(me%soilWaterContentSaturation(ny,nx))
+            me%soilWaterContentSaturation = nf90_fill_real
+        end if
+
+        ! Soil hydraulic conductivity [m/s]
+        if (me%nc%hasVariable('soil_hydraulic_conductivity')) then
+            var = me%nc%getVariable('soil_hydraulic_conductivity')
+            if (allocated(me%soilHydraulicConductivity)) deallocate(me%soilHydraulicConductivity)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilHydraulicConductivity(ny,nx))
+            me%soilHydraulicConductivity = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilHydraulicConductivity)) deallocate(me%soilHydraulicConductivity)
+            allocate(me%soilHydraulicConductivity(ny,nx))
+            me%soilHydraulicConductivity = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — clay
+        if (me%nc%hasVariable('soil_texture_clay_content')) then
+            var = me%nc%getVariable('soil_texture_clay_content')
+            if (allocated(me%soilTextureClayContent)) deallocate(me%soilTextureClayContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureClayContent(ny,nx))
+            me%soilTextureClayContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureClayContent)) deallocate(me%soilTextureClayContent)
+            allocate(me%soilTextureClayContent(ny,nx))
+            me%soilTextureClayContent = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — sand
+        if (me%nc%hasVariable('soil_texture_sand_content')) then
+            var = me%nc%getVariable('soil_texture_sand_content')
+            if (allocated(me%soilTextureSandContent)) deallocate(me%soilTextureSandContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureSandContent(ny,nx))
+            me%soilTextureSandContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureSandContent)) deallocate(me%soilTextureSandContent)
+            allocate(me%soilTextureSandContent(ny,nx))
+            me%soilTextureSandContent = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — silt
+        if (me%nc%hasVariable('soil_texture_silt_content')) then
+            var = me%nc%getVariable('soil_texture_silt_content')
+            if (allocated(me%soilTextureSiltContent)) deallocate(me%soilTextureSiltContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureSiltContent(ny,nx))
+            me%soilTextureSiltContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureSiltContent)) deallocate(me%soilTextureSiltContent)
+            allocate(me%soilTextureSiltContent(ny,nx))
+            me%soilTextureSiltContent = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — coarse fragments
+        if (me%nc%hasVariable('soil_texture_coarse_frag_content')) then
+            var = me%nc%getVariable('soil_texture_coarse_frag_content')
+            if (allocated(me%soilTextureCoarseFragContent)) deallocate(me%soilTextureCoarseFragContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureCoarseFragContent(ny,nx))
+            me%soilTextureCoarseFragContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureCoarseFragContent)) deallocate(me%soilTextureCoarseFragContent)
+            allocate(me%soilTextureCoarseFragContent(ny,nx))
+            me%soilTextureCoarseFragContent = nf90_fill_real
+        end if
+
+        ! USLE factors [-] — C
+        if (me%nc%hasVariable('soil_usle_c_factor')) then
+            var = me%nc%getVariable('soil_usle_c_factor')
+            if (allocated(me%soilUsleCFactor)) deallocate(me%soilUsleCFactor)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilUsleCFactor(ny,nx))
+            me%soilUsleCFactor = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilUsleCFactor)) deallocate(me%soilUsleCFactor)
+            allocate(me%soilUsleCFactor(ny,nx))
+            me%soilUsleCFactor = me%sedimentTransport_cConstant  ! or nf90_fill_real
+        end if
+
+        ! USLE factors [-] — LS
+        if (me%nc%hasVariable('soil_usle_ls_factor')) then
+            var = me%nc%getVariable('soil_usle_ls_factor')
+            if (allocated(me%soilUsleLSFactor)) deallocate(me%soilUsleLSFactor)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilUsleLSFactor(ny,nx))
+            me%soilUsleLSFactor = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilUsleLSFactor)) deallocate(me%soilUsleLSFactor)
+            allocate(me%soilUsleLSFactor(ny,nx))
+            me%soilUsleLSFactor = nf90_fill_real
+        end if
+
+        ! USLE factors [-] — P
+        if (me%nc%hasVariable('soil_usle_p_factor')) then
+            var = me%nc%getVariable('soil_usle_p_factor')
+            if (allocated(me%soilUslePFactor)) deallocate(me%soilUslePFactor)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilUslePFactor(ny,nx))
+            me%soilUslePFactor = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilUslePFactor)) deallocate(me%soilUslePFactor)
+            allocate(me%soilUslePFactor(ny,nx))
+            me%soilUslePFactor = nf90_fill_real
+        end if
+
+        ! Soil attachment — prefer explicit rate; otherwise efficiency (default fallback elsewhere)
+        if (me%nc%hasVariable('soil_attachment_rate')) then
+            var = me%nc%getVariable('soil_attachment_rate')
+            if (allocated(me%soilAttachmentRate)) deallocate(me%soilAttachmentRate)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilAttachmentRate(ny,nx))
+            me%soilAttachmentRate = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilAttachmentRate)) deallocate(me%soilAttachmentRate)
+            allocate(me%soilAttachmentRate(ny,nx))
+            me%soilAttachmentRate = nf90_fill_real
+        end if
+
+        if (me%nc%hasVariable('soil_attachment_efficiency')) then
+            var = me%nc%getVariable('soil_attachment_efficiency')
+            if (allocated(me%soilAttachmentEfficiency)) deallocate(me%soilAttachmentEfficiency)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilAttachmentEfficiency(ny,nx))
+            me%soilAttachmentEfficiency = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilAttachmentEfficiency)) deallocate(me%soilAttachmentEfficiency)
+            allocate(me%soilAttachmentEfficiency(ny,nx))
+            me%soilAttachmentEfficiency = me%soilConstantAttachmentEfficiency
+        end if
 
         !----------------------
         ! BASIC TIME SERIES
@@ -698,7 +886,7 @@ module DataInputModule
         else
             me%emissionsPointWaterCoords = nf90_fill_double
         end if
-        
+
         !-----------------------------------------
         ! POINT-SOURCE EMISSIONS (4-D p,t,y,x → (x,y,t,p))
         !-----------------------------------------
@@ -796,7 +984,6 @@ module DataInputModule
         ! Count point sources after coords are populated
         call me%calculateNPointSources(me%maxPointSources)
     end subroutine readBatchVariablesDatabase
-
 
     !> Get the constants from the namelist file
     subroutine parseConstantsDatabase(me, constantsFile)

@@ -47,7 +47,10 @@ module ReactorModule
         me%compartment = trim(adjustl(compartment))
         me%volume = volume
         me%T_water = T_water
-        me%contaminant => contaminant_in
+        if (associated(me%contaminant)) nullify(me%contaminant)
+        allocate(me%contaminant)
+        call r%addErrors(.errors. me%contaminant%create())  ! ensure components are allocated
+        me%contaminant = contaminant_in                     ! intrinsic assignment = deep copy of allocatable components
 
         ! Defaults
         me%G         = 0.0
@@ -125,31 +128,58 @@ module ReactorModule
         call r%addErrors(.errors. me%parseInputData())
     end function
 
-
     function updateReactor(me, j_contaminant_in, dt) result(r)
         class(Reactor), intent(inout) :: me
         type(Contaminant), intent(in), optional :: j_contaminant_in
         real(dp), intent(in) :: dt
         type(Result) :: r
+        real(dp) :: d_grain_eff
 
-        ! Add inflows if provided
         if (present(j_contaminant_in)) then
-            call me%contaminant%add(j_contaminant_in)
+            if (.not. allocated(me%contaminant%c)) then
+                call r%addErrors(.errors. me%contaminant%create())   ! <— was: call me%contaminant%create()
+            end if
+            if (allocated(j_contaminant_in%c)) then
+                if ( any(shape(me%contaminant%c) /= shape(j_contaminant_in%c)) ) then
+                    call LOGR%toFile("Reactor%update: incoming contaminant shape mismatch; skipping add.")
+                else
+                    call me%contaminant%add(j_contaminant_in)
+                end if
+            else
+                call LOGR%toFile("Reactor%update: incoming contaminant not allocated; skipping add.")
+            end if
         end if
 
         ! Update based on compartment
         select case (me%compartment)
             case ('water', 'estuary')
-                ! Calculate k_att for water/estuary if not already allocated
                 if (.not. allocated(me%k_att)) then
                     allocate(me%k_att(C%nContaminantSizeClasses))
-                    me%k_att = me%contaminant%calculateAttachmentRate(me%T_water, DATASET%soilDefaultPorosity, &
-                                                                    DATASET%spmSizeClasses(1), me%velocity)
-                    me%alpha_att = merge(DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
+
+                    ! pick a safe collector/“grain” diameter
+                    if (allocated(DATASET%spmSizeClasses)) then
+                        if (size(DATASET%spmSizeClasses) > 0) then
+                            d_grain_eff = DATASET%spmSizeClasses(1)
+                        else
+                            d_grain_eff = C%d_spm(1)
+                            call LOGR%toFile("Reactor%update: spmSizeClasses is empty; using C%d_spm(1).")
+                        end if
+                    else
+                        d_grain_eff = C%d_spm(1)
+                        call LOGR%toFile("Reactor%update: spmSizeClasses not allocated; using C%d_spm(1).")
+                    end if
+
+                    me%k_att = me%contaminant%calculateAttachmentRate( &
+                        me%T_water, DATASET%soilDefaultPorosity, d_grain_eff, me%velocity)
+
+                    me%alpha_att = merge(DATASET%riverAttachmentEfficiency, &
+                                        DATASET%estuaryAttachmentEfficiency, &
                                         me%compartment == 'water')
                 end if
-                call r%addErrors(.errors. me%contaminant%update(dt, me%T_water, me%C_spm, me%W_settle_spm, &
-                                                                real(me%G, dp), me%volume, me%compartment, me%k_att, me%alpha_att))
+
+                call r%addErrors(.errors. me%contaminant%update( &
+                    dt, me%T_water, me%C_spm, me%W_settle_spm, real(me%G,dp), me%volume,  &
+                    me%compartment, me%k_att, me%alpha_att))
             case ('sediment')
                 call r%addErrors(.errors. me%contaminant%update(dt, me%T_water, me%C_spm, me%W_settle_spm, &
                                                                 real(me%G, dp), me%volume, 'sediment'))
@@ -165,11 +195,12 @@ module ReactorModule
         class(Reactor), intent(inout) :: me
         if (associated(me%contaminant)) then
             call me%contaminant%finalise()
-            me%contaminant => null()
+            deallocate(me%contaminant)      ! <— add this
+            nullify(me%contaminant)
         end if
-        if (allocated(me%C_spm)) deallocate(me%C_spm)
+        if (allocated(me%C_spm))        deallocate(me%C_spm)
         if (allocated(me%W_settle_spm)) deallocate(me%W_settle_spm)
-        if (allocated(me%k_att)) deallocate(me%k_att)
+        if (allocated(me%k_att))        deallocate(me%k_att)
     end subroutine
 
     function parseInputDataReactor(me) result(r)

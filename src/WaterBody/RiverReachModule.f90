@@ -287,6 +287,7 @@ contains
         real(dp)            :: dj_spm_resus(C%nSizeClassesSPM)
         real(dp)            :: dj_spm_resus_perArea(C%nSizeClassesSpm)
         real(dp)            :: dj_spm_resus_perArea_(C%nSizeClassesSpm)
+        real(dp)            :: dj_spm_deposit_perArea(C%nSizeClassesSPM)
         type(Result)        :: rslt
         real(dp)            :: dj_spm_deposit(C%nSizeClassesSPM)
         real(dp)            :: dj_spm_outflow(C%nSizeClassesSPM)
@@ -350,6 +351,13 @@ contains
                 call me%m_contaminant%add_scaled(dj_contaminant_deposit, -1.0_dp)
                 call me%m_contaminant%add(dj_contaminant_resus)
                 call me%m_contaminant%add_scaled(dj_contaminant_outflow, -1.0_dp)
+                if (isZero(me%bedArea)) then
+                    dj_spm_deposit_perArea = 0.0_dp
+                else
+                    dj_spm_deposit_perArea = dj_spm_deposit / me%bedArea
+                end if
+                call me%bedSediment%getmatrix( djdep = dj_spm_deposit_perArea, &
+                                            djres = dj_spm_resus_perArea )
                 call rslt%addErrors(.errors. me%bedSediment%transferContaminant(dj_contaminant_deposit))
             end if
         else
