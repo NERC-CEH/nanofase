@@ -113,8 +113,8 @@ module AbstractSoilProfileModule
             use ResultModule, only: Result
             use ContaminantModule
             import AbstractSoilProfile
-            class(AbstractSoilProfile)    :: me                                !! This AbstractSoilProfile instance
-            integer                       :: t                                 !! The current time step
+            class(AbstractSoilProfile), intent(inout) :: me                    !! This AbstractSoilProfile instance
+            integer, intent(in)           :: t                                 !! The current time step
             type(Contaminant), intent(in) :: j_contaminant_diffuseSource       !! Diffuse source of contaminant for this timestep
             type(Result)                  :: r                                 !! Result object to return
         end function

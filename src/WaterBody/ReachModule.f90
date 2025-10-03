@@ -99,13 +99,16 @@ module ReachModule
 
     !> Allocate memory for arrays and set any initial values
     subroutine allocateAndInitialiseReach(me)
-        class(Reach), intent(inout) :: me        !! This Reach instance
-        type(Result) :: r               !! Result object for error handling
+        class(Reach), intent(inout) :: me
+        type(Result) :: r
+
         ! WaterBody initialises the variables common to all water bodies
         call me%WaterBody%allocateAndInitialise()
-        ! Defaults
+
+        ! Environment defaults
         me%n = C%n_river
-        ! Initialize Contaminant objects
+
+        ! Main WATER contaminant state (sizes, rates, etc.)
         call r%addErrors(.errors. me%m_contaminant%create_from_data( &
             'water', &
             DATASET%contaminantDensity, &
@@ -117,8 +120,19 @@ module ReachModule
             DATASET%contaminant_k_transform_pristine, &
             DATASET%waterTemperature(C%startDate%yearday()) &
         ))
+
+        ! Zero/construct ALL contaminant flux containers so getters are safe
+        call r%addErrors(.errors. me%j_contaminant_inflow%create())
+        call r%addErrors(.errors. me%j_contaminant_runoff%create())
+        call r%addErrors(.errors. me%j_contaminant_transfers%create())
+        call r%addErrors(.errors. me%j_contaminant_deposition%create())
+        call r%addErrors(.errors. me%j_contaminant_resuspension%create())
+        call r%addErrors(.errors. me%j_contaminant_outflow%create())
+        call r%addErrors(.errors. me%j_contaminant_final%create())
+
         if (r%hasCriticalError()) call ERROR_HANDLER%trigger(errors=.errors.r)
     end subroutine
+
 
     subroutine finaliseReach(me)
         class(Reach), intent(inout) :: me

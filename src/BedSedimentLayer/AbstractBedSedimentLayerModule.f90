@@ -234,7 +234,13 @@ module AbstractBedSedimentLayerModule
             class(AbstractBedSedimentLayer), intent(in) :: Me                !! The `AbstractBedSedimentLayer` instance
             integer :: S                                             !! size class for which volumetric SLR is to be computed
             real(dp) :: volSLR                                       ! LOCAL internal storage
-            volSLR = Me%C_f_l(S) / Me%C_w_l(S)                   ! compute ratio
+            real(dp), parameter :: eps = 1.0d-12
+            if (Me%C_w_l(S) <= eps) then
+                ! No water capacity -> define S:L as 0 safely (all solid in limiting sense)
+                volSLR = 0.0_dp
+            else
+                volSLR = Me%C_f_l(S) / Me%C_w_l(S)
+            end if
         end function
 
         !> Return the sediment mass in the layer across all size fractions
@@ -280,9 +286,9 @@ module AbstractBedSedimentLayerModule
             ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Vf_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
-            Vf_layer = 0                                             ! initialise local variable 
+            Vf_layer = 0.0_dp                                        ! initialise local variable 
             do S = 1, Me%nSizeClasses
-                Vf_layer = Vf_layer + Me%colFineSediment(S)%V_f()              ! sum across all size classes
+                Vf_layer = Vf_layer + max(Me%colFineSediment(S)%V_f(), 0.0_dp)              ! sum across all size classes
             end do
             ! r = Result(data = Vf_layer)
         end function
@@ -299,9 +305,9 @@ module AbstractBedSedimentLayerModule
             ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Vw_layer                                     ! LOCAL internal storage
             integer :: S                                             ! LOCAL loop counter
-            Vw_layer = 0
+            Vw_layer = 0.0_dp
             do S = 1, Me%nSizeClasses
-                Vw_layer = Vw_layer + Me%colFineSediment(S)%V_w()   ! sum across all size classes
+                Vw_layer = Vw_layer + max(Me%colFineSediment(S)%V_w(), 0.0_dp)
             end do
             ! r = Result(data = Vw_layer)
         end function
@@ -318,9 +324,9 @@ module AbstractBedSedimentLayerModule
             ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Cw_layer                                     ! LOCAL internal storage
             integer :: S                                             ! loop counter
-            Cw_layer = 0
+            Cw_layer = 0.0_dp
             do S = 1, Me%nSizeClasses
-                Cw_layer = Cw_layer + Me%C_w_l(S)                    ! sum across all size classes
+                Cw_layer = Cw_layer + max(Me%C_w_l(S), 0.0_dp)
             end do
             ! r = Result(data = Cw_layer)
         end function
@@ -337,11 +343,10 @@ module AbstractBedSedimentLayerModule
             ! type(Result0D) :: r                                      !! Return value
             real(dp) :: Vm_layer                                     ! LOCAL internal storage
             integer :: S                                             ! loop counter
-            Vm_layer = 0                                             ! initialise local variable
+            Vm_layer = 0.0_dp
             do S = 1, Me%nSizeClasses
-                Vm_layer = Vm_layer + &
-                           Me%colFineSediment(S)%V_f() + &
-                           Me%colFineSediment(S)%V_w()                ! sum across all size classes
+                Vm_layer = Vm_layer + max(Me%colFineSediment(S)%V_f(), 0.0_dp) &
+                                    + max(Me%colFineSediment(S)%V_w(), 0.0_dp)
             end do
             !  r = Result(data = Vm_layer)
         end function
@@ -357,13 +362,6 @@ module AbstractBedSedimentLayerModule
             class(AbstractBedSedimentLayer), intent(in) :: Me                !! The `AbstractBedSedimentLayer` instance
             type(Result0D) :: r                                      !! Return value
             real(dp) :: V_layer                                      ! LOCAL internal storage
-            integer :: S                                             ! loop counter
-            V_layer = Me%V_c                                         ! start by adding coarse material volume
-            do S = 1, Me%nSizeClasses
-                V_layer = V_layer + &
-                          Me%colFineSediment(S)%V_f() + &
-                          Me%colFineSediment(S)%V_w()                ! sum across all size classes
-            end do
-              r = Result(data = V_layer)
+            V_layer = max(Me%V_c, 0.0_dp) + Me%V_m_layer()
         end function
 end module

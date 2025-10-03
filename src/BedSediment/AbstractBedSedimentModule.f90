@@ -39,6 +39,8 @@ module AbstractBedSedimentModule
         procedure(ReportBedMassToConsole), deferred :: repMass      ! report fine sediment masses to the console
         procedure(FinaliseMTCMatrix), deferred :: getMatrix         ! finalise mass transfer coefficient matrix
         procedure(transferContaminantBedSediment), deferred :: transferContaminant    ! Transfer Contaminant masses between layers and to/from water body, using mass transfer coef matrix
+        procedure(deposit_spm),   deferred :: deposit_spm
+        procedure(resuspend_spm), deferred :: resuspend_spm
         procedure :: Af_sediment => Get_Af_sediment          ! fine sediment available capacity for size class
         procedure :: Cf_sediment => Get_Cf_sediment          ! fine sediment capacity for size class
         procedure :: Aw_sediment => Get_Aw_sediment          ! water available capacity for size class
@@ -120,6 +122,28 @@ module AbstractBedSedimentModule
             type(Contaminant), intent(in) :: j_contaminant_dep
             type(Result) :: r
         end function
+
+        function deposit_spm(Me, dj_spm_deposit, bedArea, out_deposit, out_resus) result(r)
+            use GlobalsModule, only: dp
+            import AbstractBedSediment, Contaminant, Result
+            class(AbstractBedSediment), intent(inout) :: Me
+            real(dp), intent(in) :: dj_spm_deposit(:)
+            real(dp), intent(in) :: bedArea
+            type(Contaminant), intent(out) :: out_deposit
+            type(Contaminant), intent(out) :: out_resus
+            type(Result) :: r
+        end function
+
+        function resuspend_spm(Me, dj_spm_resus, bedArea, out_resus) result(r)
+            use GlobalsModule, only: dp
+            import AbstractBedSediment, Contaminant, Result
+            class(AbstractBedSediment), intent(inout) :: Me
+            real(dp), intent(in) :: dj_spm_resus(:)
+            real(dp), intent(in) :: bedArea
+            type(Contaminant), intent(out) :: out_resus
+            type(Result) :: r
+        end function
+
 
         !> **Function purpose**                                     <br>
         !! Deposit specified masses of fine sediment in each size class, and their

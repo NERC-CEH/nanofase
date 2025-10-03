@@ -269,7 +269,7 @@ module GlobalsModule
         min_estuary_timestep = configDefaults%minEstuaryTimestep
         include_waterbody_breakdown = configDefaults%includeWaterbodyBreakdown
         write_compartment_stats = configDefaults%writeCompartmentStats
-        ignore_contaminant = .false.
+        ignore_contaminant = configDefaults%ignoreContaminant
         include_estuary = configDefaults%includeEstuary
         include_bank_erosion = configDefaults%includeBankErosion
         warm_up_period = configDefaults%warmUpPeriod
@@ -318,6 +318,8 @@ module GlobalsModule
         allocate(contaminant_size_classes(n_contaminant_size_classes))
         allocate(spm_size_classes(n_spm_size_classes))
         allocate(sediment_particle_densities(n_fractional_compositions))
+        ! Ensure defined even if /sediment/ does not provide them
+        sediment_particle_densities = 0.0_dp
         rewind(iouConfig)
         read(iouConfig, nml=contaminant)
         read(iouConfig, nml=data)
@@ -395,7 +397,17 @@ module GlobalsModule
         C%nSedimentLayers = n_sediment_layers
         allocate(C%d_spm, source=spm_size_classes)
         C%nFracCompsSpm = n_fractional_compositions
+        
+        ! If /sediment/ didn’t specify densities, use a sane legacy default
+        if (all(sediment_particle_densities == 0.0_dp)) then
+            ! default to legacy 2-fraction pair
+            sediment_particle_densities = 0.0_dp
+            sediment_particle_densities(1) = 1500.0_dp
+            if (size(sediment_particle_densities) >= 2) sediment_particle_densities(2) = 2600.0_dp
+        end if
+
         allocate(C%sedimentParticleDensities, source=sediment_particle_densities)
+
         ! Soil
         C%nSoilLayers = n_soil_layers
         C%soilLayerDepth = soil_layer_depth

@@ -7,6 +7,7 @@ module NetCDFOutputModule
     use ResultModule     
     use WaterBodyModule, only: WaterBody
     use EnvironmentModule
+    use AbstractGridCellModule, only: AbstractGridCell
     use AbstractEnvironmentModule, only: EnvironmentPointer
     use AbstractBedSedimentModule
     use datetime_module

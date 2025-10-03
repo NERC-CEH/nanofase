@@ -50,6 +50,7 @@ module AbstractSoilLayerModule
         procedure(createAbstractSoilLayer), deferred :: create
         procedure(updateAbstractSoilLayer), deferred :: update
         procedure(addPooledWaterAbstractSoilLayer), deferred :: addPooledWater
+        procedure(updateContaminantStateAbstractSoilLayer), deferred :: update_contaminant_state
         procedure(erodeAbstractSoilLayer), deferred :: erode
         procedure(parseInputDataAbstractSoilLayer), deferred :: parseInputData
         procedure(calculateBioturbationRateAbstractSoilLayer), deferred :: calculateBioturbationRate
@@ -101,6 +102,13 @@ module AbstractSoilLayerModule
             type(Contaminant), intent(in) :: j_contaminant_in
             type(Result) :: r                               !! The `Result` object to return, with no data
         end function
+
+        subroutine updateContaminantStateAbstractSoilLayer(me, T_water_t)
+            use GlobalsModule, only: dp 
+            import AbstractSoilLayer
+            class(AbstractSoilLayer), intent(inout) :: me
+            real(dp), intent(in) :: T_water_t
+        end subroutine
 
         !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
         !! No percolation occurs as pooled water never really leaves the AbstractSoilLayer.
@@ -179,5 +187,4 @@ module AbstractSoilLayerModule
         if (allocated(me%k_att)) deallocate(me%k_att)
         if (allocated(me%biotaIndices)) deallocate(me%biotaIndices)
     end subroutine
-
 end module

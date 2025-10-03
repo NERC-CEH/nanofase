@@ -30,12 +30,12 @@
 /
 
 &sediment
-    porosity = 0.8, 0.6, 0.4, 0.2
-    sedimentInitialMass = 0.02, 0.02, 0.32, 0.32, 0.32
-    fractional_composition_distribution = 0.5, 0.5
-    default_spm_size_distribution = 50, 30, 10, 7, 3
     default_matrixembedded_distribution_to_spm = 20, 20, 20, 20, 20
+    default_spm_size_distribution = 50, 30, 10, 7, 3
+    fractional_composition_distribution = 0.5, 0.5
     spm_density_by_size_class = 1700, 260, 2600, 1700, 1300
+    sedimentInitialMass = 0.02, 0.02, 0.32, 0.32, 0.32
+    porosity = 0.8, 0.6, 0.4, 0.2
 /
 
 &soil

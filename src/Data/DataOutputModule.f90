@@ -149,7 +149,7 @@ module DataOutputModule
     !> Update the water output file for the current timestep
     subroutine updateWaterDataOutput(this, t, tInChunk, x, y, date, easts, norths)
         class(DataOutput)   :: this                             !! The DataOutput instance
-        integer             :: t, tInChunk, x, y                
+        integer             :: t, tInChunk, x, y
         character(len=*)    :: date
         real                :: easts, norths
         integer             :: i, w, f
@@ -157,135 +157,238 @@ module DataOutputModule
         real(dp)            :: m_spm(C%nSizeClassesSpm)
         real(dp)            :: C_spm(C%nSizeClassesSpm)
         type(Contaminant)   :: m_contaminant, j_contaminant_outflow, j_contaminant_deposition, j_contaminant_resuspension
-        real(dp)            :: C_contaminant, C_dissolved
+        real(dp)            :: C_contaminant, C_dissolved, C_attached
+        real(dp)            :: vol
+        real(dp)            :: s_free, s_att, s_dep_free, s_dep_att, s_res_free, s_res_att
+        real(dp)            :: s_out_free, s_out_att
         type(Result0D)      :: r
         character(len=256)  :: tr = "DataOutputModule.f90%updateWaterDataOutput"
 
-        if (C%writeCSV) then
-            if (C%includeWaterbodyBreakdown) then
-                do w = 1, this%env%item%colGridCells(x,y)%item%nReaches
-                    associate (reach => this%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
-                        select type (reach)
-                            type is (RiverReach); reachType = 'riv'
-                            type is (EstuaryReach); reachType = 'est'
-                        end select
-                        m_contaminant = reach%get_m_contaminant()
-                        j_contaminant_outflow = reach%j_contaminant_outflow
-                        j_contaminant_deposition = reach%j_contaminant_deposition
-                        j_contaminant_resuspension = reach%j_contaminant_resuspension
-                        r = m_contaminant%getConcentration(reach%volume)
-                        if (r%hasCriticalError() .or. .not. allocated(r%data)) then
-                            call r%addToTrace(tr)
-                            call m_contaminant%finalise()
-                            return
-                        end if
-                        C_contaminant = r%getDataAsRealDP()
-                        if (reach%volume > C%epsilon) then
-                            C_dissolved = m_contaminant%m_dissolved / reach%volume
-                        else
-                            C_dissolved = 0.0_dp
-                        end if
-                        write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
-                            trim(str(x)) // "," // trim(str(y)) // "," // &
-                            trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(C_contaminant)) // "," // &
-                            trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(sum(m_contaminant%get_attached()) / reach%volume)) // "," // &
-                            trim(str(m_contaminant%m_dissolved)) // "," // &
-                            trim(str(C_dissolved)) // "," // &
-                            trim(str(sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(j_contaminant_outflow%m_dissolved)) // "," // &
-                            trim(str(sum(reach%m_spm))) // "," // &
-                            trim(str(sum(reach%C_spm))) // ","
-                        do f = 1, C%contaminantDim(2)
-                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
-                        end do
-                        if (C%includeSpmSizeClassBreakdown) then
-                            write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
-                                trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
-                        end if
-                        if (C%includeSedimentFluxes) then
-                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%j_spm%soilErosion))) // "," // &
-                                trim(str(sum(reach%j_spm%deposition))) // "," // &
-                                trim(str(sum(reach%j_spm%resuspension))) // "," // &
-                                trim(str(sum(reach%j_spm%inflow))) // "," // trim(str(sum(reach%j_spm%outflow))) // "," // &
-                                trim(str(sum(reach%j_spm%bankErosion))) // ","
-                        end if
-                        write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
-                            trim(str(reach%Q%outflow / C%timeStep))
+        if (.not. C%writeCSV) return
+
+        if (C%includeWaterbodyBreakdown) then
+            do w = 1, this%env%item%colGridCells(x,y)%item%nReaches
+                associate (reach => this%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                    select type (reach)
+                        type is (RiverReach);   reachType = 'riv'
+                        type is (EstuaryReach); reachType = 'est'
+                    end select
+
+                    ! --- state ---
+                    m_contaminant = reach%get_m_contaminant()
+                    vol = reach%volume
+
+                    r = m_contaminant%getConcentration(vol)
+                    if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                        call r%addToTrace(tr)
                         call m_contaminant%finalise()
-                    end associate
-                end do
-            else
-                associate (cell => this%env%item%colGridCells(x,y)%item)
-                    if (cell%nReaches > 0) then
-                        m_contaminant = cell%get_m_contaminant_water()
-                        j_contaminant_outflow = cell%get_j_contaminant_outflow()
-                        j_contaminant_deposition = cell%get_j_contaminant_deposition()
-                        j_contaminant_resuspension = cell%get_j_contaminant_resuspension()
-                        r = m_contaminant%getConcentration(cell%getWaterVolume())
-                        if (r%hasCriticalError() .or. .not. allocated(r%data)) then
-                            call r%addToTrace(tr)
-                            call m_contaminant%finalise()
-                            return
-                        end if
-                        C_contaminant = r%getDataAsRealDP()
-                        if (cell%getWaterVolume() > C%epsilon) then
-                            C_dissolved = m_contaminant%m_dissolved / cell%getWaterVolume()
-                        else
-                            C_dissolved = 0.0_dp
-                        end if
-                        write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
-                            trim(str(x)) // "," // trim(str(y)) // "," // &
-                            trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
-                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(C_contaminant)) // "," // &
-                            trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(sum(m_contaminant%get_attached()) / cell%getWaterVolume())) // "," // &
-                            trim(str(m_contaminant%m_dissolved)) // "," // &
-                            trim(str(C_dissolved)) // "," // &
-                            trim(str(sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                            trim(str(j_contaminant_outflow%m_dissolved)) // ","
-                        m_spm = cell%get_m_spm()
-                        C_spm = cell%get_C_spm()
-                        write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_spm))) // "," // &
-                            trim(str(sum(C_spm))) // ","
-                        do f = 1, C%contaminantDim(2)
-                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
-                        end do
-                        if (C%includeSpmSizeClassBreakdown) then
-                            write(iouOutputWater, '(*(a))', advance='no') (trim(str(m_spm(i))) // "," // &
-                                trim(str(C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
-                        end if
-                        if (C%includeSedimentFluxes) then
-                            write(iouOutputWater, '(a)', advance='no') &
-                                trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
-                                trim(str(sum(cell%get_j_spm_deposition()))) // "," // &
-                                trim(str(sum(cell%get_j_spm_resuspension()))) // "," // &
-                                trim(str(sum(cell%get_j_spm_inflow()))) // "," // &
-                                trim(str(sum(cell%get_j_spm_outflow()))) // "," // &
-                                trim(str(sum(cell%colRiverReaches(1)%item%j_spm%bankErosion))) // ","
-                        end if
-                        write(iouOutputWater, '(a)') trim(str(cell%getWaterVolume())) // "," // &
-                            trim(str(cell%getWaterDepth())) // "," // &
-                            trim(str(cell%get_Q_outflow() / C%timeStep))
-                        call m_contaminant%finalise()
+                        return
                     end if
+                    C_contaminant = r%getDataAsRealDP()
+
+                    if (vol > C%epsilon) then
+                        C_dissolved = m_contaminant%m_dissolved / vol
+                        C_attached  = sum(m_contaminant%get_attached()) / vol
+                    else
+                        C_dissolved = 0.0_dp
+                        C_attached  = 0.0_dp
+                    end if
+
+                    ! --- fluxes (guard against unallocated %c) ---
+                    j_contaminant_outflow     = reach%j_contaminant_outflow
+                    j_contaminant_deposition  = reach%j_contaminant_deposition
+                    j_contaminant_resuspension= reach%j_contaminant_resuspension
+
+                    if (allocated(m_contaminant%c)) then
+                        s_free = sum(m_contaminant%c(:,:,FREE_CONTAMINANT))
+                        s_att  = sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_free = 0.0_dp
+                        s_att  = 0.0_dp
+                    end if
+
+                    if (allocated(j_contaminant_deposition%c)) then
+                        s_dep_free = sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT))
+                        s_dep_att  = sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_dep_free = 0.0_dp
+                        s_dep_att  = 0.0_dp
+                    end if
+
+                    if (allocated(j_contaminant_resuspension%c)) then
+                        s_res_free = sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT))
+                        s_res_att  = sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_res_free = 0.0_dp
+                        s_res_att  = 0.0_dp
+                    end if
+
+                    if (allocated(j_contaminant_outflow%c)) then
+                        s_out_free = sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT))
+                        s_out_att  = sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_out_free = 0.0_dp
+                        s_out_att  = 0.0_dp
+                    end if
+
+                    ! --- write row (keep original column order) ---
+                    write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                        trim(str(x)) // "," // trim(str(y)) // "," // &
+                        trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
+                        trim(str(s_free)) // "," // &
+                        trim(str(C_contaminant)) // "," // &
+                        trim(str(s_att)) // "," // &
+                        trim(str(C_attached)) // "," // &
+                        trim(str(m_contaminant%m_dissolved)) // "," // &
+                        trim(str(C_dissolved)) // "," // &
+                        trim(str(s_dep_free)) // "," // &
+                        trim(str(s_dep_att)) // "," // &
+                        trim(str(s_res_free)) // "," // &
+                        trim(str(s_res_att)) // "," // &
+                        trim(str(s_out_free)) // "," // &
+                        trim(str(s_out_att)) // "," // &
+                        trim(str(j_contaminant_outflow%m_dissolved)) // "," // &
+                        trim(str(sum(reach%m_spm))) // "," // &
+                        trim(str(sum(reach%C_spm))) // ","
+
+                    do f = 1, C%contaminantDim(2)
+                        if (allocated(m_contaminant%c)) then
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
+                        else
+                            write(iouOutputWater, '(a)', advance='no') "0.0,"
+                        end if
+                    end do
+
+                    if (C%includeSpmSizeClassBreakdown) then
+                        write(iouOutputWater, '(*(a))', advance='no') (trim(str(reach%m_spm(i))) // "," // &
+                            trim(str(reach%C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                    end if
+                    if (C%includeSedimentFluxes) then
+                        write(iouOutputWater, '(a)', advance='no') trim(str(sum(reach%j_spm%soilErosion))) // "," // &
+                            trim(str(sum(reach%j_spm%deposition))) // "," // &
+                            trim(str(sum(reach%j_spm%resuspension))) // "," // &
+                            trim(str(sum(reach%j_spm%inflow))) // "," // &
+                            trim(str(sum(reach%j_spm%outflow))) // "," // &
+                            trim(str(sum(reach%j_spm%bankErosion))) // ","
+                    end if
+                    write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
+                        trim(str(reach%Q%outflow / C%timeStep))
+
+                    call m_contaminant%finalise()
                 end associate
-            end if
+            end do
+
+        else
+            associate (cell => this%env%item%colGridCells(x,y)%item)
+                if (cell%nReaches > 0) then
+                    ! --- aggregated state ---
+                    m_contaminant          = cell%get_m_contaminant_water()
+                    j_contaminant_outflow  = cell%get_j_contaminant_outflow()
+                    j_contaminant_deposition   = cell%get_j_contaminant_deposition()
+                    j_contaminant_resuspension = cell%get_j_contaminant_resuspension()
+                    vol = cell%getWaterVolume()
+
+                    r = m_contaminant%getConcentration(vol)
+                    if (r%hasCriticalError() .or. .not. allocated(r%data)) then
+                        call r%addToTrace(tr)
+                        call m_contaminant%finalise()
+                        return
+                    end if
+                    C_contaminant = r%getDataAsRealDP()
+
+                    if (vol > C%epsilon) then
+                        C_dissolved = m_contaminant%m_dissolved / vol
+                        C_attached  = sum(m_contaminant%get_attached()) / vol
+                    else
+                        C_dissolved = 0.0_dp
+                        C_attached  = 0.0_dp
+                    end if
+
+                    if (allocated(m_contaminant%c)) then
+                        s_free = sum(m_contaminant%c(:,:,FREE_CONTAMINANT))
+                        s_att  = sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_free = 0.0_dp
+                        s_att  = 0.0_dp
+                    end if
+
+                    if (allocated(j_contaminant_deposition%c)) then
+                        s_dep_free = sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT))
+                        s_dep_att  = sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_dep_free = 0.0_dp
+                        s_dep_att  = 0.0_dp
+                    end if
+
+                    if (allocated(j_contaminant_resuspension%c)) then
+                        s_res_free = sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT))
+                        s_res_att  = sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_res_free = 0.0_dp
+                        s_res_att  = 0.0_dp
+                    end if
+
+                    if (allocated(j_contaminant_outflow%c)) then
+                        s_out_free = sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT))
+                        s_out_att  = sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT))
+                    else
+                        s_out_free = 0.0_dp
+                        s_out_att  = 0.0_dp
+                    end if
+
+                    write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
+                        trim(str(x)) // "," // trim(str(y)) // "," // &
+                        trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
+                        trim(str(s_free)) // "," // &
+                        trim(str(C_contaminant)) // "," // &
+                        trim(str(s_att)) // "," // &
+                        trim(str(C_attached)) // "," // &
+                        trim(str(m_contaminant%m_dissolved)) // "," // &
+                        trim(str(C_dissolved)) // "," // &
+                        trim(str(s_dep_free)) // "," // &
+                        trim(str(s_dep_att)) // "," // &
+                        trim(str(s_res_free)) // "," // &
+                        trim(str(s_res_att)) // "," // &
+                        trim(str(s_out_free)) // "," // &
+                        trim(str(s_out_att)) // "," // &
+                        trim(str(j_contaminant_outflow%m_dissolved)) // ","
+
+                    m_spm = cell%get_m_spm()
+                    C_spm = cell%get_C_spm()
+                    write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_spm))) // "," // &
+                        trim(str(sum(C_spm))) // ","
+
+                    do f = 1, C%contaminantDim(2)
+                        if (allocated(m_contaminant%c)) then
+                            write(iouOutputWater, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
+                        else
+                            write(iouOutputWater, '(a)', advance='no') "0.0,"
+                        end if
+                    end do
+
+                    if (C%includeSpmSizeClassBreakdown) then
+                        write(iouOutputWater, '(*(a))', advance='no') (trim(str(m_spm(i))) // "," // &
+                            trim(str(C_spm(i))) // ",", i=1, C%nSizeClassesSpm)
+                    end if
+                    if (C%includeSedimentFluxes) then
+                        write(iouOutputWater, '(a)', advance='no') &
+                            trim(str(sum(cell%get_j_spm_soilErosion()))) // "," // &
+                            trim(str(sum(cell%get_j_spm_deposition()))) // "," // &
+                            trim(str(sum(cell%get_j_spm_resuspension()))) // "," // &
+                            trim(str(sum(cell%get_j_spm_inflow()))) // "," // &
+                            trim(str(sum(cell%get_j_spm_outflow()))) // "," // &
+                            trim(str(sum(cell%colRiverReaches(1)%item%j_spm%bankErosion))) // ","
+                    end if
+                    write(iouOutputWater, '(a)') trim(str(cell%getWaterVolume())) // "," // &
+                        trim(str(cell%getWaterDepth())) // "," // &
+                        trim(str(cell%get_Q_outflow() / C%timeStep))
+
+                    call m_contaminant%finalise()
+                end if
+            end associate
         end if
     end subroutine
+
 
     !> Update the sediment output file on the current timestep
     subroutine updateSedimentDataOutput(this, t, tInChunk, x, y, date, easts, norths)
@@ -466,72 +569,86 @@ module DataOutputModule
         real               :: easts, norths
         integer            :: i, l, f
         type(Contaminant)  :: m_contaminant, m_eroded, m_buried
-        real(dp)           :: C_contaminant, C_dissolved, C_dissolved_layer
-        type(Result0D)     :: r
-        character(len=256) :: tr = "DataOutputModule.f90%updateSoilDataOutput"
-        real(dp)           :: profile_volume
+        real(dp)           :: C_contaminant, C_attached, C_dissolved
+        real(dp)           :: C_layer_total, C_dissolved_layer
+        real(dp)           :: profile_volume, profile_mass
+        real(dp)           :: layer_volume, layer_mass
 
         if (C%writeCSV) then
             do i = 1, this%env%item%colGridCells(x,y)%item%nSoilProfiles
                 associate (profile => this%env%item%colGridCells(x,y)%item%colSoilProfiles(i)%item)
-                    m_contaminant = profile%get_m_contaminant()
-                    
-                    profile_volume = sum([(profile%colSoilLayers(l)%item%volume, l = 1, C%nSoilLayers)])
 
-                    r = m_contaminant%getConcentration(profile_volume)
-                    if (r%hasCriticalError() .or. .not. allocated(r%data)) then
-                        call r%addToTrace(tr)
-                        call m_contaminant%finalise()
-                        return
-                    end if
-                    C_contaminant = r%getDataAsRealDP()
-                    
-                    if (profile_volume > C%epsilon) then
-                        C_dissolved = m_contaminant%m_dissolved / profile_volume
+                    ! --- masses in the whole profile ---
+                    m_contaminant = profile%get_m_contaminant()
+
+                    ! total *volume* of soil in profile (sum of layer volumes already in m^3)
+                    profile_volume = sum([(profile%colSoilLayers(l)%item%volume, l = 1, C%nSoilLayers)])
+                    ! convert to dry-soil mass [kg] using bulk density
+                    profile_mass   = profile%bulkDensity * profile_volume
+
+                    ! --- concentrations in kg/kg (mass / dry-soil mass) ---
+                    if (profile_mass > C%epsilon) then
+                        C_contaminant = ( sum(m_contaminant%get_free())        &
+                                        + sum(m_contaminant%get_attached())    &
+                                        + m_contaminant%m_dissolved ) / profile_mass
+
+                        C_attached    =  sum(m_contaminant%get_attached()) / profile_mass
+                        C_dissolved   =  m_contaminant%m_dissolved          / profile_mass
                     else
-                        C_dissolved = 0.0_dp
+                        C_contaminant = 0.0_dp
+                        C_attached    = 0.0_dp
+                        C_dissolved   = 0.0_dp
                     end if
-                    
+
+                    ! erosion/burial masses (unchanged)
                     m_eroded = profile%m_contaminant_eroded
                     m_buried = profile%m_contaminant_buried
+
+                    ! -------- write CSV row header + profile totals --------
                     write(iouOutputSoil, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                         trim(str(x)) // "," // trim(str(y)) // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // &
                         trim(str(i)) // "," // trim(profile%dominantLandUseName) // "," // &
-                        trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                        trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
-                        trim(str(m_contaminant%m_dissolved)) // "," // &
-                        trim(str(C_contaminant)) // "," // &
-                        trim(str(sum(m_contaminant%get_attached()) / profile_volume)) // "," // &
-                        trim(str(C_dissolved)) // ","
+                        trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &   ! m_contaminant_pristine_total(kg)
+                        trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // & ! m_contaminant_attached_total(kg)
+                        trim(str(m_contaminant%m_dissolved)) // "," // &                        ! m_dissolved_total(kg)
+                        trim(str(C_contaminant)) // "," // &                                    ! C_contaminant_total(kg/kg)
+                        trim(str(C_attached)) // "," // &                                       ! C_contaminant_attached(kg/kg)
+                        trim(str(C_dissolved)) // ","                                          ! C_dissolved_total(kg/kg)
+
+                    ! per-form masses (unchanged)
                     do f = 1, C%contaminantDim(2)
                         write(iouOutputSoil, '(a)', advance='no') trim(str(sum(m_contaminant%c(:,f,:)))) // ","
                     end do
+
+                    ! optional: state breakdown totals (unchanged, but keep order)
                     if (C%includeSoilStateBreakdown) then
                         write(iouOutputSoil, '(a)', advance='no') &
                             trim(str(sum(m_contaminant%get_free()))) // "," // &
                             trim(str(sum(m_contaminant%get_attached()))) // ","
                     end if
+
+                    ! -------- per-layer concentrations (kg/kg) --------
                     if (C%includeSoilLayerBreakdown) then
                         do l = 1, C%nSoilLayers
                             m_contaminant = profile%colSoilLayers(l)%item%m_contaminant
-                            r = m_contaminant%getConcentration(profile%colSoilLayers(l)%item%volume)
-                            if (r%hasCriticalError() .or. .not. allocated(r%data)) then
-                                call r%addToTrace(tr)
-                                call m_contaminant%finalise()
-                                call m_eroded%finalise()
-                                call m_buried%finalise()
-                                return
-                            end if
-                            
-                            if (profile%colSoilLayers(l)%item%volume > C%epsilon) then
-                                C_dissolved_layer = m_contaminant%m_dissolved / profile%colSoilLayers(l)%item%volume
+
+                            layer_volume = profile%colSoilLayers(l)%item%volume
+                            layer_mass   = profile%bulkDensity * layer_volume
+
+                            if (layer_mass > C%epsilon) then
+                                C_layer_total    = ( sum(m_contaminant%get_free())       &
+                                                + sum(m_contaminant%get_attached())   &
+                                                + m_contaminant%m_dissolved ) / layer_mass
+                                C_dissolved_layer = m_contaminant%m_dissolved / layer_mass
                             else
+                                C_layer_total     = 0.0_dp
                                 C_dissolved_layer = 0.0_dp
                             end if
-                            
+
                             write(iouOutputSoil, '(a)', advance='no') &
-                                trim(str(r%getDataAsRealDP())) // "," // &
+                                trim(str(C_layer_total)) // "," // &
                                 trim(str(C_dissolved_layer)) // ","
+
                             if (C%includeSoilStateBreakdown) then
                                 write(iouOutputSoil, '(a)', advance='no') &
                                     trim(str(sum(m_contaminant%get_free()))) // "," // &
@@ -540,17 +657,22 @@ module DataOutputModule
                             call m_contaminant%finalise()
                         end do
                     end if
+
+                    ! -------- erosion yields (unchanged) --------
                     if (C%includeSoilErosionYields) then
                         write(iouOutputSoil, '(a)', advance='no') &
                             trim(str(sum(profile%erodedSediment) * profile%area)) // "," // &
                             trim(str(sum(m_eroded%c(:,:,FREE_CONTAMINANT)))) // "," // &
                             trim(str(sum(m_eroded%c(:,:,ATTACHED_CONTAMINANT)))) // ","
                     end if
+
+                    ! -------- burial + bulk density (unchanged) --------
                     write(iouOutputSoil, '(a)') &
                         trim(str(sum(m_buried%c(:,:,FREE_CONTAMINANT)))) // "," // &
                         trim(str(sum(m_buried%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
                         trim(str(m_buried%m_dissolved)) // "," // &
                         trim(str(profile%bulkDensity))
+
                     call m_contaminant%finalise()
                     call m_eroded%finalise()
                     call m_buried%finalise()

@@ -125,32 +125,44 @@ contains
     !> Perform the simulation of the SoilProfile for the current time step, including
     !! percolation of soil through soil layers and soil erosion
     function updateSoilProfile(me, t, j_contaminant_diffuseSource) result(r)
-        class(SoilProfile) :: me                                   !! This `SoilProfile` instance
-        integer :: t                                               !! The current timestep
-        type(Contaminant), intent(in) :: j_contaminant_diffuseSource !! Diffuse source of contaminant for this timestep
-        type(Result) :: r                                          !! Result object to return
+        class(SoilProfile), intent(inout) :: me
+        integer, intent(in) :: t
+        type(Contaminant), intent(in) :: j_contaminant_diffuseSource
+        type(Result) :: r
+        integer :: l
+        type(datetime) :: currentDate
+        real(dp) :: T_water_t
 
         ! Reset for this timestep
         me%V_pool = 0.0_dp
 
         if (.not. me%isUrban) then
-            ! Set the timestep-specific object properties
-            me%q_precip = me%q_precip_timeSeries(t)                 ! Get the relevant time step's precipitation [m/timestep]
-            me%q_evap = me%q_evap_timeSeries(t)                     ! and evaporation [m/timestep]
-            me%q_in = max(me%q_precip - me%q_evap, 0.0_dp)          ! Infiltration = precip - evap. This is supplied to SoilLayer_1 [m/timestep]. Minimum = 0.
-            
-            ! Perform percolation, erosion and bioturbation simulations
-            call me%m_contaminant%add_scaled(j_contaminant_diffuseSource, me%area)
-            call me%m_contaminant_in%multiply_scalar(j_contaminant_diffuseSource, me%area)
+            ! Set timestep-specific properties
+            me%q_precip = me%q_precip_timeSeries(t)
+            me%q_evap   = me%q_evap_timeSeries(t)
+            me%q_in     = max(me%q_precip - me%q_evap, 0.0_dp)
+
+            ! --- NEW ORDER OF OPERATIONS ---
+            ! 1. Perform in-soil transformations (e.g., attachment) BEFORE erosion
+            currentDate = C%startDate + timedelta(t-1)
+            T_water_t   = DATASET%waterTemperature(currentDate%yearday())
+            do l = 1, C%nSoilLayers
+                call me%colSoilLayers(l)%item%update_contaminant_state(T_water_t)
+            end do
+
+            ! 2. Now perform erosion, percolation (with diffuse source), and bioturbation
             call r%addErrors([.errors. me%erode(t), &
-                            .errors. me%percolate(t, j_contaminant_diffuseSource), &
-                            .errors. me%bioturbation()])
+                              .errors. me%percolate(t, j_contaminant_diffuseSource), &
+                              .errors. me%bioturbation()])
+
+            ! 3. Update total mass in profile by removing buried mass
             call me%m_contaminant%add_scaled(me%m_contaminant_buried, -1.0_dp)
         else
             me%erodedSediment = 0.0_dp
         end if
+
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
-    end function
+    end function updateSoilProfile
 
     !> Percolate water through the `SoilProfile`, by looping through `SoilLayer`s
     !! and running their individual percolation procedures, and then passing
@@ -328,7 +340,7 @@ contains
         real    :: dClay                                            ! Change in clay content
         real    :: textureEnriched(3)                               ! Texture distribution, clay enriched
         real    :: texture_bins(3,2)                                ! Array to store texture size class bounds in
-        real    :: ssd_bins(C%nSizeClassesSpm,2)                    ! Array to store sediment size class bounds in
+        real(dp):: ssd_bins(C%nSizeClassesSpm,2)                    ! Array to store sediment size class bounds in
         real    :: frac_ssd_in_texture_bin(3,C%nSizeClassesSpm)     ! Fraction of SSD bin in texture bin
         integer :: i, j                                             ! Iterators
         logical :: not_in_ssd_bin                                   ! Is this texture bin within this SSD bin?
@@ -406,62 +418,55 @@ contains
         ! Defensive checks on dataset shapes before indexing
         haveSoil2D = .false.
         if (allocated(DATASET%soilBulkDensity)) then
-            nx = size(DATASET%soilBulkDensity, 1)
-            ny = size(DATASET%soilBulkDensity, 2)
+            nx = size(DATASET%soilBulkDensity, 1)  ! y
+            ny = size(DATASET%soilBulkDensity, 2)  ! x
             if (nx > 0 .and. ny > 0 .and. me%x >= 1 .and. me%y >= 1 &
-                .and. me%x <= nx .and. me%y <= ny) haveSoil2D = .true.
+                .and. me%y <= nx .and. me%x <= ny) haveSoil2D = .true.
         end if
 
         haveLU3D = .false.
         if (allocated(DATASET%landUse)) then
-            nlux = size(DATASET%landUse, 1)
-            nluy = size(DATASET%landUse, 2)
-            nluc = size(DATASET%landUse, 3)
+            nlux = size(DATASET%landUse, 1)  ! categories
+            nluy = size(DATASET%landUse, 2)  ! y
+            nluc = size(DATASET%landUse, 3)  ! x
             if (nlux > 0 .and. nluy > 0 .and. nluc > 0 .and. &
-                me%x >= 1 .and. me%y >= 1 .and. me%x <= nlux .and. me%y <= nluy) haveLU3D = .true.
+                me%y >= 1 .and. me%x >= 1 .and. me%y <= nluy .and. me%x <= nluc) haveLU3D = .true.
         end if
 
         ! Base SPM distribution (kept even in fallback mode)
         me%distributionSediment = DATASET%defaultSpmSizeDistribution
 
         if (haveSoil2D) then
-            !--- Normal path: read spatial soil properties ---
-            me%bulkDensity = DATASET%soilBulkDensity(me%x, me%y)
-            me%WC_sat      = DATASET%soilWaterContentSaturation(me%x, me%y)
-            me%WC_FC       = DATASET%soilWaterContentFieldCapacity(me%x, me%y)
-            me%K_s         = DATASET%soilHydraulicConductivity(me%x, me%y)
+            me%bulkDensity = DATASET%soilBulkDensity(me%y, me%x)
+            me%WC_sat      = DATASET%soilWaterContentSaturation(me%y, me%x)
+            me%WC_FC       = DATASET%soilWaterContentFieldCapacity(me%y, me%x)
+            me%K_s         = DATASET%soilHydraulicConductivity(me%y, me%x)
 
             if (me%WC_sat      == nf90_fill_real)    me%WC_sat      = 0.8
             if (me%WC_FC       == nf90_fill_real)    me%WC_FC       = 0.5
             if (me%K_s         == nf90_fill_real)    me%K_s         = 1e-6
             if (me%bulkDensity == nf90_fill_real)    me%bulkDensity = 1220.0
 
-            me%clayContent      = DATASET%soilTextureClayContent(me%x, me%y)
-            me%sandContent      = DATASET%soilTextureSandContent(me%x, me%y)
-            me%siltContent      = DATASET%soilTextureSiltContent(me%x, me%y)
-            me%coarseFragContent= DATASET%soilTextureCoarseFragContent(me%x, me%y)
-
+            me%clayContent       = DATASET%soilTextureClayContent(me%y, me%x)
+            me%sandContent       = DATASET%soilTextureSandContent(me%y, me%x)
+            me%siltContent       = DATASET%soilTextureSiltContent(me%y, me%x)
+            me%coarseFragContent = DATASET%soilTextureCoarseFragContent(me%y, me%x)
             if (abs(100.0 - me%clayContent - me%sandContent - me%siltContent) > 0.1) then
-                me%clayContent = 18.0
-                me%sandContent = 46.0
-                me%siltContent = 36.0
+                me%clayContent = 18.0; me%sandContent = 46.0; me%siltContent = 36.0
             end if
             if (me%coarseFragContent == nf90_fill_real) me%coarseFragContent = 0.0
 
-            me%d_grain = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
-            me%distributionSediment = me%calculateSizeDistribution( &
-                me%clayContent, me%siltContent, me%sandContent, C%includeClayEnrichment )
-
+            me%d_grain  = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
             me%porosity = DATASET%soilDefaultPorosity
 
-            me%usle_C  = DATASET%soilUsleCFactor(me%x, me%y);  if (me%usle_C  == nf90_fill_double) me%usle_C  = 0.00055095
-            me%usle_P  = DATASET%soilUslePFactor(me%x, me%y);  if (me%usle_P  == nf90_fill_double) me%usle_P  = 1.0
-            me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y); if (me%usle_LS == nf90_fill_double) me%usle_LS = 0.3
+            me%usle_C  = DATASET%soilUsleCFactor(me%y, me%x);  if (me%usle_C  == nf90_fill_double) me%usle_C  = 0.00055095
+            me%usle_P  = DATASET%soilUslePFactor(me%y, me%x);  if (me%usle_P  == nf90_fill_double) me%usle_P  = 1.0
+            me%usle_LS = DATASET%soilUsleLSFactor(me%y, me%x); if (me%usle_LS == nf90_fill_double) me%usle_LS = 0.3
 
             if (haveLU3D) then
-                landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
+                landUse = maxloc(DATASET%landUse(:, me%y, me%x), dim=1)  ! FIX: category along dim 1
             else
-                landUse = 10  ! default to water if landUse missing
+                landUse = 5
             end if
 
             select case (landUse)
@@ -569,7 +574,7 @@ contains
             nluy = size(DATASET%landUse, 2)
             nluc = size(DATASET%landUse, 3)
             if (nlux > 0 .and. nluy > 0 .and. nluc > 0 .and. &
-                me%x >= 1 .and. me%y >= 1 .and. me%x <= nlux .and. me%y <= nluy) haveLU3D = .true.
+                me%y >= 1 .and. me%x >= 1 .and. me%y <= nluy .and. me%x <= nluc) haveLU3D = .true.
         end if
 
         if (haveSoil2D) then
@@ -601,9 +606,9 @@ contains
             me%usle_LS = DATASET%soilUsleLSFactor(me%x, me%y); if (me%usle_LS == nf90_fill_double) me%usle_LS = 0.3
 
             if (haveLU3D) then
-                landUse = maxloc(DATASET%landUse(me%x, me%y, :), dim=1)
+                landUse = maxloc(DATASET%landUse(:, me%y, me%x), dim=1)
             else
-                landUse = 10
+                landUse = 5
             end if
             select case (landUse)
                 case (1);  me%earthwormDensity = DATASET%earthwormDensityUrbanCapped
@@ -648,15 +653,28 @@ contains
         end do
     end function
 
+    ! Return 3-D concentration array for the whole profile (same shape as Contaminant%c)
     function get_C_contaminant_SoilProfile(me) result(C_contaminant)
-        class(SoilProfile) :: me
-        real(dp), allocatable :: C_contaminant(:,:,:)
-        type(Contaminant) :: m_contaminant
-        allocate(C_contaminant(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
-        C_contaminant = 0.0_dp
-        m_contaminant = me%get_m_contaminant()
-        if (me%bulkDensity * me%area * sum(C%soilLayerDepth) > C%epsilon) then
-            C_contaminant = m_contaminant%c / (me%bulkDensity * me%area * sum(C%soilLayerDepth))
+        class(SoilProfile) :: me ! CORRECTED: Removed intent(in)
+        real(dp), allocatable             :: C_contaminant(:,:,:)
+        type(Contaminant)                 :: mtot
+        real(dp)                          :: V_profile
+        integer                           :: l
+
+        ! total contaminant mass across all layers (same shape as %c)
+        mtot = me%get_m_contaminant()
+
+        ! total profile volume = sum of layer volumes
+        V_profile = 0.0_dp
+        do l = 1, C%nSoilLayers
+            V_profile = V_profile + me%colSoilLayers(l)%item%volume
+        end do
+
+        allocate(C_contaminant(size(mtot%c,1), size(mtot%c,2), size(mtot%c,3)))
+        if (V_profile > C%epsilon) then
+            C_contaminant = mtot%c / V_profile
+        else
+            C_contaminant = 0.0_dp
         end if
-    end function
+    end function get_C_contaminant_SoilProfile
 end module

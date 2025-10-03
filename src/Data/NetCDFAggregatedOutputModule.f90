@@ -555,10 +555,6 @@ contains
         allocate(me%output_agg_sediment__bed_area, source=empty3DArray)
         allocate(me%output_agg_sediment__mass,     source=empty3DArray)
 
-        ! Reuse parent soil arrays (grid-cell level)
-        allocate(me%output_soil__land_use(1:nx, 1:ny))
-        me%output_soil__land_use = nf90_fill_double
-
         allocate(me%output_soil__m_contaminant_total(1:3, 1:nx, 1:ny, 1:nt))
         me%output_soil__m_contaminant_total = nf90_fill_double
 
@@ -595,7 +591,8 @@ contains
         allocate(me%output_soil__m_contaminant_buried(1:3, 1:nx, 1:ny, 1:nt))
         me%output_soil__m_contaminant_buried = nf90_fill_double
 
-        allocate(me%output_soil__bulk_density(1:nx, 1:ny))
+        ! parent soil arrays — FIX DIM ORDER to (y,x)
+        allocate(me%output_soil__bulk_density(1:ny, 1:nx))
         me%output_soil__bulk_density = nf90_fill_double
 
         deallocate(empty2DArray, empty3DArray, empty4DArray, empty5DArraySediment)
@@ -721,7 +718,7 @@ contains
         deallocate(me%output_agg_sediment__mass)
 
         ! Parent soil arrays
-        deallocate(me%output_soil__land_use)
+        if (allocated(me%output_soil__land_use)) deallocate(me%output_soil__land_use)
         deallocate(me%output_soil__m_contaminant_total)
         deallocate(me%output_soil__C_contaminant_total)
         if (allocated(me%output_soil__C_contaminant_free))             deallocate(me%output_soil__C_contaminant_free)

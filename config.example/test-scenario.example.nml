@@ -74,12 +74,14 @@
     include_bioturbation = .true.
     include_attachment = .true.
     include_soil_erosion = .true.
-    include_clay_enrichment = .false.
+    include_clay_enrichment = .true.
 /
 
 &sediment
     sediment_layer_depth = 0.01, 0.01, 0.01, 0.01
     spm_size_classes = 0.002e-3, 0.06e-3, 0.2e-3, 0.6e-3, 2.0e-3
+    include_bed_sediment = .true.
+    sediment_particle_densities = 1500, 2600   ! optional; defaulted in code if omitted
 /
 
 &water

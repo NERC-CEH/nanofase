@@ -16,6 +16,7 @@ module SoilLayerModule
       contains
         procedure :: create => createSoilLayer
         procedure :: update => updateSoilLayer
+        procedure :: update_contaminant_state => updateContaminantStateSoilLayer
         procedure :: addPooledWater => addPooledWaterSoilLayer
         procedure :: erode => erodeSoilLayer
         procedure :: calculateAttachmentRate => calculateAttachmentRateSoilLayer
@@ -198,6 +199,30 @@ module SoilLayerModule
         end do
         call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
     end function
+
+    !> Update the internal contaminant state (attachment, etc.) without handling water fluxes.
+    subroutine updateContaminantStateSoilLayer(me, T_water_t)
+        class(SoilLayer), intent(inout) :: me
+        real(dp), intent(in) :: T_water_t
+        type(Result) :: r
+        ! These are zero because we are only updating internal state, not adding fluxes
+        real(dp) :: C_spm_zero(C%nSizeClassesSpm)
+        real(dp) :: W_settle_zero(C%nSizeClassesSpm)
+        C_spm_zero = 0.0_dp
+        W_settle_zero = 0.0_dp
+
+        ! Calculate the attachment rate for this layer
+        me%k_att = me%calculateAttachmentRate(T_water_t)
+
+        ! Call the generic contaminant update routine to perform attachment etc.
+        call r%addErrors(.errors. me%m_contaminant%update( &
+            real(C%timeStep, dp), T_water_t, C_spm_zero, W_settle_zero, 0.0_dp, me%volume, 'soil', me%k_att, me%alpha_att))
+
+        if (r%hasCriticalError()) then
+            call r%addToTrace("Updating contaminant state in " // trim(me%ref))
+            call ERROR_HANDLER%trigger(errors=.errors.r)
+        end if
+    end subroutine updateContaminantStateSoilLayer
 
     !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
     !! No percolation occurs as pooled water never really leaves the `SoilLayer`.

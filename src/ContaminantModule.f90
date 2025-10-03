@@ -46,6 +46,8 @@ module ContaminantModule
         procedure :: calculateSettlingVelocity => contaminant_calculateSettlingVelocity
         procedure :: divideCheckZero => contaminant_divideCheckZero  
         procedure :: empty => contaminant_empty
+        procedure :: deposition => contaminant_deposition
+        procedure :: outflow_split => contaminant_outflow_split
     end type
 
     interface operator(*)
@@ -127,6 +129,91 @@ contains
         sum_result%alpha_att = this%alpha_att
         sum_result%compartment = this%compartment
     end function
+
+
+    !> Calculate and remove deposited mass from the contaminant object.
+    !! Returns a new contaminant object containing the mass that was deposited.
+    subroutine contaminant_deposition(this, dt, W_settle_spm, depth, dj_dep)
+        class(Contaminant), intent(in)    :: this
+        real(dp),          intent(in)     :: dt
+        real(dp),          intent(in)     :: W_settle_spm(:)   ! size-resolved [m s-1], length = C%nSizeClassesSpm
+        real(dp),          intent(in)     :: depth             ! water column height [m]
+        type(Contaminant), intent(inout)  :: dj_dep            ! OUT: removed mass (>=0)
+
+        type(Result) :: r
+        integer :: n, f, s, sidx
+        real(dp) :: frac, dm
+
+        r = dj_dep%create()
+        if (allocated(dj_dep%c)) dj_dep%c = 0.0_dp
+        dj_dep%m_dissolved = 0.0_dp
+
+        if (.not. allocated(this%c)) return
+        if (depth <= C%epsilon) return
+
+        do s = 1, C%nSizeClassesSpm
+            sidx = SPM_CONTAMINANT_START + s - 1
+            ! fraction settled in this displacement (bounded [0,1])
+            frac = max(0.0_dp, min(1.0_dp, (W_settle_spm(s) * dt) / max(C%epsilon, depth)))
+
+            do n = 1, C%contaminantDim(1)
+                do f = 1, C%nContaminantForms
+                    dm = frac * this%c(n, f, sidx)
+                    dm = min(dm, this%c(n, f, sidx))                 ! mass-limited
+                    dj_dep%c(n, f, sidx) = dm
+                end do
+            end do
+        end do
+    end subroutine
+
+    ! Split outflow correctly:
+    !  - dissolved and FREE pools leave with water outflow fraction k_outflow
+    !  - SPM-attached pools leave per size with frac_out(j) = dj_spm_outflow(j) / m_spm(j)
+    subroutine contaminant_outflow_split(this, k_outflow, dj_spm_outflow, m_spm, dj_out)
+        class(Contaminant), intent(in)    :: this
+        real(dp),          intent(in)     :: k_outflow                 ! water outflow fraction [0..1]
+        real(dp),          intent(in)     :: dj_spm_outflow(:)         ! SPM outflow per size [kg], len = C%nSizeClassesSpm
+        real(dp),          intent(in)     :: m_spm(:)                  ! current SPM mass per size [kg]
+        type(Contaminant), intent(inout)  :: dj_out                    ! OUT: removed mass (>=0)
+
+        type(Result) :: r
+        integer :: n, f, s, sidx
+        real(dp) :: frac_out, denom
+
+        r = dj_out%create()
+        if (allocated(dj_out%c)) dj_out%c = 0.0_dp
+        dj_out%m_dissolved = 0.0_dp
+
+        if (.not. allocated(this%c)) return
+
+        ! --- Water-borne outflow: dissolved + FREE ---
+        ! dissolved
+        dj_out%m_dissolved = min(this%m_dissolved * max(0.0_dp, min(1.0_dp, k_outflow)), this%m_dissolved)
+
+        ! FREE particulate bin
+        do n = 1, C%contaminantDim(1)
+            do f = 1, C%nContaminantForms
+                dj_out%c(n, f, FREE_CONTAMINANT) = min( &
+                    this%c(n, f, FREE_CONTAMINANT) * max(0.0_dp, min(1.0_dp, k_outflow)), &
+                    this%c(n, f, FREE_CONTAMINANT) )
+            end do
+        end do
+
+        ! --- SPM-borne outflow: attached per size ---
+        do s = 1, C%nSizeClassesSpm
+            sidx  = SPM_CONTAMINANT_START + s - 1
+            denom = max(C%epsilon, m_spm(s))
+            frac_out = dj_spm_outflow(s) / denom
+            frac_out = max(0.0_dp, min(1.0_dp, frac_out))
+
+            do n = 1, C%contaminantDim(1)
+                do f = 1, C%nContaminantForms
+                    dj_out%c(n, f, sidx) = min(this%c(n, f, sidx) * frac_out, this%c(n, f, sidx))
+                end do
+            end do
+        end do
+    end subroutine contaminant_outflow_split
+
 
     !> Initialize a Contaminant object, allocating arrays and setting default values to zero.
     !! Adds defensive finalize, dimension checks, and verbose logging.
@@ -298,8 +385,12 @@ contains
             call LOGR%toFile(errors=r%errors)
             return
         end if
+
+        ! --- Scalar multiplication of masses ---
         product%c = this%c * scalar
         product%m_dissolved = this%m_dissolved * scalar
+
+        ! --- Copy ALL other properties from the source object ---
         product%rho_contaminant = this%rho_contaminant
         product%k_diss_pristine = this%k_diss_pristine
         product%k_diss_transformed = this%k_diss_transformed
@@ -307,6 +398,11 @@ contains
         product%alpha_hetero = this%alpha_hetero
         product%alpha_att = this%alpha_att
         product%compartment = this%compartment
+        ! Copy allocatable arrays
+        product%k_hetero = this%k_hetero
+        product%W_settle_contaminant = this%W_settle_contaminant
+        product%individualContaminantMass = this%individualContaminantMass
+        product%C_contaminant_free_particle = this%C_contaminant_free_particle
     end function
 
     !> Set this Contaminant's masses to a scaled copy of the source's masses.

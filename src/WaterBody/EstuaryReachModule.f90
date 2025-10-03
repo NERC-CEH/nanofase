@@ -7,6 +7,7 @@ module EstuaryReachModule
     use LoggerModule, only: LOGR
     use ReactorModule
     use ContaminantModule
+    use DataInputModule, only: DATASET  
     implicit none
 
     type, public, extends(Reach) :: EstuaryReach
