@@ -518,7 +518,7 @@ module DataInputModule
         else
             if (allocated(me%soilUsleCFactor)) deallocate(me%soilUsleCFactor)
             allocate(me%soilUsleCFactor(ny,nx))
-            me%soilUsleCFactor = me%sedimentTransport_cConstant  ! or nf90_fill_real
+            me%soilUsleCFactor = nf90_fill_real
         end if
 
         ! USLE factors [-] — LS
@@ -575,6 +575,112 @@ module DataInputModule
             allocate(me%soilAttachmentEfficiency(ny,nx))
             me%soilAttachmentEfficiency = me%soilConstantAttachmentEfficiency
         end if
+
+
+        ! ----------------------
+        ! SEDIMENT TRANSPORT
+        ! ----------------------
+        ! Note that these variables use (x,y) indexing (i.e. they aren't transposed
+        ! when they are retrieved from the NetCDF file). This is in constrast to the
+        ! soil spatial variables above, which are transposed to (y,x)
+        !
+        ! If a spatial var is available in the NetCDF file, this is used. If not,
+        ! the constant value is used for the whole grid. If a constant isn't available
+        ! in the constant namelist, this will have already been set to the default
+        ! from ConstantsDefaultsModule
+
+        ! Deposition alpha
+        if (me%nc%hasVariable('deposition_alpha')) then
+            var = me%nc%getVariable('deposition_alpha')
+            call var%getData(me%depositionAlpha)
+        else
+            allocate(me%depositionAlpha(me%gridShape(1), me%gridShape(2)))
+            me%depositionAlpha = me%depositionAlphaConstant
+        end if
+        ! Deposition beta
+        if (me%nc%hasVariable('deposition_beta')) then
+            var = me%nc%getVariable('deposition_beta')
+            call var%getData(me%depositionBeta)
+        else
+            allocate(me%depositionBeta(me%gridShape(1), me%gridShape(2)))
+            me%depositionBeta = me%depositionBetaConstant
+        end if
+
+        ! Resuspension alpha
+        ! TODO add check that at least one of the variables exists, or put a default in
+        if (me%nc%hasVariable('resuspension_alpha')) then
+            var = me%nc%getVariable('resuspension_alpha')
+            call var%getData(me%resuspensionAlpha)
+        else
+            allocate(me%resuspensionAlpha(me%gridShape(1), me%gridShape(2)))
+            ! Use the estuary mask to get a different resuspension alpha value in
+            ! estuaries. If no specific alpha value is given for estuaries, it
+            ! defaults to that for rivers
+            where (me%isEstuary)
+                me%resuspensionAlpha = me%waterResuspensionAlphaEstuary
+            elsewhere
+                me%resuspensionAlpha = me%waterResuspensionAlpha
+            end where
+        end if
+        ! Resuspension beta
+        if (me%nc%hasVariable('resuspension_beta')) then
+            var = me%nc%getVariable('resuspension_beta')
+            call var%getData(me%resuspensionBeta)
+        else
+            allocate(me%resuspensionBeta(me%gridShape(1), me%gridShape(2)))
+            ! Same as for alpha, use different value for estuaries if available
+            where (me%isEstuary)
+                me%resuspensionBeta = me%waterResuspensionBetaEstuary
+            elsewhere
+                me%resuspensionBeta = me%waterResuspensionBeta
+            end where
+        end if
+
+        ! Sediment transport param a 
+        if (me%nc%hasVariable('sediment_transport_a')) then 
+            var = me%nc%getVariable('sediment_transport_a') 
+            call var%getData(me%sedimentTransport_a) 
+        else 
+            allocate(me%sedimentTransport_a(me%gridShape(1), me%gridShape(2))) 
+            me%sedimentTransport_a = me%sedimentTransport_aConstant 
+        end if 
+
+        ! Sediment transport param b 
+        if (me%nc%hasVariable('sediment_transport_b')) then 
+            var = me%nc%getVariable('sediment_transport_b') 
+            call var%getData(me%sedimentTransport_b) 
+        else 
+            allocate(me%sedimentTransport_b(me%gridShape(1), me%gridShape(2))) 
+            me%sedimentTransport_b = me%sedimentTransport_bConstant 
+        end if 
+
+        ! Sediment transport param b 
+        if (me%nc%hasVariable('sediment_transport_c')) then 
+            var = me%nc%getVariable('sediment_transport_c') 
+            call var%getData(me%sedimentTransport_c) 
+        else 
+            allocate(me%sedimentTransport_c(me%gridShape(1), me%gridShape(2))) 
+            me%sedimentTransport_c = me%sedimentTransport_cConstant 
+        end if 
+
+        ! Bank erosion alpha
+        if (me%nc%hasVariable('bank_erosion_alpha')) then
+            var = me%nc%getVariable('bank_erosion_alpha')
+            call var%getData(me%bankErosionAlpha)
+        else
+            allocate(me%bankErosionAlpha(me%gridShape(1), me%gridShape(2)))
+            me%bankErosionAlpha = me%bankErosionAlphaConstant
+        end if
+
+        ! Bank erosion beta
+        if (me%nc%hasVariable('bank_erosion_beta')) then
+            var = me%nc%getVariable('bank_erosion_beta')
+            call var%getData(me%bankErosionBeta)
+        else
+            allocate(me%bankErosionBeta(me%gridShape(1), me%gridShape(2)))
+            me%bankErosionBeta = me%bankErosionBetaConstant
+        end if
+        
 
         !----------------------
         ! BASIC TIME SERIES

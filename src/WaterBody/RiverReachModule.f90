@@ -1,6 +1,7 @@
 !> Module containing RiverReach type definition.
 module RiverReachModule
     use GlobalsModule
+    use ConstantsDefaultsModule, only: defaultSedimentEnrichment_a, defaultSedimentTransport_b, defaultSedimentTransport_c
     use ReachModule
     use UtilModule
     use ResultModule
@@ -620,7 +621,8 @@ contains
             end if
         end if
         if (.not. okSa) then
-            me%a_stc = 0.0_dp
+            ! Defaults to 2e-9
+            me%a_stc = defaultSedimentTransport_a
         end if
 
         if (allocated(DATASET%sedimentTransport_b)) then
@@ -634,7 +636,8 @@ contains
             end if
         end if
         if (.not. okSb) then
-            me%b_stc = 0.0_dp
+            ! Defaults to 0
+            me%b_stc = defaultSedimentTransport_b
         end if
 
         if (allocated(DATASET%sedimentTransport_c)) then
@@ -648,7 +651,8 @@ contains
             end if
         end if
         if (.not. okSc) then
-            me%c_stc = 0.0_dp
+            ! Defaults to 0.2
+            me%c_stc = defaultSedimentTransport_c
         end if
 
         ! Water temperature (vector over day-of-year)

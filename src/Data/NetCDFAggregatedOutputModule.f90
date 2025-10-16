@@ -592,7 +592,9 @@ contains
         me%output_soil__m_contaminant_buried = nf90_fill_double
 
         ! parent soil arrays — FIX DIM ORDER to (y,x)
-        allocate(me%output_soil__bulk_density(1:ny, 1:nx))
+        ! HACK - SH: converted this back to (x,y) to keep NetCDF file as (y,x),
+        ! see https://github.com/NERC-CEH/nanofase/pull/10/files#r2432863960
+        allocate(me%output_soil__bulk_density(1:nx, 1:nx))
         me%output_soil__bulk_density = nf90_fill_double
 
         deallocate(empty2DArray, empty3DArray, empty4DArray, empty5DArraySediment)

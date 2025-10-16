@@ -604,8 +604,8 @@ module NetCDFOutputModule
         ! Create file + metadata (unchanged) ...
         me%nc = NcDataset(trim(C%outputPath)//'output'//trim(C%outputHash)//'.nc', 'w')
 
-        call me%nc%setAttribute('title', trim('NanoFASE model output data: '//trim(C%runDescription)))
-        call me%nc%setAttribute('source', trim('NanoFASE model v'//trim(C%modelVersion)// &
+        call me%nc%setAttribute('title', trim('FASE model output data: '//trim(C%runDescription)))
+        call me%nc%setAttribute('source', trim('FASE model v'//trim(C%modelVersion)// &
                                     ': https://github.com/nerc-ceh/nanofase/tree/'//trim(C%modelVersion)))
         simDatetime = simDatetime%now()
         call me%nc%setAttribute('history', trim(simDatetime%isoformat()// &
@@ -872,6 +872,7 @@ module NetCDFOutputModule
         integer(i4), allocatable  :: land_use_idx(:,:)
         integer, parameter :: sp = kind(1.0)
         real(sp), allocatable :: bd(:,:)
+        real(sp), allocatable :: bd_transposed(:,:)
         integer :: i, j, ny_in, nx_in
 
         nx   = DATASET%gridShape(1)
@@ -990,13 +991,19 @@ module NetCDFOutputModule
         ny_in = size(DATASET%soilBulkDensity, 1)
         nx_in = size(DATASET%soilBulkDensity, 2)
 
+        ! HACK to address https://github.com/NERC-CEH/nanofase/pull/10/files#r2432863960
+        ! and https://github.com/NERC-CEH/nanofase/pull/10#issuecomment-3285937997:
+        ! Transposing soil bulk density back to (x,y) so that the order in the NetCDF file
+        ! is (y,x)
+
         ! NetCDF var dims match the array order (y, x)
-        me%nc__soil__bulk_density = me%nc%setVariable('soil__bulk_density', 'f32', [me%y_dim, me%x_dim])
+        me%nc__soil__bulk_density = me%nc%setVariable('soil__bulk_density', 'f32', [me%x_dim, me%y_dim])
         call me%nc__soil__bulk_density%setAttribute('units', 'kg/m3')
         call me%nc__soil__bulk_density%setAttribute('long_name', 'Bulk density of the soil')
         call me%nc__soil__bulk_density%setAttribute('grid_mapping', 'spatial_ref')
 
-        allocate(bd(ny_in, nx_in))
+        allocate(bd(nx_in, ny_in))
+        allocate(bd_transposed(ny_in, nx_in))
         bd = real(DATASET%soilBulkDensity, kind=sp)
 
         do j = 1, nx_in
@@ -1007,8 +1014,8 @@ module NetCDFOutputModule
             end do
         end do
 
-        call me%nc__soil__bulk_density%setData(bd)
-        deallocate(bd)
+        bd_transposed = transpose(bd)
+        call me%nc__soil__bulk_density%setData(bd_transposed)
     end subroutine
 
     subroutine createDimensionsNetCDFOutput(me)

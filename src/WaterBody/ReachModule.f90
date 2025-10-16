@@ -286,7 +286,6 @@ module ReachModule
         ! --- Bank erosion (defensive against missing/empty DATASET fields) ---
         if (C%includeBankErosion) then
             
-
             haveAlpha = .false.; haveBeta = .false.
 
             ! Alpha: check allocation and bounds
@@ -327,7 +326,7 @@ module ReachModule
                 me%j_spm%bankErosion = 0.0_dp
             end if
         else
-            ! If we’re not modelling bank erosion, set it to zero
+            ! If we're not modelling bank erosion, set it to zero
             me%j_spm%bankErosion = 0.0_dp
         end if
     end subroutine
