@@ -289,16 +289,15 @@ contains
     end subroutine
 
     !> Run the simulation for an individual time displacement
-    !> Run the simulation for an individual time displacement
     subroutine updateDisplacementRiverReach(me, t, d, dt, dQ, dj_spm_in, dj_contaminant_in, T_water_t)
-        class(RiverReach)   :: me                                                !! This reach
+        class(RiverReach)   :: me                                               !! This reach
         integer             :: t                                                !! Current timestep index (used for error output) 
         integer             :: d                                                !! Current time displacement index (used for error output)
         real(dp)            :: dt                                               !! Time displacement [s] 
         real(dp)            :: dQ                                               !! Water flow from runoff and inflows [m3/displacement]
         real(dp)            :: dj_spm_in(C%nSizeClassesSpm)                     !! SPM inflow from erosion and inflows [kg/displacement]
-        type(Contaminant)   :: dj_contaminant_in                                 !! Contaminant inflow for this displacement
-        real(dp)            :: T_water_t                                         !! Water temperature [deg C]
+        type(Contaminant)   :: dj_contaminant_in                                !! Contaminant inflow for this displacement
+        real(dp)            :: T_water_t                                        !! Water temperature [deg C]
 
         ! SPM bookkeeping
         real(dp)            :: dj_spm_resus(C%nSizeClassesSpm)
@@ -345,9 +344,13 @@ contains
             dj_spm_deposit = min(dj_spm_deposit, me%m_spm + dj_spm_in)
 
             ! Resuspension demand as an area flux; bed returns the accepted amount
+            print *, 'mf_bed_by_size', me%bedSediment%Mf_bed_by_size()
             dj_spm_resus_perArea  = flushToZero(me%k_resus * me%bedSediment%Mf_bed_by_size() * dt)
             dj_spm_resus_perArea_ = dj_spm_resus_perArea
             call rslt%addErrors(.errors. me%bedSediment%resuspend(dj_spm_resus_perArea_))
+            ! The bedSediment%resuspend method modifies dj_spm_resus_perArea_ to return
+            ! the amount of sediment that *isn't* resuspended, so now calculate the
+            ! actual resuspension flux
             dj_spm_resus_perArea  = dj_spm_resus_perArea - dj_spm_resus_perArea_
             dj_spm_resus          = dj_spm_resus_perArea * me%bedArea
 
@@ -356,6 +359,7 @@ contains
 
             ! Update SPM storages/fluxes in water
             me%Q%outflow          = me%Q%outflow - dQ
+            ! Deposition is -ve (loss), resuspension is +ve (gain)
             me%j_spm%resuspension = me%j_spm%resuspension + dj_spm_resus
             me%j_spm%deposition   = me%j_spm%deposition - dj_spm_deposit
             me%j_spm%outflow      = me%j_spm%outflow - dj_spm_outflow
