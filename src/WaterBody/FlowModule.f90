@@ -10,6 +10,23 @@ module FlowModule
     use LoggerModule, only: LOGR
     implicit none
 
+    type, public :: ContaminantFlows
+        type(Contaminant) :: inflow
+        type(Contaminant) :: soilErosion
+        type(Contaminant) :: bankErosion
+        type(Contaminant) :: transfers
+        type(Contaminant) :: demands
+        type(Contaminant) :: deposition
+        type(Contaminant) :: resuspension
+        type(Contaminant) :: outflow
+        type(Contaminant) :: pointSources
+        type(Contaminant) :: diffuseSources
+    contains
+        procedure :: init => initContaminantFlows
+        procedure :: empty => emptyContaminantFlows
+        procedure :: asArray => asArrayContaminantFlows
+    end type
+
     type, public :: WaterFlows
         real(dp) :: inflow
         real(dp) :: runoff
@@ -44,6 +61,61 @@ module FlowModule
     end type
 
 contains
+
+    subroutine initContaminantFlows(me)
+        class(ContaminantFlows), intent(inout) :: me
+        type(Result) :: r
+        call r%addErrors(.errors. me%inflow%create())
+        call r%addErrors(.errors. me%soilErosion%create())
+        call r%addErrors(.errors. me%bankErosion%create())
+        call r%addErrors(.errors. me%transfers%create())
+        call r%addErrors(.errors. me%demands%create())
+        call r%addErrors(.errors. me%deposition%create())
+        call r%addErrors(.errors. me%resuspension%create())
+        call r%addErrors(.errors. me%outflow%create())
+        call r%addErrors(.errors. me%pointSources%create())
+        call r%addErrors(.errors. me%diffuseSources%create())
+    end subroutine
+
+    subroutine emptyContaminantFlows(me)
+        class(ContaminantFlows), intent(inout) :: me
+        call me%inflow%empty()
+        call me%soilErosion%empty()
+        call me%bankErosion%empty()
+        call me%transfers%empty()
+        call me%demands%empty()
+        call me%deposition%empty()
+        call me%resuspension%empty()
+        call me%outflow%empty()
+        call me%pointSources%empty()
+        call me%diffuseSources%empty()
+    end subroutine
+
+    ! Helper to verify mass balance if needed
+    function asArrayContaminantFlows(me) result(arr)
+        class(ContaminantFlows), intent(in) :: me
+        real(dp) :: arr(10)
+        ! Returns total mass (dissolved + particle) for each flow
+        arr(1) = sum_mass(me%inflow)
+        arr(2) = sum_mass(me%soilErosion)
+        arr(3) = sum_mass(me%bankErosion)
+        arr(4) = sum_mass(me%transfers)
+        arr(5) = sum_mass(me%demands)
+        arr(6) = sum_mass(me%deposition)
+        arr(7) = sum_mass(me%resuspension)
+        arr(8) = sum_mass(me%outflow)
+        arr(9) = sum_mass(me%pointSources)
+        arr(10)= sum_mass(me%diffuseSources)
+    contains
+        real(dp) function sum_mass(c)
+            type(Contaminant), intent(in) :: c
+            if (allocated(c%c)) then
+                sum_mass = sum(c%c) + c%m_dissolved
+            else
+                sum_mass = c%m_dissolved
+            end if
+        end function
+    end function
 
     subroutine initWaterFlows(me)
         class(WaterFlows), intent(inout) :: me

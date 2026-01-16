@@ -521,22 +521,23 @@ module AbstractBedSedimentModule
         end do
     end function
     
-    function Get_Mf_bed_by_size(Me) result(Mf_size)
-        class(AbstractBedSediment), intent(in) :: Me                         !! The AbstractBedSediment instance
-        integer :: L                                                 ! LOCAL loop counter
-        integer :: S                                                 ! LOCAL loop counter
-        real(dp) :: Mf                                               ! LOCAL internal storage
-        real(dp) :: Mf_size(Me%nSizeClasses)                         ! LOCAL 1D array to hold masses by size fraction
-        do S = 1, Me%nSizeClasses                                    ! for each size class
-            Mf = 0                                                   ! initialise sumnation of mass
-            do L = 1, C%nSedimentLayers                                     ! loop through each layer
-                Mf = Mf + &
-                    Me%colBedSedimentLayers(L)%item%colFineSediment(S)%M_f()
-                                                                     ! sum masses across all layers. Not very elegant
+    function Get_Mf_bed_by_size(me) result(Mf)
+        class(AbstractBedSediment) :: me
+        real(dp) :: Mf(me%nSizeClasses)
+        integer :: l, s
+
+        Mf = 0.0_dp
+
+        ! Sum fine sediment mass across layers for each size class
+        do l = 1, size(me%colBedSedimentLayers)
+            do s = 1, me%nSizeClasses
+                Mf(s) = Mf(s) + me%colBedSedimentLayers(l)%item%colFineSediment(s)%M_f_l
             end do
-            Mf_size(S) = Mf                                          ! assign to array for output
         end do
+
+        ! Mf(s) is already kg/m2 (mass per area), so don't divide by bedArea again
     end function
+
 
     function get_m_contaminant(me) result(r)
         class(AbstractBedSediment), intent(in) :: me
@@ -593,6 +594,7 @@ module AbstractBedSedimentModule
         deallocate(C_contaminant)
     end function
 
+    !> Get the current NM PEC by mass [kg/kg] across all bed sediment layers
     function get_C_contaminant_byMass(me) result(r)
         class(AbstractBedSediment), intent(in) :: me
         type(Result3D) :: r
@@ -601,12 +603,15 @@ module AbstractBedSedimentModule
         type(Contaminant) :: m_contaminant_l
         type(Result0D) :: res
         integer :: i
+        
         if (.not. allocated(me%m_contaminant)) then
             call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
             return
         end if
+        
         allocate(C_contaminant_byMass(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
         C_contaminant_byMass = 0.0_dp
+        
         do i = 1, C%nSedimentLayers
             layerMasses(i) = me%Mf_bed_by_layer(i)
             res = me%get_m_contaminant_l(i)
@@ -623,15 +628,19 @@ module AbstractBedSedimentModule
                     deallocate(C_contaminant_byMass)
                     return
             end select
-            if (layerMasses(i) > C%epsilon) then
-                C_contaminant_byMass = C_contaminant_byMass + m_contaminant_l%c / layerMasses(i)
-            end if
+            
+            ! FIX: Accumulate Total Contaminant Mass [kg], not Concentration
+            ! Previously: C_contaminant_byMass + m_contaminant_l%c / layerMasses(i) (INCORRECT)
+            C_contaminant_byMass = C_contaminant_byMass + m_contaminant_l%c 
         end do
+        
+        ! FIX: Divide Total Contaminant Mass by Total Sediment Mass
         if (sum(layerMasses) > C%epsilon) then
             C_contaminant_byMass = C_contaminant_byMass / sum(layerMasses)
         else
             C_contaminant_byMass = 0.0_dp
         end if
+        
         allocate(r%data, source=C_contaminant_byMass)
         call r%setErrors()
         deallocate(C_contaminant_byMass)

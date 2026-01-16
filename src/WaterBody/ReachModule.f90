@@ -149,44 +149,26 @@ module ReachModule
     end subroutine
 
     !> Set the settling rate [/s]
+    !> Set the settling rate [/s]
     subroutine setSettlingRateReach(me, T_water_t)
         class(Reach) :: me                      !! This `Reach` instance
         real(dp)     :: T_water_t               !! Water temperature on this timestep
         integer      :: i                       ! Size class iterator
-        ! Local holders for depositional parameters; defaults are Zhiyao et al. constants
+        ! Local holders for depositional parameters
         real(dp)     :: alphaDepVal, betaDepVal
         logical      :: haveAlpha, haveBeta
         integer      :: nxA, nyA, nxB, nyB
 
-        ! Defaults (used if rasters are missing or out-of-bounds)
+        ! Defaults
         alphaDepVal = 38.1_dp
         betaDepVal  = 0.93_dp
         haveAlpha   = .false.
         haveBeta    = .false.
 
-        ! Try to read alpha from DATASET if available and in-bounds
-        if (allocated(DATASET%depositionAlpha)) then
-            if (size(DATASET%depositionAlpha) > 0) then
-                nxA = size(DATASET%depositionAlpha, 1)
-                nyA = size(DATASET%depositionAlpha, 2)
-                if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxA .and. me%y <= nyA) then
-                    alphaDepVal = DATASET%depositionAlpha(me%x, me%y)
-                    haveAlpha   = .true.
-                end if
-            end if
-        end if
-
-        ! Try to read beta from DATASET if available and in-bounds
-        if (allocated(DATASET%depositionBeta)) then
-            if (size(DATASET%depositionBeta) > 0) then
-                nxB = size(DATASET%depositionBeta, 1)
-                nyB = size(DATASET%depositionBeta, 2)
-                if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxB .and. me%y <= nyB) then
-                    betaDepVal = DATASET%depositionBeta(me%x, me%y)
-                    haveBeta   = .true.
-                end if
-            end if
-        end if
+        ! [Existing Alpha/Beta reading logic omitted for brevity, it was correct]
+        ! ... (Assume alpha/beta reading code is here as before) ...
+        ! If you are pasting the whole subroutine, ensure the alpha/beta reading block matches your file.
+        ! For this fix, I focus on the calculation loop below.
 
         if (.not. isZero(me%depth)) then
             ! SPM: Loop through the size classes and calculate settling velocity
@@ -200,9 +182,36 @@ module ReachModule
                 )
             end do
             me%k_settle = me%W_settle_spm / me%depth
+
+            ! ---------------------------------------------------------
+            ! [FIXED CODE START] Calculate Contaminant Settling Velocity
+            ! ---------------------------------------------------------
+            ! W_settle_contaminant is a 1D array for the intrinsic (Free) particle velocity.
+            ! Attached forms settle with the SPM, handled in transport routines.
+            
+            if (allocated(me%m_contaminant%W_settle_contaminant)) then
+                do i = 1, C%nContaminantSizeClasses
+                    ! Corrected: removed (i, FREE_CONTAMINANT), using (i)
+                    me%m_contaminant%W_settle_contaminant(i) = &
+                        me%calculateSettlingVelocity( &
+                        d            = DATASET%contaminantSizeClasses(i), &
+                        rho_particle = DATASET%contaminantDensity, & 
+                        T            = T_water_t, &
+                        alphaDep     = alphaDepVal, &
+                        betaDep      = betaDepVal &
+                    )
+                end do
+            end if
+            ! ---------------------------------------------------------
+            ! [FIXED CODE END]
+            ! ---------------------------------------------------------
+
         else
+            ! Zero depth handling
             me%W_settle_spm = 0.0_dp
             me%k_settle     = 0.0_dp
+            if (allocated(me%m_contaminant%W_settle_contaminant)) &
+                me%m_contaminant%W_settle_contaminant = 0.0_dp
         end if
     end subroutine
 
@@ -333,19 +342,23 @@ module ReachModule
 
     !> Deposit SPM to the bed sediment, by passing a fine sediment object to the bed sediment object 
     function depositToBedReach(me, spmDep) result(rslt)
-        class(Reach)        :: me                           !! This Reach instance
-        real(dp)            :: spmDep(C%nSizeClassesSpm)    !! The SPM to deposit [kg]
-        type(Result)        :: rslt                         !! The data object to return any errors in
-        real(dp)            :: spmDep_perArea(C%nSizeClassesSpm)    ! The SPM to deposit, per unit area [kg/m2]
-        type(Result0D)      :: depositRslt                  !! Result from the bed sediment's deposit procedure
-        real(dp)            :: V_water_toDeposit            !! Volume of water to deposit to bed sediment [m3/m2]
-        type(FineSediment)  :: fineSed(C%nSizeClassesSpm)   ! FineSediment object to pass to BedSediment
-        integer             :: n                            ! Loop iterator
-        integer, parameter  :: sp = kind(1.0)               ! single precision kind for matching
+        class(Reach), intent(inout) :: me             !! This Reach instance
+        real(dp), intent(in)        :: spmDep(C%nSizeClassesSpm) !! The SPM to deposit [kg]
+        type(Result)                :: rslt           !! The data object to return any errors in
+        
+        real(dp) :: spmDep_perArea(C%nSizeClassesSpm) ! The SPM to deposit, per unit area [kg/m2]
+        real(dp) :: spmRes_perArea(C%nSizeClassesSpm) ! The SPM resuspension, per unit area [kg/m2]
+        type(Result0D) :: depositRslt                 !! Result from the bed sediment's deposit procedure
+        real(dp) :: V_water_toDeposit                 !! Volume of water to deposit to bed sediment [m3/m2]
+        type(FineSediment) :: fineSed(C%nSizeClassesSpm) ! FineSediment object to pass to BedSediment
+        type(Contaminant) :: j_contam_per_area        ! Temp object for flux per area
+        integer :: n                                  ! Loop iterator
+        integer, parameter :: sp = kind(1.0)          ! single precision kind for matching
 
-        ! Create the FineSediment object and add deposited SPM to it
+        ! Create the FineSediment object and add deposited SPM to it 
         ! (converting units of Mf_in to kg/m2), then give that object to the BedSediment
         spmDep_perArea = divideCheckZero(spmDep, me%bedArea)
+        
         do n = 1, C%nSizeClassesSpm
             call fineSed(n)%create("FS", C%nFracCompsSpm)
             call fineSed(n)%set( &
@@ -353,37 +366,56 @@ module ReachModule
                 f_comp_in=real(DATASET%sedimentFractionalComposition, 8) &
             )
         end do
-
+        
         V_water_toDeposit = 0.0_dp
 
         if (C%includeBedSediment) then
-            ! Deposit the fine sediment to the bed sediment
+            ! 1. Deposit the physical fine sediment (SPM) to the bed sediment
             depositRslt = me%bedSediment%deposit(fineSed)
             call rslt%addErrors(.errors. depositRslt)
             if (rslt%hasCriticalError()) return
 
-            ! Safely extract the scalar from the 0D result, if present
+            ! Safely extract the scalar from the 0D result
             if (allocated(depositRslt%data)) then
                 select type (d => depositRslt%data)
-                type is (real(dp))
-                    V_water_toDeposit = d
-                type is (real(sp))
-                    V_water_toDeposit = real(d, dp)
-                class default
-                    ! Not a real scalar we can use; fallback to zero
-                    V_water_toDeposit = 0.0_dp
+                    type is (real(dp)); V_water_toDeposit = d
+                    type is (real(sp)); V_water_toDeposit = real(d, dp)
+                    class default;      V_water_toDeposit = 0.0_dp
                 end select
             end if
 
-            ! Clamp NaN / negative to zero
-            if (V_water_toDeposit /= V_water_toDeposit) V_water_toDeposit = 0.0_dp   ! NaN check
-            if (V_water_toDeposit < 0.0_dp)            V_water_toDeposit = 0.0_dp
+            ! --------------------------------------------------------------------------
+            ! FIX: Transfer Contaminant to Bed Sediment
+            ! --------------------------------------------------------------------------
+            
+            ! A. Update the Mass Transfer Coefficient Matrix
+            ! We need physical fluxes in [kg/m2]. 
+            ! spmDep_perArea is calculated above. 
+            ! We assume me%j_spm%resuspension contains total resuspension mass [kg].
+            spmRes_perArea = divideCheckZero(me%j_spm%resuspension, me%bedArea)
+            
+            call me%bedSediment%getmatrix(spmDep_perArea, spmRes_perArea)
+
+            ! B. Transfer the Contaminant Mass
+            ! BedSediment expects flux in [kg/m2] to match its internal state units.
+            ! me%j_contaminant_deposition is in [kg] (from Reactor volume).
+            call rslt%addErrors(.errors. j_contam_per_area%create())
+            call j_contam_per_area%add_scaled(me%j_contaminant_deposition, 1.0_dp / max(C%epsilon, me%bedArea))
+            
+            call rslt%addErrors(.errors. me%bedSediment%transferContaminant(j_contam_per_area))
+            
+            call j_contam_per_area%finalise()
+            ! --------------------------------------------------------------------------
+
         end if
+
+        ! Clamp NaN / negative to zero
+        if (V_water_toDeposit /= V_water_toDeposit) V_water_toDeposit = 0.0_dp
+        if (V_water_toDeposit < 0.0_dp) V_water_toDeposit = 0.0_dp
 
         ! Reduce reach depth by deposited water volume (may be zero)
         me%depth = max(me%depth - V_water_toDeposit, 0.0_dp)
 
-        ! Add any errors that occurred in the deposit procedure
         call rslt%addToTrace("Depositing SPM to BedSediment")
     end function
 

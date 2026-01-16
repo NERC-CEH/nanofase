@@ -154,6 +154,12 @@ module BedSedimentLayerModule
             Me%C_f_l(S) = Me%colFineSediment(S)%V_f()            ! set the sediment capacities to the volumes
         end do
 
+        ! DEBUG: initial fine sediment mass per size in this layer
+        do S = 1, Me%nSizeClasses
+            write(*,'(a,i3,a,i3,a,1p,e15.7)') 'Init Layer ', me%l, ', Size ', S, &
+                 ' Mf=', me%colFineSediment(S)%M_f()
+        end do
+
         if (Me%V_f_layer() > Me%C_total) then
             ! Proportional down-scaling of fines to fit capacity; log a warning
             scale_f = Me%C_total / max(C%epsilon, Me%V_f_layer())

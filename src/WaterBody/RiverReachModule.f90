@@ -88,7 +88,7 @@ contains
                 rho_s = C%sedimentParticleDensities(min(s, size(C%sedimentParticleDensities)))
             end if
             me%W_settle_spm(s) = me%m_contaminant%calculateSettlingVelocity( &
-                                    d = C%d_spm(s), rho_particle = rho_s, T_water = T0)
+                                                d = C%d_spm(s), rho_particle = rho_s, T_water = T0)
         end do
 
         ! ensure an SPM vector exists for the reactor
@@ -209,17 +209,17 @@ contains
 
         ! Get the current date and use the day of year to get the water temp
         currentDate = C%startDate + timedelta(t-1)
-        T_water_t = me%T_water(currentDate%yearday())
+        T_water_t   = me%T_water(currentDate%yearday())
 
         ! Inflows from upstream reaches
         do i = 1, me%nInflows
-            me%Q%inflow     = me%Q%inflow     - me%inflows(i)%item%Q%outflow
+            me%Q%inflow      = me%Q%inflow      - me%inflows(i)%item%Q%outflow
             me%j_spm%inflow = me%j_spm%inflow - me%inflows(i)%item%j_spm%outflow
             call me%j_contaminant_inflow%add(me%inflows(i)%item%get_j_contaminant_outflow())
         end do
 
         ! Runoff to this reach and geometry update
-        me%Q%runoff   = q_runoff * contributingArea
+        me%Q%runoff   = q_runoff * contributingArea          ! [m³/timestep]
         me%Q_in_total = me%Q%inflow + me%Q%runoff
         call me%setDimensions(t)
 
@@ -231,52 +231,52 @@ contains
             call me%updateSources(t)
         end if
 
-        ! Physics for this step
+        ! Physics for this step (resuspension & settling)
         call me%setResuspensionRate(me%Q_in_total / C%timeStep, T_water_t)
         call me%setSettlingRate(T_water_t)
 
-        ! Displacement splitting
+        ! ----------------------------------------------------------------------
+        ! Displacement splitting (same logic as old NanoFASE)
+        ! ----------------------------------------------------------------------
         if (isZero(me%Q_in_total) .or. isZero(me%volume)) then
             nDisp = 1
         else
             nDisp = ceiling(me%Q_in_total / me%volume)
         end if
-        dt    = C%timestep / nDisp
-        dQ    = me%Q_in_total / nDisp
+
+        dt = C%timeStep / nDisp
+        dQ = me%Q_in_total / nDisp
+
+        ! SPM inflow per displacement
         dj_spm = (me%j_spm%inflow + me%j_spm%soilErosion + me%j_spm%bankErosion) / nDisp
 
+        ! Contaminant inflow per displacement
         call rslt%addErrors(.errors. dj_contaminant_in%create())
-        call dj_contaminant_in%add_scaled(me%j_contaminant_inflow,      1.0_dp/nDisp)
-        call dj_contaminant_in%add_scaled(me%j_contaminant_soilErosion, 1.0_dp/nDisp)
-        call dj_contaminant_in%add_scaled(me%j_contaminant_pointSources,1.0_dp/nDisp)
-        call dj_contaminant_in%add_scaled(me%j_contaminant_diffuseSources,1.0_dp/nDisp)
+        call dj_contaminant_in%add_scaled(me%j_contaminant_inflow,         1.0_dp / nDisp)
+        call dj_contaminant_in%add_scaled(me%j_contaminant_soilErosion,    1.0_dp / nDisp)
+        call dj_contaminant_in%add_scaled(me%j_contaminant_pointSources,   1.0_dp / nDisp)
+        call dj_contaminant_in%add_scaled(me%j_contaminant_diffuseSources, 1.0_dp / nDisp)
 
+        ! ----------------------------------------------------------------------
+        ! Run displacement physics
+        ! ----------------------------------------------------------------------
         do i = 1, nDisp
             call me%updateDisplacement(t, i, dt, dQ, dj_spm, dj_contaminant_in, T_water_t)
         end do
 
         call dj_contaminant_in%finalise()
 
-        ! Final concentrations based on the calculated masses [kg/m3]
+        ! Final concentrations based on the calculated masses [kg/m³]
         me%C_spm = divideCheckZero(me%m_spm, me%volume)
 
         if (.not. C%ignoreContaminant .and. .not. isZero(me%volume)) then
-            ! IMPORTANT:
-            ! Do NOT overwrite me%m_contaminant with reactor output here,
-            ! because we've already advanced the state with deposition/resuspension/outflow
-            ! across displacements. If/when the reactor needs to run, it must start
-            ! from the current state (set_state) and produce diagnostics, not replace it.
-            !
-            ! Example (only if your Reactor supports it):
-            !   call rslt%addErrors(.errors. me%reactor%set_state(me%m_contaminant, me%volume))
-            !   call rslt%addErrors(.errors. me%reactor%update(me%m_contaminant, C%timeStep))
-            !
-            ! -- disabled legacy overwrite --
-            ! call rslt%addErrors(.errors. me%reactor%update(dj_contaminant_in, dt))
-            ! me%m_contaminant = me%reactor%contaminant
+            ! FIX: Reactor Update
+            ! The contaminant MUST react/partition to attach to SPM.
+            ! Reactor has a pointer to me%m_contaminant, so no set_state is needed.
+            call rslt%addErrors(.errors. me%reactor%update(dt=real(C%timeStep, dp)))
         end if
 
-        ! Biota update
+        ! Biota update (uses current environmental concentration)
         do i = 1, me%nBiota
             c_env_contaminant = me%m_contaminant%divideCheckZero(me%volume)
             call rslt%addErrors(.errors. me%biota(i)%update(t, c_env_contaminant))
@@ -286,7 +286,8 @@ contains
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
         call LOGR%toFile(errors = .errors. rslt)
         call ERROR_HANDLER%trigger(errors = .errors. rslt)
-    end subroutine
+    end subroutine updateRiverReach
+
 
     !> Run the simulation for an individual time displacement
     subroutine updateDisplacementRiverReach(me, t, d, dt, dQ, dj_spm_in, dj_contaminant_in, T_water_t)
@@ -344,7 +345,7 @@ contains
             dj_spm_deposit = min(dj_spm_deposit, me%m_spm + dj_spm_in)
 
             ! Resuspension demand as an area flux; bed returns the accepted amount
-            print *, 'mf_bed_by_size', me%bedSediment%Mf_bed_by_size()
+            ! print *, 'mf_bed_by_size', me%bedSediment%Mf_bed_by_size()
             dj_spm_resus_perArea  = flushToZero(me%k_resus * me%bedSediment%Mf_bed_by_size() * dt)
             dj_spm_resus_perArea_ = dj_spm_resus_perArea
             call rslt%addErrors(.errors. me%bedSediment%resuspend(dj_spm_resus_perArea_))
@@ -506,6 +507,51 @@ contains
             call rslt%addErrors(.errors. me%m_contaminant%create())
             call me%m_contaminant%finalise()
         end if
+  
+        ! ------------------------------------------------------------------
+        ! Mass-balance diagnostic
+        ! ------------------------------------------------------------------
+        if (do_mb_check) then
+            call rslt%addErrors(.errors. w_after%create())
+            call rslt%addErrors(.errors. bed_after%create())
+            call w_after%add(me%m_contaminant)
+            res_contaminant = me%bedSediment%get_m_contaminant()
+            if (.not. res_contaminant%hasError()) then
+                select type (data2 => res_contaminant%getData())
+                    type is (Contaminant)
+                        call bed_after%add(data2)
+                    class default
+                        call rslt%addError(ErrorInstance(code=106, message="Invalid data type in get_m_contaminant()"))
+                end select
+            else
+                call rslt%addErrors(res_contaminant%getErrors())
+            end if
+
+
+            mb_in     = total_mass(dj_contaminant_in)
+            mb_resus  = total_mass(dj_contaminant_resus)
+            mb_dep    = total_mass(dj_contaminant_deposit)
+            mb_out    = total_mass(dj_contaminant_outflow)
+            mb_delta  = (mb_in + mb_resus) - (mb_dep + mb_out)
+            mb_storage = ( total_mass(w_after) + total_mass(bed_after) ) - &
+                         ( total_mass(w_before) + total_mass(bed_before) )
+
+            if (abs(mb_delta - mb_storage) > 1.0e-8_dp) then
+                call rslt%addToTrace( &
+                    "MB RiverReach "//trim(me%ref)//" t="//trim(str(t))// &
+                    " disp="//trim(str(d))//": " // &
+                    "in="      // trim(str(mb_in))      // ", resus=" // trim(str(mb_resus)) // &
+                    ", dep="   // trim(str(mb_dep))     // ", out="   // trim(str(mb_out))    // &
+                    " | lhs=" // trim(str(mb_delta)) // ", dStorage=" // trim(str(mb_storage)) // &
+                    ", diff=" // trim(str(mb_delta - mb_storage)) )
+            end if
+
+            call w_before%finalise()
+            call bed_before%finalise()
+            call w_after%finalise()
+            call bed_after%finalise()
+        end if
+        ! -----------------------------------------------------------------
 
         ! Finalise locals
         call dj_contaminant_outflow%finalise()
@@ -542,7 +588,7 @@ contains
         me%depth = me%calculateDepth(me%width, me%slope, me%Q_in_total/C%timeStep, t)
         me%xsArea = me%depth*me%width
         me%bedArea = me%width*me%length*me%f_m
-        me%surfaceArea = me%bedArea                      ! For river reaches, set surface area equal to bed area [m2]
+        me%surfaceArea = me%bedArea                       ! For river reaches, set surface area equal to bed area [m2]
         me%volume = me%depth*me%width*me%length*me%f_m
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
     end subroutine
@@ -703,7 +749,7 @@ contains
         real(dp), intent(in) :: W               !! River width \( W \) [m].
         real(dp), intent(in) :: S               !! River slope \( S \) [-].
         real(dp), intent(in) :: Q               !! Flow rate \( Q \) [m3/s].
-        integer             :: t                !! Timestep index
+        integer              :: t               !! Timestep index
         real(dp) :: D_i                         !! The iterative river depth \( D_i \) [m].
         type(Result0D) :: rslt                  ! The Result object to store numerical errors in
         real(dp) :: f                           ! The function to find roots for \( f(D) \).
@@ -714,18 +760,18 @@ contains
         real(dp) :: epsilon                     ! Proximity to zero allowed.
 
         ! TODO: Allow user (e.g., data file) to specify max iterations and precision?
-        D_i = 1.0_dp                                                            ! Take a guess at D being 1m to begin
-        i = 1                                                                   ! Iterator for Newton solver
-        iMax = 100000                                                           ! Allow 10000 iterations
-        epsilon = 1.0e-9_dp                                                     ! Proximity to zero allowed
-        alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                               ! Extract constant to simplify f and df.
-        f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! First value for f, based on guessed D_i
+        D_i = 1.0_dp                                                                    ! Take a guess at D being 1m to begin
+        i = 1                                                                           ! Iterator for Newton solver
+        iMax = 100000                                                                   ! Allow 10000 iterations
+        epsilon = 1.0e-9_dp                                                             ! Proximity to zero allowed
+        alpha = W**(5.0_dp/3.0_dp) * sqrt(S)/me%n                                       ! Extract constant to simplify f and df.
+        f = alpha*D_i*((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                            ! First value for f, based on guessed D_i
 
         ! Loop through and solve until f(D) is within e-9 of zero, or max iterations reached
         do while (abs(f) > epsilon .and. i <= iMax)
-            f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q            ! f(D) based on D_{m-1}
+            f = alpha * D_i * ((D_i/(W+2*D_i))**(2.0_dp/3.0_dp)) - Q                    ! f(D) based on D_{m-1}
             df = alpha * ((D_i)**(5.0_dp/3.0_dp) * (6*D_i + 5*W))/(3*D_i * (2*D_i + W)**(5.0_dp/3.0_dp))
-            D_i = D_i - f/df                                                    ! Calculate D_i based on D_{m-1}
+            D_i = D_i - f/df                                                            ! Calculate D_i based on D_{m-1}
             i = i + 1
         end do
 
@@ -753,7 +799,7 @@ contains
     end function
     
     !> Calculate the velocity of the river:
-    !! $$
+    !! $$\
     !!      v = \frac{Q}{WD}
     !! $$
     function calculateVelocity(me, D, Q, W) result(v)

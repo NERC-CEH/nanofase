@@ -800,9 +800,13 @@ module DataInputModule
         me%emissionsPointWaterDissolvedContaminant         = 0.0_dp
 
         !-----------------------------------
-        ! AREAL EMISSIONS (2-D y,x → (x,y))
+        ! AREAL EMISSIONS (2-D y,x -> (x,y))
         !-----------------------------------
+
+        ! 1. SOIL EMISSIONS (PRISTINE) - Updated with Fallback
+        ! ----------------------------------------------------
         if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
+            ! Try NEW name first
             var = me%nc%getVariable('emissions_areal_soil_pristine')
             allocate(A2(nx,ny)); call var%getData(A2)
             me%emissionsArealSoilContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
@@ -811,8 +815,25 @@ module DataInputModule
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
+            call LOGR%add("DataInput: Read 'emissions_areal_soil_pristine'")
+
+        else if (me%nc%hasVariable('emissions_areal_soil_nm')) then
+            ! FALLBACK: Try OLD name (legacy support)
+            var = me%nc%getVariable('emissions_areal_soil_nm')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            
+            ! Map legacy 'nm' emissions to 'pristine' form
+            me%emissionsArealSoilContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+            call LOGR%add("DataInput: Read legacy 'emissions_areal_soil_nm' as pristine")
         end if
 
+        ! 2. SOIL EMISSIONS (MATRIX EMBEDDED)
+        ! -----------------------------------
         if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
             var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
             allocate(A2(nx,ny)); call var%getData(A2)
@@ -824,6 +845,8 @@ module DataInputModule
             deallocate(A2)
         end if
 
+        ! 3. SOIL EMISSIONS (TRANSFORMED)
+        ! -------------------------------
         if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
             var = me%nc%getVariable('emissions_areal_soil_transformed')
             allocate(A2(nx,ny)); call var%getData(A2)
@@ -835,7 +858,10 @@ module DataInputModule
             deallocate(A2)
         end if
 
+        ! 4. WATER EMISSIONS (PRISTINE) - Updated with Fallback
+        ! -----------------------------------------------------
         if (me%nc%hasVariable('emissions_areal_water_pristine')) then
+            ! Try NEW name first
             var = me%nc%getVariable('emissions_areal_water_pristine')
             allocate(A2(nx,ny)); call var%getData(A2)
             me%emissionsArealWaterContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
@@ -844,8 +870,25 @@ module DataInputModule
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
+            call LOGR%add("DataInput: Read 'emissions_areal_water_pristine'")
+
+        else if (me%nc%hasVariable('emissions_areal_water_nm')) then
+            ! FALLBACK: Try OLD name (legacy support)
+            var = me%nc%getVariable('emissions_areal_water_nm')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            
+            ! Map legacy 'nm' emissions to 'pristine' form
+            me%emissionsArealWaterContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+            call LOGR%add("DataInput: Read legacy 'emissions_areal_water_nm' as pristine")
         end if
 
+        ! 5. WATER EMISSIONS (MATRIX EMBEDDED)
+        ! ------------------------------------
         if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
             var = me%nc%getVariable('emissions_areal_water_matrixembedded')
             allocate(A2(nx,ny)); call var%getData(A2)
@@ -857,6 +900,8 @@ module DataInputModule
             deallocate(A2)
         end if
 
+        ! 6. WATER EMISSIONS (TRANSFORMED)
+        ! --------------------------------
         if (me%nc%hasVariable('emissions_areal_water_transformed')) then
             var = me%nc%getVariable('emissions_areal_water_transformed')
             allocate(A2(nx,ny)); call var%getData(A2)
@@ -868,6 +913,8 @@ module DataInputModule
             deallocate(A2)
         end if
 
+        ! 7. DISSOLVED EMISSIONS
+        ! ----------------------
         if (me%nc%hasVariable('emissions_areal_soil_dissolved')) then
             var = me%nc%getVariable('emissions_areal_soil_dissolved')
             allocate(A2(nx,ny)); call var%getData(A2)
@@ -1035,38 +1082,65 @@ module DataInputModule
 
         end if
 
-        !-----------------------------------
+        ! -----------------------------------
         ! INITIAL CONCENTRATIONS
-        !-----------------------------------
-        if (allocated(me%initialContaminantConcsSoil))     &
-            deallocate(me%initialContaminantConcsSoil)
-        if (allocated(me%initialContaminantConcsWater))    &
-            deallocate(me%initialContaminantConcsWater)
-        if (allocated(me%initialContaminantConcsSediment)) &
-            deallocate(me%initialContaminantConcsSediment)
-        if (allocated(me%initialDissolvedConcsSoil))       &
-            deallocate(me%initialDissolvedConcsSoil)
-        if (allocated(me%initialDissolvedConcsWater))      &
-            deallocate(me%initialDissolvedConcsWater)
-        if (allocated(me%initialDissolvedConcsSediment))   &
-            deallocate(me%initialDissolvedConcsSediment)
-
-        allocate(me%initialContaminantConcsSoil(   nx,ny,nsizes,nforms, &
-                                                C%contaminantDim(3)))
-        allocate(me%initialContaminantConcsWater(  nx,ny,nsizes,nforms, &
-                                                C%contaminantDim(3)))
-        allocate(me%initialContaminantConcsSediment(nx,ny,nsizes,nforms, &
-                                                    C%contaminantDim(3)))
-        allocate(me%initialDissolvedConcsSoil(     nx,ny))
-        allocate(me%initialDissolvedConcsWater(    nx,ny))
-        allocate(me%initialDissolvedConcsSediment( nx,ny))
+        ! -----------------------------------
+        if (allocated(me%initialContaminantConcsSoil))      deallocate(me%initialContaminantConcsSoil)
+        if (allocated(me%initialContaminantConcsWater))     deallocate(me%initialContaminantConcsWater)
+        if (allocated(me%initialContaminantConcsSediment))  deallocate(me%initialContaminantConcsSediment)
+        
+        allocate(me%initialContaminantConcsSoil(    nx,ny,nsizes,nforms, C%contaminantDim(3)))
+        allocate(me%initialContaminantConcsWater(   nx,ny,nsizes,nforms, C%contaminantDim(3)))
+        allocate(me%initialContaminantConcsSediment(nx,ny,nsizes,nforms, C%contaminantDim(3)))
 
         me%initialContaminantConcsSoil     = 0.0_dp
         me%initialContaminantConcsWater    = 0.0_dp
         me%initialContaminantConcsSediment = 0.0_dp
-        me%initialDissolvedConcsSoil       = 0.0_dp
-        me%initialDissolvedConcsWater      = 0.0_dp
-        me%initialDissolvedConcsSediment   = 0.0_dp
+
+        ! --- 1. SOIL INITIAL CONCENTRATIONS ---
+        if (me%nc%hasVariable('initial_contaminant_concs_soil')) then
+            ! Try NEW name
+            var = me%nc%getVariable('initial_contaminant_concs_soil')
+            call var%getData(me%initialContaminantConcsSoil)
+            call LOGR%add("DataInput: Read 'initial_contaminant_concs_soil'")
+        else if (me%nc%hasVariable('initial_nm_concs_soil')) then
+            ! FALLBACK: Try OLD name
+            var = me%nc%getVariable('initial_nm_concs_soil')
+            call var%getData(me%initialContaminantConcsSoil)
+            call LOGR%add("DataInput: Read legacy 'initial_nm_concs_soil'")
+        else
+            call LOGR%add("DataInput: WARNING - No initial SOIL contaminant data found. Set to 0.0.")
+        end if
+
+        ! --- 2. WATER INITIAL CONCENTRATIONS ---
+        if (me%nc%hasVariable('initial_contaminant_concs_water')) then
+            ! Try NEW name
+            var = me%nc%getVariable('initial_contaminant_concs_water')
+            call var%getData(me%initialContaminantConcsWater)
+            call LOGR%add("DataInput: Read 'initial_contaminant_concs_water'")
+        else if (me%nc%hasVariable('initial_nm_concs_water')) then
+            ! FALLBACK: Try OLD name
+            var = me%nc%getVariable('initial_nm_concs_water')
+            call var%getData(me%initialContaminantConcsWater)
+            call LOGR%add("DataInput: Read legacy 'initial_nm_concs_water'")
+        else
+            call LOGR%add("DataInput: WARNING - No initial WATER contaminant data found. Set to 0.0.")
+        end if
+
+        ! --- 3. SEDIMENT INITIAL CONCENTRATIONS ---
+        if (me%nc%hasVariable('initial_contaminant_concs_sediment')) then
+            ! Try NEW name
+            var = me%nc%getVariable('initial_contaminant_concs_sediment')
+            call var%getData(me%initialContaminantConcsSediment)
+            call LOGR%add("DataInput: Read 'initial_contaminant_concs_sediment'")
+        else if (me%nc%hasVariable('initial_nm_concs_sediment')) then
+            ! FALLBACK: Try OLD name
+            var = me%nc%getVariable('initial_nm_concs_sediment')
+            call var%getData(me%initialContaminantConcsSediment)
+            call LOGR%add("DataInput: Read legacy 'initial_nm_concs_sediment'")
+        else
+            call LOGR%add("DataInput: WARNING - No initial SEDIMENT contaminant data found. Set to 0.0.")
+        end if
 
         if (me%nc%hasVariable('initial_dissolved_concentrations_soil')) then
             var = me%nc%getVariable('initial_dissolved_concentrations_soil')
@@ -1501,11 +1575,13 @@ module DataInputModule
         me%estuaryWidthExpB = estuary_width_expb
         me%estuaryMeanderingFactor = estuary_meandering_factor
         me%estuaryMouthCoords = estuary_mouth_coords
+        me%sedimentInitialMass = sedimentInitialMass 
         me%sedimentPorosity = porosity
         me%sedimentFractionalComposition = fractional_composition_distribution
         me%sedimentEnrichment_k = sediment_enrichment_k
         me%sedimentEnrichment_a = sediment_enrichment_a
         me%spmDensityBySizeClass = spm_density_by_size_class
+
     end subroutine
 
     !> Elemental function for getting a mask from an int2 array, where the NetCDF

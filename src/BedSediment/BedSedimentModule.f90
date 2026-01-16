@@ -44,53 +44,64 @@ contains
     !! containing the mass transfers coefficients for deposition, 
     !! resuspension, layers and burial
     !! objects
+    
+    !! Derive a mass transfer coefficient matrix
     subroutine getMTCMatrix1(me, djdep, djres)
-        class(BedSediment) :: me                            !! Self-reference
-        real(dp) :: djdep(:)                                !! deposition fluxes by size class [kg/m2]
-        real(dp) :: djres(:)                                !! resuspension fluxes by size class [kg/m2]
-        real(dp) :: ml                                      ! LOCAL holds initial sediment layer masses [kg/m2]
-        integer :: L, LL, S                                 ! Iterators
+        class(BedSediment) :: me            !! Self-reference
+        real(dp) :: djdep(:)                !! deposition fluxes by size class [kg/m2]
+        real(dp) :: djres(:)                !! resuspension fluxes by size class [kg/m2]
+        real(dp) :: ml                      ! LOCAL holds initial sediment layer masses [kg/m2]
+        integer :: L, LL, S                 ! Iterators
 
         do S = 1, me%nSizeClasses
+            ! 1. Normalize Deposition Columns (L=Layer, 1=DepositionSource)
             do L = 3, C%nSedimentLayers + 3 
                 if (.not. isZero(djdep(S)) .and. .not. isZero(me%delta_sed(L, 1, S))) then
-                    me%delta_sed(L, 1, S) = &
-                        me%delta_sed(L, 1, S) / djdep(S)             ! d -> l and d-> b
+                    me%delta_sed(L, 1, S) = me%delta_sed(L, 1, S) / djdep(S)
                 else
-                    me%delta_sed(L, 1, S) = 0                        ! failsafe if no deposition
+                    me%delta_sed(L, 1, S) = 0.0_dp
                 end if 
             end do
+
+            ! 2. Normalize Resuspension Row (2=ResuspensionTarget, LL=LayerSource)
             do LL = 3, C%nSedimentLayers + 2
-                if (.not. isZero(djres(S)) .and. .not. isZero(me%delta_sed(2, LL, S))) then
-                    ml = me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
-                    me%delta_sed(2, LL, S) = &
-                        me%delta_sed(2, LL, S) / ml                  ! l -> r (normalize by initial layer mass)
+                ! Note: normalization base is the Layer Mass (ml), not the flux. 
+                ! The flux calculation happened in resuspendSediment1.
+                ml = me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup()
+                
+                if (.not. isZero(ml) .and. .not. isZero(me%delta_sed(2, LL, S))) then
+                    me%delta_sed(2, LL, S) = me%delta_sed(2, LL, S) / ml
                 else
-                    me%delta_sed(2, LL, S) = 0                       ! failsafe if no resuspension
+                    me%delta_sed(2, LL, S) = 0.0_dp
                 end if
             end do
+
+            ! 3. Normalize Layer-to-Layer transfers (Burial/Mixing)
             do L = 3, C%nSedimentLayers + 3
                 do LL = 3, C%nSedimentLayers + 2
-                    ml = me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup() ! Phew!
+                    ml = me%colBedSedimentLayers(LL - 2)%item%colFineSediment(S)%M_f_backup()
+                    
                     if (.not. isZero(ml)) then
                         if (L == LL) then
+                            ! Same-layer retention
                             if (.not. isZero(me%delta_sed(L, LL, S))) then 
-                                me%delta_sed(L, LL, S) = &
-                                  (ml + me%delta_sed(L, LL, S)) / ml  ! l -> l (same-layer) where there is a mass transfer out of the layer
+                                ! Add remaining mass back to get retention coefficient
+                                me%delta_sed(L, LL, S) = (ml + me%delta_sed(L, LL, S)) / ml
                             else
-                                me%delta_sed(L, LL, S) = 1.0_dp        ! If no transfer in/out, coefficient is 1
+                                me%delta_sed(L, LL, S) = 1.0_dp
                             end if
                         else
-                            me%delta_sed(L, LL, S) = &
-                                me%delta_sed(L, LL, S) / ml            ! interlayer transfers (including l -> b)
+                            ! Inter-layer transfer
+                            me%delta_sed(L, LL, S) = me%delta_sed(L, LL, S) / ml
                         end if
                     else
-                        me%delta_sed(L, LL, S) = 0.0_dp                ! failsafe if no initial sediment in layer 
+                        me%delta_sed(L, LL, S) = 0.0_dp
                     end if
                 end do
             end do
         end do
-        ! Convert delta_sed to CSR storage, to speed up Contaminant transfer during simulation
+        
+        ! Convert to CSR for fast multiplication in transferContaminant
         do s = 1, C%nSizeClassesSpm
             me%delta_sed_csr(s) = CSRMatrix(me%delta_sed(:,:,s))
         end do
@@ -623,14 +634,57 @@ contains
         type(Result)                      :: r
 
         integer :: j, n, f, st_spm
+        real(dp) :: m_spm_ready, scale_j
+
         call r%addErrors(.errors. out_resus%create())
+
+        ! If no resuspension or no bed area, nothing to do
+        if (all(dj_spm_resus <= C%epsilon) .or. bedArea <= C%epsilon) return
+
         do j = 1, C%nSizeClassesSpm
             st_spm = SPM_CONTAMINANT_START + j - 1
+
+            ! -----------------------------------------------------------------------
+            ! FIXED LOGIC START
+            ! -----------------------------------------------------------------------
+            m_spm_ready = 0.0_dp
+            
+            ! Check if layers and fine sediment objects are allocated
+            if (allocated(Me%colBedSedimentLayers) .and. size(Me%colBedSedimentLayers) >= 1) then
+                if (allocated(Me%colBedSedimentLayers(1)%item%colFineSediment)) then
+                     ! Access the mass of fine sediment for size class 'j'
+                     ! M_f() returns mass in [kg/m2]
+                     m_spm_ready = Me%colBedSedimentLayers(1)%item%colFineSediment(j)%M_f()
+                end if
+            end if
+
+            ! Note: m_spm_ready is already [kg/m2] and dj_spm_resus is [kg/m2].
+            ! No division by bedArea is needed here.
+            ! -----------------------------------------------------------------------
+            ! FIXED LOGIC END
+            ! -----------------------------------------------------------------------
+
+            ! If there is no ready SPM, skip this size class
+            if (m_spm_ready <= C%epsilon) cycle
+
+            ! Fraction of the ready SPM that actually resuspends this step
+            ! ratio of Flux [kg/m2] to Stock [kg/m2] -> Dimensionless fraction
+            scale_j = max(0.0_dp, min(1.0_dp, dj_spm_resus(j) / m_spm_ready))
+
+            if (scale_j <= 0.0_dp) cycle
+
             do n = 1, C%contaminantDim(1)
                 do f = 1, C%nContaminantForms
-                    ! Release from pool 2 (ready to resuspend) proportional to bed area
+                    ! Release a scaled fraction of the top layer (Index 1)
+                    ! Me%m_contaminant(1) stores Total Mass [kg] in the layer
+                    
+                    ! Add to output flux (Total Mass resuspended)
                     out_resus%c(n,f,st_spm) = out_resus%c(n,f,st_spm) + &
-                        Me%m_contaminant(2)%c(n,f,st_spm) * bedArea
+                        Me%m_contaminant(1)%c(n,f,st_spm) * scale_j 
+
+                    ! Remove that fraction from the bed layer 
+                    Me%m_contaminant(1)%c(n,f,st_spm) = &
+                        Me%m_contaminant(1)%c(n,f,st_spm) * (1.0_dp - scale_j)
                 end do
             end do
         end do

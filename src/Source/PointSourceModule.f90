@@ -84,7 +84,12 @@ module PointSourceModule
                 ! Dissolved
                 if (DATASET%emissionsPointWaterDissolvedContaminant(me%x, me%y, t) /= nf90_fill_double) then
                     me%j_dissolved_pointSource = DATASET%emissionsPointWaterDissolvedContaminant(me%x, me%y, t)
+                else
+                    me%j_dissolved_pointSource = 0.0_dp
                 end if
+
+                ! FIX: Add the dissolved scalar to the Contaminant object so the Reach receives it
+                me%j_contaminant_pointSource%m_dissolved = me%j_dissolved_pointSource
             end if
         end if
     end subroutine
