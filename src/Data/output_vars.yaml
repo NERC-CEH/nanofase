@@ -33,21 +33,29 @@ soil:
     description: Predominant land use type of this soil profile
     units: ~
   m_contaminant_total:
-    long_name: Contaminant mass
-    description: Contaminant mass in whole soil profile (form: 1=pristine, 2=transformed, 3=dissolved)
+    long_name: PFAS mass
+    description: PFAS mass in whole soil profile, indexed by species, form and phase. Phase index follows P-FASE convention: 1=aqueous/porewater, 2=soil-solid sorbed, 3=SPM sorbed, 4=air-water interface, 5=foam/surface film, 6=air/aerosol.
     units: kg
   C_contaminant_total:
-    long_name: Contaminant concentration
-    description: Average concentration of contaminant across soil profile (form: 1=pristine, 2=transformed, 3=dissolved)
+    long_name: PFAS concentration
+    description: Average PFAS concentration across soil profile, indexed by species, form and phase. For soil, the main interpreted phases are aqueous porewater, soil-solid sorbed and air-water interface.
     units: kg/kg
   C_contaminant_l{i}:
-    long_name: Contaminant concentration in layer {i}
-    description: Concentration of contaminant in soil layer {i} (form: 1=pristine, 2=transformed, 3=dissolved)
+    long_name: PFAS concentration in layer {i}
+    description: PFAS concentration in soil layer {i}, indexed by species, form and phase. For soil layers, phase 1 is porewater, phase 2 is soil-solid sorbed, and phase 4 is air-water interface.
     units: kg/kg
     comments: Only output if include_soil_layer_breakdown = .true.
   m_contaminant_buried:
-    long_name: Mass of contaminant buried
-    description: Mass of contaminant buried from the bottom of the soil profile on this timestep (form: 1=pristine, 2=transformed, 3=dissolved)
+    long_name: PFAS exported below soil profile
+    description: PFAS mass leaving the bottom of the represented soil profile on this timestep. In P-FASE this is a groundwater boundary export flux, not an internal groundwater compartment.
+    units: kg
+  j_contaminant_eroded:
+    long_name: PFAS eroded from soil
+    description: PFAS mass exported from the top soil layer with eroded solids on this timestep. This primarily represents solid-sorbed PFAS moved with eroded sediment.
+    units: kg
+  j_contaminant_leached:
+    long_name: PFAS leached from soil
+    description: Aqueous PFAS mass exported downward with percolating water on this timestep. This is reported as a bottom-boundary flux for external groundwater coupling.
     units: kg
   bulk_density:
     long_name: Bulk density
@@ -90,37 +98,61 @@ water:
     description: Waterbody type - river or estuary?
     units: ~
   m_contaminant:
-    long_name: Contaminant mass
-    description: Contaminant mass (form: 1=pristine, 2=transformed, 3=dissolved)
+    long_name: PFAS mass
+    description: PFAS mass in the waterbody, indexed by species, form and phase. Phase index follows P-FASE convention: 1=aqueous, 2=solid/bed-sediment sorbed, 3=SPM sorbed, 4=air-water interface, 5=foam/surface film, 6=air/aerosol.
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the sum across waterbodies for this grid cell.
     units: kg
   C_contaminant:
-    long_name: Contaminant concentration
-    description: Contaminant concentration (form: 1=pristine, 2=transformed, 3=dissolved)
+    long_name: PFAS concentration
+    description: PFAS concentration in the waterbody, indexed by species, form and phase. For water, the main interpreted phases are aqueous, SPM-sorbed, air-water interface, foam/surface film and air/aerosol export.
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the weighted average across waterbodies for this grid cell.
     units: kg/m3
   j_contaminant_outflow:
-    long_name: Contaminant mass in outflow
-    description: Contaminant mass in downstream outflow on this timestep (form: 1=pristine, 2=transformed, 3=dissolved)
+    long_name: PFAS mass in outflow
+    description: PFAS mass in downstream outflow on this timestep. Aqueous PFAS follows water outflow; SPM-sorbed PFAS follows SPM outflow.
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the outflow to the grid cell.
     units: kg
   j_contaminant_deposited:
-    long_name: Contaminant mass deposited
-    description: Contaminant mass deposited to bed sediment on this timestep (form: 1=pristine, 2=transformed)
+    long_name: PFAS mass deposited
+    description: PFAS mass deposited to bed sediment on this timestep. In P-FASE this primarily represents SPM-sorbed PFAS transferred to bed-sediment solid-sorbed phase.
     comments: |
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the sum across the grid cell.
     units: kg
   j_contaminant_resuspended:
-    long_name: Contaminant mass resuspended
-    description: Contaminant mass resuspended from bed sediment on this timestep (form: 1=pristine, 2=transformed)
+    long_name: PFAS mass resuspended
+    description: PFAS mass resuspended from bed sediment on this timestep. In P-FASE this primarily represents bed solid-sorbed PFAS transferred back to the water-column SPM-sorbed phase.
     comments: |
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  j_contaminant_foam:
+    long_name: PFAS mass exported to foam
+    description: PFAS mass transferred from the air-water interface to foam or surface film on this timestep.
+    comments: |
+      PFAS foam export is reported separately from normal water outflow.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  j_contaminant_atmosphere:
+    long_name: PFAS mass exported to atmosphere
+    description: PFAS mass exported to the atmospheric/aerosol phase by volatilisation, aerosolisation or sea-spray processes on this timestep.
+    comments: |
+      This is an export flux from the P-FASE surface-water compartment.
+      If include_waterbody_breakdown = .true., this is for each waterbody.
+      If .false., this is the sum across the grid cell.
+    units: kg
+  j_contaminant_biota:
+    long_name: PFAS mass transferred to biota
+    description: PFAS mass transferred from the represented waterbody to aquatic biota on this timestep.
+    comments: |
+      This is a diagnostic uptake flux for represented biota.
       If include_waterbody_breakdown = .true., this is for each waterbody.
       If .false., this is the sum across the grid cell.
     units: kg
@@ -244,22 +276,30 @@ sediment:
     description: Waterbody type for the waterbody this bed sediment is in - river or estuary?
     units: ~
   m_contaminant_total:
-    long_name: Contaminant mass
-    description: Total contaminant mass across the sediment layers (form: 1=pristine, 2=transformed)
+    long_name: PFAS mass
+    description: Total PFAS mass across the sediment layers, indexed by species, form and phase. For bed sediment, the main interpreted phases are porewater aqueous PFAS and sediment-solid sorbed PFAS.
     units: kg
   C_contaminant_total:
-    long_name: Contaminant concentration
-    description: Total contaminant concentration across the sediment layers (form: 1=pristine, 2=transformed)
+    long_name: PFAS concentration
+    description: Total PFAS concentration across the sediment layers, indexed by species, form and phase. Porewater aqueous PFAS should be interpreted on a water-volume basis; solid-sorbed PFAS should be interpreted on a sediment-mass basis.
     units: kg/m3 and kg/kg
     comments: Outputs concentrations in kg/kg and kg/m3
   C_contaminant_l{i}:
-    long_name: Contaminant concentration in sediment layer {i}
-    description: Contaminant concentration in sediment layer {i} (form: 1=pristine, 2=transformed)
+    long_name: PFAS concentration in sediment layer {i}
+    description: PFAS concentration in sediment layer {i}, indexed by species, form and phase. Porewater aqueous PFAS is reported by porewater volume; solid-sorbed PFAS is reported by sediment mass.
     units: kg/m3 and kg/kg
     comments: Outputs concentrations in kg/kg and kg/m3
   m_contaminant_buried:
-    long_name: Contaminant mass buried
-    description: Mass of contaminant buried from the bottom sediment layer (form: 1=pristine, 2=transformed)
+    long_name: PFAS mass buried
+    description: Mass of PFAS buried from the bottom sediment layer on this timestep. This is a burial/export flux from the active bed-sediment domain.
+    units: kg
+  j_contaminant_deposited:
+    long_name: PFAS mass deposited to sediment
+    description: PFAS mass deposited from water column to bed sediment on this timestep, primarily SPM-sorbed PFAS converted to sediment solid-sorbed PFAS.
+    units: kg
+  j_contaminant_resuspended:
+    long_name: PFAS mass resuspended from sediment
+    description: PFAS mass resuspended from bed sediment to water column on this timestep, primarily sediment solid-sorbed PFAS converted to water-column SPM-sorbed PFAS.
     units: kg
   bed_area:
     long_name: Bed sediment area
@@ -269,3 +309,44 @@ sediment:
     long_name: Fine sediment mass
     description: Mass of fine sediment in the bed sediment
     units: kg
+biota:
+  t:
+    long_name: Timestep index
+    description: Integer index of the timestep
+    units: ~
+  datetime:
+    long_name: Date
+    description: Datetime at the start of the current timestep
+    units: ~
+  x:
+    long_name: Spatial x index
+    description: x index of the current grid cell
+    units: ~
+  y:
+    long_name: Spatial y index
+    description: y index of the current grid cell
+    units: ~
+  easts:
+    long_name: Eastings
+    description: Eastings coordinate at the centre of the grid cell
+    units: m
+  norths:
+    long_name: Northings
+    description: Northings coordinate at the centre of the grid cell
+    units: m
+  biota:
+    long_name: Biota index
+    description: Index of the represented biota group
+    units: ~
+  biota_name:
+    long_name: Biota name
+    description: Name of the represented biota group
+    units: ~
+  C_active:
+    long_name: Active PFAS body burden
+    description: Active PFAS concentration in represented biota, indexed by PFAS species.
+    units: kg/kg dw
+  C_stored:
+    long_name: Stored PFAS body burden
+    description: Stored PFAS concentration in represented biota, indexed by PFAS species.
+    units: kg/kg dw

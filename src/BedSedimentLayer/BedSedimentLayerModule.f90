@@ -51,8 +51,11 @@ module BedSedimentLayerModule
         integer :: allst                                         ! LOCAL array allocation status
         character(len=256) :: allms                              ! LOCAL array allocation message
         real(dp) :: scale_f
-        integer :: s_
-        real(dp) :: V_f_sum, V_w_sum, water_cap, scale_w
+        real(dp) ::scale_w
+        integer  :: s_
+        real(dp) :: V_f_sum
+        real(dp) :: V_w_sum
+        real(dp) :: water_cap
         !
         ! Notes
         ! -------------------------------------------------------------------------------

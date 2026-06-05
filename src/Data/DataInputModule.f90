@@ -6,12 +6,17 @@ module DataInputModule
     use mo_netcdf
     use DefaultsModule
     use ConstantsDefaultsModule
-    use GlobalsModule, only: dp, C, FREE_CONTAMINANT, ATTACHED_CONTAMINANT
+    use GlobalsModule, only: dp, C
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, PFAS_AIR, PFAS_NPHASES
     use ResultModule, only: Result
     use ErrorInstanceModule, only: ErrorInstance
     use LoggerModule, only: LOGR
     use UtilModule
     implicit none
+    ! P-FASE UPDATE:
+    ! DataInput now treats Contaminant%c(:,:,phase) as PFAS phase pools.
+    ! Legacy input variables are still accepted, but are mapped into PFAS_AQ by default.
+    ! New PFAS-ready NetCDF/constants files should provide species x form x phase arrays.
 
     !> The Database type is responsible for data input to the model. It parses data
     !! from the NetCDF and constant namelist files.
@@ -22,10 +27,10 @@ module DataInputModule
         ! ---------
         ! Contaminant
         real(dp)          :: contaminantDensity                    ! Density of the contaminant [kg/m3]
-        real(dp), allocatable :: contaminantSizeClasses(:)             ! Diameter of each contaminant size class [m]
+        real(dp), allocatable :: contaminantSizeClasses(:)             ! Legacy field; for P-FASE use as PFAS species support array if still present
         real, allocatable :: defaultDistributionContaminant(:) ! Default distribution to split contaminant across size classes
         real, allocatable :: defaultContaminantFormDistribution(:)
-        integer           :: nContaminantSizeClasses               ! Number of contaminant size classes
+        integer           :: nContaminantSizeClasses               ! Number of PFAS species / legacy contaminant size classes
         ! Sediment
         real, allocatable :: defaultSpmSizeDistribution(:)      ! Default distribution to split SPM across size classes
         real(dp), allocatable :: spmDensityBySizeClass(:)           ! Density of sediment in each size class [kg/m3]
@@ -176,13 +181,32 @@ module DataInputModule
         real(dp), allocatable :: emissionsAtmosphericWetDepoDissolvedContaminant(:,:,:)
         ! Emissions - point
         real(dp), allocatable :: emissionsPointWaterCoords(:,:,:,:)
-        real(dp), allocatable :: emissionsPointWaterContaminant(:,:,:,:,:,:,:)  ! (x, y, t, p, size, form, state)
+        real(dp), allocatable :: emissionsPointWaterContaminant(:,:,:,:,:,:,:)  ! (x, y, t, p, species, form, phase)
         real(dp), allocatable :: emissionsPointWaterDissolvedContaminant(:,:,:) 
         integer, allocatable :: nPointSources(:,:)
         integer :: maxPointSources                                              ! Maximum number of point sources in a cell in the whole environment
         ! Spatial 1D variables
         real, allocatable :: landUse(:,:,:)
-      contains
+
+        ! P-FASE PFAS property arrays (species-resolved). These are optional until
+        ! the NetCDF/constants schema is populated; ContaminantModule uses safe defaults.
+        character(len=64), allocatable :: pfasSpeciesNames(:)
+        real(dp), allocatable :: pfasMolecularWeight(:), pfasCharge(:), pfasPka(:)
+        real(dp), allocatable :: pfasKdSolid(:), pfasKdSpm(:), pfasKawAwi(:)
+        real(dp), allocatable :: pfasKAdsSolid(:), pfasKDesSolid(:)
+        real(dp), allocatable :: pfasKAdsSpm(:), pfasKDesSpm(:)
+        real(dp), allocatable :: pfasKAdsAwi(:), pfasKDesAwi(:)
+        real(dp), allocatable :: pfasReactionRate(:,:), pfasReactionYield(:,:)
+        real(dp), allocatable :: pfasFoamCoeff(:), pfasVolatilisationRate(:), pfasSeasprayRate(:)
+        real(dp), allocatable :: pfasBioUptakeRate(:), pfasPlantUptakeRate(:)
+        ! Scalar forcing defaults used by water/estuary/biota modules when species-resolved
+        ! arrays are absent or when a compact parameterisation is preferred.
+        real(dp) :: pfasFoamCoefficient = 0.0_dp
+        real(dp) :: pfasVolatilisationRateScalar = 0.0_dp
+        real(dp) :: pfasSeaSprayAerosolRate = 0.0_dp
+        real(dp) :: pfasBioUptakeRateScalar = 0.0_dp
+        real(dp) :: windSpeed = 0.0_dp
+contains
         procedure, public   :: init => initDatabase
         procedure, public   :: update => updateDatabase
         procedure, public   :: readBatchVariables => readBatchVariablesDatabase
@@ -809,9 +833,9 @@ module DataInputModule
             ! Try NEW name first
             var = me%nc%getVariable('emissions_areal_soil_pristine')
             allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealSoilContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            me%emissionsArealSoilContaminant(:,:,1,f_pris,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealSoilContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                me%emissionsArealSoilContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -823,9 +847,9 @@ module DataInputModule
             allocate(A2(nx,ny)); call var%getData(A2)
             
             ! Map legacy 'nm' emissions to 'pristine' form
-            me%emissionsArealSoilContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            me%emissionsArealSoilContaminant(:,:,1,f_pris,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealSoilContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                me%emissionsArealSoilContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -837,9 +861,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
             var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
             allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealSoilContaminant(:,:,1,f_mat,FREE_CONTAMINANT) = A2
+            me%emissionsArealSoilContaminant(:,:,1,f_mat,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealSoilContaminant(:,:,n,f_mat,FREE_CONTAMINANT) = &
+                me%emissionsArealSoilContaminant(:,:,n,f_mat,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -850,9 +874,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
             var = me%nc%getVariable('emissions_areal_soil_transformed')
             allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealSoilContaminant(:,:,1,f_tra,FREE_CONTAMINANT) = A2
+            me%emissionsArealSoilContaminant(:,:,1,f_tra,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealSoilContaminant(:,:,n,f_tra,FREE_CONTAMINANT) = &
+                me%emissionsArealSoilContaminant(:,:,n,f_tra,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -864,9 +888,9 @@ module DataInputModule
             ! Try NEW name first
             var = me%nc%getVariable('emissions_areal_water_pristine')
             allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealWaterContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            me%emissionsArealWaterContaminant(:,:,1,f_pris,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealWaterContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                me%emissionsArealWaterContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -878,9 +902,9 @@ module DataInputModule
             allocate(A2(nx,ny)); call var%getData(A2)
             
             ! Map legacy 'nm' emissions to 'pristine' form
-            me%emissionsArealWaterContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            me%emissionsArealWaterContaminant(:,:,1,f_pris,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealWaterContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                me%emissionsArealWaterContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -892,9 +916,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
             var = me%nc%getVariable('emissions_areal_water_matrixembedded')
             allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealWaterContaminant(:,:,1,f_mat,FREE_CONTAMINANT) = A2
+            me%emissionsArealWaterContaminant(:,:,1,f_mat,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealWaterContaminant(:,:,n,f_mat,FREE_CONTAMINANT) = &
+                me%emissionsArealWaterContaminant(:,:,n,f_mat,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -905,9 +929,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_areal_water_transformed')) then
             var = me%nc%getVariable('emissions_areal_water_transformed')
             allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealWaterContaminant(:,:,1,f_tra,FREE_CONTAMINANT) = A2
+            me%emissionsArealWaterContaminant(:,:,1,f_tra,PFAS_AQ) = A2
             do n = 2, nsizes
-                me%emissionsArealWaterContaminant(:,:,n,f_tra,FREE_CONTAMINANT) = &
+                me%emissionsArealWaterContaminant(:,:,n,f_tra,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A2)
@@ -935,9 +959,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_pristine')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
             allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_pris,FREE_CONTAMINANT) = A3
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_pris,PFAS_AQ) = A3
             do n = 2, nsizes
-                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_pris,FREE_CONTAMINANT) = &
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_pris,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A3)
@@ -946,9 +970,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_matrixembedded')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_matrixembedded')
             allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_mat,FREE_CONTAMINANT) = A3
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_mat,PFAS_AQ) = A3
             do n = 2, nsizes
-                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_mat,FREE_CONTAMINANT) = &
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_mat,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A3)
@@ -957,9 +981,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
             allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_tra,FREE_CONTAMINANT) = A3
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_tra,PFAS_AQ) = A3
             do n = 2, nsizes
-                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_tra,FREE_CONTAMINANT) = &
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_tra,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A3)
@@ -968,9 +992,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
             allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_pris,FREE_CONTAMINANT) = A3
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_pris,PFAS_AQ) = A3
             do n = 2, nsizes
-                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_pris,FREE_CONTAMINANT) = &
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_pris,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A3)
@@ -979,9 +1003,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_matrixembedded')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_matrixembedded')
             allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_mat,FREE_CONTAMINANT) = A3
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_mat,PFAS_AQ) = A3
             do n = 2, nsizes
-                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_mat,FREE_CONTAMINANT) = &
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_mat,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A3)
@@ -990,9 +1014,9 @@ module DataInputModule
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
             allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_tra,FREE_CONTAMINANT) = A3
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_tra,PFAS_AQ) = A3
             do n = 2, nsizes
-                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_tra,FREE_CONTAMINANT) = &
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_tra,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
             deallocate(A3)
@@ -1049,9 +1073,9 @@ module DataInputModule
                 var = me%nc%getVariable('emissions_point_water_pristine')
                 allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
                 ! size=1 takes raw; n=2..nsizes distributed
-                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_pris,FREE_CONTAMINANT) = A4
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_pris,PFAS_AQ) = A4
                 do n = 2, nsizes
-                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_pris,FREE_CONTAMINANT) = &
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_pris,PFAS_AQ) = &
                         A4 * me%defaultDistributionContaminant(n)
                 end do
                 deallocate(A4)
@@ -1060,9 +1084,9 @@ module DataInputModule
             if (me%nc%hasVariable('emissions_point_water_matrixembedded')) then
                 var = me%nc%getVariable('emissions_point_water_matrixembedded')
                 allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
-                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_mat,FREE_CONTAMINANT) = A4
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_mat,PFAS_AQ) = A4
                 do n = 2, nsizes
-                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_mat,FREE_CONTAMINANT) = &
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_mat,PFAS_AQ) = &
                         A4 * me%defaultDistributionContaminant(n)
                 end do
                 deallocate(A4)
@@ -1072,9 +1096,9 @@ module DataInputModule
             if (me%nc%hasVariable('emissions_point_water_transformed')) then
                 var = me%nc%getVariable('emissions_point_water_transformed')
                 allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
-                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_tra,FREE_CONTAMINANT) = A4
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_tra,PFAS_AQ) = A4
                 do n = 2, nsizes
-                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_tra,FREE_CONTAMINANT) = &
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_tra,PFAS_AQ) = &
                         A4 * me%defaultDistributionContaminant(n)
                 end do
                 deallocate(A4)

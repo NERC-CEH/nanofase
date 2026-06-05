@@ -11,6 +11,7 @@ module RiverReachModule
     use ReactorModule
     use BiotaWaterModule
     use ContaminantModule
+    use PFASEConstantsModule, only: PFAS_AQ
     implicit none
 
     !> The RiverReach type represents a segment of river within a grid cell
@@ -65,10 +66,7 @@ contains
 
         if (allocated(DATASET%initialContaminantConcsWater)) then
             me%m_contaminant%c = DATASET%initialContaminantConcsWater(me%x, me%y, :, :, :)
-            if (allocated(DATASET%initialDissolvedConcsWater)) then
-                me%m_contaminant%m_dissolved = DATASET%initialDissolvedConcsWater(me%x, me%y)
-            end if
-            call LOGR%toFile("RiverReach%create: applied initial contaminant concentrations")
+            me%m_contaminant%m_dissolved = sum(me%m_contaminant%c(:,:,PFAS_AQ))
         end if
 
         ! Settling velocities for SPM size classes — prefer DATASET%spmDensityBySizeClass
@@ -87,8 +85,7 @@ contains
                 ! GLOBAL fallback (now guaranteed to be defined by GLOBALS_INIT)
                 rho_s = C%sedimentParticleDensities(min(s, size(C%sedimentParticleDensities)))
             end if
-            me%W_settle_spm(s) = me%m_contaminant%calculateSettlingVelocity( &
-                                                d = C%d_spm(s), rho_particle = rho_s, T_water = T0)
+            me%W_settle_spm(s) = me%calculateSettlingVelocity(C%d_spm(s), rho_s, T0)
         end do
 
         ! ensure an SPM vector exists for the reactor

@@ -1,5 +1,6 @@
 !> Module containing definition of abstract superclass `AbstractBedSediment`.
 module AbstractBedSedimentModule
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, PFAS_AIR, PFAS_NPHASES
     use GlobalsModule
     use mo_netcdf
     use ResultModule, only: Result, Result0D, Result3D
@@ -21,7 +22,7 @@ module AbstractBedSedimentModule
     !! only objects of its subclasses
     type, abstract, public :: AbstractBedSediment
         character(len=256)              :: name                                 !! Name for this object, of the form *BedSediment_x_y_s_r*
-        class(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:)  !! Collection of `BedSedimentLayer` objects
+        type(BedSedimentLayerElement), allocatable :: colBedSedimentLayers(:)  !! Collection of `BedSedimentLayer` objects
         integer                         :: x                                    !! x index of the containing water body
         integer                         :: y                                    !! y index of the containing water body
         integer                         :: nSizeClasses                         !! Number of fine sediment size classes
@@ -59,6 +60,11 @@ module AbstractBedSedimentModule
         procedure :: get_C_contaminant_l
         procedure :: get_C_contaminant_l_byMass
         procedure :: get_m_contaminant_buried
+        procedure :: get_m_pfas_phase
+        procedure :: get_C_pfas_aqueous
+        procedure :: get_C_pfas_sorbed_byMass
+        procedure :: get_C_pfas_layer_aqueous
+        procedure :: get_C_pfas_layer_sorbed_byMass
         procedure :: finalise => finaliseBedSediment
     end type
 
@@ -765,6 +771,178 @@ module AbstractBedSedimentModule
         call m_contaminant_buried%add(me%m_contaminant(C%nSedimentLayers+3))
         allocate(r%data, source=m_contaminant_buried)
         call r%setErrors()
+    end function
+
+
+    !> P-FASE: return total bed PFAS mass in one explicit phase.
+    !! phase = PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, or PFAS_AIR.
+    !! The returned Contaminant contains only the requested phase populated.
+    function get_m_pfas_phase(me, phase) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        integer, intent(in) :: phase
+        type(Result0D) :: r
+        type(Contaminant) :: m_phase
+        type(Result) :: res
+        type(ErrorInstance) :: err(1)
+        integer :: i
+
+        if (.not. allocated(me%m_contaminant)) then
+            err(1) = ErrorInstance(code=105, message="PFAS contaminant array not allocated in bed sediment")
+            call r%addError(err(1))
+            return
+        end if
+        if (phase < 1 .or. phase > C%contaminantDim(3)) then
+            err(1) = ErrorInstance(code=106, message="Invalid PFAS phase index in bed sediment")
+            call r%addError(err(1))
+            return
+        end if
+
+        res = m_phase%create()
+        if (res%hasCriticalError()) then
+            call r%addErrors(res%getErrors())
+            return
+        end if
+
+        do i = 3, C%nSedimentLayers + 2
+            if (allocated(me%m_contaminant(i)%c)) then
+                m_phase%c(:,:,phase) = m_phase%c(:,:,phase) + me%m_contaminant(i)%c(:,:,phase)
+            end if
+        end do
+        if (phase == PFAS_AQ) m_phase%m_dissolved = sum(m_phase%c(:,:,PFAS_AQ))
+        allocate(r%data, source=m_phase)
+        call r%setErrors()
+    end function
+
+    !> P-FASE: porewater concentration [kg m-3 porewater-equivalent].
+    !! Only PFAS_AQ is physically meaningful here; other phases are returned as zero.
+    function get_C_pfas_aqueous(me) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        type(Result3D) :: r
+        type(Result0D) :: res
+        type(Contaminant) :: m_aq
+        real(dp), allocatable :: C_pfas(:,:,:)
+        real(dp) :: Vw_tot
+
+        allocate(C_pfas(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        C_pfas = 0.0_dp
+        res = me%get_m_pfas_phase(PFAS_AQ)
+        if (res%hasError()) then
+            call r%addErrors(res%getErrors())
+            deallocate(C_pfas)
+            return
+        end if
+        select type (data => res%getData())
+            type is (Contaminant)
+                m_aq = data
+            class default
+                call r%addError(ErrorInstance(code=106, message="Invalid data type in get_C_pfas_aqueous"))
+                deallocate(C_pfas)
+                return
+        end select
+        Vw_tot = sum(me%V_w_by_layer())
+        if (Vw_tot > C%epsilon) C_pfas(:,:,PFAS_AQ) = m_aq%c(:,:,PFAS_AQ) / Vw_tot
+        allocate(r%data, source=C_pfas)
+        call r%setErrors()
+        deallocate(C_pfas)
+    end function
+
+    !> P-FASE: solid-sorbed concentration [kg PFAS kg-1 dry sediment].
+    !! Only PFAS_SOL is physically meaningful here; other phases are returned as zero.
+    function get_C_pfas_sorbed_byMass(me) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        type(Result3D) :: r
+        type(Result0D) :: res
+        type(Contaminant) :: m_sol
+        real(dp), allocatable :: C_pfas(:,:,:)
+        real(dp) :: Mf_tot
+
+        allocate(C_pfas(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        C_pfas = 0.0_dp
+        res = me%get_m_pfas_phase(PFAS_SOL)
+        if (res%hasError()) then
+            call r%addErrors(res%getErrors())
+            deallocate(C_pfas)
+            return
+        end if
+        select type (data => res%getData())
+            type is (Contaminant)
+                m_sol = data
+            class default
+                call r%addError(ErrorInstance(code=106, message="Invalid data type in get_C_pfas_sorbed_byMass"))
+                deallocate(C_pfas)
+                return
+        end select
+        Mf_tot = me%Mf_bed_all()
+        if (Mf_tot > C%epsilon) C_pfas(:,:,PFAS_SOL) = m_sol%c(:,:,PFAS_SOL) / Mf_tot
+        allocate(r%data, source=C_pfas)
+        call r%setErrors()
+        deallocate(C_pfas)
+    end function
+
+    !> P-FASE: layer porewater concentration [kg m-3 porewater-equivalent].
+    function get_C_pfas_layer_aqueous(me, l) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        integer, intent(in) :: l
+        type(Result3D) :: r
+        type(Result0D) :: res
+        type(Contaminant) :: m_l
+        real(dp), allocatable :: C_pfas(:,:,:)
+        real(dp) :: Vw_l
+
+        allocate(C_pfas(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        C_pfas = 0.0_dp
+        res = me%get_m_contaminant_l(l)
+        if (res%hasError()) then
+            call r%addErrors(res%getErrors())
+            deallocate(C_pfas)
+            return
+        end if
+        select type (data => res%getData())
+            type is (Contaminant)
+                m_l = data
+            class default
+                call r%addError(ErrorInstance(code=106, message="Invalid data type in get_C_pfas_layer_aqueous"))
+                deallocate(C_pfas)
+                return
+        end select
+        Vw_l = me%colBedSedimentLayers(l)%item%V_w_layer()
+        if (Vw_l > C%epsilon) C_pfas(:,:,PFAS_AQ) = m_l%c(:,:,PFAS_AQ) / Vw_l
+        allocate(r%data, source=C_pfas)
+        call r%setErrors()
+        deallocate(C_pfas)
+    end function
+
+    !> P-FASE: layer solid-sorbed concentration [kg PFAS kg-1 dry sediment].
+    function get_C_pfas_layer_sorbed_byMass(me, l) result(r)
+        class(AbstractBedSediment), intent(in) :: me
+        integer, intent(in) :: l
+        type(Result3D) :: r
+        type(Result0D) :: res
+        type(Contaminant) :: m_l
+        real(dp), allocatable :: C_pfas(:,:,:)
+        real(dp) :: Mf_l
+
+        allocate(C_pfas(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
+        C_pfas = 0.0_dp
+        res = me%get_m_contaminant_l(l)
+        if (res%hasError()) then
+            call r%addErrors(res%getErrors())
+            deallocate(C_pfas)
+            return
+        end if
+        select type (data => res%getData())
+            type is (Contaminant)
+                m_l = data
+            class default
+                call r%addError(ErrorInstance(code=106, message="Invalid data type in get_C_pfas_layer_sorbed_byMass"))
+                deallocate(C_pfas)
+                return
+        end select
+        Mf_l = me%Mf_bed_by_layer(l)
+        if (Mf_l > C%epsilon) C_pfas(:,:,PFAS_SOL) = m_l%c(:,:,PFAS_SOL) / Mf_l
+        allocate(r%data, source=C_pfas)
+        call r%setErrors()
+        deallocate(C_pfas)
     end function
 
     subroutine finaliseBedSediment(me)

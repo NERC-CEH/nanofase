@@ -260,13 +260,28 @@ contains
 
     !> Transfer Contaminant between sediment layers, based on the mass transfer coefficient
     !! matrix delta_sed, which should already have been set prior to calling this procedure
+    !> P-FASE phase-aware PFAS transfer between water-column deposition,
+    !! bed layers, resuspension target, and burial.
+    !!
+    !! Storage convention in m_contaminant(:):
+    !!   1 = deposition inlet/interface scratch
+    !!   2 = resuspension outlet scratch
+    !!   3..C%nSedimentLayers+2 = bed sediment layers
+    !!   C%nSedimentLayers+3 = buried mass
+    !!
+    !! Deposited PFAS enters as PFAS_SPM from the water column and becomes
+    !! PFAS_SOL in bed layers/burial. Resuspended bed PFAS leaves as PFAS_SPM.
     function transferContaminantBedSediment1(me, j_contaminant_dep) result(r)
         class(BedSediment), intent(inout) :: me
         type(Contaminant),  intent(in)    :: j_contaminant_dep
         type(Result) :: r
         type(ErrorInstance) :: err(1)
-        real(dp), allocatable :: state_vector(:)
-        integer :: nCompartments, j, n, f, st_spm, i
+        real(dp), allocatable :: state_in(:)
+        real(dp), allocatable ::state_out(:)
+        real(dp), allocatable ::A(:,:)
+        real(dp), allocatable ::weights(:)
+        real(dp) :: wsum
+        integer :: nCompartments, s, n, f, i
         character(len=256) :: tr
 
         tr = trim(me%name) // "%transferContaminantBedSediment1"
@@ -275,40 +290,68 @@ contains
             call r%addError(err(1))
             return
         end if
+        if (.not. allocated(j_contaminant_dep%c)) return
 
         nCompartments = C%nSedimentLayers + 3
-        allocate(state_vector(nCompartments))
+        allocate(state_in(nCompartments), state_out(nCompartments), A(nCompartments,nCompartments), weights(me%nSizeClasses))
 
-        ! Loop over SPM size classes and map to the contaminant "state" index
-        do j = 1, C%nSizeClassesSpm
-            st_spm = SPM_CONTAMINANT_START + j - 1
+        ! Build one aggregate sediment-transfer matrix. PFAS is not size-resolved;
+        ! sediment size classes only determine how much carrier sediment moves.
+        weights = 0.0_dp
+        do s = 1, me%nSizeClasses
+            weights(s) = sum(abs(me%delta_sed(:,:,s)))
+        end do
+        wsum = sum(weights)
+        A = 0.0_dp
+        if (wsum > C%epsilon) then
+            do s = 1, me%nSizeClasses
+                A = A + me%delta_sed(:,:,s) * (weights(s) / wsum)
+            end do
+        else
+            do i = 1, nCompartments
+                A(i,i) = 1.0_dp
+            end do
+        end if
 
-            ! >>> FIX: use allocated state size, not scalar count
-            do n = 1, C%contaminantDim(1)
-                do f = 1, C%nContaminantForms
-                    ! Build [ dep ; layers+specials ] vector
-                    state_vector = 0.0_dp
-                    state_vector(1) = j_contaminant_dep%c(n, f, st_spm)
-                    do i = 2, nCompartments
-                        state_vector(i) = me%m_contaminant(i)%c(n, f, st_spm)
-                    end do
+        do n = 1, size(j_contaminant_dep%c,1)
+            do f = 1, size(j_contaminant_dep%c,2)
+                state_in = 0.0_dp
 
-                    ! Multiply by the CSR for THIS SPM size class
-                    state_vector = me%delta_sed_csr(j)%multiply(state_vector)
+                ! Incoming deposited SPM-associated PFAS from water column.
+                state_in(1) = j_contaminant_dep%c(n,f,PFAS_SPM)
 
-                    ! Write back
-                    me%m_contaminant(1)%c(n, f, st_spm) = state_vector(1)
-                    do i = 2, nCompartments
-                        me%m_contaminant(i)%c(n, f, st_spm) = state_vector(i)
-                    end do
+                ! Existing resuspension scratch, if any.
+                state_in(2) = me%m_contaminant(2)%c(n,f,PFAS_SPM)
+
+                ! Existing bed and buried PFAS are stored as solid-sorbed phase.
+                do i = 3, nCompartments
+                    state_in(i) = me%m_contaminant(i)%c(n,f,PFAS_SOL)
+                end do
+
+                state_out = matmul(A, state_in)
+                state_out = max(0.0_dp, state_out)
+
+                ! Row 1 is scratch only; clear it after transfer.
+                me%m_contaminant(1)%c(n,f,:) = 0.0_dp
+
+                ! Resuspended material is an export to water as SPM-associated PFAS.
+                me%m_contaminant(2)%c(n,f,:) = 0.0_dp
+                me%m_contaminant(2)%c(n,f,PFAS_SPM) = state_out(2)
+
+                ! Bed layers and burial remain solid-sorbed.
+                do i = 3, nCompartments
+                    me%m_contaminant(i)%c(n,f,PFAS_SOL) = state_out(i)
+                    me%m_contaminant(i)%c(n,f,PFAS_SPM) = 0.0_dp
                 end do
             end do
         end do
 
-        ! SAFETY: reset delta_sed scratch to zero as in old NM implementation
-        if (allocated(me%delta_sed)) then
-            me%delta_sed = 0.0_dp
-        end if
+        do i = 1, nCompartments
+            me%m_contaminant(i)%m_dissolved = sum(me%m_contaminant(i)%c(:,:,PFAS_AQ))
+        end do
+
+        if (allocated(me%delta_sed)) me%delta_sed = 0.0_dp
+        deallocate(state_in, state_out, A, weights)
     end function
 
     !> **Function purpose**                                         <br>
@@ -576,117 +619,70 @@ contains
     !> Assemble contaminant package that co-deposits with SPM; scavenge FREE interface pool
     function deposit_spm_BedSediment(Me, dj_spm_deposit, bedArea, out_deposit, out_resus) result(r)
         class(BedSediment), intent(inout) :: Me
-        real(dp), intent(in)              :: dj_spm_deposit(:)   ! [kg/m2]
-        real(dp), intent(in)              :: bedArea             ! [m2]
+        real(dp), intent(in)              :: dj_spm_deposit(:)
+        real(dp), intent(in)              :: bedArea
         type(Contaminant), intent(out)    :: out_deposit
         type(Contaminant), intent(out)    :: out_resus
         type(Result)                      :: r
 
-        real(dp) :: denom
-        real(dp), allocatable :: frac_dep(:)
-        integer :: j, n, f, st_spm
-
         call r%addErrors(.errors. out_deposit%create())
         call r%addErrors(.errors. out_resus%create())
-        if (C%nSizeClassesSpm <= 0) return
+        if (.not. allocated(Me%m_contaminant)) return
 
-        allocate(frac_dep(C%nSizeClassesSpm))
-        denom = sum(dj_spm_deposit)
-        if (denom < C%epsilon) then
-            frac_dep = 0.0_dp
-        else
-            frac_dep = dj_spm_deposit / denom
+        ! Deposition from water should be provided as PFAS_SPM to transferContaminant.
+        ! This routine simply exposes any staged inlet/outlet packages.
+        if (allocated(Me%m_contaminant(1)%c)) then
+            out_deposit%c(:,:,PFAS_SPM) = Me%m_contaminant(1)%c(:,:,PFAS_SPM)
+            Me%m_contaminant(1)%c(:,:,PFAS_SPM) = 0.0_dp
         end if
 
-        ! Scavenge FREE at interface (pool 1) onto depositing SPM-attached bins
-        do j = 1, C%nSizeClassesSpm
-            st_spm = SPM_CONTAMINANT_START + j - 1
-            do n = 1, C%contaminantDim(1)
-                do f = 1, C%nContaminantForms
-                    ! Move a fraction of FREE into the SPM-bound bin
-                    out_deposit%c(n,f,st_spm) = out_deposit%c(n,f,st_spm) + &
-                        Me%m_contaminant(1)%c(n,f,FREE_CONTAMINANT) * frac_dep(j)
-                    Me%m_contaminant(1)%c(n,f,FREE_CONTAMINANT) = max(0.0_dp, &
-                        Me%m_contaminant(1)%c(n,f,FREE_CONTAMINANT) - &
-                        Me%m_contaminant(1)%c(n,f,FREE_CONTAMINANT) * frac_dep(j))
-                end do
-            end do
-        end do
+        if (allocated(Me%m_contaminant(2)%c)) then
+            out_resus%c(:,:,PFAS_SPM) = Me%m_contaminant(2)%c(:,:,PFAS_SPM)
+            Me%m_contaminant(2)%c(:,:,PFAS_SPM) = 0.0_dp
+        end if
 
-        ! Optionally expose “ready-to-resuspend” (pool 2) as an area flux
-        do j = 1, C%nSizeClassesSpm
-            st_spm = SPM_CONTAMINANT_START + j - 1
-            do n = 1, C%contaminantDim(1)
-                do f = 1, C%nContaminantForms
-                    out_resus%c(n,f,st_spm) = out_resus%c(n,f,st_spm) + &
-                        Me%m_contaminant(2)%c(n,f,st_spm) * bedArea
-                end do
-            end do
-        end do
+        out_deposit%m_dissolved = sum(out_deposit%c(:,:,PFAS_AQ))
+        out_resus%m_dissolved   = sum(out_resus%c(:,:,PFAS_AQ))
     end function
 
     !> Assemble contaminant package that leaves with resuspended SPM; becomes FREE in water column
     function resuspend_spm_BedSediment(Me, dj_spm_resus, bedArea, out_resus) result(r)
         class(BedSediment), intent(inout) :: Me
-        real(dp), intent(in)              :: dj_spm_resus(:)   ! [kg/m2]
-        real(dp), intent(in)              :: bedArea           ! [m2]
+        real(dp), intent(in)              :: dj_spm_resus(:)
+        real(dp), intent(in)              :: bedArea
         type(Contaminant), intent(out)    :: out_resus
         type(Result)                      :: r
 
-        integer :: j, n, f, st_spm
-        real(dp) :: m_spm_ready, scale_j
+        integer :: n, f, l
+        real(dp) :: m_bed, m_resus, frac_resus
 
         call r%addErrors(.errors. out_resus%create())
+        if (.not. allocated(Me%m_contaminant)) return
+        if (all(dj_spm_resus <= C%epsilon)) return
 
-        ! If no resuspension or no bed area, nothing to do
-        if (all(dj_spm_resus <= C%epsilon) .or. bedArea <= C%epsilon) return
+        m_bed   = max(C%epsilon, Me%Mf_bed_all())
+        m_resus = max(0.0_dp, sum(dj_spm_resus))
+        frac_resus = min(1.0_dp, m_resus / m_bed)
+        if (frac_resus <= 0.0_dp) return
 
-        do j = 1, C%nSizeClassesSpm
-            st_spm = SPM_CONTAMINANT_START + j - 1
-
-            ! -----------------------------------------------------------------------
-            ! FIXED LOGIC START
-            ! -----------------------------------------------------------------------
-            m_spm_ready = 0.0_dp
-            
-            ! Check if layers and fine sediment objects are allocated
-            if (allocated(Me%colBedSedimentLayers) .and. size(Me%colBedSedimentLayers) >= 1) then
-                if (allocated(Me%colBedSedimentLayers(1)%item%colFineSediment)) then
-                     ! Access the mass of fine sediment for size class 'j'
-                     ! M_f() returns mass in [kg/m2]
-                     m_spm_ready = Me%colBedSedimentLayers(1)%item%colFineSediment(j)%M_f()
-                end if
-            end if
-
-            ! Note: m_spm_ready is already [kg/m2] and dj_spm_resus is [kg/m2].
-            ! No division by bedArea is needed here.
-            ! -----------------------------------------------------------------------
-            ! FIXED LOGIC END
-            ! -----------------------------------------------------------------------
-
-            ! If there is no ready SPM, skip this size class
-            if (m_spm_ready <= C%epsilon) cycle
-
-            ! Fraction of the ready SPM that actually resuspends this step
-            ! ratio of Flux [kg/m2] to Stock [kg/m2] -> Dimensionless fraction
-            scale_j = max(0.0_dp, min(1.0_dp, dj_spm_resus(j) / m_spm_ready))
-
-            if (scale_j <= 0.0_dp) cycle
-
-            do n = 1, C%contaminantDim(1)
-                do f = 1, C%nContaminantForms
-                    ! Release a scaled fraction of the top layer (Index 1)
-                    ! Me%m_contaminant(1) stores Total Mass [kg] in the layer
-                    
-                    ! Add to output flux (Total Mass resuspended)
-                    out_resus%c(n,f,st_spm) = out_resus%c(n,f,st_spm) + &
-                        Me%m_contaminant(1)%c(n,f,st_spm) * scale_j 
-
-                    ! Remove that fraction from the bed layer 
-                    Me%m_contaminant(1)%c(n,f,st_spm) = &
-                        Me%m_contaminant(1)%c(n,f,st_spm) * (1.0_dp - scale_j)
+        ! Remove from bed layers and export as water-column SPM-associated PFAS.
+        do l = 1, C%nSedimentLayers
+            do n = 1, size(Me%m_contaminant(l+2)%c,1)
+                do f = 1, size(Me%m_contaminant(l+2)%c,2)
+                    out_resus%c(n,f,PFAS_SPM) = out_resus%c(n,f,PFAS_SPM) + &
+                        Me%m_contaminant(l+2)%c(n,f,PFAS_SOL) * frac_resus
+                    Me%m_contaminant(l+2)%c(n,f,PFAS_SOL) = &
+                        Me%m_contaminant(l+2)%c(n,f,PFAS_SOL) * (1.0_dp - frac_resus)
                 end do
             end do
         end do
+
+        ! Include material staged by transferContaminant and then clear the scratch pool.
+        if (allocated(Me%m_contaminant(2)%c)) then
+            out_resus%c(:,:,PFAS_SPM) = out_resus%c(:,:,PFAS_SPM) + Me%m_contaminant(2)%c(:,:,PFAS_SPM)
+            Me%m_contaminant(2)%c(:,:,PFAS_SPM) = 0.0_dp
+        end if
+        out_resus%m_dissolved = sum(out_resus%c(:,:,PFAS_AQ))
     end function
+
 end module

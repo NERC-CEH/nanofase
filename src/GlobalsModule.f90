@@ -7,12 +7,13 @@ module GlobalsModule
     use ErrorCriteriaModule
     use ErrorInstanceModule
     use ResultModule, only: Result
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, PFAS_AIR, PFAS_NPHASES
     implicit none
 
     ! Contaminant state constants
-    integer, parameter :: FREE_CONTAMINANT = 1
-    integer, parameter :: ATTACHED_CONTAMINANT = 2
-    integer, parameter :: SPM_CONTAMINANT_START = 3
+    integer, parameter :: FREE_CONTAMINANT = PFAS_AQ
+    integer, parameter :: ATTACHED_CONTAMINANT = PFAS_SOL
+    integer, parameter :: SPM_CONTAMINANT_START = PFAS_SPM
     
     type(ErrorCriteria)             :: ERROR_HANDLER                        ! Global error handling
     integer, parameter              :: dp = selected_real_kind(15, 307)     ! Double precision
@@ -138,6 +139,10 @@ module GlobalsModule
         integer :: contaminantDim(3)                        !! Default dimensions for arrays of contaminant
         integer :: ionicDim                                 !! Default dimensions for ionic metal 
 
+        integer :: nPFASSpecies = 1
+        integer :: nPFASPhases = PFAS_NPHASES
+        integer :: nPFASForms = 1
+
       contains
         procedure :: rho_w      ! Density of water
         procedure :: nu_w       ! Kinematic viscosity of water
@@ -168,6 +173,8 @@ module GlobalsModule
         integer :: n_contaminant_size_classes
         integer :: n_contaminant_forms
         integer :: n_contaminant_extra_states
+        integer :: n_pfas_species
+        integer :: n_pfas_forms
         integer :: warm_up_period
         integer :: n_spm_size_classes
         integer :: n_fractional_compositions
@@ -218,7 +225,8 @@ module GlobalsModule
         ! Config file namelists
         namelist /allocatable_array_sizes/ n_soil_layers, n_contaminant_size_classes, n_spm_size_classes, &
             n_fractional_compositions, n_sediment_layers
-        namelist /contaminant/ n_contaminant_forms, n_contaminant_extra_states, contaminant_size_classes
+        namelist /contaminant/ n_contaminant_forms, n_contaminant_extra_states, contaminant_size_classes, &
+            n_pfas_species, n_pfas_forms
         namelist /data/ input_file, constants_file, output_path
         namelist /output/ write_metadata_as_comment, include_sediment_layer_breakdown, include_soil_layer_breakdown, &
             soil_pec_units, sediment_pec_units, include_soil_state_breakdown, write_csv, include_sediment_fluxes, &
@@ -275,6 +283,11 @@ module GlobalsModule
         warm_up_period = configDefaults%warmUpPeriod
         bash_colors = configDefaults%bashColors
         include_soil_erosion = configDefaults%includeSoilErosion
+
+        ! P-FASE defaults. Negative values mean "not provided in config" and allow
+        ! fallback to legacy n_contaminant_* settings for backward compatibility.
+        n_pfas_species = -1
+        n_pfas_forms = -1
 
         ! Has a path to the config path been provided as a command line argument?
         call get_command_argument(1, configFilePath, configFilePathLength)
@@ -334,11 +347,39 @@ module GlobalsModule
         close(iouConfig)
 
         ! Store this data in the Globals variable
-        ! Contaminant
-        C%nContaminantSizeClasses = n_contaminant_size_classes
-        C%nContaminantForms = n_contaminant_forms
-        C%nContaminantExtraStates = n_contaminant_extra_states
-        allocate(C%d_contaminant, source=contaminant_size_classes)
+        ! ------------------------------------------------------------------
+        ! P-FASE contaminant dimensions
+        ! ------------------------------------------------------------------
+        ! The old NanoFASE model interpreted contaminantDim as:
+        !   (contaminant size class, form, free/attached/SPM state)
+        !
+        ! P-FASE reinterprets the same 3-D shape as:
+        !   (PFAS species, PFAS form/group, PFAS phase)
+        !
+        ! For backward compatibility, older config fields are still accepted:
+        !   n_contaminant_size_classes -> nPFASSpecies
+        !   n_contaminant_forms        -> nPFASForms
+        ! but new config files should use n_pfas_species and n_pfas_forms.
+        if (n_pfas_species < 1) n_pfas_species = max(1, n_contaminant_size_classes)
+        if (n_pfas_forms   < 1) n_pfas_forms   = max(1, n_contaminant_forms)
+
+        C%nPFASSpecies = max(1, n_pfas_species)
+        C%nPFASForms   = max(1, n_pfas_forms)
+        C%nPFASPhases  = PFAS_NPHASES
+
+        ! Legacy fields retained so older modules compile. In P-FASE these are
+        ! aliases for species/forms/phases, not nanoparticle size/state counts.
+        C%nContaminantSizeClasses = C%nPFASSpecies
+        C%nContaminantForms       = C%nPFASForms
+        C%nContaminantExtraStates = C%nPFASPhases
+
+        C%contaminantDim = [C%nPFASSpecies, C%nPFASForms, C%nPFASPhases]
+
+        ! PFAS species are not contaminant particle-size classes. Keep a dummy
+        ! array for legacy code paths that still reference C%d_contaminant.
+        if (allocated(C%d_contaminant)) deallocate(C%d_contaminant)
+        allocate(C%d_contaminant(C%nPFASSpecies))
+        C%d_contaminant = 0.0_dp
         ! Data
         C%inputFile = input_file
         C%constantsFile = constants_file
@@ -459,7 +500,8 @@ module GlobalsModule
             end if
         end do
 
-        C%contaminantDim = [C%nContaminantSizeClasses, C%nContaminantForms, C%nSizeClassesSpm + C%nContaminantExtraStates]
+        ! P-FASE note: C%contaminantDim has already been set above as
+        ! [species, forms, PFAS_NPHASES]. Do not reset it to SPM-size states.
 
         ! General
         errors(1) = ErrorInstance(code=110, message="Invalid object type index in data file.")
@@ -500,7 +542,8 @@ module GlobalsModule
 
         ! Steady state mode
         if (me%runToSteadyState) then
-            if (trim(me%steadyStateMode) /= 'sediment_size_distribution') then
+            if (trim(me%steadyStateMode) /= 'pfas_mass' .and. &
+                trim(me%steadyStateMode) /= 'sediment_size_distribution') then
                 call rslt%addError(ErrorInstance( &
                     message='Invalid or non-present config file value for &steady_state > mode.' &
                 ))
@@ -523,7 +566,22 @@ module GlobalsModule
             call rslt%addError(ErrorInstance(message='You have specified to save a checkpoint after warm up ' // &
                 'and at the end of the model run. Only the latter will be saved to file.', isCritical=.false.))
         end if
-        
+
+
+        ! P-FASE dimension checks
+        if (me%nPFASSpecies < 1) then
+            call rslt%addError(ErrorInstance(message='P-FASE requires nPFASSpecies >= 1.'))
+        end if
+        if (me%nPFASForms < 1) then
+            call rslt%addError(ErrorInstance(message='P-FASE requires nPFASForms >= 1.'))
+        end if
+        if (me%nPFASPhases < PFAS_NPHASES) then
+            call rslt%addError(ErrorInstance(message='P-FASE requires nPFASPhases >= PFAS_NPHASES.'))
+        end if
+        if (any(me%contaminantDim /= [me%nPFASSpecies, me%nPFASForms, me%nPFASPhases])) then
+            call rslt%addError(ErrorInstance(message='P-FASE contaminantDim must equal [nPFASSpecies, nPFASForms, nPFASPhases].'))
+        end if
+
         ! Trigger the errors, if there were any
         call rslt%addToTrace('Auditing config file')
         call ERROR_HANDLER%trigger(errors=.errors.rslt)

@@ -1,8 +1,9 @@
 !> Module container for the DataOutput class
 module DataOutputModule
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, PFAS_AIR
     use DefaultsModule, only: iouOutputSummary, iouOutputWater, &
-        iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats
-    use GlobalsModule, only: C, dp, FREE_CONTAMINANT, ATTACHED_CONTAMINANT
+        iouOutputSediment, iouOutputSoil, iouOutputSSD, iouOutputStats, iouOutputBiota
+    use GlobalsModule, only: C, dp
     use DataInputModule, only: DATASET
     use LoggerModule, only: LOGR
     use AbstractEnvironmentModule
@@ -17,6 +18,13 @@ module DataOutputModule
     use NetCDFAggregatedOutputModule
     use ContaminantModule
     implicit none
+
+! -----------------------------------------------------------------------------
+! P-FASE UPDATE:
+! This module has been converted from nanoparticle free/attached/SPM-size pools
+! to PFAS phase pools: AQ, SOL, SPM, AWI, FOAM and AIR. Groundwater is handled
+! as an exported boundary flux, not as an internal P-FASE compartment.
+! -----------------------------------------------------------------------------
 
     !> The DataOutput class is responsible for writing output data to disk
     type, public :: DataOutput
@@ -42,6 +50,8 @@ module DataOutputModule
         procedure, private :: updateWater => updateWaterDataOutput
         procedure, private :: updateSediment => updateSedimentDataOutput
         procedure, private :: updateSoil => updateSoilDataOutput
+        procedure, private :: updateBiota => updateBiotaDataOutput
+        procedure, private :: writeHeadersBiota => writeHeadersBiotaDataOutput
         procedure, public :: updateSedimentSizeDistribution => updateSedimentSizeDistributionDataOutput
     end type
 
@@ -73,6 +83,8 @@ module DataOutputModule
             open(iouOutputWater, file=trim(C%outputPath) // 'output_water' // trim(C%outputHash) // '.csv')
             open(iouOutputSediment, file=trim(C%outputPath) // 'output_sediment' // trim(C%outputHash) // '.csv')
             open(iouOutputSoil, file=trim(C%outputPath) // 'output_soil' // trim(C%outputHash) // '.csv')
+            if (DATASET%hasBiota) &
+                open(iouOutputBiota, file=trim(C%outputPath) // 'output_biota' // trim(C%outputHash) // '.csv')
         end if
         if (C%writeCompartmentStats) then
             open(iouOutputStats, file=trim(C%outputPath) // 'stats' // trim(C%outputHash) // '.csv')
@@ -136,10 +148,12 @@ module DataOutputModule
                     call this%updateWater(t, tInChunk, x, y, dateISO, easts, norths)
                     call this%updateSediment(t, tInChunk, x, y, dateISO, easts, norths)
                     call this%updateSoil(t, tInChunk, x, y, dateISO, easts, norths)
+                    call this%updateBiota(t, x, y, dateISO, easts, norths)
                     if (C%writeNetCDF) then
                         call this%ncout%updateWater(t, tInChunk, x, y)
                         call this%ncout%updateSediment(t, tInChunk, x, y)
                         call this%ncout%updateSoil(t, tInChunk, x, y)
+                        call this%ncout%updateBiota(t, tInChunk, x, y)
                     end if
                 end if
             end do
@@ -159,8 +173,8 @@ module DataOutputModule
         type(Contaminant)   :: m_contaminant, j_contaminant_outflow, j_contaminant_deposition, j_contaminant_resuspension
         real(dp)            :: C_contaminant, C_dissolved, C_attached
         real(dp)            :: vol
-        real(dp)            :: s_free, s_att, s_dep_free, s_dep_att, s_res_free, s_res_att
-        real(dp)            :: s_out_free, s_out_att
+        real(dp)            :: s_aq, s_sol, s_dep_aq, s_dep_sol, s_res_aq, s_res_sol
+        real(dp)            :: s_out_aq, s_out_sol
         type(Result0D)      :: r
         character(len=256)  :: tr = "DataOutputModule.f90%updateWaterDataOutput"
 
@@ -188,7 +202,7 @@ module DataOutputModule
 
                     if (vol > C%epsilon) then
                         C_dissolved = m_contaminant%m_dissolved / vol
-                        C_attached  = sum(m_contaminant%get_attached()) / vol
+                        C_attached  = sum(m_contaminant%get_phase(PFAS_SPM)) / vol
                     else
                         C_dissolved = 0.0_dp
                         C_attached  = 0.0_dp
@@ -200,53 +214,53 @@ module DataOutputModule
                     j_contaminant_resuspension= reach%j_contaminant_resuspension
 
                     if (allocated(m_contaminant%c)) then
-                        s_free = sum(m_contaminant%c(:,:,FREE_CONTAMINANT))
-                        s_att  = sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT))
+                        s_aq = sum(m_contaminant%c(:,:,PFAS_AQ))
+                        s_sol  = sum(m_contaminant%c(:,:,PFAS_SPM))
                     else
-                        s_free = 0.0_dp
-                        s_att  = 0.0_dp
+                        s_aq = 0.0_dp
+                        s_sol  = 0.0_dp
                     end if
 
                     if (allocated(j_contaminant_deposition%c)) then
-                        s_dep_free = sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT))
-                        s_dep_att  = sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT))
+                        s_dep_aq = sum(j_contaminant_deposition%c(:,:,PFAS_AQ))
+                        s_dep_sol  = sum(j_contaminant_deposition%c(:,:,PFAS_SPM))
                     else
-                        s_dep_free = 0.0_dp
-                        s_dep_att  = 0.0_dp
+                        s_dep_aq = 0.0_dp
+                        s_dep_sol  = 0.0_dp
                     end if
 
                     if (allocated(j_contaminant_resuspension%c)) then
-                        s_res_free = sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT))
-                        s_res_att  = sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT))
+                        s_res_aq = sum(j_contaminant_resuspension%c(:,:,PFAS_AQ))
+                        s_res_sol  = sum(j_contaminant_resuspension%c(:,:,PFAS_SPM))
                     else
-                        s_res_free = 0.0_dp
-                        s_res_att  = 0.0_dp
+                        s_res_aq = 0.0_dp
+                        s_res_sol  = 0.0_dp
                     end if
 
                     if (allocated(j_contaminant_outflow%c)) then
-                        s_out_free = sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT))
-                        s_out_att  = sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT))
+                        s_out_aq = sum(j_contaminant_outflow%c(:,:,PFAS_AQ))
+                        s_out_sol  = sum(j_contaminant_outflow%c(:,:,PFAS_SPM))
                     else
-                        s_out_free = 0.0_dp
-                        s_out_att  = 0.0_dp
+                        s_out_aq = 0.0_dp
+                        s_out_sol  = 0.0_dp
                     end if
 
                     ! --- write row (keep original column order) ---
                     write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                         trim(str(x)) // "," // trim(str(y)) // "," // &
                         trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                        trim(str(s_free)) // "," // &
+                        trim(str(s_aq)) // "," // &
                         trim(str(C_contaminant)) // "," // &
-                        trim(str(s_att)) // "," // &
+                        trim(str(s_sol)) // "," // &
                         trim(str(C_attached)) // "," // &
                         trim(str(m_contaminant%m_dissolved)) // "," // &
                         trim(str(C_dissolved)) // "," // &
-                        trim(str(s_dep_free)) // "," // &
-                        trim(str(s_dep_att)) // "," // &
-                        trim(str(s_res_free)) // "," // &
-                        trim(str(s_res_att)) // "," // &
-                        trim(str(s_out_free)) // "," // &
-                        trim(str(s_out_att)) // "," // &
+                        trim(str(s_dep_aq)) // "," // &
+                        trim(str(s_dep_sol)) // "," // &
+                        trim(str(s_res_aq)) // "," // &
+                        trim(str(s_res_sol)) // "," // &
+                        trim(str(s_out_aq)) // "," // &
+                        trim(str(s_out_sol)) // "," // &
                         trim(str(j_contaminant_outflow%m_dissolved)) // "," // &
                         trim(str(sum(reach%m_spm))) // "," // &
                         trim(str(sum(reach%C_spm))) // ","
@@ -298,59 +312,59 @@ module DataOutputModule
 
                     if (vol > C%epsilon) then
                         C_dissolved = m_contaminant%m_dissolved / vol
-                        C_attached  = sum(m_contaminant%get_attached()) / vol
+                        C_attached  = sum(m_contaminant%get_phase(PFAS_SPM)) / vol
                     else
                         C_dissolved = 0.0_dp
                         C_attached  = 0.0_dp
                     end if
 
                     if (allocated(m_contaminant%c)) then
-                        s_free = sum(m_contaminant%c(:,:,FREE_CONTAMINANT))
-                        s_att  = sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT))
+                        s_aq = sum(m_contaminant%c(:,:,PFAS_AQ))
+                        s_sol  = sum(m_contaminant%c(:,:,PFAS_SPM))
                     else
-                        s_free = 0.0_dp
-                        s_att  = 0.0_dp
+                        s_aq = 0.0_dp
+                        s_sol  = 0.0_dp
                     end if
 
                     if (allocated(j_contaminant_deposition%c)) then
-                        s_dep_free = sum(j_contaminant_deposition%c(:,:,FREE_CONTAMINANT))
-                        s_dep_att  = sum(j_contaminant_deposition%c(:,:,ATTACHED_CONTAMINANT))
+                        s_dep_aq = sum(j_contaminant_deposition%c(:,:,PFAS_AQ))
+                        s_dep_sol  = sum(j_contaminant_deposition%c(:,:,PFAS_SPM))
                     else
-                        s_dep_free = 0.0_dp
-                        s_dep_att  = 0.0_dp
+                        s_dep_aq = 0.0_dp
+                        s_dep_sol  = 0.0_dp
                     end if
 
                     if (allocated(j_contaminant_resuspension%c)) then
-                        s_res_free = sum(j_contaminant_resuspension%c(:,:,FREE_CONTAMINANT))
-                        s_res_att  = sum(j_contaminant_resuspension%c(:,:,ATTACHED_CONTAMINANT))
+                        s_res_aq = sum(j_contaminant_resuspension%c(:,:,PFAS_AQ))
+                        s_res_sol  = sum(j_contaminant_resuspension%c(:,:,PFAS_SPM))
                     else
-                        s_res_free = 0.0_dp
-                        s_res_att  = 0.0_dp
+                        s_res_aq = 0.0_dp
+                        s_res_sol  = 0.0_dp
                     end if
 
                     if (allocated(j_contaminant_outflow%c)) then
-                        s_out_free = sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT))
-                        s_out_att  = sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT))
+                        s_out_aq = sum(j_contaminant_outflow%c(:,:,PFAS_AQ))
+                        s_out_sol  = sum(j_contaminant_outflow%c(:,:,PFAS_SPM))
                     else
-                        s_out_free = 0.0_dp
-                        s_out_att  = 0.0_dp
+                        s_out_aq = 0.0_dp
+                        s_out_sol  = 0.0_dp
                     end if
 
                     write(iouOutputWater, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                         trim(str(x)) // "," // trim(str(y)) // "," // &
                         trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
-                        trim(str(s_free)) // "," // &
+                        trim(str(s_aq)) // "," // &
                         trim(str(C_contaminant)) // "," // &
-                        trim(str(s_att)) // "," // &
+                        trim(str(s_sol)) // "," // &
                         trim(str(C_attached)) // "," // &
                         trim(str(m_contaminant%m_dissolved)) // "," // &
                         trim(str(C_dissolved)) // "," // &
-                        trim(str(s_dep_free)) // "," // &
-                        trim(str(s_dep_att)) // "," // &
-                        trim(str(s_res_free)) // "," // &
-                        trim(str(s_res_att)) // "," // &
-                        trim(str(s_out_free)) // "," // &
-                        trim(str(s_out_att)) // "," // &
+                        trim(str(s_dep_aq)) // "," // &
+                        trim(str(s_dep_sol)) // "," // &
+                        trim(str(s_res_aq)) // "," // &
+                        trim(str(s_res_sol)) // "," // &
+                        trim(str(s_out_aq)) // "," // &
+                        trim(str(s_out_sol)) // "," // &
                         trim(str(j_contaminant_outflow%m_dissolved)) // ","
 
                     m_spm = cell%get_m_spm()
@@ -447,7 +461,7 @@ module DataOutputModule
                         write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                             trim(str(x)) // "," // trim(str(y)) // "," // &
                             trim(str(easts)) // "," // trim(str(norths)) // "," // trim(str(w)) // "," // reachType // "," // &
-                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)) * reach%bedArea)) // "," // &
+                            trim(str(sum(m_contaminant%c(:,:,PFAS_AQ)) * reach%bedArea)) // "," // &
                             trim(str(C_contaminant)) // "," // &
                             trim(str(C_byMass)) // ","
                         do f = 1, C%contaminantDim(2)
@@ -482,7 +496,7 @@ module DataOutputModule
                             end do
                         end if
                         write(iouOutputSediment, '(a)') &
-                            trim(str(sum(m_buried%c(:,:,FREE_CONTAMINANT)) * reach%bedArea)) // "," // &
+                            trim(str(sum(m_buried%c(:,:,PFAS_AQ)) * reach%bedArea)) // "," // &
                             trim(str(reach%bedArea)) // "," // &
                             trim(str(reach%bedSediment%Mf_bed_all() * reach%bedArea)) // "," // &
                             trim(str(reach%bedSediment%Mf_bed_all() / sum(C%sedimentLayerDepth)))
@@ -515,7 +529,7 @@ module DataOutputModule
                         write(iouOutputSediment, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                             trim(str(x)) // "," // trim(str(y)) // "," // &
                             trim(str(easts)) // "," // trim(str(norths)) // "," // cell%aggregatedReachType // "," // &
-                            trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(m_contaminant%c(:,:,PFAS_AQ)))) // "," // &
                             trim(str(C_contaminant)) // "," // &
                             trim(str(C_byMass)) // ","
                         do f = 1, C%contaminantDim(2)
@@ -551,7 +565,7 @@ module DataOutputModule
                             end associate
                         end if
                         write(iouOutputSediment, '(a)') &
-                            trim(str(sum(m_buried%c(:,:,FREE_CONTAMINANT)))) // "," // &
+                            trim(str(sum(m_buried%c(:,:,PFAS_AQ)))) // "," // &
                             trim(str(cell%getBedSedimentArea())) // "," // trim(str(cell%getBedSedimentMass())) // "," // &
                             trim(str(cell%getBedSedimentMass() / (cell%getBedSedimentArea() * sum(C%sedimentLayerDepth))))
                         call m_contaminant%finalise()
@@ -588,11 +602,11 @@ module DataOutputModule
 
                     ! --- concentrations in kg/kg (mass / dry-soil mass) ---
                     if (profile_mass > C%epsilon) then
-                        C_contaminant = ( sum(m_contaminant%get_free())        &
-                                        + sum(m_contaminant%get_attached())    &
+                        C_contaminant = ( sum(m_contaminant%get_phase(PFAS_AQ))        &
+                                        + sum(m_contaminant%get_phase(PFAS_SOL))    &
                                         + m_contaminant%m_dissolved ) / profile_mass
 
-                        C_attached    =  sum(m_contaminant%get_attached()) / profile_mass
+                        C_attached    =  sum(m_contaminant%get_phase(PFAS_SOL)) / profile_mass
                         C_dissolved   =  m_contaminant%m_dissolved          / profile_mass
                     else
                         C_contaminant = 0.0_dp
@@ -608,8 +622,8 @@ module DataOutputModule
                     write(iouOutputSoil, '(a)', advance='no') trim(str(t)) // "," // trim(date) // "," // &
                         trim(str(x)) // "," // trim(str(y)) // "," // trim(str(easts)) // "," // trim(str(norths)) // "," // &
                         trim(str(i)) // "," // trim(profile%dominantLandUseName) // "," // &
-                        trim(str(sum(m_contaminant%c(:,:,FREE_CONTAMINANT)))) // "," // &   ! m_contaminant_pristine_total(kg)
-                        trim(str(sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)))) // "," // & ! m_contaminant_attached_total(kg)
+                        trim(str(sum(m_contaminant%c(:,:,PFAS_AQ)))) // "," // &   ! m_contaminant_pristine_total(kg)
+                        trim(str(sum(m_contaminant%c(:,:,PFAS_SOL)))) // "," // & ! m_contaminant_attached_total(kg)
                         trim(str(m_contaminant%m_dissolved)) // "," // &                        ! m_dissolved_total(kg)
                         trim(str(C_contaminant)) // "," // &                                    ! C_contaminant_total(kg/kg)
                         trim(str(C_attached)) // "," // &                                       ! C_contaminant_attached(kg/kg)
@@ -623,8 +637,8 @@ module DataOutputModule
                     ! optional: state breakdown totals (unchanged, but keep order)
                     if (C%includeSoilStateBreakdown) then
                         write(iouOutputSoil, '(a)', advance='no') &
-                            trim(str(sum(m_contaminant%get_free()))) // "," // &
-                            trim(str(sum(m_contaminant%get_attached()))) // ","
+                            trim(str(sum(m_contaminant%get_phase(PFAS_AQ)))) // "," // &
+                            trim(str(sum(m_contaminant%get_phase(PFAS_SOL)))) // ","
                     end if
 
                     ! -------- per-layer concentrations (kg/kg) --------
@@ -636,8 +650,8 @@ module DataOutputModule
                             layer_mass   = profile%bulkDensity * layer_volume
 
                             if (layer_mass > C%epsilon) then
-                                C_layer_total    = ( sum(m_contaminant%get_free())       &
-                                                + sum(m_contaminant%get_attached())   &
+                                C_layer_total    = ( sum(m_contaminant%get_phase(PFAS_AQ))       &
+                                                + sum(m_contaminant%get_phase(PFAS_SOL))   &
                                                 + m_contaminant%m_dissolved ) / layer_mass
                                 C_dissolved_layer = m_contaminant%m_dissolved / layer_mass
                             else
@@ -651,8 +665,8 @@ module DataOutputModule
 
                             if (C%includeSoilStateBreakdown) then
                                 write(iouOutputSoil, '(a)', advance='no') &
-                                    trim(str(sum(m_contaminant%get_free()))) // "," // &
-                                    trim(str(sum(m_contaminant%get_attached()))) // ","
+                                    trim(str(sum(m_contaminant%get_phase(PFAS_AQ)))) // "," // &
+                                    trim(str(sum(m_contaminant%get_phase(PFAS_SOL)))) // ","
                             end if
                             call m_contaminant%finalise()
                         end do
@@ -662,14 +676,14 @@ module DataOutputModule
                     if (C%includeSoilErosionYields) then
                         write(iouOutputSoil, '(a)', advance='no') &
                             trim(str(sum(profile%erodedSediment) * profile%area)) // "," // &
-                            trim(str(sum(m_eroded%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                            trim(str(sum(m_eroded%c(:,:,ATTACHED_CONTAMINANT)))) // ","
+                            trim(str(sum(m_eroded%c(:,:,PFAS_AQ)))) // "," // &
+                            trim(str(sum(m_eroded%c(:,:,PFAS_SOL)))) // ","
                     end if
 
                     ! -------- burial + bulk density (unchanged) --------
                     write(iouOutputSoil, '(a)') &
-                        trim(str(sum(m_buried%c(:,:,FREE_CONTAMINANT)))) // "," // &
-                        trim(str(sum(m_buried%c(:,:,ATTACHED_CONTAMINANT)))) // "," // &
+                        trim(str(sum(m_buried%c(:,:,PFAS_AQ)))) // "," // &
+                        trim(str(sum(m_buried%c(:,:,PFAS_SOL)))) // "," // &
                         trim(str(m_buried%m_dissolved)) // "," // &
                         trim(str(profile%bulkDensity))
 
@@ -724,7 +738,7 @@ module DataOutputModule
         cont_water = this%env%item%get_C_contaminant_water()
         cont_sediment = this%env%item%get_C_contaminant_sediment()
         write(iouOutputSummary, *) "- Soil, spatial mean on final timestep: " // &
-            trim(str(sum(cont_soil%c(:,:,FREE_CONTAMINANT)))) // " kg/kg soil"
+            trim(str(sum(cont_soil%c(:,:,PFAS_AQ)))) // " kg/kg soil"
         
         total_mass_water = 0.0_dp
         if (allocated(this%env%item%contaminant_water_t)) then
@@ -773,6 +787,7 @@ module DataOutputModule
 
         close(iouOutputSummary); close(iouOutputWater); close(iouOutputSediment)
         close(iouOutputSoil); close(iouOutputSSD); close(iouOutputStats)
+        if (DATASET%hasBiota .and. C%writeCSV) close(iouOutputBiota)
         
         call LOGR%add('Model output written to ' // trim(C%outputPath), COLOR_GREEN)
     end subroutine
@@ -804,6 +819,7 @@ module DataOutputModule
             call this%writeHeadersWater()
             call this%writeHeadersSediment()
             call this%writeHeadersSoil()
+            if (DATASET%hasBiota) call this%writeHeadersBiota()
         end if
         if (C%writeCompartmentStats) then
             call this%writeHeadersStats()
@@ -863,7 +879,7 @@ module DataOutputModule
                 write(iouOutputWater, '(a)') "#\twaterbody_type: what is the dominant waterbody type in this cell?"
             end if
             write(iouOutputWater, '(a)') "#\tm_contaminant_pristine(kg), m_contaminant_attached(kg), m_dissolved(kg): " // &
-                "contaminant mass (pristine, attached, dissolved, kg)"
+                "contaminant mass (AQ, SOL, SPM, AWI, FOAM, AIR, kg)"
             write(iouOutputWater, '(a)') "#\tC_contaminant_total(kg/m3), C_contaminant_attached(kg/m3), C_dissolved(kg/m3): " // &
                 "contaminant concentration (total, attached, dissolved, kg/m3)"
             write(iouOutputWater, '(a)') "#\tm_contaminant_pristine_deposited(kg), m_contaminant_attached_deposited(kg): " // &
@@ -962,7 +978,7 @@ module DataOutputModule
             write(iouOutputSoil, '(a)') "#\tland_use: dominant land use of this soil profile"
             write(iouOutputSoil, '(a)') "#\tm_contaminant_pristine_total(kg), "// &
                 "m_contaminant_attached_total(kg), m_dissolved_total(kg): " // &
-                "contaminant mass (pristine, attached, dissolved) in whole soil profile"
+                "contaminant mass (AQ, SOL, SPM, AWI, FOAM, AIR) in whole soil profile"
             write(iouOutputSoil, '(a)') "#\tC_contaminant_total(" // C%soilPECUnits // "), " // & 
                 "C_contaminant_attached(" // C%soilPECUnits // &
                 "), C_dissolved_total(" // C%soilPECUnits // "): contaminant concentration"
@@ -1027,6 +1043,133 @@ module DataOutputModule
             write(iouOutputStats, '(a)') "# NanoFASE model output data - COMPARTMENT STATS."
             write(iouOutputStats, '(a)') "# This file contains summary statistics for each environmental compartment."
         end if
+    end subroutine
+
+    !> Write headers for the biota output CSV file
+    subroutine writeHeadersBiotaDataOutput(this)
+        class(DataOutput)   :: this
+        integer             :: s
+
+        if (C%writeMetadataAsComment) then
+            write(iouOutputBiota, '(a)') "# P-FASE model output data - BIOTA."
+            write(iouOutputBiota, '(a)') "# See summary.md for model run metadata."
+            write(iouOutputBiota, '(a)') "# Columns:"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // "t: timestep index"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // "datetime: datetime at the start of this timestep"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // "x, y: grid cell indices (longitudinal, latitudinal)"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // "easts, norths: coordinate at centre of grid cell (m)"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // "b: biota group index within this grid cell"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // "biota_name: name of the represented biota group"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // &
+                "C_active_si(kg/kg dw): active PFAS body burden for species i"
+            write(iouOutputBiota, '(a)') "#" // achar(9) // &
+                "C_stored_si(kg/kg dw): stored PFAS body burden for species i"
+        end if
+
+        write(iouOutputBiota, '(a)', advance='no') "t,datetime,x,y,easts,norths,b,biota_name,"
+        do s = 1, C%contaminantDim(1)
+            write(iouOutputBiota, '(a)', advance='no') "C_active_s" // trim(str(s)) // "(kg/kg dw),"
+        end do
+        do s = 1, C%contaminantDim(1)
+            if (s < C%contaminantDim(1)) then
+                write(iouOutputBiota, '(a)', advance='no') "C_stored_s" // trim(str(s)) // "(kg/kg dw),"
+            else
+                write(iouOutputBiota, '(a)') "C_stored_s" // trim(str(s)) // "(kg/kg dw)"
+            end if
+        end do
+    end subroutine
+
+    !> Write biota state variables (C_active, C_stored) to the biota CSV output file
+    subroutine updateBiotaDataOutput(this, t, x, y, date, easts, norths)
+        class(DataOutput)   :: this
+        integer, intent(in) :: t, x, y
+        character(len=*)    :: date
+        real                :: easts, norths
+        integer             :: w, b, s, nSpecies
+        logical             :: wroteAny
+
+        if (.not. (C%writeCSV .and. DATASET%hasBiota)) return
+
+        nSpecies = C%contaminantDim(1)
+        wroteAny = .false.
+
+        ! Loop over water reaches — collect water biota
+        do w = 1, this%env%item%colGridCells(x,y)%item%nReaches
+            associate (reach => this%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                do b = 1, reach%nBiota
+                    associate (bio => reach%biota(b))
+                        if (.not. allocated(bio%C_active) .or. .not. allocated(bio%C_stored)) cycle
+                        write(iouOutputBiota, '(a)', advance='no') &
+                            trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // &
+                            trim(str(b)) // "," // trim(bio%name) // ","
+                        do s = 1, nSpecies
+                            if (s <= size(bio%C_active)) then
+                                write(iouOutputBiota, '(a)', advance='no') trim(str(bio%C_active(s))) // ","
+                            else
+                                write(iouOutputBiota, '(a)', advance='no') "0.0,"
+                            end if
+                        end do
+                        do s = 1, nSpecies
+                            if (s <= size(bio%C_stored)) then
+                                if (s < nSpecies) then
+                                    write(iouOutputBiota, '(a)', advance='no') trim(str(bio%C_stored(s))) // ","
+                                else
+                                    write(iouOutputBiota, '(a)') trim(str(bio%C_stored(s)))
+                                end if
+                            else
+                                if (s < nSpecies) then
+                                    write(iouOutputBiota, '(a)', advance='no') "0.0,"
+                                else
+                                    write(iouOutputBiota, '(a)') "0.0"
+                                end if
+                            end if
+                        end do
+                        wroteAny = .true.
+                    end associate
+                end do
+            end associate
+        end do
+
+        ! Loop over soil profiles — collect soil biota
+        do b = 1, this%env%item%colGridCells(x,y)%item%nSoilProfiles
+            associate (profile => this%env%item%colGridCells(x,y)%item%colSoilProfiles(b)%item)
+                if (.not. allocated(profile%biota)) cycle
+                do s = 1, size(profile%biota)
+                    associate (bio => profile%biota(s))
+                        if (.not. allocated(bio%C_active) .or. .not. allocated(bio%C_stored)) cycle
+                        write(iouOutputBiota, '(a)', advance='no') &
+                            trim(str(t)) // "," // trim(date) // "," // &
+                            trim(str(x)) // "," // trim(str(y)) // "," // &
+                            trim(str(easts)) // "," // trim(str(norths)) // "," // &
+                            trim(str(s)) // "," // trim(bio%name) // ","
+                        do b = 1, nSpecies
+                            if (b <= size(bio%C_active)) then
+                                write(iouOutputBiota, '(a)', advance='no') trim(str(bio%C_active(b))) // ","
+                            else
+                                write(iouOutputBiota, '(a)', advance='no') "0.0,"
+                            end if
+                        end do
+                        do b = 1, nSpecies
+                            if (b <= size(bio%C_stored)) then
+                                if (b < nSpecies) then
+                                    write(iouOutputBiota, '(a)', advance='no') trim(str(bio%C_stored(b))) // ","
+                                else
+                                    write(iouOutputBiota, '(a)') trim(str(bio%C_stored(b)))
+                                end if
+                            else
+                                if (b < nSpecies) then
+                                    write(iouOutputBiota, '(a)', advance='no') "0.0,"
+                                else
+                                    write(iouOutputBiota, '(a)') "0.0"
+                                end if
+                            end if
+                        end do
+                    end associate
+                end do
+            end associate
+        end do
     end subroutine
 
 end module

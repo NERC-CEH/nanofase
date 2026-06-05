@@ -10,7 +10,9 @@ module GridCellModule
     use EstuaryReachModule
     use CropModule
     use ContaminantModule
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, PFAS_AIR
     implicit none
+    ! P-FASE integration note: this module has been retained with its public API but is now coupled to PFAS phase pools via ContaminantModule.
 
     !> Responsible for the creation and simulation of grid cells
     !! and contained compartments (e.g., rivers, soils).
@@ -52,6 +54,7 @@ module GridCellModule
         procedure :: get_j_contaminant_deposition => get_j_contaminant_depositionGridCell
         procedure :: get_j_contaminant_resuspension => get_j_contaminant_resuspensionGridCell
         procedure :: get_j_contaminant_outflow => get_j_contaminant_outflowGridCell
+        procedure :: get_j_contaminant_groundwater => get_j_contaminant_groundwaterGridCell
         procedure :: getWaterVolume => getWaterVolumeGridCell
         procedure :: getWaterDepth => getWaterDepthGridCell
         procedure :: getBedSedimentArea => getBedSedimentAreaGridCell
@@ -73,13 +76,13 @@ module GridCellModule
         type(SoilProfile)      :: soilProfile        ! The soil profile contained in this GridCell
         type(Result)           :: rslt_temp          ! Temporary Result for error handling
         character(len=100)     :: compartment        ! Compartment for contaminant initialization
-        character(len=7) :: comp_wat
+        character(len=16) :: comp_wat
 
         ! Allocate the object properties that need to be and set up defaults
         allocate(me%colSoilProfiles(1))
         allocate(me%j_contaminant_diffuseSource(2)) ! Two diffuse sources (soil, atmospheric)
         if (me%aggregatedReachType == 'riv') then
-            comp_wat = 'water'//repeat(' ',2)    ! make it length=7
+            comp_wat = 'water'
         else
             comp_wat = 'estuary'
         end if
@@ -722,13 +725,14 @@ module GridCellModule
 
     !> Weighted mean soil-phase contaminant concentration in this grid cell
     function get_C_contaminant_soilGridCell(me) result(cont)
+        !! P-FASE: return dry-soil-mass-weighted concentration [kg kg-1 dry soil]
+        !! by species/form/phase. AQ is interpreted as porewater-associated mass but
+        !! this environment-level getter normalises all phase masses to dry soil mass
+        !! to preserve the legacy Contaminant return type.
         class(GridCell) :: me
-        type(Contaminant) :: cont
-        real(dp), allocatable :: arr(:,:,:)
-        real(dp) :: partial(me%nSoilProfiles, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
-        real(dp) :: weights(me%nSoilProfiles)
+        type(Contaminant) :: cont, tmp_mass, tmp_conc
+        real(dp) :: profile_mass, total_mass
         integer :: i
-        type(Contaminant) :: tmp_cont
         type(Result) :: rslt
 
         rslt = cont%create_from_data('soil', &
@@ -743,28 +747,35 @@ module GridCellModule
             return
         end if
 
+        total_mass = 0.0_dp
         do i = 1, me%nSoilProfiles
             associate(sp => me%colSoilProfiles(i)%item)
-                tmp_cont = sp%get_m_contaminant()
-                partial(i,:,:,:) = tmp_cont%c
-                weights(i) = 1.0_dp
+                tmp_mass = sp%get_m_contaminant()
+                profile_mass = sp%bulkDensity * sp%area * sum(C%soilLayerDepth)
+                if (profile_mass > C%epsilon) then
+                    tmp_conc = tmp_mass%divideCheckZero(profile_mass)
+                    call cont%add_scaled(tmp_conc, profile_mass)
+                    total_mass = total_mass + profile_mass
+                    call tmp_conc%finalise()
+                end if
+                call tmp_mass%finalise()
             end associate
         end do
-
-        arr = weightedAverage(partial, weights)
-        cont%c = arr
-    end function
+        if (total_mass > C%epsilon) then
+            call cont%multiply_scalar(cont, 1.0_dp/total_mass)
+        end if
+        cont%m_dissolved = sum(cont%c(:,:,PFAS_AQ))
+    end function get_C_contaminant_soilGridCell
 
     !> Weighted mean water‑phase contaminant concentration in this grid cell
     function get_C_contaminant_waterGridCell(me) result(cont)
+        !! P-FASE: return volume-weighted surface-water concentration [kg m-3]
+        !! by species/form/phase. AQ, SPM, AWI, FOAM, AIR phases are retained in
+        !! the Contaminant object; callers decide which phase to output/use.
         class(GridCell)  :: me
-        type(Contaminant) :: cont
-        real(dp), allocatable :: arr(:,:,:)
-        real(dp) :: partial(me%nReaches, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
-        real(dp) :: weights(me%nReaches)
+        type(Contaminant) :: cont, tmp_mass, tmp_conc
+        real(dp) :: vol, total_volume
         integer  :: i
-        type(Contaminant) :: tmp_cont
-        real(dp) :: vol
         type(Result) :: rslt
         character(len=7) :: compstr
 
@@ -780,35 +791,39 @@ module GridCellModule
             call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
 
+        total_volume = 0.0_dp
         do i = 1, me%nReaches
-            tmp_cont = me%colRiverReaches(i)%item%get_m_contaminant()
-            vol      = me%colRiverReaches(i)%item%volume
-            if (vol > 0.0_dp) then
-                partial(i,:,:,:) = tmp_cont%c / vol
-                weights(i)       = vol
-            else
-                partial(i,:,:,:) = 0.0_dp
-                weights(i)       = 0.0_dp
+            tmp_mass = me%colRiverReaches(i)%item%get_m_contaminant()
+            vol = me%colRiverReaches(i)%item%volume
+            if (vol > C%epsilon) then
+                tmp_conc = tmp_mass%divideCheckZero(vol)
+                call cont%add_scaled(tmp_conc, vol)
+                total_volume = total_volume + vol
+                call tmp_conc%finalise()
             end if
+            call tmp_mass%finalise()
         end do
 
-        arr = weightedAverage(partial, weights)
-        cont%c = arr
+        if (total_volume > C%epsilon) then
+            call cont%multiply_scalar(cont, 1.0_dp/total_volume)
+        end if
+        cont%m_dissolved = sum(cont%c(:,:,PFAS_AQ))
     end function get_C_contaminant_waterGridCell
 
 
     !> Get the current weighted mean sediment PEC [kg/kg] in this grid cell,
     !! weighted by the current sediment masses in the cell
     function get_C_contaminant_sedimentGridCell(me) result(cont)
+        !! P-FASE: return bed-sediment dry-solid-mass-weighted concentration [kg kg-1]
+        !! by species/form/phase. PFAS_SOL is the main physically meaningful phase;
+        !! PFAS_AQ can be interpreted as porewater mass normalised here only for
+        !! legacy aggregation compatibility.
         class(GridCell) :: me
-        type(Contaminant) :: cont, tmp_cont
-        real(dp), allocatable :: arr(:,:,:)
-        real(dp) :: partial(me%nReaches, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
-        real(dp) :: weights(me%nReaches)
+        type(Contaminant) :: cont, tmp_mass, tmp_conc
+        real(dp) :: m_reach, total_sed_mass
         integer :: i
         type(Result)  :: rslt
         type(Result0D) :: r0
-        real(dp) :: m_reach
 
         rslt = cont%create_from_data('sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
@@ -820,6 +835,7 @@ module GridCellModule
             call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
 
+        total_sed_mass = 0.0_dp
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
                 r0 = reach%bedSediment%get_m_contaminant()
@@ -829,37 +845,38 @@ module GridCellModule
                 end if
                 select type (data => r0%getData())
                 type is (Contaminant)
-                    tmp_cont = data
+                    tmp_mass = data
                 class default
                     call rslt%addError(ErrorInstance(code=106, message="Result0D did not contain Contaminant"))
                     call ERROR_HANDLER%trigger(errors=rslt%errors); return
                 end select
 
-                m_reach = reach%bedSediment%Mf_bed_all()
+                m_reach = reach%bedSediment%Mf_bed_all() * reach%bedArea
                 if (m_reach > C%epsilon) then
-                    partial(i,:,:,:) = tmp_cont%c / m_reach
-                else
-                    partial(i,:,:,:) = 0.0_dp
+                    tmp_conc = tmp_mass%divideCheckZero(m_reach)
+                    call cont%add_scaled(tmp_conc, m_reach)
+                    total_sed_mass = total_sed_mass + m_reach
+                    call tmp_conc%finalise()
                 end if
-                weights(i) = m_reach * reach%bedArea
+                call tmp_mass%finalise()
             end associate
         end do
 
-        arr = weightedAverage(partial, weights)
-        cont%c = arr
+        if (total_sed_mass > C%epsilon) then
+            call cont%multiply_scalar(cont, 1.0_dp/total_sed_mass)
+        end if
+        cont%m_dissolved = sum(cont%c(:,:,PFAS_AQ))
     end function get_C_contaminant_sedimentGridCell
 
     !> Weighted mean sediment PEC [kg/m3] in this grid cell
     function get_C_contaminant_sediment_byVolumeGridCell(me) result(cont)
+        !! P-FASE: return bed-sediment bulk-volume-weighted concentration [kg m-3].
         class(GridCell) :: me
-        type(Contaminant) :: cont, tmp_cont
-        real(dp), allocatable :: arr(:,:,:)
-        real(dp) :: partial(me%nReaches, C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
-        real(dp) :: weights(me%nReaches)
+        type(Contaminant) :: cont, tmp_mass, tmp_conc
+        real(dp) :: vol_reach, total_volume
         integer :: i
         type(Result)  :: rslt
         type(Result0D) :: r0
-        real(dp) :: vol_reach
 
         rslt = cont%create_from_data('sediment', &
             DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
@@ -871,6 +888,7 @@ module GridCellModule
             call LOGR%toFile(errors=rslt%errors); call ERROR_HANDLER%trigger(errors=rslt%errors); return
         end if
 
+        total_volume = 0.0_dp
         do i = 1, me%nReaches
             associate (reach => me%colRiverReaches(i)%item)
                 r0 = reach%bedSediment%get_m_contaminant()
@@ -880,24 +898,27 @@ module GridCellModule
                 end if
                 select type (data => r0%getData())
                 type is (Contaminant)
-                    tmp_cont = data
+                    tmp_mass = data
                 class default
                     call rslt%addError(ErrorInstance(code=106, message="Result0D did not contain Contaminant"))
                     call ERROR_HANDLER%trigger(errors=rslt%errors); return
                 end select
 
-                vol_reach = reach%bedArea * sum(C%sedimentLayerDepth)    ! m3
+                vol_reach = reach%bedArea * sum(C%sedimentLayerDepth)
                 if (vol_reach > C%epsilon) then
-                    partial(i,:,:,:) = tmp_cont%c / vol_reach
-                else
-                    partial(i,:,:,:) = 0.0_dp
+                    tmp_conc = tmp_mass%divideCheckZero(vol_reach)
+                    call cont%add_scaled(tmp_conc, vol_reach)
+                    total_volume = total_volume + vol_reach
+                    call tmp_conc%finalise()
                 end if
-                weights(i) = vol_reach
+                call tmp_mass%finalise()
             end associate
         end do
 
-        arr = weightedAverage(partial, weights)
-        cont%c = arr
+        if (total_volume > C%epsilon) then
+            call cont%multiply_scalar(cont, 1.0_dp/total_volume)
+        end if
+        cont%m_dissolved = sum(cont%c(:,:,PFAS_AQ))
     end function get_C_contaminant_sediment_byVolumeGridCell
 
 
@@ -1215,24 +1236,66 @@ end function
 
     !> Get the average dissolved contaminant concentration in the grid cell, weighted by water volume
     function get_C_dissolved_waterGridCell(me) result(C_dissolved_water)
+        !! P-FASE: dissolved water concentration is the PFAS_AQ phase divided by water volume.
         class(GridCell) :: me
         real(dp)        :: C_dissolved_water
         real(dp), allocatable :: C_dissolved_water_w(:)
-        real(dp)        :: volumes(me%nReaches)
+        real(dp), allocatable :: volumes(:)
         integer         :: i
         type(Contaminant) :: tmp_cont
 
-        allocate(C_dissolved_water_w(me%nReaches))
+        allocate(C_dissolved_water_w(max(1,me%nReaches)))
+        allocate(volumes(max(1,me%nReaches)))
+        C_dissolved_water_w = 0.0_dp
+        volumes = 0.0_dp
         do i = 1, me%nReaches
             tmp_cont = me%colRiverReaches(i)%item%get_m_contaminant()
-            if (me%colRiverReaches(i)%item%volume > 0.0_dp) then
-                C_dissolved_water_w(i) = tmp_cont%m_dissolved / me%colRiverReaches(i)%item%volume
-            else
-                C_dissolved_water_w(i) = 0.0_dp
-            end if
             volumes(i) = me%colRiverReaches(i)%item%volume
+            if (volumes(i) > C%epsilon .and. allocated(tmp_cont%c)) then
+                C_dissolved_water_w(i) = sum(tmp_cont%c(:,:,PFAS_AQ)) / volumes(i)
+            end if
+            call tmp_cont%finalise()
         end do
-        C_dissolved_water = weightedAverage(C_dissolved_water_w, volumes)
+        if (sum(volumes) > C%epsilon) then
+            C_dissolved_water = weightedAverage(C_dissolved_water_w, volumes)
+        else
+            C_dissolved_water = 0.0_dp
+        end if
+        deallocate(C_dissolved_water_w, volumes)
     end function get_C_dissolved_waterGridCell
+
+
+    !> Get PFAS exported through the soil bottom boundary to the external groundwater model.
+    !! Groundwater is not simulated internally in P-FASE; this getter exposes the
+    !! leaching/burial boundary flux accumulated by the soil profile for diagnostics
+    !! and optional one-way coupling.
+    function get_j_contaminant_groundwaterGridCell(me) result(j_contaminant_groundwater)
+        class(GridCell) :: me
+        type(Contaminant) :: j_contaminant_groundwater
+        integer :: p
+        type(Result) :: rslt
+
+        rslt = j_contaminant_groundwater%create_from_data('soil', &
+            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
+            DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
+            DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
+        if (rslt%hasCriticalError()) then
+            call rslt%addToTrace("Failed to create j_contaminant_groundwater in get_j_contaminant_groundwaterGridCell")
+            call LOGR%toFile(errors=rslt%errors)
+            call ERROR_HANDLER%trigger(errors=rslt%errors)
+            return
+        end if
+
+        do p = 1, me%nSoilProfiles
+            associate(sp => me%colSoilProfiles(p)%item)
+                ! P-FASE convention: soil profile bottom-boundary export is
+                ! stored in m_contaminant_buried unless SoilProfileModule has
+                ! a more specific j_contaminant_groundwater field.
+                call j_contaminant_groundwater%add(sp%m_contaminant_buried)
+            end associate
+        end do
+        j_contaminant_groundwater%m_dissolved = sum(j_contaminant_groundwater%c(:,:,PFAS_AQ))
+    end function get_j_contaminant_groundwaterGridCell
 
 end module

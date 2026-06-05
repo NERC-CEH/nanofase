@@ -4,6 +4,7 @@ module SoilLayerModule
     use UtilModule
     use AbstractSoilLayerModule
     use DataInputModule, only: DATASET
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_AWI
     use BiotaSoilModule
     use datetime_module
     use ContaminantModule, only: Contaminant
@@ -85,11 +86,12 @@ module SoilLayerModule
         call r%addErrors(.errors. me%j_contaminant_eroded%create())
 
         ! Set initial contaminant concentrations from DATASET
+        ! PFAS initial condition: DATASET field is expected to be already mapped
+        ! as c(species, form, phase). Legacy dissolved scalar is not duplicated
+        ! into m_dissolved; m_dissolved is an alias of PFAS_AQ mass.
         if (allocated(DATASET%initialContaminantConcsSoil)) then
             me%m_contaminant%c = DATASET%initialContaminantConcsSoil(me%x, me%y, :, :, :)
-            if (allocated(DATASET%initialDissolvedConcsSoil)) then
-                me%m_contaminant%m_dissolved = DATASET%initialDissolvedConcsSoil(me%x, me%y)
-            end if
+            me%m_contaminant%m_dissolved = sum(me%m_contaminant%c(:,:,PFAS_AQ))
         end if
 
         ! Allocate and initialize k_att
@@ -99,17 +101,9 @@ module SoilLayerModule
             return
         end if
         me%k_att = 0.0_dp
-        me%V_w = 0.0_dp
 
-        ! Parse the input data into the object properties
         call r%addErrors(.errors. me%parseInputData())
 
-        ! Set saturation and field capacity volumes [m3/m2] based on depth of layer
-        me%V_sat = WC_sat * me%depth
-        me%V_FC = WC_FC * me%depth
-        me%K_s = K_s                             ! Hydraulic conductivity [m/s]
-
-        ! Allocate and create the Biota object
         allocate(me%biotaIndices(0))
         if (DATASET%hasBiota) then
             do i = 1, DATASET%nBiota
@@ -119,16 +113,17 @@ module SoilLayerModule
                 end if
             end do
         end if
+
         allocate(me%biota(me%nBiota), stat=allocStat)
         if (allocStat /= 0) then
-            call r%addError(ErrorInstance(code=901, message="Failed to allocate biota"))
+            call r%addError(ErrorInstance(code=901, message="Failed to allocate soil biota"))
             return
         end if
+
         do i = 1, me%nBiota
             call r%addErrors(.errors. me%biota(i)%create(me%biotaIndices(i)))
         end do
 
-        ! Add this procedure to error traces
         call r%addToTrace("Creating " // trim(me%ref))
     end function
 
@@ -145,6 +140,7 @@ module SoilLayerModule
         integer :: i                                    ! Iterators
         type(datetime) :: currentDate                   ! Current date
         real(dp) :: T_water_t                           ! Water temperature on the current timestep [deg C]
+        real(dp) :: leach_fraction
 
         ! NEW: zero SPM arrays with correct model dimension
         real(dp) :: C_spm_zero(C%nSizeClassesSpm)
@@ -157,46 +153,57 @@ module SoilLayerModule
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = DATASET%waterTemperature(currentDate%yearday())
 
-        ! Set the inflow to this this SoilLayer and store initial water in layer
-        me%q_in = q_in
-        initial_V_w = me%V_w
+        call me%j_contaminant_perc%empty()
+        call me%j_contaminant_in%empty()
+        call me%j_contaminant_in%add(j_contaminant_in)
 
+        me%q_in = max(0.0_dp, q_in)
+        initial_V_w = me%V_w
         call me%m_contaminant%add(j_contaminant_in)
 
-        ! Setting volume of water, pooled water and excess water, based on inflow
         if (me%V_w + me%q_in < me%V_sat) then
             me%V_pool = 0.0_dp
             me%V_w = me%V_w + me%q_in
             me%V_excess = max(me%V_w - me%V_FC, 0.0_dp)
-        else if (me%V_w + me%q_in > me%V_sat) then
-            me%V_pool = me%V_w + me%q_in - me%V_sat
+        else
+            me%V_pool = max(0.0_dp, me%V_w + me%q_in - me%V_sat)
             me%V_w = me%V_sat
-            me%V_excess = me%V_w - me%V_FC
+            me%V_excess = max(0.0_dp, me%V_w - me%V_FC)
         end if
 
-        ! Calculate volume percolated on this timestep [m3 m-2]
-        me%V_perc = min(me%V_excess * (1 - exp(-C%timeStep * me%K_s / (me%V_sat - me%V_FC))), me%V_w)
-        call r%addErrors(.errors. me%j_contaminant_perc%create())
-        if (.not. isZero(me%V_perc) .and. me%V_w > C%epsilon) then
-            call me%j_contaminant_perc%multiply_scalar(me%m_contaminant, me%V_perc / me%V_w)
-            me%j_contaminant_perc%c(:,:,ATTACHED_CONTAMINANT+1:) = 0.0_dp
-            me%j_contaminant_perc%c(:,:,ATTACHED_CONTAMINANT)    = 0.0_dp
+        if (me%V_sat > me%V_FC + C%epsilon) then
+            me%V_perc = min(me%V_excess * (1.0_dp - exp(-real(C%timeStep, dp) * me%K_s / &
+                        max(C%epsilon, me%V_sat - me%V_FC))), me%V_w)
+        else
+            me%V_perc = 0.0_dp
         end if
-        call me%m_contaminant%add_scaled(me%j_contaminant_perc, -1.0_dp)
-        me%V_w = me%V_w - me%V_perc
 
-        me%k_att = me%calculateAttachmentRate(T_water_t)
+        if (me%V_perc > C%epsilon .and. me%V_w > C%epsilon) then
+            leach_fraction = min(1.0_dp, max(0.0_dp, me%V_perc / me%V_w))
+            call me%m_contaminant%leach(leach_fraction, me%j_contaminant_perc)
+            ! leach() already removes AQ mass from m_contaminant in the supplied ContaminantModule.
+            me%V_w = max(0.0_dp, me%V_w - me%V_perc)
+        else
+            me%V_perc = 0.0_dp
+        end if
 
-        ! *** FIXED CALL: pass full-length zero arrays, not [0.0_dp] ***
+        ! Update PFAS phase equilibrium/kinetics after hydrological movement.
         call r%addErrors(.errors. me%m_contaminant%update( &
-            real(C%timeStep, dp), T_water_t, C_spm_zero, W_settle_zero, 0.0_dp, me%volume, 'soil', me%k_att, me%alpha_att))
+            real(C%timeStep, dp), T_water_t, C_spm_zero, W_settle_zero, 0.0_dp, &
+            max(C%epsilon, me%V_w * me%area), 'soil'))
 
-        if (isZero(me%V_w) .and. initial_V_w > 0) then
-            call r%addError(ErrorInstance(600, isCritical=.false.))
+        if (me%V_w <= C%epsilon .and. initial_V_w > C%epsilon) then
+            call r%addError(ErrorInstance(600, isCritical=.false., &
+                message="Soil layer drained completely during PFAS leaching step"))
         end if
+
         do i = 1, me%nBiota
             call r%addErrors(.errors. me%biota(i)%update(t, me%m_contaminant))
         end do
+
+        me%m_contaminant%m_dissolved = sum(me%m_contaminant%c(:,:,PFAS_AQ))
+        me%j_contaminant_perc%m_dissolved = sum(me%j_contaminant_perc%c(:,:,PFAS_AQ))
+
         call r%addToTrace("Updating " // trim(me%ref) // " on time step #" // trim(str(t)))
     end function
 
@@ -211,18 +218,18 @@ module SoilLayerModule
         C_spm_zero = 0.0_dp
         W_settle_zero = 0.0_dp
 
-        ! Calculate the attachment rate for this layer
-        me%k_att = me%calculateAttachmentRate(T_water_t)
-
         ! Call the generic contaminant update routine to perform attachment etc.
         call r%addErrors(.errors. me%m_contaminant%update( &
-            real(C%timeStep, dp), T_water_t, C_spm_zero, W_settle_zero, 0.0_dp, me%volume, 'soil', me%k_att, me%alpha_att))
+            real(C%timeStep, dp), T_water_t, C_spm_zero, W_settle_zero, 0.0_dp, &
+            max(C%epsilon, me%V_w * me%area), 'soil'))
+
+        me%m_contaminant%m_dissolved = sum(me%m_contaminant%c(:,:,PFAS_AQ))
 
         if (r%hasCriticalError()) then
-            call r%addToTrace("Updating contaminant state in " // trim(me%ref))
+            call r%addToTrace("Updating PFAS contaminant state in " // trim(me%ref))
             call ERROR_HANDLER%trigger(errors=.errors.r)
         end if
-    end subroutine updateContaminantStateSoilLayer
+    end subroutine
 
     !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
     !! No percolation occurs as pooled water never really leaves the `SoilLayer`.
@@ -246,28 +253,17 @@ module SoilLayerModule
         real(dp) :: m_soil_layer, propEroded
 
         ! Calculate the mass of the soil in this layer
-        m_soil_layer = bulkDensity * area * me%depth
-        propEroded = sum(erodedSediment) * area / m_soil_layer
+        m_soil_layer = max(C%epsilon, bulkDensity * area * me%depth)
+        propEroded = min(1.0_dp, max(0.0_dp, sum(erodedSediment) * area / m_soil_layer))
 
         ! Initialize the eroded contaminant object
         call r%addErrors(.errors. me%j_contaminant_eroded%create())
 
         ! Calculate eroded contaminant (only attached contaminant is eroded)
-        me%j_contaminant_eroded%c(:,:,ATTACHED_CONTAMINANT) = &
-            me%m_contaminant%c(:,:,ATTACHED_CONTAMINANT) * propEroded
+        call me%m_contaminant%erosion_export(propEroded, me%j_contaminant_eroded)
+        me%j_contaminant_eroded%m_dissolved = sum(me%j_contaminant_eroded%c(:,:,PFAS_AQ))
 
-        ! Remove the eroded contaminant from the layer
-        call me%m_contaminant%add_scaled(me%j_contaminant_eroded, -1.0_dp)
-
-        ! Add this procedure to the error trace
-        call r%addToTrace("Eroding " // trim(me%ref))
-    end function
-
-    function calculateAttachmentRateSoilLayer(me, T_water_t) result(k_att)
-        class(SoilLayer) :: me
-        real(dp) :: T_water_t
-        real(dp) :: k_att(C%contaminantDim(1))
-        k_att = me%m_contaminant%calculateAttachmentRate(T_water_t, me%porosity, me%d_grain)
+        call r%addToTrace("Eroding PFAS from " // trim(me%ref))
     end function
 
     function calculateBioturbationRateSoilLayer(me) result(bioturbationRate)
@@ -275,8 +271,12 @@ module SoilLayerModule
         real(dp) :: bioturbationRate
         real(dp) :: earthwormDensity_perVolume
         real(dp) :: bioturb_alpha = 3.56e-9
-        earthwormDensity_perVolume = me%earthwormDensity * me%depth
-        bioturbationRate = (earthwormDensity_perVolume * bioturb_alpha) / me%depth
+        earthwormDensity_perVolume = max(0.0_dp, me%earthwormDensity * me%depth)
+        if (me%depth > C%epsilon) then
+            bioturbationRate = (earthwormDensity_perVolume * bioturb_alpha) / me%depth
+        else
+            bioturbationRate = 0.0_dp
+        end if
     end function
 
     !> Get the data from the input file and set object properties
@@ -290,44 +290,24 @@ module SoilLayerModule
 
         have2D = .false.
         if (allocated(DATASET%soilAttachmentEfficiency)) then
-            if (size(DATASET%soilAttachmentEfficiency,1) > 0 .and. &
-                size(DATASET%soilAttachmentEfficiency,2) > 0) then
-                nx = size(DATASET%soilAttachmentEfficiency,1)
-                ny = size(DATASET%soilAttachmentEfficiency,2)
-                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) have2D = .true.
-            end if
+            nx = size(DATASET%soilAttachmentEfficiency,1)
+            ny = size(DATASET%soilAttachmentEfficiency,2)
+            have2D = (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny)
         end if
 
         if (have2D) then
             me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
         else
-            ! Fallback to configured constant if the 2-D field is absent/empty/out of bounds
             me%alpha_att = DATASET%soilConstantAttachmentEfficiency
         end if
 
-        call r%addToTrace("Parsing input data (soil layer)")
+        call r%addToTrace("Parsing input data (P-FASE soil layer)")
     end function
 
     subroutine parseNewBatchDataSoilLayer(me)
-        class(SoilLayer) :: me
-        logical :: have2D
-        integer :: nx, ny
-
-        have2D = .false.
-        if (allocated(DATASET%soilAttachmentEfficiency)) then
-            if (size(DATASET%soilAttachmentEfficiency,1) > 0 .and. &
-                size(DATASET%soilAttachmentEfficiency,2) > 0) then
-                nx = size(DATASET%soilAttachmentEfficiency,1)
-                ny = size(DATASET%soilAttachmentEfficiency,2)
-                if (me%x>=1 .and. me%y>=1 .and. me%x<=nx .and. me%y<=ny) have2D = .true.
-            end if
-        end if
-
-        if (have2D) then
-            me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
-        else
-            me%alpha_att = DATASET%soilConstantAttachmentEfficiency
-        end if
+        class(SoilLayer), intent(inout) :: me
+        type(Result) :: r
+        r = me%parseInputData()
     end subroutine
 
 end module

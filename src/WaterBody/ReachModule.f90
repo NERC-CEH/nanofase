@@ -8,6 +8,7 @@ module ReachModule
     use DataInputModule, only: DATASET
     use ConstantsDefaultsModule, only: defaultSlope
     use ContaminantModule
+    use FineSedimentModule
     implicit none
 
     !> `ReachPointer` used for `Reach` inflows array, so the elements within can
@@ -45,7 +46,7 @@ module ReachModule
         real(dp)                :: beta_resus                           !! Resuspension calibration factor [s2 kg-1]
         real(dp)                :: n                                    !! Manning's roughness coefficient [-]
         ! Transformation properties
-        real(dp)                :: alpha_hetero                         !! Heteroaggregation attachment efficiency, 0-1 [-]
+        real(dp)                :: alpha_hetero = 0.0_dp                !! Attachment/sorption calibration parameter used by reach subclasses and reactor [-]
 
       contains
         ! Data
@@ -109,28 +110,11 @@ module ReachModule
         me%n = C%n_river
 
         ! Main WATER contaminant state (sizes, rates, etc.)
-        call r%addErrors(.errors. me%m_contaminant%create_from_data( &
-            'water', &
-            DATASET%contaminantDensity, &
-            DATASET%soilConstantAttachmentEfficiency, &
-            DATASET%riverAttachmentEfficiency, &
-            DATASET%estuaryAttachmentEfficiency, &
-            DATASET%contaminant_k_diss_pristine, &
-            DATASET%contaminant_k_diss_transformed, &
-            DATASET%contaminant_k_transform_pristine, &
-            DATASET%waterTemperature(C%startDate%yearday()) &
-        ))
-
-        ! Zero/construct ALL contaminant flux containers so getters are safe
-        call r%addErrors(.errors. me%j_contaminant_inflow%create())
-        call r%addErrors(.errors. me%j_contaminant_runoff%create())
-        call r%addErrors(.errors. me%j_contaminant_transfers%create())
-        call r%addErrors(.errors. me%j_contaminant_deposition%create())
-        call r%addErrors(.errors. me%j_contaminant_resuspension%create())
-        call r%addErrors(.errors. me%j_contaminant_outflow%create())
-        call r%addErrors(.errors. me%j_contaminant_final%create())
-
-        if (r%hasCriticalError()) call ERROR_HANDLER%trigger(errors=.errors.r)
+       call r%addErrors(.errors. me%m_contaminant%create_from_data('water', DATASET%contaminantDensity, &
+            DATASET%soilConstantAttachmentEfficiency, DATASET%riverAttachmentEfficiency, &
+            DATASET%estuaryAttachmentEfficiency, DATASET%contaminant_k_diss_pristine, &
+            DATASET%contaminant_k_diss_transformed, DATASET%contaminant_k_transform_pristine, &
+            DATASET%waterTemperature(C%startDate%yearday())))
     end subroutine
 
 
@@ -156,6 +140,7 @@ module ReachModule
         integer      :: i                       ! Size class iterator
         ! Local holders for depositional parameters
         real(dp)     :: alphaDepVal, betaDepVal
+        real(dp)     :: rho_s
         logical      :: haveAlpha, haveBeta
         integer      :: nxA, nyA, nxB, nyB
 
@@ -165,54 +150,23 @@ module ReachModule
         haveAlpha   = .false.
         haveBeta    = .false.
 
-        ! [Existing Alpha/Beta reading logic omitted for brevity, it was correct]
-        ! ... (Assume alpha/beta reading code is here as before) ...
-        ! If you are pasting the whole subroutine, ensure the alpha/beta reading block matches your file.
-        ! For this fix, I focus on the calculation loop below.
-
-        if (.not. isZero(me%depth)) then
-            ! SPM: Loop through the size classes and calculate settling velocity
+        if (.not. allocated(me%W_settle_spm)) return
+        if (me%depth > C%epsilon) then
             do i = 1, C%nSizeClassesSpm
-                me%W_settle_spm(i) = me%calculateSettlingVelocity( &
-                    d            = C%d_spm(i), &
-                    rho_particle = DATASET%spmDensityBySizeClass(i), &
-                    T            = T_water_t, &
-                    alphaDep     = alphaDepVal, &
-                    betaDep      = betaDepVal &
-                )
+                if (allocated(DATASET%spmDensityBySizeClass)) then
+                    rho_s = DATASET%spmDensityBySizeClass(min(i,size(DATASET%spmDensityBySizeClass)))
+                else
+                    rho_s = C%sedimentParticleDensities(min(i,size(C%sedimentParticleDensities)))
+                end if
+                me%W_settle_spm(i) = me%calculateSettlingVelocity(C%d_spm(i), rho_s, T_water_t, alphaDepVal, betaDepVal)
             end do
-            me%k_settle = me%W_settle_spm / me%depth
-
-            ! ---------------------------------------------------------
-            ! [FIXED CODE START] Calculate Contaminant Settling Velocity
-            ! ---------------------------------------------------------
-            ! W_settle_contaminant is a 1D array for the intrinsic (Free) particle velocity.
-            ! Attached forms settle with the SPM, handled in transport routines.
-            
-            if (allocated(me%m_contaminant%W_settle_contaminant)) then
-                do i = 1, C%nContaminantSizeClasses
-                    ! Corrected: removed (i, FREE_CONTAMINANT), using (i)
-                    me%m_contaminant%W_settle_contaminant(i) = &
-                        me%calculateSettlingVelocity( &
-                        d            = DATASET%contaminantSizeClasses(i), &
-                        rho_particle = DATASET%contaminantDensity, & 
-                        T            = T_water_t, &
-                        alphaDep     = alphaDepVal, &
-                        betaDep      = betaDepVal &
-                    )
-                end do
-            end if
-            ! ---------------------------------------------------------
-            ! [FIXED CODE END]
-            ! ---------------------------------------------------------
-
+            me%k_settle = me%W_settle_spm / max(C%epsilon, me%depth)
         else
-            ! Zero depth handling
             me%W_settle_spm = 0.0_dp
-            me%k_settle     = 0.0_dp
-            if (allocated(me%m_contaminant%W_settle_contaminant)) &
-                me%m_contaminant%W_settle_contaminant = 0.0_dp
+            me%k_settle = 0.0_dp
         end if
+        ! P-FASE: no contaminant intrinsic settling velocity is calculated.
+        ! PFAS moves with aqueous outflow, SPM-sorbed outflow, and sediment deposition/resuspension.
     end subroutine
 
     !> Set the sediment transport capacity to this reach, based on Lazar et al 2010

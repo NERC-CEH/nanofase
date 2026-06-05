@@ -1,5 +1,6 @@
 module NetCDFAggregatedOutputModule
-    use GlobalsModule, only: C, dp, FREE_CONTAMINANT, ATTACHED_CONTAMINANT
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, PFAS_AIR, PFAS_NPHASES
+    use GlobalsModule, only: C, dp
     use UtilModule
     use mo_netcdf, only: NcDataset, NcVariable, NcDimension, nf90_fill_int, nf90_fill_double
     use DataInputModule, only: DATASET
@@ -8,7 +9,17 @@ module NetCDFAggregatedOutputModule
     use datetime_module
     use NetCDFOutputModule
     use ContaminantModule
+    use ResultModule
+    use ErrorInstanceModule
+    use LoggerModule, only: LOGR
     implicit none
+
+! -----------------------------------------------------------------------------
+! P-FASE UPDATE:
+! This module has been converted from nanoparticle free/attached/SPM-size pools
+! to PFAS phase pools: AQ, SOL, SPM, AWI, FOAM and AIR. Groundwater is handled
+! as an exported boundary flux, not as an internal P-FASE compartment.
+! -----------------------------------------------------------------------------
 
     !> Class for outputting data to a NetCDF file, aggregated at the grid cell level
     type, public, extends(NetCDFOutput) :: NetCDFAggregatedOutput
@@ -40,10 +51,14 @@ module NetCDFAggregatedOutputModule
         real(dp), allocatable :: output_agg_sediment__mass(:,:,:)
         real(dp), allocatable :: output_agg_soil__land_use(:,:)
         real(dp), allocatable :: output_agg_soil__bulk_density(:,:)
+        ! Biota output arrays: [species, biota_index, x, y, t]
+        real(dp), allocatable :: output_biota__C_active(:,:,:,:,:)
+        real(dp), allocatable :: output_biota__C_stored(:,:,:,:,:)
     contains
         procedure, public :: init => initNetCDFAggregatedOutput
         procedure, public :: updateWater => updateWaterNetCDFAggregatedOutput
         procedure, public :: updateSediment => updateSedimentNetCDFAggregatedOutput
+        procedure, public :: updateBiota => updateBiotaNetCDFAggregatedOutput
         procedure, private :: initWater => initWaterNetCDFAggregatedOutput
         procedure, private :: initSediment => initSedimentNetCDFAggregatedOutput
         procedure, private :: createDimensions => createDimensionsNetCDFAggregatedOutput
@@ -104,7 +119,7 @@ contains
                 end if
 
                 C_contaminant = r%getDataAsRealDP()
-                C_dissolved   = m_contaminant%m_dissolved / cell%getWaterVolume()
+                C_dissolved   = sum(m_contaminant%c(:,:,PFAS_AQ)) / cell%getWaterVolume()
                 j_contaminant_outflow     = cell%get_j_contaminant_outflow()
                 j_contaminant_deposited   = cell%get_j_contaminant_deposition()
                 j_contaminant_resuspended = cell%get_j_contaminant_resuspension()
@@ -112,17 +127,17 @@ contains
 
                 if (C%netCDFWriteMode == 'end') then
                     ! ---- form-first (form, x, y, t) ----
-                    me%output_agg_water__m_contaminant(FREE_CONTAMINANT,    x, y, tInChunk) = &
-                        sum(m_contaminant%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__m_contaminant(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
-                        sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__m_contaminant(C%contaminantDim(3),  x, y, tInChunk) = &
-                        m_contaminant%m_dissolved
+                    me%output_agg_water__m_contaminant(PFAS_AQ,    x, y, tInChunk) = &
+                        sum(m_contaminant%c(:,:,PFAS_AQ))
+                    me%output_agg_water__m_contaminant(PFAS_SOL, x, y, tInChunk) = &
+                        sum(m_contaminant%c(:,:,PFAS_SOL))
+                    me%output_agg_water__m_contaminant(PFAS_SPM,  x, y, tInChunk) = &
+                        sum(m_contaminant%c(:,:,PFAS_SPM))
 
-                    ! store a value per form in the aggregated file
-                    me%output_agg_water__C_contaminant(FREE_CONTAMINANT,     x, y, tInChunk) = C_contaminant
-                    me%output_agg_water__C_contaminant(ATTACHED_CONTAMINANT, x, y, tInChunk) = C_contaminant
-                    me%output_agg_water__C_contaminant(C%contaminantDim(3),  x, y, tInChunk) = C_dissolved
+                    ! store a value per phase in the aggregated file
+                    me%output_agg_water__C_contaminant(PFAS_AQ,     x, y, tInChunk) = C_contaminant
+                    me%output_agg_water__C_contaminant(PFAS_SOL, x, y, tInChunk) = C_contaminant
+                    me%output_agg_water__C_contaminant(PFAS_SPM,  x, y, tInChunk) = sum(m_contaminant%c(:,:,PFAS_SPM)) / max(C%epsilon, volume)
 
                     if (C%includeSoilStateBreakdown) then
                         me%output_agg_water__C_contaminant_free(   x, y, tInChunk) = &
@@ -131,26 +146,26 @@ contains
                             sum(m_contaminant%get_attached()) / cell%getWaterVolume()
                     end if
 
-                    me%output_agg_water__j_contaminant_outflow(FREE_CONTAMINANT,     x, y, tInChunk) = &
-                        sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_outflow(ATTACHED_CONTAMINANT,  x, y, tInChunk) = &
-                        sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_outflow(C%contaminantDim(3),   x, y, tInChunk) = &
-                        j_contaminant_outflow%m_dissolved
+                    me%output_agg_water__j_contaminant_outflow(PFAS_AQ,     x, y, tInChunk) = &
+                        sum(j_contaminant_outflow%c(:,:,PFAS_AQ))
+                    me%output_agg_water__j_contaminant_outflow(PFAS_SOL,  x, y, tInChunk) = &
+                        sum(j_contaminant_outflow%c(:,:,PFAS_SOL))
+                    me%output_agg_water__j_contaminant_outflow(PFAS_SPM,   x, y, tInChunk) = &
+                        sum(j_contaminant_outflow%c(:,:,PFAS_SPM))
 
-                    me%output_agg_water__j_contaminant_deposited(FREE_CONTAMINANT,    x, y, tInChunk) = &
-                        sum(j_contaminant_deposited%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_deposited(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
-                        sum(j_contaminant_deposited%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_deposited(C%contaminantDim(3),  x, y, tInChunk) = &
-                        j_contaminant_deposited%m_dissolved
+                    me%output_agg_water__j_contaminant_deposited(PFAS_AQ,    x, y, tInChunk) = &
+                        sum(j_contaminant_deposited%c(:,:,PFAS_AQ))
+                    me%output_agg_water__j_contaminant_deposited(PFAS_SOL, x, y, tInChunk) = &
+                        sum(j_contaminant_deposited%c(:,:,PFAS_SOL))
+                    me%output_agg_water__j_contaminant_deposited(PFAS_SPM,  x, y, tInChunk) = &
+                        sum(j_contaminant_deposited%c(:,:,PFAS_SPM))
 
-                    me%output_agg_water__j_contaminant_resuspended(FREE_CONTAMINANT,     x, y, tInChunk) = &
-                        sum(j_contaminant_resuspended%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_resuspended(ATTACHED_CONTAMINANT,  x, y, tInChunk) = &
-                        sum(j_contaminant_resuspended%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_water__j_contaminant_resuspended(C%contaminantDim(3),   x, y, tInChunk) = &
-                        j_contaminant_resuspended%m_dissolved
+                    me%output_agg_water__j_contaminant_resuspended(PFAS_AQ,     x, y, tInChunk) = &
+                        sum(j_contaminant_resuspended%c(:,:,PFAS_AQ))
+                    me%output_agg_water__j_contaminant_resuspended(PFAS_SOL,  x, y, tInChunk) = &
+                        sum(j_contaminant_resuspended%c(:,:,PFAS_SOL))
+                    me%output_agg_water__j_contaminant_resuspended(PFAS_SPM,   x, y, tInChunk) = &
+                        sum(j_contaminant_resuspended%c(:,:,PFAS_SPM))
 
                     me%output_agg_water__m_spm( x, y, tInChunk) = sum(cell%get_m_spm())
                     me%output_agg_water__C_spm( x, y, tInChunk) = sum(cell%get_C_spm())
@@ -170,9 +185,9 @@ contains
 
                 else if (C%netCDFWriteMode == 'itr') then
                     call me%nc__water__m_contaminant%setData([ &
-                        sum(m_contaminant%c(:,:,FREE_CONTAMINANT)), &
-                        sum(m_contaminant%c(:,:,ATTACHED_CONTAMINANT)), &
-                        m_contaminant%m_dissolved ], start=[1, x, y, t])
+                        sum(m_contaminant%c(:,:,PFAS_AQ)), &
+                        sum(m_contaminant%c(:,:,PFAS_SOL)), &
+                        sum(m_contaminant%c(:,:,PFAS_AQ)) ], start=[1, x, y, t])
 
                     call me%nc__water__C_contaminant%setData([ &
                         C_contaminant, &
@@ -187,19 +202,19 @@ contains
                     end if
 
                     call me%nc__water__j_contaminant_outflow%setData([ &
-                        sum(j_contaminant_outflow%c(:,:,FREE_CONTAMINANT)), &
-                        sum(j_contaminant_outflow%c(:,:,ATTACHED_CONTAMINANT)), &
-                        j_contaminant_outflow%m_dissolved ], start=[1, x, y, t])
+                        sum(j_contaminant_outflow%c(:,:,PFAS_AQ)), &
+                        sum(j_contaminant_outflow%c(:,:,PFAS_SOL)), &
+                        sum(j_contaminant_outflow%c(:,:,PFAS_AQ)) ], start=[1, x, y, t])
 
                     call me%nc__water__j_contaminant_deposited%setData([ &
-                        sum(j_contaminant_deposited%c(:,:,FREE_CONTAMINANT)), &
-                        sum(j_contaminant_deposited%c(:,:,ATTACHED_CONTAMINANT)), &
-                        j_contaminant_deposited%m_dissolved ], start=[1, x, y, t])
+                        sum(j_contaminant_deposited%c(:,:,PFAS_AQ)), &
+                        sum(j_contaminant_deposited%c(:,:,PFAS_SOL)), &
+                        sum(j_contaminant_deposited%c(:,:,PFAS_AQ)) ], start=[1, x, y, t])
 
                     call me%nc__water__j_contaminant_resuspended%setData([ &
-                        sum(j_contaminant_resuspended%c(:,:,FREE_CONTAMINANT)), &
-                        sum(j_contaminant_resuspended%c(:,:,ATTACHED_CONTAMINANT)), &
-                        j_contaminant_resuspended%m_dissolved ], start=[1, x, y, t])
+                        sum(j_contaminant_resuspended%c(:,:,PFAS_AQ)), &
+                        sum(j_contaminant_resuspended%c(:,:,PFAS_SOL)), &
+                        sum(j_contaminant_resuspended%c(:,:,PFAS_AQ)) ], start=[1, x, y, t])
 
                     call me%nc__water__m_spm%setData(sum(cell%get_m_spm()), start=[x, y, t])
                     call me%nc__water__C_spm%setData(sum(cell%get_C_spm()), start=[x, y, t])
@@ -257,29 +272,29 @@ contains
 
                 if (C%netCDFWriteMode == 'end') then
                     ! ---- form-first (form, x, y, t) ----
-                    me%output_agg_sediment__m_contaminant_total(FREE_CONTAMINANT,     x, y, tInChunk) = &
-                        sum(cont%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_total(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
-                        sum(cont%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_total(C%contaminantDim(3),  x, y, tInChunk) = &
-                        cont%m_dissolved
+                    me%output_agg_sediment__m_contaminant_total(PFAS_AQ,     x, y, tInChunk) = &
+                        sum(cont%c(:,:,PFAS_AQ))
+                    me%output_agg_sediment__m_contaminant_total(PFAS_SOL, x, y, tInChunk) = &
+                        sum(cont%c(:,:,PFAS_SOL))
+                    me%output_agg_sediment__m_contaminant_total(PFAS_SPM,  x, y, tInChunk) = &
+                        sum(cont%c(:,:,PFAS_SPM))
 
-                    me%output_agg_sediment__m_contaminant_buried(FREE_CONTAMINANT,     x, y, tInChunk) = &
-                        sum(cont_buried%c(:,:,FREE_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_buried(ATTACHED_CONTAMINANT, x, y, tInChunk) = &
-                        sum(cont_buried%c(:,:,ATTACHED_CONTAMINANT))
-                    me%output_agg_sediment__m_contaminant_buried(C%contaminantDim(3),  x, y, tInChunk) = &
-                        cont_buried%m_dissolved
+                    me%output_agg_sediment__m_contaminant_buried(PFAS_AQ,     x, y, tInChunk) = &
+                        sum(cont_buried%c(:,:,PFAS_AQ))
+                    me%output_agg_sediment__m_contaminant_buried(PFAS_SOL, x, y, tInChunk) = &
+                        sum(cont_buried%c(:,:,PFAS_SOL))
+                    me%output_agg_sediment__m_contaminant_buried(PFAS_SPM,  x, y, tInChunk) = &
+                        sum(cont_buried%c(:,:,PFAS_SPM))
 
-                    me%output_agg_sediment__C_contaminant_total(FREE_CONTAMINANT,      x, y, tInChunk) = &
-                        sum(cont%c(:,:,FREE_CONTAMINANT))      / cell%getBedSedimentMass()
-                    me%output_agg_sediment__C_contaminant_total(ATTACHED_CONTAMINANT,  x, y, tInChunk) = &
-                        sum(cont%c(:,:,ATTACHED_CONTAMINANT))  / cell%getBedSedimentMass()
-                    me%output_agg_sediment__C_contaminant_total(C%contaminantDim(3),   x, y, tInChunk) = &
-                        cont%m_dissolved / cell%getBedSedimentMass()
+                    me%output_agg_sediment__C_contaminant_total(PFAS_AQ,      x, y, tInChunk) = &
+                        sum(cont%c(:,:,PFAS_AQ))      / cell%getBedSedimentMass()
+                    me%output_agg_sediment__C_contaminant_total(PFAS_SOL,  x, y, tInChunk) = &
+                        sum(cont%c(:,:,PFAS_SOL))  / cell%getBedSedimentMass()
+                    me%output_agg_sediment__C_contaminant_total(PFAS_SPM,   x, y, tInChunk) = &
+                        sum(cont%c(:,:,PFAS_SPM)) / max(C%epsilon, cell%getBedSedimentMass())
 
                     ! layers-first (layer, form, x, y, t); store total into FREE slot
-                    me%output_agg_sediment__C_contaminant_layers(1:C%nSedimentLayers, FREE_CONTAMINANT, &
+                    me%output_agg_sediment__C_contaminant_layers(1:C%nSedimentLayers, PFAS_AQ, &
                                                                 x, y, tInChunk) = C_cont_layers
 
                     me%output_agg_sediment__bed_area(x, y, tInChunk) = cell%getBedSedimentArea()
@@ -287,23 +302,23 @@ contains
 
                 else if (C%netCDFWriteMode == 'itr') then
                     call me%nc__sediment__m_contaminant_total%setData([ &
-                        sum(cont%c(:,:,FREE_CONTAMINANT)), &
-                        sum(cont%c(:,:,ATTACHED_CONTAMINANT)), &
-                        cont%m_dissolved ], start=[1, x, y, t])
+                        sum(cont%c(:,:,PFAS_AQ)), &
+                        sum(cont%c(:,:,PFAS_SOL)), &
+                        sum(cont%c(:,:,PFAS_AQ)) ], start=[1, x, y, t])
 
                     call me%nc__sediment__m_contaminant_buried%setData([ &
-                        sum(cont_buried%c(:,:,FREE_CONTAMINANT)), &
-                        sum(cont_buried%c(:,:,ATTACHED_CONTAMINANT)), &
-                        cont_buried%m_dissolved ], start=[1, x, y, t])
+                        sum(cont_buried%c(:,:,PFAS_AQ)), &
+                        sum(cont_buried%c(:,:,PFAS_SOL)), &
+                        sum(cont_buried%c(:,:,PFAS_AQ)) ], start=[1, x, y, t])
 
                     call me%nc__sediment__C_contaminant_total%setData([ &
-                        sum(cont%c(:,:,FREE_CONTAMINANT))      / cell%getBedSedimentMass(), &
-                        sum(cont%c(:,:,ATTACHED_CONTAMINANT))  / cell%getBedSedimentMass(), &
-                        cont%m_dissolved / cell%getBedSedimentMass() ], start=[1, x, y, t])
+                        sum(cont%c(:,:,PFAS_AQ))      / cell%getBedSedimentMass(), &
+                        sum(cont%c(:,:,PFAS_SOL))  / cell%getBedSedimentMass(), &
+                        sum(cont%c(:,:,PFAS_AQ)) / cell%getBedSedimentMass() ], start=[1, x, y, t])
 
                     ! write layers into FREE slot (form=1)
                     call me%nc__sediment__C_contaminant_layers%setData( &
-                        C_cont_layers, start=[1, FREE_CONTAMINANT, x, y, t])
+                        C_cont_layers, start=[1, PFAS_AQ, x, y, t])
 
                     call me%nc__sediment__bed_area%setData(cell%getBedSedimentArea(), start=[x, y, t])
                     call me%nc__sediment__mass%setData(    cell%getBedSedimentMass(), start=[x, y, t])
@@ -316,12 +331,12 @@ contains
     subroutine initWaterNetCDFAggregatedOutput(me)
         class(NetCDFAggregatedOutput) :: me
 
-        ! Mass by contaminant form (free, attached, dissolved)
+        ! Mass by contaminant form (AQ, SOL, SPM, AWI, FOAM, AIR)
         me%nc__water__m_contaminant = me%nc%setVariable('water__m_contaminant', 'f64', &
             [me%contaminant_form_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__water__m_contaminant%setAttribute('units', 'kg')
         call me%nc__water__m_contaminant%setAttribute('long_name', &
-            'Mass of contaminant in surface water (free, attached, dissolved)')
+            'PFAS mass in surface water by phase (AQ,SOL,SPM,AWI,FOAM,AIR)')
         call me%nc__water__m_contaminant%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__water__m_contaminant%setAttribute('_FillValue', nf90_fill_double)
 
@@ -339,7 +354,7 @@ contains
                 [me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__C_contaminant_free%setAttribute('units', 'kg/m3')
             call me%nc__water__C_contaminant_free%setAttribute('long_name', &
-                'Concentration of free contaminant in surface water')
+                'Concentration of aqueous PFAS in surface water')
             call me%nc__water__C_contaminant_free%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__water__C_contaminant_free%setAttribute('_FillValue', nf90_fill_double)
 
@@ -347,7 +362,7 @@ contains
                 [me%x_dim, me%y_dim, me%t_dim])
             call me%nc__water__C_contaminant_attached%setAttribute('units', 'kg/m3')
             call me%nc__water__C_contaminant_attached%setAttribute('long_name', &
-                'Concentration of attached contaminant in surface water')
+                'Concentration of solid/sorbed PFAS in surface water')
             call me%nc__water__C_contaminant_attached%setAttribute('grid_mapping', 'spatial_ref')
             call me%nc__water__C_contaminant_attached%setAttribute('_FillValue', nf90_fill_double)
         end if
@@ -454,7 +469,7 @@ contains
             [me%contaminant_form_dim, me%x_dim, me%y_dim, me%t_dim])
         call me%nc__sediment__m_contaminant_total%setAttribute('units', 'kg')
         call me%nc__sediment__m_contaminant_total%setAttribute('long_name', &
-            'Mass of contaminant in sediment (free, attached, dissolved)')
+            'PFAS mass in sediment by phase (AQ,SOL,SPM,AWI,FOAM,AIR)')
         call me%nc__sediment__m_contaminant_total%setAttribute('grid_mapping', 'spatial_ref')
         call me%nc__sediment__m_contaminant_total%setAttribute('_FillValue', nf90_fill_double)
         me%nc__sediment__C_contaminant_total = me%nc%setVariable('sediment__C_contaminant_total', 'f64', &
@@ -498,7 +513,7 @@ contains
         me%x_dim                 = me%nc%setDimension('x',          DATASET%gridShape(1))
         me%y_dim                 = me%nc%setDimension('y',          DATASET%gridShape(2))
         me%sed_l_dim             = me%nc%setDimension('sed_l',      C%nSedimentLayers)
-        me%contaminant_form_dim  = me%nc%setDimension('contaminant_form', C%contaminantDim(3))
+        me%contaminant_form_dim  = me%nc%setDimension('pfas_phase', PFAS_NPHASES)
     end subroutine
 
     !> Allocate space for the in-memory output variables and fill with NetCDF fill value
@@ -518,8 +533,8 @@ contains
 
         allocate(empty2DArray(nx, ny))
         allocate(empty3DArray(nx, ny, nt))
-        allocate(empty4DArray(C%contaminantDim(3), nx, ny, nt))               ! (form,x,y,t)
-        allocate(empty5DArraySediment(C%nSedimentLayers, C%contaminantDim(3), &
+        allocate(empty4DArray(PFAS_NPHASES, nx, ny, nt))               ! (form,x,y,t)
+        allocate(empty5DArraySediment(C%nSedimentLayers, PFAS_NPHASES, &
                                     nx, ny, nt))                             ! (layer,form,x,y,t)
         
         empty2DArray         = nf90_fill_double
@@ -596,6 +611,14 @@ contains
         ! see https://github.com/NERC-CEH/nanofase/pull/10/files#r2432863960
         allocate(me%output_soil__bulk_density(1:nx, 1:nx))
         me%output_soil__bulk_density = nf90_fill_double
+
+        ! Biota arrays
+        if (DATASET%hasBiota .and. DATASET%nBiota > 0) then
+            allocate(me%output_biota__C_active(1:C%contaminantDim(1), 1:DATASET%nBiota, 1:nx, 1:ny, 1:nt))
+            me%output_biota__C_active = nf90_fill_double
+            allocate(me%output_biota__C_stored(1:C%contaminantDim(1), 1:DATASET%nBiota, 1:nx, 1:ny, 1:nt))
+            me%output_biota__C_stored = nf90_fill_double
+        end if
 
         deallocate(empty2DArray, empty3DArray, empty4DArray, empty5DArraySediment)
     end subroutine
@@ -732,5 +755,64 @@ contains
         if (allocated(me%output_soil__m_contaminant_eroded))           deallocate(me%output_soil__m_contaminant_eroded)
         deallocate(me%output_soil__m_contaminant_buried)
         deallocate(me%output_soil__bulk_density)
+
+        if (allocated(me%output_biota__C_active)) deallocate(me%output_biota__C_active)
+        if (allocated(me%output_biota__C_stored)) deallocate(me%output_biota__C_stored)
     end subroutine
+
+    !> Update (or store) biota output variables for this timestep (aggregated/grid-cell level)
+    !! Biota body burdens are reported per biota group and per PFAS species, summed across all
+    !! waterbodies and soil profiles in the grid cell. For grid cells with multiple waterbodies,
+    !! the value stored is from the last (highest-indexed) biota instance found, consistent with
+    !! the single-value-per-cell convention used by the aggregated output module.
+    subroutine updateBiotaNetCDFAggregatedOutput(me, t, tInChunk, x, y)
+        class(NetCDFAggregatedOutput) :: me
+        integer, intent(in) :: t, tInChunk, x, y
+        integer             :: w, b, s, bidx, nSpecies
+
+        if (.not. DATASET%hasBiota) return
+        nSpecies = C%contaminantDim(1)
+
+        ! Water reaches: collect water biota (last reach wins for each biota index)
+        do w = 1, me%env%item%colGridCells(x,y)%item%nReaches
+            associate (reach => me%env%item%colGridCells(x,y)%item%colRiverReaches(w)%item)
+                do b = 1, reach%nBiota
+                    bidx = reach%biotaIndices(b)
+                    if (bidx < 1 .or. bidx > DATASET%nBiota) cycle
+                    associate (bio => reach%biota(b))
+                        if (.not. allocated(bio%C_active) .or. .not. allocated(bio%C_stored)) cycle
+                        if (.not. allocated(me%output_biota__C_active)) cycle
+                        do s = 1, nSpecies
+                            if (s <= size(bio%C_active)) &
+                                me%output_biota__C_active(s, bidx, x, y, tInChunk) = bio%C_active(s)
+                            if (s <= size(bio%C_stored)) &
+                                me%output_biota__C_stored(s, bidx, x, y, tInChunk) = bio%C_stored(s)
+                        end do
+                    end associate
+                end do
+            end associate
+        end do
+
+        ! Soil profiles: collect soil biota
+        do b = 1, me%env%item%colGridCells(x,y)%item%nSoilProfiles
+            associate (profile => me%env%item%colGridCells(x,y)%item%colSoilProfiles(b)%item)
+                if (.not. allocated(profile%biota)) cycle
+                do s = 1, size(profile%biota)
+                    bidx = profile%biota(s)%biotaIndex
+                    if (bidx < 1 .or. bidx > DATASET%nBiota) cycle
+                    associate (bio => profile%biota(s))
+                        if (.not. allocated(bio%C_active) .or. .not. allocated(bio%C_stored)) cycle
+                        if (.not. allocated(me%output_biota__C_active)) cycle
+                        do w = 1, nSpecies
+                            if (w <= size(bio%C_active)) &
+                                me%output_biota__C_active(w, bidx, x, y, tInChunk) = bio%C_active(w)
+                            if (w <= size(bio%C_stored)) &
+                                me%output_biota__C_stored(w, bidx, x, y, tInChunk) = bio%C_stored(w)
+                        end do
+                    end associate
+                end do
+            end associate
+        end do
+    end subroutine
+
 end module

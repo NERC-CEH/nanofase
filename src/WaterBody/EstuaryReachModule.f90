@@ -55,6 +55,16 @@ contains
 
         call me%setDimensions(0)
 
+        ! Allocate and zero SPM carrier arrays so reactor%create receives valid arrays.
+        ! These are updated each timestep in updateEstuaryReach; zero is correct for initialisation.
+        if (allocated(me%C_spm)) deallocate(me%C_spm)
+        allocate(me%C_spm(C%nSizeClassesSpm))
+        me%C_spm = 0.0_dp
+
+        if (allocated(me%W_settle_spm)) deallocate(me%W_settle_spm)
+        allocate(me%W_settle_spm(C%nSizeClassesSpm))
+        me%W_settle_spm = 0.0_dp
+
         allocate(BedSediment :: me%bedSediment)
         allocate(Reactor :: me%reactor)
         call rslt%addErrors([ &
@@ -171,20 +181,24 @@ contains
                                       dj_contaminant_erosion_sources, dj_contaminant_inflow, T_water_t)
         end do
 
-        call j_contaminant_in_total%finalise()
-        call dj_contaminant_erosion_sources%finalise()
-        call dj_contaminant_inflow%finalise()
-
         me%C_spm = divideCheckZero(me%m_spm, me%volume)
+
+        ! Update the reactor with the total inflow contaminant mass (partitioning, transformation, foam, atmosphere).
+        ! IMPORTANT: reactor%update must be called BEFORE j_contaminant_in_total is finalised,
+        ! because the reactor optionally adds that inflow mass to me%m_contaminant via its pointer.
         if (.not. C%ignoreContaminant .and. .not. isZero(me%volume)) then
             call rslt%addErrors(.errors. me%reactor%update(j_contaminant_in_total, dt))
-            me%m_contaminant = me%reactor%contaminant
+            ! me%reactor%contaminant IS a pointer to me%m_contaminant, so no copy is needed.
             if (me%volume > 0.0_dp) then
                 me%C_dissolved = me%m_contaminant%m_dissolved / me%volume
             else
                 me%C_dissolved = 0.0_dp
             end if
         end if
+
+        call j_contaminant_in_total%finalise()
+        call dj_contaminant_erosion_sources%finalise()
+        call dj_contaminant_inflow%finalise()
 
         do i = 1, me%nBiota
             call rslt%addErrors(.errors. me%biota(i)%update(t, me%m_contaminant%divideCheckZero(me%volume)))

@@ -8,6 +8,7 @@ module AbstractGridCellModule
     use DiffuseSourceModule
     use CropModule
     use ContaminantModule
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_SPM, PFAS_AWI, PFAS_FOAM, PFAS_AIR
     implicit none
 
     !> GridCellPointer used to link GridCells array, so the elements within can
@@ -58,7 +59,7 @@ module AbstractGridCellModule
         real(dp), allocatable           :: T_water_timeSeries(:)                !! Water temperature [C]
         real(dp), allocatable           :: erodedSediment(:)                    !! Sediment yield eroded on this timestep [kg/m2/day], simulated by `SoilProfile`(s)
         real(dp), allocatable           :: distributionSediment(:)              !! Distribution used to split sediment yields across size classes
-        type(Contaminant), allocatable  :: j_contaminant_diffuseSource(:)       !! Input Contaminant from diffuse sources on this timestep [(kg/m2)/timestep]
+        type(Contaminant), allocatable  :: j_contaminant_diffuseSource(:)       !! P-FASE input fluxes from diffuse sources [kg timestep-1] by species/form/phase
         type(Contaminant)               :: contaminant_water                    !! Water compartment contaminant
         type(Contaminant)               :: contaminant_sediment                 !! Sediment compartment contaminant
         type(Contaminant), allocatable  :: contaminant_water_t(:)               !! Time-series tracking [kg]
@@ -113,6 +114,7 @@ module AbstractGridCellModule
         procedure(get_j_contaminant_depositionAbstractGridCell), deferred           :: get_j_contaminant_deposition
         procedure(get_j_contaminant_resuspensionAbstractGridCell), deferred         :: get_j_contaminant_resuspension
         procedure(get_j_contaminant_outflowAbstractGridCell), deferred              :: get_j_contaminant_outflow
+        procedure(get_j_contaminant_groundwaterAbstractGridCell), deferred          :: get_j_contaminant_groundwater
         procedure(getTotalReachLengthAbstractGridCell), deferred                    :: getTotalReachLength
         procedure(getWaterVolumeAbstractGridCell), deferred                         :: getWaterVolume
         procedure(getWaterDepthAbstractGridCell), deferred                          :: getWaterDepth
@@ -322,6 +324,13 @@ module AbstractGridCellModule
             import AbstractGridCell
             class(AbstractGridCell) :: me
             type(Contaminant) :: j_contaminant_outflow
+        end function
+
+        function get_j_contaminant_groundwaterAbstractGridCell(me) result(j_contaminant_groundwater)
+            use ContaminantModule
+            import AbstractGridCell
+            class(AbstractGridCell) :: me
+            type(Contaminant) :: j_contaminant_groundwater
         end function
 
         function getTotalReachLengthAbstractGridCell(me) result(totalReachLength)

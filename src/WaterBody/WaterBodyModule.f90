@@ -9,6 +9,9 @@ module WaterBodyModule
     use BiotaWaterModule
     use FlowModule
     use ContaminantModule
+    use PFASEConstantsModule
+    use PFASEFoamModule, only: pfase_foam_fraction
+    use PFASEAtmosphereModule, only: pfase_first_order_fraction
     implicit none
     
     !> WaterBodyPointer used for WaterBody inflows array, so the elements within can
@@ -90,6 +93,9 @@ module WaterBodyModule
         type(Contaminant)       :: j_contaminant_bankErosion
         type(Contaminant)       :: j_contaminant_deposition
         type(Contaminant)       :: j_contaminant_resuspension
+        type(Contaminant)       :: j_contaminant_foam
+        type(Contaminant)       :: j_contaminant_atmosphere
+        type(Contaminant)       :: j_contaminant_biota
         type(Contaminant)       :: j_contaminant_final
 
       contains
@@ -108,6 +114,7 @@ module WaterBodyModule
         procedure :: parseNewBatchData => parseNewBatchDataWaterBody
         procedure :: get_m_contaminant => get_m_contaminant_WaterBody
         procedure :: get_C_contaminant => get_C_contaminant_WaterBody
+        procedure :: apply_surface_processes => applySurfaceProcessesWaterBody
     end type
       
     !> Container type for `class(WaterBody)`, the actual type of the `WaterBody` class.
@@ -140,7 +147,10 @@ module WaterBodyModule
     
         ! Initialise the flow objects
         call me%Q%init()
+        call me%Q_final%init()
         call me%j_spm%init()
+        call me%j_spm_final%init()
+
         call rslt%addErrors(.errors. me%j_contaminant_inflow%create())
         call rslt%addErrors(.errors. me%j_contaminant_outflow%create())
         call rslt%addErrors(.errors. me%j_contaminant_runoff%create())
@@ -151,6 +161,9 @@ module WaterBodyModule
         call rslt%addErrors(.errors. me%j_contaminant_bankErosion%create())
         call rslt%addErrors(.errors. me%j_contaminant_deposition%create())
         call rslt%addErrors(.errors. me%j_contaminant_resuspension%create())
+        call rslt%addErrors(.errors. me%j_contaminant_foam%create())
+        call rslt%addErrors(.errors. me%j_contaminant_atmosphere%create())
+        call rslt%addErrors(.errors. me%j_contaminant_biota%create())
         call rslt%addErrors(.errors. me%j_contaminant_final%create())
     end function
 
@@ -182,21 +195,16 @@ module WaterBodyModule
         call me%j_contaminant_bankErosion%finalise()
         call me%j_contaminant_deposition%finalise()
         call me%j_contaminant_resuspension%finalise()
+        call me%j_contaminant_foam%finalise()
+        call me%j_contaminant_atmosphere%finalise()
+        call me%j_contaminant_biota%finalise()
         call me%j_contaminant_final%finalise()
-        if (allocated(me%reactor)) then
-            call me%reactor%finalise()
-            deallocate(me%reactor)
-        end if
-        if (allocated(me%bedSediment)) then
-            call me%bedSediment%finalise()
-            deallocate(me%bedSediment)
-        end if
+        if (allocated(me%reactor)) then; call me%reactor%finalise(); deallocate(me%reactor); end if
+        if (allocated(me%bedSediment)) then; call me%bedSediment%finalise(); deallocate(me%bedSediment); end if
         if (allocated(me%pointSources)) deallocate(me%pointSources)
         if (allocated(me%diffuseSources)) deallocate(me%diffuseSources)
         if (allocated(me%biota)) then
-            do i = 1, me%nBiota
-                call me%biota(i)%finalise()
-            end do
+            do i=1,size(me%biota); call me%biota(i)%finalise(); end do
             deallocate(me%biota)
         end if
         if (allocated(me%C_spm)) deallocate(me%C_spm)
@@ -246,6 +254,9 @@ module WaterBodyModule
         call me%j_contaminant_bankErosion%empty()
         call me%j_contaminant_deposition%empty()
         call me%j_contaminant_resuspension%empty()
+        call me%j_contaminant_foam%empty()
+        call me%j_contaminant_atmosphere%empty()
+        call me%j_contaminant_biota%empty()
         call me%j_contaminant_final%empty()
     end subroutine
 
@@ -281,35 +292,54 @@ module WaterBodyModule
         me%bedArea            = 0.0_dp
         me%volume             = 0.0_dp
 
-        ! Ensure contaminant internals are clean before re-create
-        call me%m_contaminant%finalise()
+        rslt = me%m_contaminant%create_from_data('water', DATASET%contaminantDensity, &
+            DATASET%soilConstantAttachmentEfficiency, DATASET%riverAttachmentEfficiency, &
+            DATASET%estuaryAttachmentEfficiency, DATASET%contaminant_k_diss_pristine, &
+            DATASET%contaminant_k_diss_transformed, DATASET%contaminant_k_transform_pristine, &
+            real(DATASET%waterTemperature(1), dp))
+    end subroutine
 
-        rslt = me%m_contaminant%create_from_data( &
-            compartment='water', &
-            contaminantDensity = DATASET%contaminantDensity, &
-            soilAttachmentEfficiency = &
-                DATASET%soilConstantAttachmentEfficiency, &
-            riverAttachmentEfficiency = DATASET%riverAttachmentEfficiency, &
-            estuaryAttachmentEfficiency = &
-                DATASET%estuaryAttachmentEfficiency, &
-            k_diss_pristine     = DATASET%contaminant_k_diss_pristine, &
-            k_diss_transformed  = DATASET%contaminant_k_diss_transformed, &
-            k_transform_pristine= &
-                DATASET%contaminant_k_transform_pristine, &
-            waterTemperature    = real(DATASET%waterTemperature(1), dp) )
+    subroutine applySurfaceProcessesWaterBody(me, t, turbulence, dt)
+        class(WaterBody), intent(inout) :: me
+        integer, intent(in) :: t
+        real(dp), intent(in) :: turbulence, dt
+        type(Contaminant) :: dj_foam, dj_air, dj_biota
+        type(Result) :: r
+        real(dp), allocatable :: uptake_fraction(:)
+        integer :: ib
 
-        ! If this routine can be re-entered, (re)create flow objects too
-        call rslt%addErrors(.errors. me%j_contaminant_inflow%create())
-        call rslt%addErrors(.errors. me%j_contaminant_outflow%create())
-        call rslt%addErrors(.errors. me%j_contaminant_runoff%create())
-        call rslt%addErrors(.errors. me%j_contaminant_transfers%create())
-        call rslt%addErrors(.errors. me%j_contaminant_pointSources%create())
-        call rslt%addErrors(.errors. me%j_contaminant_diffuseSources%create())
-        call rslt%addErrors(.errors. me%j_contaminant_soilErosion%create())
-        call rslt%addErrors(.errors. me%j_contaminant_bankErosion%create())
-        call rslt%addErrors(.errors. me%j_contaminant_deposition%create())
-        call rslt%addErrors(.errors. me%j_contaminant_resuspension%create())
-        call rslt%addErrors(.errors. me%j_contaminant_final%create())
+        if (C%ignoreContaminant) return
+        call r%addErrors(.errors. dj_foam%create())
+        call r%addErrors(.errors. dj_air%create())
+        call r%addErrors(.errors. dj_biota%create())
+
+        call me%m_contaminant%foam_exchange( &
+            pfase_foam_fraction(max(0.0_dp, DATASET%windSpeed), max(0.0_dp,turbulence), &
+                                DATASET%pfasFoamCoefficient, dt), dj_foam)
+        call me%m_contaminant%atmosphere_exchange( &
+            pfase_first_order_fraction(DATASET%pfasVolatilisationRateScalar, dt), &
+            pfase_first_order_fraction(DATASET%pfasSeaSprayAerosolRate, dt), dj_air)
+
+        call me%j_contaminant_foam%add(dj_foam)
+        call me%j_contaminant_atmosphere%add(dj_air)
+        call me%m_contaminant%add_scaled(dj_foam, -1.0_dp)
+        call me%m_contaminant%add_scaled(dj_air, -1.0_dp)
+
+        if (allocated(me%biota)) then
+            allocate(uptake_fraction(size(me%m_contaminant%c,1)))
+            uptake_fraction = 0.0_dp
+            do ib = 1, size(me%biota)
+                call r%addErrors(.errors. me%biota(ib)%update(t, me%m_contaminant%divideCheckZero(max(C%epsilon,me%volume))))
+                uptake_fraction = uptake_fraction + DATASET%pfasBioUptakeRateScalar * dt
+            end do
+            uptake_fraction = min(1.0_dp, uptake_fraction)
+            call me%m_contaminant%bioaccumulate(uptake_fraction, dj_biota)
+            call me%j_contaminant_biota%add(dj_biota)
+            call me%m_contaminant%add_scaled(dj_biota, -1.0_dp)
+            deallocate(uptake_fraction)
+        end if
+
+        call dj_foam%finalise(); call dj_air%finalise(); call dj_biota%finalise()
     end subroutine
 
 
@@ -346,9 +376,9 @@ module WaterBodyModule
         me%Q_final = me%Q
         me%j_spm_final = me%j_spm
         me%j_contaminant_final = me%j_contaminant_outflow
-        me%C_spm_final = me%C_spm
-        if (me%volume > 0.0_dp) then
-            me%C_dissolved = me%m_contaminant%m_dissolved / me%volume
+        if (allocated(me%C_spm_final) .and. allocated(me%C_spm)) me%C_spm_final = me%C_spm
+        if (me%volume > C%epsilon .and. allocated(me%m_contaminant%c)) then
+            me%C_dissolved = sum(me%m_contaminant%c(:,:,PFAS_AQ)) / me%volume
         else
             me%C_dissolved = 0.0_dp
         end if
@@ -364,11 +394,12 @@ module WaterBodyModule
     function get_C_contaminant_WaterBody(me) result(C_contaminant)
         class(WaterBody), intent(in) :: me
         real(dp), allocatable :: C_contaminant(:,:,:)
-        allocate(C_contaminant(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3)))
-        if (me%volume > 0.0_dp) then
+        allocate(C_contaminant(size(me%m_contaminant%c,1), size(me%m_contaminant%c,2), size(me%m_contaminant%c,3)))
+        if (me%volume > C%epsilon) then
             C_contaminant = me%m_contaminant%c / me%volume
         else
             C_contaminant = 0.0_dp
         end if
     end function
+
 end module

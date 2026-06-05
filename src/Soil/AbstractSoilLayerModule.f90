@@ -6,6 +6,7 @@ module AbstractSoilLayerModule
     use BiotaSoilModule
     use ContaminantModule
     use DataInputModule, only: DATASET
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL, PFAS_AWI
     implicit none
 
     !> Abstract base class for \1 object. Defines properties and
@@ -170,6 +171,33 @@ module AbstractSoilLayerModule
             C_contaminant = 0.0_dp
         end if
     end function
+
+    function get_C_porewater(me) result(C_porewater)
+        class(AbstractSoilLayer), intent(in) :: me
+        real(dp) :: C_porewater(C%contaminantDim(1), C%contaminantDim(2))
+        real(dp) :: porewater_volume
+
+        porewater_volume = max(C%epsilon, me%V_w * me%area)
+        if (allocated(me%m_contaminant%c)) then
+            C_porewater = me%m_contaminant%c(:,:,PFAS_AQ) / porewater_volume
+        else
+            C_porewater = 0.0_dp
+        end if
+    end function
+
+    function get_C_solid(me) result(C_solid)
+        class(AbstractSoilLayer), intent(in) :: me
+        real(dp) :: C_solid(C%contaminantDim(1), C%contaminantDim(2))
+        real(dp) :: soil_mass
+
+        soil_mass = max(C%epsilon, me%bulkDensity * me%volume)
+        if (allocated(me%m_contaminant%c)) then
+            C_solid = me%m_contaminant%c(:,:,PFAS_SOL) / soil_mass
+        else
+            C_solid = 0.0_dp
+        end if
+    end function
+
 
     subroutine finaliseSoilLayer(me)
         class(AbstractSoilLayer) :: me

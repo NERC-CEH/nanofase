@@ -10,6 +10,7 @@ module SoilProfileModule
     use SoilLayerModule
     use DataInputModule, only: DATASET
     use ContaminantModule
+    use PFASEConstantsModule, only: PFAS_AQ, PFAS_SOL
     implicit none
 
     !> A SoilProfile class acts as a container for a collection of SoilLayer objects,
@@ -71,7 +72,10 @@ contains
         me%area = area
         allocate(me%q_precip_timeSeries, source=q_precip_timeSeries)
         allocate(me%q_evap_timeSeries, source=q_evap_timeSeries)
+        
+        me%V_pool = 0.0_dp
         me%V_buried = 0.0_dp
+        me%erodedSediment = 0.0_dp
 
         ! Initialize Contaminant objects
         r = me%m_contaminant%create()
@@ -136,29 +140,32 @@ contains
         ! Reset for this timestep
         me%V_pool = 0.0_dp
 
+        call me%m_contaminant%empty()
+        call me%m_contaminant_in%empty()
+        call me%m_contaminant_eroded%empty()
+        call me%m_contaminant_buried%empty()
+
         if (.not. me%isUrban) then
-            ! Set timestep-specific properties
             me%q_precip = me%q_precip_timeSeries(t)
             me%q_evap   = me%q_evap_timeSeries(t)
-            me%q_in     = max(me%q_precip - me%q_evap, 0.0_dp)
+            me%q_in     = max(real(me%q_precip - me%q_evap, dp), 0.0_dp)
 
-            ! --- NEW ORDER OF OPERATIONS ---
-            ! 1. Perform in-soil transformations (e.g., attachment) BEFORE erosion
             currentDate = C%startDate + timedelta(t-1)
-            T_water_t   = DATASET%waterTemperature(currentDate%yearday())
+            T_water_t = DATASET%waterTemperature(currentDate%yearday())
+
+            ! Apply PFAS phase equilibration/transformation before erosion.
             do l = 1, C%nSoilLayers
                 call me%colSoilLayers(l)%item%update_contaminant_state(T_water_t)
             end do
 
-            ! 2. Now perform erosion, percolation (with diffuse source), and bioturbation
-            call r%addErrors([.errors. me%erode(t), &
-                              .errors. me%percolate(t, j_contaminant_diffuseSource), &
-                              .errors. me%bioturbation()])
+            call r%addErrors(.errors. me%erode(t))
+            call r%addErrors(.errors. me%percolate(t, j_contaminant_diffuseSource))
+            call r%addErrors(.errors. me%bioturbation())
 
-            ! 3. Update total mass in profile by removing buried mass
-            call me%m_contaminant%add_scaled(me%m_contaminant_buried, -1.0_dp)
+            me%m_contaminant = me%get_m_contaminant()
         else
             me%erodedSediment = 0.0_dp
+            me%m_contaminant = me%get_m_contaminant()
         end if
 
         call r%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
@@ -178,17 +185,22 @@ contains
         real(dp)            :: q_l_in                              ! Temporary water inflow for a particular SoilLayer
         type(Contaminant)   :: j_contaminant_l_in
 
+        call me%m_contaminant_buried%empty()
+
         ! Loop through SoilLayers and percolate 
         do l = 1, C%nSoilLayers
             if (l == 1) then
                  ! If it's the first SoilLayer, water and contaminant inflow will be from precip - ET
                  ! and the diffuse source, respectively
                 q_l_in = me%q_in                                    ! [m3/m2/timestep]
-                call j_contaminant_l_in%multiply_scalar(j_contaminant_diffuseSource, me%area)
+                call r%addErrors(.errors. j_contaminant_l_in%create())
+                call j_contaminant_l_in%add_scaled(j_contaminant_diffuseSource, me%area)
+                me%m_contaminant_in = j_contaminant_l_in
             else
                 ! Otherwise, they'll be from the layer above
                 q_l_in = me%colSoilLayers(l-1)%item%V_perc
-                j_contaminant_l_in = me%colSoilLayers(l-1)%item%j_contaminant_perc
+                call r%addErrors(.errors. j_contaminant_l_in%create())
+                call j_contaminant_l_in%add(me%colSoilLayers(l-1)%item%j_contaminant_perc)
             end if
 
             ! Run the percolation simulation for individual layer, setting V_perc, V_pool, m_contaminant_perc etc.
@@ -213,8 +225,11 @@ contains
         end do
 
         ! Keep track of "lost" Contaminant and water from the bottom soil layer. Not cumulative.
-         me%V_buried = me%colSoilLayers(C%nSoilLayers)%item%V_perc
+        me%V_buried = me%colSoilLayers(C%nSoilLayers)%item%V_perc
         me%m_contaminant_buried = me%colSoilLayers(C%nSoilLayers)%item%j_contaminant_perc
+        me%m_contaminant_buried%m_dissolved = sum(me%m_contaminant_buried%c(:,:,PFAS_AQ))
+
+        call j_contaminant_l_in%finalise()
 
         ! Add this procedure to the Result object's trace
         call r%addToTrace("Percolating water on time step #" // trim(str(t)))
@@ -239,6 +254,8 @@ contains
         integer             :: julianDay
         integer             :: n, f
         type(Result)        :: r
+   
+        call me%m_contaminant_eroded%empty()
 
         ! Only calculate erosion yield if we're meant to be
         if (C%includeSoilErosion) then
@@ -255,30 +272,15 @@ contains
             ! Total eroded sediment [g/m2/day]
             erodedSedimentTotal = E_k * K_MMF * me%usle_C * me%usle_P * me%usle_LS
             ! Split this into a size distribution and convert to [kg/m2/day]
-            me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3)
-            ! Call SoilLayer%erode with correct arguments
+            me%erodedSediment = me%imposeSizeDistribution(erodedSedimentTotal*1.0e-3_dp)
+
             call rslt%addErrors(.errors. me%colSoilLayers(1)%item%erode( &
                 me%erodedSediment, me%bulkDensity, me%area))
-            ! Transition attached to heteroaggregated states
-            do n = 1, C%contaminantDim(1)
-                do f = 1, C%contaminantDim(2)
-                    me%m_contaminant_eroded%c(n,f,SPM_CONTAMINANT_START:) = &
-                        me%imposeSizeDistribution(me%m_contaminant_eroded%c(n,f,ATTACHED_CONTAMINANT))
-                    me%m_contaminant_eroded%c(n,f,ATTACHED_CONTAMINANT) = 0.0_dp
-                end do
-            end do
-            call me%m_contaminant%add_scaled(me%m_contaminant_eroded, -1.0_dp)
+
+            call me%m_contaminant_eroded%add(me%colSoilLayers(1)%item%j_contaminant_eroded)
+            me%m_contaminant_eroded%m_dissolved = sum(me%m_contaminant_eroded%c(:,:,PFAS_AQ))
         else
-            ! If not modelling erosion, set yield to zero
             me%erodedSediment = 0.0_dp
-            r = me%m_contaminant_eroded%create()
-            if (r%hasCriticalError()) then
-                call ERROR_HANDLER%trigger(errors=.errors.r)
-                call rslt%addErrors(.errors.r)
-                return
-            end if
-            me%m_contaminant_eroded%c = 0.0_dp
-            me%m_contaminant_eroded%m_dissolved = 0.0_dp
         end if
         call rslt%addToTrace("Eroding soil on time step #" // trim(str(t)))
     end function
@@ -293,27 +295,29 @@ contains
         type(Result)        :: r            ! Result object for error handling
         ! Only model bioturbation if config file has asked us to
         if (C%includeBioturbation) then
-            ! Initialize temp Contaminant object
-            r = temp%create()
+            call r%addErrors(.errors. upper_move%create())
+            call r%addErrors(.errors. lower_move%create())
             if (r%hasCriticalError()) then
-                call ERROR_HANDLER%trigger(errors=.errors.r)
                 call rslt%addErrors(.errors.r)
                 return
             end if
-            ! Perform bioturbation for each layer, except final layer
+
             do i = 1, C%nSoilLayers - 1
-                fractionOfLayerToMix = me%colSoilLayers(i)%item%calculateBioturbationRate() * C%timeStep
-                ! Direct state mixing (no separate method needed)
-                associate (upper => me%colSoilLayers(i)%item%m_contaminant, &
-                        lower => me%colSoilLayers(i+1)%item%m_contaminant)
-                    temp = upper * fractionOfLayerToMix
-                    call upper%add(-temp)
-                    call lower%add(temp)
-                    temp = lower * fractionOfLayerToMix
-                    call lower%add(-temp)
-                    call upper%add(temp)
-                end associate
+                fractionOfLayerToMix = min(1.0_dp, max(0.0_dp, &
+                    me%colSoilLayers(i)%item%calculateBioturbationRate() * real(C%timeStep, dp)))
+
+                upper_move = me%colSoilLayers(i)%item%m_contaminant * fractionOfLayerToMix
+                lower_move = me%colSoilLayers(i+1)%item%m_contaminant * fractionOfLayerToMix
+
+                call me%colSoilLayers(i)%item%m_contaminant%add_scaled(upper_move, -1.0_dp)
+                call me%colSoilLayers(i+1)%item%m_contaminant%add(upper_move)
+
+                call me%colSoilLayers(i+1)%item%m_contaminant%add_scaled(lower_move, -1.0_dp)
+                call me%colSoilLayers(i)%item%m_contaminant%add(lower_move)
             end do
+
+            call upper_move%finalise()
+            call lower_move%finalise()
         end if
         call rslt%addToTrace("Performing bioturbation on " // trim(me%ref))
     end function
@@ -350,49 +354,43 @@ contains
         ! have non-zero lower bound to avoid numerical errors when logging
         texture = [clay, silt, sand] / 100.0
         if (enrichClay) then
-            clayEnrichmentRatio = 0.26 + 1 / (1 - texture(3))               ! Ref: Stefano and Ferro, 2002: https://doi.org/10.1006/bioe.2001.0034
-            dClay = texture(1) * clayEnrichmentRatio - texture(1)           ! Change in clay content due to enrichment
-            textureEnriched = [texture(1) * clayEnrichmentRatio, texture(2) - dClay / 2, texture(3) - dClay / 2]
+            clayEnrichmentRatio = 0.26 + 1.0 / max(1.0e-6, (1.0 - texture(3)))
+            dClay = texture(1) * clayEnrichmentRatio - texture(1)
+            textureEnriched = [texture(1) * clayEnrichmentRatio, texture(2) - dClay/2.0, texture(3) - dClay/2.0]
         else
             textureEnriched = texture
         end if
+
         texture_bins = log(reshape([1e-9, 0.002, 0.06, 0.002, 0.06, 2.0], [3,2]))
-        ssd_bins(1,1) = log(1e-9)
+        ssd_bins(1,1) = log(1e-9_dp)
         do i = 1, C%nSizeClassesSpm
-            ! Set the upper bound for this bin to the diameter given in config, then set the
-            ! lower bound for the next bin to the same
-            ssd_bins(i,2) = log(C%d_spm(i) * 1e3)
-            if (i < C%nSizeClassesSpm) then
-                ssd_bins(i+1,1) = log(C%d_spm(i) * 1e3)
-            end if
+            ssd_bins(i,2) = log(C%d_spm(i) * 1e3_dp)
+            if (i < C%nSizeClassesSpm) ssd_bins(i+1,1) = log(C%d_spm(i) * 1e3_dp)
         end do
-        ! Loop through texture bins and calculate the fraction of each SSD bin in that texture bin
+
         do i = 1, 3
             do j = 1, C%nSizeClassesSpm
                 not_in_ssd_bin = .false.
-                ! Lower overlap bound
                 if (texture_bins(i,1) <= ssd_bins(j,2)) then
-                    lower = max(texture_bins(i,1), ssd_bins(j,1))
+                    lower = max(texture_bins(i,1), real(ssd_bins(j,1)))
                 else
                     not_in_ssd_bin = .true.
                 end if
-                ! Upper overlap bound
                 if (texture_bins(i,2) >= ssd_bins(j,1)) then
-                    upper = min(texture_bins(i,2), ssd_bins(j,2))
+                    upper = min(texture_bins(i,2), real(ssd_bins(j,2)))
                 else
                     not_in_ssd_bin = .true.
                 end if
-                ! Set the fraction of SSD bin in this texture bin, based on lower and upper bounds
                 if (not_in_ssd_bin) then
                     frac_ssd_in_texture_bin(i,j) = 0.0
                 else
-                    frac_ssd_in_texture_bin(i,j) = (upper - lower) / (texture_bins(i,2) - texture_bins(i,1))
+                    frac_ssd_in_texture_bin(i,j) = (upper-lower) / (texture_bins(i,2)-texture_bins(i,1))
                 end if
             end do
             ssd_(i,:) = textureEnriched(i) * frac_ssd_in_texture_bin(i,:)
         end do
-        ! Sum the ssd_ array into the final sediment distribution
         ssd = sum(ssd_, dim=1)
+        if (sum(ssd) > 0.0) ssd = ssd / sum(ssd)
     end function
 
     !> Calculate the average grain size from soil texture properties, using RUSLE handbook
@@ -648,9 +646,11 @@ contains
         type(Result) :: r
         integer :: i
         r = m_contaminant%create()
+        if (r%hasCriticalError()) return
         do i = 1, C%nSoilLayers
             call m_contaminant%add(me%colSoilLayers(i)%item%m_contaminant)
         end do
+        m_contaminant%m_dissolved = sum(m_contaminant%c(:,:,PFAS_AQ))
     end function
 
     ! Return 3-D concentration array for the whole profile (same shape as Contaminant%c)
@@ -664,17 +664,17 @@ contains
         ! total contaminant mass across all layers (same shape as %c)
         mtot = me%get_m_contaminant()
 
-        ! total profile volume = sum of layer volumes
-        V_profile = 0.0_dp
+        allocate(C_contaminant(size(mtot%c,1), size(mtot%c,2), size(mtot%c,3)))
+        soil_mass = 0.0_dp
         do l = 1, C%nSoilLayers
-            V_profile = V_profile + me%colSoilLayers(l)%item%volume
+            soil_mass = soil_mass + me%bulkDensity * me%colSoilLayers(l)%item%volume
         end do
 
-        allocate(C_contaminant(size(mtot%c,1), size(mtot%c,2), size(mtot%c,3)))
-        if (V_profile > C%epsilon) then
-            C_contaminant = mtot%c / V_profile
+        if (soil_mass > C%epsilon) then
+            C_contaminant = mtot%c / soil_mass
         else
             C_contaminant = 0.0_dp
         end if
-    end function get_C_contaminant_SoilProfile
+        call mtot%finalise()
+    end function
 end module

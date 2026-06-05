@@ -49,6 +49,8 @@ module EnvironmentModule
 
         tr = "Environment%createEnvironment"
         me%nGridCells = 0  ! Inherited from AbstractEnvironment
+        me%nHeadwaters = 0
+        me%nWaterbodies = 0
         ! Allocate grid cells array to be the shape of the grid
         allocate(me%colGridCells(DATASET%gridShape(1), DATASET%gridShape(2)), stat=allst)
         if (allst /= 0) then
@@ -393,78 +395,63 @@ module EnvironmentModule
     function get_m_contaminantEnvironment(me) result(m_contaminant)
         class(Environment) :: me
         type(Contaminant) :: m_contaminant
-        type(Result)      :: rslt
-        integer           :: x, y, rr
+        type(Result) :: rslt
+        integer :: x, y, rr
 
-        ! Initialize the Contaminant object
         rslt = m_contaminant%create()
         if (rslt%hasError()) then
-            call rslt%addToTrace("Failed to create m_contaminant in get_m_contaminantEnvironment")
+            call rslt%addToTrace('Environment%get_m_contaminantEnvironment')
             call LOGR%toFile(errors=rslt%errors)
             call ERROR_HANDLER%trigger(errors=rslt%errors)
             return
         end if
 
-        ! Loop over all non‐empty grid cells and their reaches
         do y = 1, size(me%colGridCells, 2)
             do x = 1, size(me%colGridCells, 1)
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
                     do rr = 1, me%colGridCells(x,y)%item%nReaches
-                        associate(reactor => me%colGridCells(x,y)%item%colRiverReaches(rr)%item%reactor)
-                            call m_contaminant%add(reactor%contaminant)
-                        end associate
+                        call m_contaminant%add(me%colGridCells(x,y)%item%colRiverReaches(rr)%item%reactor%contaminant)
                     end do
                 end if
             end do
         end do
-
-    end function 
+    end function
 
     function get_C_contaminant_soilEnvironment(me) result(C_contaminant_soil)
         class(Environment) :: me
-        type(Contaminant)  :: C_contaminant_soil     ! Correct return type
-        type(Contaminant)  :: m_total_contaminant    ! Accumulator for contaminant mass
-        real(dp)           :: m_total_soil           ! Accumulator for total soil mass
-        type(Result)       :: r
-        integer            :: x, y, p
-        character(len=256) :: tr
+        type(Contaminant) :: C_contaminant_soil
+        type(Contaminant) :: m_total
+        type(Contaminant) :: m_profile
+        type(Result) :: r
+        real(dp) :: m_total_soil
+        integer :: x, y, p
 
-        tr = "Environment%get_C_contaminant_soilEnvironment"
-        
-        ! Initialize accumulators
-        r = m_total_contaminant%create()
+        r = m_total%create()
         if (r%hasError()) then
-            call r%addToTrace(tr)
             call LOGR%toFile(errors=r%errors)
             call ERROR_HANDLER%trigger(errors=r%errors)
-            ! Return an empty object on error
             r = C_contaminant_soil%create()
             return
         end if
-        m_total_soil = 0.0_dp
 
-        ! Loop over all grid cells and their soil profiles
+        m_total_soil = 0.0_dp
         do y = 1, size(me%colGridCells, 2)
             do x = 1, size(me%colGridCells, 1)
                 if (.not. me%colGridCells(x,y)%item%isEmpty) then
                     do p = 1, me%colGridCells(x,y)%item%nSoilProfiles
-                        associate (profile => me%colGridCells(x,y)%item%colSoilProfiles(p)%item)
-                            ! Add contaminant mass from this profile to the total
-                            call m_total_contaminant%add(profile%get_m_contaminant())
-                            ! Add soil mass from this profile to the total [kg]
-                            m_total_soil = m_total_soil + (profile%bulkDensity * profile%area * sum(C%soilLayerDepth))
+                        associate(profile => me%colGridCells(x,y)%item%colSoilProfiles(p)%item)
+                            m_profile = profile%get_m_contaminant()
+                            call m_total%add(m_profile)
+                            m_total_soil = m_total_soil + profile%bulkDensity * profile%area * sum(C%soilLayerDepth)
+                            call m_profile%finalise()
                         end associate
                     end do
                 end if
             end do
         end do
-        
-        ! Calculate the final average concentration (kg contaminant / kg soil)
-        C_contaminant_soil = m_total_contaminant%divideCheckZero(m_total_soil)
-        
-        ! Clean up temporary object
-        call m_total_contaminant%finalise()
 
+        C_contaminant_soil = m_total%divideCheckZero(m_total_soil)
+        call m_total%finalise()
     end function
 
     !> Get the mean water‐phase Contaminant PEC at this moment in time,
@@ -472,126 +459,72 @@ module EnvironmentModule
     function get_C_contaminant_waterEnvironment(me) result(C_contaminant_water)
         class(Environment) :: me
         type(Contaminant) :: C_contaminant_water
-        type(Result)      :: rslt
-        type(Contaminant), allocatable :: m_i(:)
-        real(dp), allocatable           :: volumes(:)
-        integer :: x, y, idx, n
+        type(Contaminant) :: m_total
+        type(Contaminant) :: m_cell
+        type(Result) :: r
+        real(dp) :: total_volume
+        integer :: x, y
 
-        ! Count non‐empty cells
-        n = 0
-        do y = 1, size(me%colGridCells,2)
-            do x = 1, size(me%colGridCells,1)
-            if (.not. me%colGridCells(x,y)%item%isEmpty) n = n + 1
-            end do
-        end do
-
-        if (n == 0) then
-            ! Create an empty result and return
-            rslt = C_contaminant_water%create()
+        r = m_total%create()
+        if (r%hasError()) then
+            call LOGR%toFile(errors=r%errors)
+            call ERROR_HANDLER%trigger(errors=r%errors)
+            r = C_contaminant_water%create()
             return
         end if
 
-        ! Allocate temporary arrays
-        allocate(m_i(n))
-        allocate(volumes(n))
-
-        ! Initialize the Contaminant result
-        rslt = C_contaminant_water%create()
-        if (rslt%hasError()) then
-            call rslt%addToTrace("Failed to create C_contaminant_water")
-            call LOGR%toFile(errors=rslt%errors)
-            call ERROR_HANDLER%trigger(errors=rslt%errors)
-            return
-        end if
-
-        ! Gather per‐cell mass and volume
-        idx = 0
+        total_volume = 0.0_dp
         do y = 1, size(me%colGridCells,2)
             do x = 1, size(me%colGridCells,1)
-            if (.not. me%colGridCells(x,y)%item%isEmpty) then
-                idx = idx + 1
-                m_i(idx)    = me%colGridCells(x,y)%item%get_m_contaminant_water()
-                volumes(idx)= me%colGridCells(x,y)%item%getWaterVolume()
-            end if
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    m_cell = me%colGridCells(x,y)%item%get_m_contaminant_water()
+                    call m_total%add(m_cell)
+                    total_volume = total_volume + me%colGridCells(x,y)%item%getWaterVolume()
+                    call m_cell%finalise()
+                end if
             end do
         end do
 
-        ! Build the volume‐weighted sum
-        do idx = 1, n
-            if (volumes(idx) > C%epsilon) then
-            call C_contaminant_water%add_scaled(m_i(idx), volumes(idx))
-            end if
-        end do
-
-        ! Normalize by total volume
-        if (sum(volumes) > C%epsilon) then
-            call C_contaminant_water%multiply_scalar( &
-            C_contaminant_water, &
-            1.0_dp / sum(volumes) &
-            )
-        end if
-
-    end function 
+        ! Result is concentration object [kg m-3] by species/form/phase.
+        C_contaminant_water = m_total%divideCheckZero(total_volume)
+        call m_total%finalise()
+    end function
 
     !> Get the mean sediment Contaminant PEC [kg/kg] at this moment in time,
     ! by looping over all grid cells and their water bodies and getting the
     !! weighted average.
     function get_C_contaminant_sedimentEnvironment(me) result(C_contaminant_sediment)
-    class(Environment) :: me
-    type(Contaminant) :: C_contaminant_sediment
-    type(Result)      :: rslt
-    type(Contaminant), allocatable :: m_i(:)
-    real(dp), allocatable :: masses(:)
-    integer :: x, y, idx, n
+        class(Environment) :: me
+        type(Contaminant) :: C_contaminant_sediment
+        type(Contaminant) :: m_total
+        type(Contaminant) :: m_cell
+        type(Result) :: r
+        real(dp) :: total_sediment_mass
+        integer :: x, y
 
-    ! Count non‐empty cells
-    n = 0
-    do y = 1, size(me%colGridCells,2)
-        do x = 1, size(me%colGridCells,1)
-        if (.not. me%colGridCells(x,y)%item%isEmpty) n = n + 1
-        end do
-    end do
-
-    ! Allocate temp arrays
-    allocate(m_i(n))
-    allocate(masses(n))
-
-    ! Initialize the result object
-    rslt = C_contaminant_sediment%create()
-    if (rslt%hasError()) then
-        call rslt%addToTrace("Failed to create C_contaminant_sediment")
-        call LOGR%toFile(errors=rslt%errors)
-        call ERROR_HANDLER%trigger(errors=rslt%errors)
-        return
-    end if
-
-    ! Gather per‐cell contaminant and sediment mass
-    idx = 0
-    do y = 1, size(me%colGridCells,2)
-        do x = 1, size(me%colGridCells,1)
-        if (.not. me%colGridCells(x,y)%item%isEmpty) then
-            idx = idx + 1
-            m_i(idx)    = me%colGridCells(x,y)%item%get_C_contaminant_sediment()
-            masses(idx) = me%colGridCells(x,y)%item%getBedSedimentMass()
+        r = m_total%create()
+        if (r%hasError()) then
+            call LOGR%toFile(errors=r%errors)
+            call ERROR_HANDLER%trigger(errors=r%errors)
+            r = C_contaminant_sediment%create()
+            return
         end if
+
+        total_sediment_mass = 0.0_dp
+        do y = 1, size(me%colGridCells,2)
+            do x = 1, size(me%colGridCells,1)
+                if (.not. me%colGridCells(x,y)%item%isEmpty) then
+                    m_cell = me%colGridCells(x,y)%item%get_m_contaminant_sediment()
+                    call m_total%add(m_cell)
+                    total_sediment_mass = total_sediment_mass + me%colGridCells(x,y)%item%getBedSedimentMass()
+                    call m_cell%finalise()
+                end if
+            end do
         end do
-    end do
 
-    ! Build weighted sum
-    do idx = 1, n
-        if (masses(idx) > C%epsilon) then
-        call C_contaminant_sediment%add_scaled(m_i(idx), masses(idx))
-        end if
-    end do
-
-    ! Normalize to get the mean
-    if (sum(masses) > C%epsilon) then
-        call C_contaminant_sediment%multiply_scalar( &
-            C_contaminant_sediment, &
-            1.0_dp / sum(masses) &
-        )
-    end if
-
+        ! Result is bulk sediment concentration object [kg kg-1 dry sediment] by species/form/phase.
+        C_contaminant_sediment = m_total%divideCheckZero(total_sediment_mass)
+        call m_total%finalise()
     end function 
 
     function getBedSedimentAreaEnvironment(me) result(bedArea)

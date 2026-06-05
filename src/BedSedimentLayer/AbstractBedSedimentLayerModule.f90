@@ -34,6 +34,12 @@ module AbstractBedSedimentLayerModule
         procedure, public :: C_w_layer => GetCwlayer                ! return total water capacity in the layer
         procedure, public :: V_m_layer => GetVmlayer                ! return total fine sediment and water volume in the layer
         procedure, public :: V_layer => GetVlayer                   ! return sum of fine sediment, water and coarse material volumes in the layer
+
+        ! P-FASE helper aliases used by PFAS sediment concentration calculations.
+        procedure, public :: solid_mass_layer => GetMflayer
+        procedure, public :: porewater_volume_layer => GetVwlayer
+        procedure, public :: solid_volume_layer => GetVflayer
+
         ! procedure, public :: clearAll => clearAllBedSedimentLayer   ! clear all sediment and water in the layer
                                                                     ! deferred methods: must be defined in all subclasses
         procedure(createAbstractBedSedimentLayer), public, deferred :: &
@@ -157,6 +163,12 @@ module AbstractBedSedimentLayerModule
         end subroutine
     end interface
   contains
+
+        logical function valid_size(Me, s)
+            class(AbstractBedSedimentLayer), intent(in) :: Me
+            integer, intent(in) :: s
+            valid_size = allocated(Me%colFineSediment) .and. s >= 1 .and. s <= Me%nSizeClasses
+        end function
         !> **Function purpose**                                     <br>
         !! Return the available capacity for fine sediment of a specified size class
         !!                                                          <br>
@@ -170,7 +182,11 @@ module AbstractBedSedimentLayerModule
             class(AbstractBedSedimentLayer), intent(in) :: Me                !! the AbstractBedSedimentLayer instance
             integer, intent(in) :: s                                 !! size class for which to retrieve available capacity
             real(dp) :: A_f                                          !  LOCAL internal storage
-            A_f = Me%C_f_l(s) - Me%colFineSediment(s)%V_f()          ! compute capacity
+            if (.not. valid_size(Me, s) .or. .not. allocated(Me%C_f_l)) then
+                A_f = 0.0_dp
+            else
+                A_f = max(0.0_dp, Me%C_f_l(s) - Me%colFineSediment(s)%V_f())
+            end if
         end function
         !> **Function purpose**                                     <br>
         !! return the available capacity for water associated with a specified size class
@@ -186,7 +202,11 @@ module AbstractBedSedimentLayerModule
             integer, intent(in) :: s                                 !! Size class for which to retrieve available capacity
             ! type(Result0D) :: r                                      !! Return value
             real(dp) :: A_w                                          ! LOCAL internal storage
-            A_w = Me%C_w_l(s) - Me%colFineSediment(s)%V_w()          ! compute capacity
+            if (.not. valid_size(Me, s) .or. .not. allocated(Me%C_w_l)) then
+                A_w = 0.0_dp
+            else
+                A_w = max(0.0_dp, Me%C_w_l(s) - Me%colFineSediment(s)%V_w())
+            end if
         end function
         !> **Function purpose**                                     <br>
         !! Return the total capacity for fine sediment of a specified size class
@@ -202,7 +222,11 @@ module AbstractBedSedimentLayerModule
             integer, intent(in) :: s                                 !! Size class for which to retrieve available capacity
             ! type(Result0D) :: r                                      !! Return value
             real(dp) :: C_f                                          ! LOCAL internal storage
-            C_f = Me%C_f_l(s)                                        ! compute capacity
+            if (.not. allocated(Me%C_f_l) .or. s < 1 .or. s > size(Me%C_f_l)) then
+                C_f = 0.0_dp
+            else
+                C_f = max(0.0_dp, Me%C_f_l(s))
+            end if
         end function
         !> **Function purpose**                                     <br>
         !! Return the total capacity for water associated with fine sediment of a
@@ -219,7 +243,11 @@ module AbstractBedSedimentLayerModule
             integer, intent(in) :: s                                 !! Size class for which to retrieve capacity
             ! type(Result0D) :: r                                      !! Return value
             real(dp) :: C_w                                          ! LOCAL internal storage
-            C_w = Me%C_w_l(s)                                        ! compute capacity
+            if (.not. allocated(Me%C_w_l) .or. s < 1 .or. s > size(Me%C_w_l)) then
+                C_w = 0.0_dp
+            else
+                C_w = max(0.0_dp, Me%C_w_l(s))
+            end if
         end function
         !> **Function purpose**                                     <br>
         !! Return the volumetric solid:liquid ratio for the layer
@@ -249,8 +277,9 @@ module AbstractBedSedimentLayerModule
             real(dp) :: Mf_layer                                     !! Sediment mass in this layer
             integer :: i                                             ! Iterator over SPM size classes
             Mf_layer = 0
-            do i = 1, me%nSizeClasses
-                Mf_layer = Mf_layer + Me%colFineSediment(i)%M_f_l
+            if (.not. allocated(Me%colFineSediment)) return
+            do i = 1, size(Me%colFineSediment)
+                Mf_layer = Mf_layer + max(0.0_dp, Me%colFineSediment(i)%M_f())
             end do
         end function
 

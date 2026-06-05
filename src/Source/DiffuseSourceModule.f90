@@ -4,6 +4,7 @@ module DiffuseSourceModule
     use netcdf, only: nf90_fill_double
     use DataInputModule
     use ContaminantModule
+    use PFASEConstantsModule
     implicit none
     private
     
@@ -32,102 +33,193 @@ module DiffuseSourceModule
         me%x = x
         me%y = y
         me%s = s
-        me%compartment = compartment
+        me%compartment = adjustl(compartment)
+
         r = me%j_contaminant%create()
-        if (r%hasCriticalError()) then
-            call ERROR_HANDLER%trigger(errors=.errors.r)
-        end if
+        if (r%hasCriticalError()) call ERROR_HANDLER%trigger(errors=.errors.r)
     end subroutine
 
     !> Update the diffuse source on time step t
     subroutine updateDiffuseSource(me, t)
-        class(DiffuseSource) :: me
-        integer, intent(in) :: t
-        type(Result) :: r
-        integer :: i, j
-        real(dp) :: total_emission
-        real(dp), allocatable :: form_fraction(:)
-        real(dp) :: spm_distribution(C%nSizeClassesSpm)
+        class(DiffuseSource), intent(inout) :: me
+        integer, intent(in)                 :: t
+        type(Result)                        :: r
 
-        call me%j_contaminant%finalise()  ! Reset to zero
+        call me%j_contaminant%finalise()
         r = me%j_contaminant%create()
         if (r%hasCriticalError()) then
             call ERROR_HANDLER%trigger(errors=.errors.r)
             return
         end if
-        allocate(form_fraction(C%contaminantDim(2)+1))  ! Forms + dissolved
-        form_fraction = DATASET%defaultContaminantFormDistribution
-        spm_distribution = DATASET%defaultMatrixEmbeddedDistributionToSpm
+
         select case (trim(me%compartment))
         case ('soil')
-            if (DATASET%emissionsArealSoilContaminant(me%x, me%y, 1, 1, FREE_CONTAMINANT) /= nf90_fill_double) then
-                total_emission = sum(DATASET%emissionsArealSoilContaminant(me%x, me%y, :, :, :))
-                do i = 1, C%contaminantDim(2)
-                    me%j_contaminant%c(:,i,FREE_CONTAMINANT) = total_emission * form_fraction(i) * &
-                        DATASET%defaultDistributionContaminant
-                    me%j_contaminant%c(:,i,ATTACHED_CONTAMINANT) = total_emission * form_fraction(C%contaminantDim(2)+1) * &
-                        DATASET%defaultDistributionContaminant / C%contaminantDim(2)
-                end do
-                me%j_contaminant%m_dissolved = total_emission * form_fraction(C%contaminantDim(2)+1)
-            end if
-            if (DATASET%emissionsArealSoilDissolvedContaminant(me%x, me%y) /= nf90_fill_double) then
-                me%j_contaminant%m_dissolved = me%j_contaminant%m_dissolved + &
-                    DATASET%emissionsArealSoilDissolvedContaminant(me%x, me%y)
-            end if
-        case ('water')
-            if (DATASET%emissionsArealWaterContaminant(me%x, me%y, 1, 1, FREE_CONTAMINANT) /= nf90_fill_double) then
-                total_emission = sum(DATASET%emissionsArealWaterContaminant(me%x, me%y, :, :, :))
-                do i = 1, C%contaminantDim(2)
-                    me%j_contaminant%c(:,i,FREE_CONTAMINANT) = total_emission * form_fraction(i) * &
-                        DATASET%defaultDistributionContaminant
-                    do j = 1, C%nSizeClassesSpm
-                        me%j_contaminant%c(:,i,SPM_CONTAMINANT_START+j-1) = total_emission * &
-                            form_fraction(C%contaminantDim(2)+1) * DATASET%defaultDistributionContaminant * &
-                            spm_distribution(j) / C%contaminantDim(2)
-                    end do
-                end do
-                me%j_contaminant%m_dissolved = total_emission * form_fraction(C%contaminantDim(2)+1)
-            end if
-            if (DATASET%emissionsArealWaterDissolvedContaminant(me%x, me%y) /= nf90_fill_double) then
-                me%j_contaminant%m_dissolved = me%j_contaminant%m_dissolved + &
-                    DATASET%emissionsArealWaterDissolvedContaminant(me%x, me%y)
-            end if
+            call load_areal_soil(me)
+        case ('water','estuary')
+            call load_areal_water(me)
         case ('atmospheric')
-            total_emission = 0.0_dp
-            if (DATASET%emissionsAtmosphericDryDepoContaminant(me%x, me%y, t, 1, 1, FREE_CONTAMINANT) /= nf90_fill_double) then
-                total_emission = total_emission + sum(DATASET%emissionsAtmosphericDryDepoContaminant(me%x, me%y, t, :, :, :))
-            end if
-            if (DATASET%emissionsAtmosphericWetDepoContaminant(me%x, me%y, t, 1, 1, FREE_CONTAMINANT) /= nf90_fill_double) then
-                total_emission = total_emission + sum(DATASET%emissionsAtmosphericWetDepoContaminant(me%x, me%y, t, :, :, :))
-            end if
-            if (total_emission > 0.0_dp) then
-                do i = 1, C%contaminantDim(2)
-                    me%j_contaminant%c(:,i,FREE_CONTAMINANT) = total_emission * form_fraction(i) * &
-                        DATASET%defaultDistributionContaminant
-                    do j = 1, C%nSizeClassesSpm
-                        me%j_contaminant%c(:,i,SPM_CONTAMINANT_START+j-1) = total_emission * &
-                            form_fraction(C%contaminantDim(2)+1) * DATASET%defaultDistributionContaminant * &
-                            spm_distribution(j) / C%contaminantDim(2)
-                    end do
-                end do
-                me%j_contaminant%m_dissolved = total_emission * form_fraction(C%contaminantDim(2)+1)
-            end if
-            if (DATASET%emissionsAtmosphericDryDepoDissolvedContaminant(me%x, me%y, t) /= nf90_fill_double) then
-                me%j_contaminant%m_dissolved = me%j_contaminant%m_dissolved + &
-                    DATASET%emissionsAtmosphericDryDepoDissolvedContaminant(me%x, me%y, t)
-            end if
-            if (DATASET%emissionsAtmosphericWetDepoDissolvedContaminant(me%x, me%y, t) /= nf90_fill_double) then
-                me%j_contaminant%m_dissolved = me%j_contaminant%m_dissolved + &
-                    DATASET%emissionsAtmosphericWetDepoDissolvedContaminant(me%x, me%y, t)
-            end if
+            call load_atmospheric_deposition(me, t)
         case default
-            call r%addError(ErrorInstance(code=900, message="Invalid compartment: "//trim(me%compartment)))
+            call r%addError(ErrorInstance(code=900, message='Invalid diffuse-source compartment: '//trim(me%compartment)))
         end select
-        if (.not. allocated(me%j_contaminant%c)) then
-            call r%addError(ErrorInstance(code=105, message="Contaminant array not allocated"))
+
+        if (allocated(me%j_contaminant%c)) then
+            me%j_contaminant%m_dissolved = sum(me%j_contaminant%c(:,:,PFAS_AQ))
+        else
+            call r%addError(ErrorInstance(code=105, message='DiffuseSource contaminant array not allocated'))
         end if
-        if (r%hasCriticalError()) then
-            call ERROR_HANDLER%trigger(errors=.errors.r)
+
+        if (r%hasCriticalError()) call ERROR_HANDLER%trigger(errors=.errors.r)
+    end subroutine updateDiffuseSource
+
+
+    subroutine load_areal_soil(me)
+        class(DiffuseSource), intent(inout) :: me
+        integer :: ns, nf, np
+        ns = size(me%j_contaminant%c,1)
+        nf = size(me%j_contaminant%c,2)
+        np = size(me%j_contaminant%c,3)
+
+        if (allocated(DATASET%emissionsArealSoilContaminant)) then
+            if (has_xy_5d(DATASET%emissionsArealSoilContaminant, me%x, me%y)) then
+                call copy_pfas_tensor( &
+                    DATASET%emissionsArealSoilContaminant(me%x,me%y,1:min(ns,size(DATASET%emissionsArealSoilContaminant,3)), &
+                                                        1:min(nf,size(DATASET%emissionsArealSoilContaminant,4)), &
+                                                        1:min(np,size(DATASET%emissionsArealSoilContaminant,5))), &
+                    me%j_contaminant%c(1:min(ns,size(DATASET%emissionsArealSoilContaminant,3)), &
+                                       1:min(nf,size(DATASET%emissionsArealSoilContaminant,4)), &
+                                       1:min(np,size(DATASET%emissionsArealSoilContaminant,5))) )
+            end if
         end if
-    end subroutine
+
+        if (allocated(DATASET%emissionsArealSoilDissolvedContaminant)) then
+            if (has_xy_2d(DATASET%emissionsArealSoilDissolvedContaminant, me%x, me%y)) then
+                if (DATASET%emissionsArealSoilDissolvedContaminant(me%x,me%y) /= nf90_fill_double) &
+                    call add_scalar_to_aq(me%j_contaminant, DATASET%emissionsArealSoilDissolvedContaminant(me%x,me%y))
+            end if
+        end if
+    end subroutine load_areal_soil
+
+
+    subroutine load_areal_water(me)
+        class(DiffuseSource), intent(inout) :: me
+        integer :: ns, nf, np
+        ns = size(me%j_contaminant%c,1)
+        nf = size(me%j_contaminant%c,2)
+        np = size(me%j_contaminant%c,3)
+
+        if (allocated(DATASET%emissionsArealWaterContaminant)) then
+            if (has_xy_5d(DATASET%emissionsArealWaterContaminant, me%x, me%y)) then
+                call copy_pfas_tensor( &
+                    DATASET%emissionsArealWaterContaminant(me%x,me%y,1:min(ns,size(DATASET%emissionsArealWaterContaminant,3)), &
+                                                         1:min(nf,size(DATASET%emissionsArealWaterContaminant,4)), &
+                                                         1:min(np,size(DATASET%emissionsArealWaterContaminant,5))), &
+                    me%j_contaminant%c(1:min(ns,size(DATASET%emissionsArealWaterContaminant,3)), &
+                                       1:min(nf,size(DATASET%emissionsArealWaterContaminant,4)), &
+                                       1:min(np,size(DATASET%emissionsArealWaterContaminant,5))) )
+            end if
+        end if
+
+        if (allocated(DATASET%emissionsArealWaterDissolvedContaminant)) then
+            if (has_xy_2d(DATASET%emissionsArealWaterDissolvedContaminant, me%x, me%y)) then
+                if (DATASET%emissionsArealWaterDissolvedContaminant(me%x,me%y) /= nf90_fill_double) &
+                    call add_scalar_to_aq(me%j_contaminant, DATASET%emissionsArealWaterDissolvedContaminant(me%x,me%y))
+            end if
+        end if
+    end subroutine load_areal_water
+
+
+    subroutine load_atmospheric_deposition(me, t)
+        class(DiffuseSource), intent(inout) :: me
+        integer, intent(in)                 :: t
+        integer :: ns, nf, np
+        ns = size(me%j_contaminant%c,1)
+        nf = size(me%j_contaminant%c,2)
+        np = size(me%j_contaminant%c,3)
+
+        if (allocated(DATASET%emissionsAtmosphericDryDepoContaminant)) then
+            if (has_xyt_6d(DATASET%emissionsAtmosphericDryDepoContaminant, me%x, me%y, t)) then
+                call copy_pfas_tensor( &
+                    DATASET%emissionsAtmosphericDryDepoContaminant(me%x,me%y,t,1:min(ns,size(DATASET%emissionsAtmosphericDryDepoContaminant,4)), &
+                                                                  1:min(nf,size(DATASET%emissionsAtmosphericDryDepoContaminant,5)), &
+                                                                  1:min(np,size(DATASET%emissionsAtmosphericDryDepoContaminant,6))), &
+                    me%j_contaminant%c(1:min(ns,size(DATASET%emissionsAtmosphericDryDepoContaminant,4)), &
+                                       1:min(nf,size(DATASET%emissionsAtmosphericDryDepoContaminant,5)), &
+                                       1:min(np,size(DATASET%emissionsAtmosphericDryDepoContaminant,6))) )
+            end if
+        end if
+
+        if (allocated(DATASET%emissionsAtmosphericWetDepoContaminant)) then
+            if (has_xyt_6d(DATASET%emissionsAtmosphericWetDepoContaminant, me%x, me%y, t)) then
+                call copy_pfas_tensor( &
+                    DATASET%emissionsAtmosphericWetDepoContaminant(me%x,me%y,t,1:min(ns,size(DATASET%emissionsAtmosphericWetDepoContaminant,4)), &
+                                                                  1:min(nf,size(DATASET%emissionsAtmosphericWetDepoContaminant,5)), &
+                                                                  1:min(np,size(DATASET%emissionsAtmosphericWetDepoContaminant,6))), &
+                    me%j_contaminant%c(1:min(ns,size(DATASET%emissionsAtmosphericWetDepoContaminant,4)), &
+                                       1:min(nf,size(DATASET%emissionsAtmosphericWetDepoContaminant,5)), &
+                                       1:min(np,size(DATASET%emissionsAtmosphericWetDepoContaminant,6))) )
+            end if
+        end if
+
+        if (allocated(DATASET%emissionsAtmosphericDryDepoDissolvedContaminant)) then
+            if (has_xyt_3d(DATASET%emissionsAtmosphericDryDepoDissolvedContaminant, me%x, me%y, t)) then
+                if (DATASET%emissionsAtmosphericDryDepoDissolvedContaminant(me%x,me%y,t) /= nf90_fill_double) &
+                    call add_scalar_to_aq(me%j_contaminant, DATASET%emissionsAtmosphericDryDepoDissolvedContaminant(me%x,me%y,t))
+            end if
+        end if
+        if (allocated(DATASET%emissionsAtmosphericWetDepoDissolvedContaminant)) then
+            if (has_xyt_3d(DATASET%emissionsAtmosphericWetDepoDissolvedContaminant, me%x, me%y, t)) then
+                if (DATASET%emissionsAtmosphericWetDepoDissolvedContaminant(me%x,me%y,t) /= nf90_fill_double) &
+                    call add_scalar_to_aq(me%j_contaminant, DATASET%emissionsAtmosphericWetDepoDissolvedContaminant(me%x,me%y,t))
+            end if
+        end if
+    end subroutine load_atmospheric_deposition
+
+
+    subroutine copy_pfas_tensor(src, dst)
+        real(dp), intent(in)    :: src(:,:,:)
+        real(dp), intent(inout) :: dst(:,:,:)
+        integer :: i, f, p
+        do p = 1, size(src,3)
+            do f = 1, size(src,2)
+                do i = 1, size(src,1)
+                    if (src(i,f,p) /= nf90_fill_double) dst(i,f,p) = dst(i,f,p) + src(i,f,p)
+                end do
+            end do
+        end do
+    end subroutine copy_pfas_tensor
+
+
+    subroutine add_scalar_to_aq(cont, mass)
+        type(Contaminant), intent(inout) :: cont
+        real(dp), intent(in)             :: mass
+        if (.not. allocated(cont%c)) return
+        if (mass <= 0.0_dp) return
+        cont%c(1,1,PFAS_AQ) = cont%c(1,1,PFAS_AQ) + mass
+    end subroutine add_scalar_to_aq
+
+
+    logical function has_xy_2d(a, x, y)
+        real(dp), intent(in) :: a(:,:)
+        integer, intent(in) :: x, y
+        has_xy_2d = x>=1 .and. y>=1 .and. x<=size(a,1) .and. y<=size(a,2)
+    end function has_xy_2d
+
+    logical function has_xyt_3d(a, x, y, t)
+        real(dp), intent(in) :: a(:,:,:)
+        integer, intent(in) :: x, y, t
+        has_xyt_3d = x>=1 .and. y>=1 .and. t>=1 .and. x<=size(a,1) .and. y<=size(a,2) .and. t<=size(a,3)
+    end function has_xyt_3d
+
+    logical function has_xy_5d(a, x, y)
+        real(dp), intent(in) :: a(:,:,:,:,:)
+        integer, intent(in) :: x, y
+        has_xy_5d = x>=1 .and. y>=1 .and. x<=size(a,1) .and. y<=size(a,2)
+    end function has_xy_5d
+
+    logical function has_xyt_6d(a, x, y, t)
+        real(dp), intent(in) :: a(:,:,:,:,:,:)
+        integer, intent(in) :: x, y, t
+        has_xyt_6d = x>=1 .and. y>=1 .and. t>=1 .and. x<=size(a,1) .and. y<=size(a,2) .and. t<=size(a,3)
+    end function has_xyt_6d
 end module

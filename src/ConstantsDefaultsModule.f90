@@ -17,6 +17,8 @@ module ConstantsDefaultsModule
     real(dp), parameter :: defaultMinWaterTemperature = 4.0_dp     ! Thames River
     real(dp), parameter :: defaultMaxWaterTemperature = 21.0_dp    ! Thames River
     integer, parameter  :: defaultMinWaterTemperatureDayOfYear = 32  ! Thames River
+   
+   ! Sediment / hydromorphology defaults
     real(dp), parameter :: defaultSedimentTransport_a = 2.0e-9_dp
     real(dp), parameter :: defaultSedimentTransport_b = 0.0_dp
     real(dp), parameter :: defaultSedimentTransport_c = 0.2_dp
@@ -27,6 +29,23 @@ module ConstantsDefaultsModule
     real(dp), parameter :: defaultDepositionBeta = 0.93_dp         ! Zhiyao et al, 2008: https://doi.org/10.1016/S1674-2370(15)30017-X
     real(dp), parameter :: defaultBankErosionAlpha = 1.0e-9_dp     ! [kg/m5] Loosely based on Lazar et al, 2010: https://doi.org/10.1016/j.scitotenv.2010.02.030
     real(dp), parameter :: defaultBankErosionBeta = 1.0_dp         ! [-] Loosely based on Lazar et al, 2010: https://doi.org/10.1016/j.scitotenv.2010.02.030
-    ! Default for contaminant form distribution (pristine, transformed, dissolved)
-    real(dp), parameter :: defaultContaminantFormDistribution(3) = [1.0_dp, 0.0_dp, 0.0_dp]  ! All in pristine form
+    
+    ! P-FASE defaults. These should be overwritten by PFAS property datasets.
+    real(dp), parameter :: defaultPFA_KdSolid = 0.0_dp        !! [m3 kg-1]
+    real(dp), parameter :: defaultPFA_KdSPM = 0.0_dp          !! [m3 kg-1]
+    real(dp), parameter :: defaultPFA_KawAWI = 0.0_dp         !! capacity coefficient placeholder
+    real(dp), parameter :: defaultPFA_kAdsSolid = 0.0_dp      !! [s-1 capacity-normalised]
+    real(dp), parameter :: defaultPFA_kDesSolid = 0.0_dp      !! [s-1]
+    real(dp), parameter :: defaultPFA_kAdsSPM = 0.0_dp        !! [s-1 capacity-normalised]
+    real(dp), parameter :: defaultPFA_kDesSPM = 0.0_dp        !! [s-1]
+    real(dp), parameter :: defaultPFA_kAdsAWI = 0.0_dp        !! [s-1 capacity-normalised]
+    real(dp), parameter :: defaultPFA_kDesAWI = 0.0_dp        !! [s-1]
+    real(dp), parameter :: defaultPFAFoamCoefficient = 0.0_dp
+    real(dp), parameter :: defaultPFAVolatilisationRateScalar = 0.0_dp
+    real(dp), parameter :: defaultPFASeaSprayAerosolRate = 0.0_dp
+    real(dp), parameter :: defaultPFABioUptakeRateScalar = 0.0_dp
+
+    ! Default form distribution for c(species, form, phase). Keep length 3 for
+    ! backward-compatible pristine/transformed/terminal setups.
+    real(dp), parameter :: defaultContaminantFormDistribution(3) = [1.0_dp, 0.0_dp, 0.0_dp]
 end module
