@@ -287,18 +287,19 @@ contains
 
     !> Perform bioturbation on a time step by mixing calculated depth of two layers together
     function bioturbationSoilProfile(me) result(rslt)
-        class(SoilProfile)  :: me           !! This `SoilProfile` instance
-        type(Result)        :: rslt         !! The `Result` object to return
-        integer             :: i, j, k      ! Iterator
+        class(SoilProfile)  :: me
+        type(Result)        :: rslt
+        integer             :: i
         real(dp)            :: fractionOfLayerToMix
-        type(Contaminant)   :: temp         ! Temporary Contaminant object
-        type(Result)        :: r            ! Result object for error handling
-        ! Only model bioturbation if config file has asked us to
+        type(Contaminant)   :: upper_move, lower_move
+        type(Result)        :: r
+
         if (C%includeBioturbation) then
             call r%addErrors(.errors. upper_move%create())
             call r%addErrors(.errors. lower_move%create())
+
             if (r%hasCriticalError()) then
-                call rslt%addErrors(.errors.r)
+                call rslt%addErrors(.errors. r)
                 return
             end if
 
@@ -319,6 +320,7 @@ contains
             call upper_move%finalise()
             call lower_move%finalise()
         end if
+
         call rslt%addToTrace("Performing bioturbation on " // trim(me%ref))
     end function
 
@@ -658,7 +660,7 @@ contains
         class(SoilProfile) :: me ! CORRECTED: Removed intent(in)
         real(dp), allocatable             :: C_contaminant(:,:,:)
         type(Contaminant)                 :: mtot
-        real(dp)                          :: V_profile
+        real(dp)                          :: soil_mass
         integer                           :: l
 
         ! total contaminant mass across all layers (same shape as %c)
