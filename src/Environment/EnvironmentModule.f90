@@ -149,9 +149,9 @@ module EnvironmentModule
     subroutine updateEnvironment(me, t, tInBatch, isWarmUp)
         use omp_lib
         class(Environment), target :: me                           !! This `Environment` instance
-        integer :: t                                               !! Current time step
-        integer :: tInBatch                                        !! Current time step in full batch run
-        logical :: isWarmUp                                        !! Are we in a warm up period?
+        integer, intent(in) :: t                                               !! Current time step
+        integer, intent(in) :: tInBatch                                        !! Current time step in full batch run
+        logical, intent(in) :: isWarmUp                                        !! Are we in a warm up period?
         integer :: i, x, y                                         ! Iterators
         type(datetime) :: currentDate                              ! Current simulation date
         type(Contaminant), allocatable :: tmp_contaminant(:)       ! Temporary array for contaminants
@@ -253,9 +253,9 @@ module EnvironmentModule
     !! already been updated.
     subroutine updateReachEnvironment(me, t, reach, isWarmUp)
         class(Environment), target :: me
-        integer               :: t
-        type(ReachPointer)    :: reach
-        logical               :: isWarmUp
+        integer, intent(in) :: t
+        type(ReachPointer), intent(inout) :: reach
+        logical, intent(in) :: isWarmUp
         type(GridCellPointer) :: cell
         real(dp)              :: lengthRatio
         real(dp)              :: j_spm_runoff(C%nSizeClassesSpm)
@@ -302,7 +302,7 @@ module EnvironmentModule
 
 
     subroutine determineStreamOrderEnvironment(me)
-        class(Environment) :: me               !! This Environment instance
+        class(Environment), intent(inout) :: me               !! This Environment instance
         integer :: streamOrder                 !! Index to keep track of stream order
         type(ReachPointer) :: reach            ! Pointer to the reach we're updating
         logical :: goDownstream                ! Flag to determine whether to go to next downstream reach
@@ -361,7 +361,7 @@ module EnvironmentModule
     end subroutine
 
     function parseInputDataEnvironment(me) result(r)
-        class(Environment) :: me
+        class(Environment), intent(inout) :: me
         type(Result)      :: r
         integer           :: x, y
         character(len=256):: tr
@@ -381,7 +381,7 @@ module EnvironmentModule
 
 
     subroutine parseNewBatchDataEnvironment(me)
-        class(Environment) :: me
+        class(Environment), intent(inout) :: me
         integer :: x, y
         ! Loop through grid cells and parse their new batch data
         do y = 1, DATASET%gridShape(2)
@@ -393,7 +393,7 @@ module EnvironmentModule
    
     !> Get the total mass of Contaminant in all waterbodies in the environment
     function get_m_contaminantEnvironment(me) result(m_contaminant)
-        class(Environment) :: me
+        class(Environment), intent(in) :: me
         type(Contaminant) :: m_contaminant
         type(Result) :: rslt
         integer :: x, y, rr
@@ -418,7 +418,7 @@ module EnvironmentModule
     end function
 
     function get_C_contaminant_soilEnvironment(me) result(C_contaminant_soil)
-        class(Environment) :: me
+        class(Environment), intent(in) :: me
         type(Contaminant) :: C_contaminant_soil
         type(Contaminant) :: m_total
         type(Contaminant) :: m_profile
@@ -457,7 +457,7 @@ module EnvironmentModule
     !> Get the mean water‐phase Contaminant PEC at this moment in time,
     !! by looping over all grid cells and averaging.
     function get_C_contaminant_waterEnvironment(me) result(C_contaminant_water)
-        class(Environment) :: me
+        class(Environment), intent(in) :: me
         type(Contaminant) :: C_contaminant_water
         type(Contaminant) :: m_total
         type(Contaminant) :: m_cell
@@ -494,7 +494,7 @@ module EnvironmentModule
     ! by looping over all grid cells and their water bodies and getting the
     !! weighted average.
     function get_C_contaminant_sedimentEnvironment(me) result(C_contaminant_sediment)
-        class(Environment) :: me
+        class(Environment), intent(in) :: me
         type(Contaminant) :: C_contaminant_sediment
         type(Contaminant) :: m_total
         type(Contaminant) :: m_cell
@@ -528,7 +528,7 @@ module EnvironmentModule
     end function 
 
     function getBedSedimentAreaEnvironment(me) result(bedArea)
-        class(Environment) :: me
+        class(Environment), intent(in) :: me
         real(dp) :: bedArea
         integer :: x, y
         bedArea = 0.0_dp
@@ -544,7 +544,7 @@ module EnvironmentModule
     !> Get the mass of sediment [kg] in the environment, broken down by layer and sediment
     !! size class.
     function get_m_sediment_byLayerEnvironment(me) result(m_sediment_byLayer)
-        class(Environment) :: me
+        class(Environment), intent(in) :: me
         real(dp), allocatable :: m_sediment_byLayer(:,:)
         integer :: x, y, i, j, k
         character(len=256) :: tr
