@@ -131,7 +131,7 @@ contains
 
     subroutine finaliseEnvironment(me)
         class(AbstractEnvironment), intent(inout) :: me
-        integer :: i, x, y
+        integer :: i
 
         if (allocated(me%contaminant_water_t)) then
             do i = 1, size(me%contaminant_water_t)
@@ -149,21 +149,10 @@ contains
 
         if (allocated(me%m_sediment_t_byLayer)) deallocate(me%m_sediment_t_byLayer)
 
-        if (allocated(me%colGridCells)) then
-            do y = 1, size(me%colGridCells, 2)
-                do x = 1, size(me%colGridCells, 1)
-                    if (associated(me%colGridCells(x,y)%item)) then
-                        call me%colGridCells(x,y)%item%finalise()
-                        deallocate(me%colGridCells(x,y)%item)
-                    end if
-                end do
-            end do
-            deallocate(me%colGridCells)
-        end if
-
+        if (allocated(me%colGridCells)) deallocate(me%colGridCells)
         if (allocated(me%headwaters)) deallocate(me%headwaters)
         if (allocated(me%routedReaches)) deallocate(me%routedReaches)
         if (allocated(me%gridDimensions)) deallocate(me%gridDimensions)
-    end subroutine finaliseEnvironment
+    end subroutine 
 
 end module 
