@@ -1131,45 +1131,7 @@ module DataOutputModule
                 end do
             end associate
         end do
-
-        ! Loop over soil profiles — collect soil biota
-        do b = 1, this%env%item%colGridCells(x,y)%item%nSoilProfiles
-            associate (profile => this%env%item%colGridCells(x,y)%item%colSoilProfiles(b)%item)
-                if (.not. allocated(profile%biota)) cycle
-                do s = 1, size(profile%biota)
-                    associate (bio => profile%biota(s))
-                        if (.not. allocated(bio%C_active) .or. .not. allocated(bio%C_stored)) cycle
-                        write(iouOutputBiota, '(a)', advance='no') &
-                            trim(str(t)) // "," // trim(date) // "," // &
-                            trim(str(x)) // "," // trim(str(y)) // "," // &
-                            trim(str(easts)) // "," // trim(str(norths)) // "," // &
-                            trim(str(s)) // "," // trim(bio%name) // ","
-                        do b = 1, nSpecies
-                            if (b <= size(bio%C_active)) then
-                                write(iouOutputBiota, '(a)', advance='no') trim(str(bio%C_active(b))) // ","
-                            else
-                                write(iouOutputBiota, '(a)', advance='no') "0.0,"
-                            end if
-                        end do
-                        do b = 1, nSpecies
-                            if (b <= size(bio%C_stored)) then
-                                if (b < nSpecies) then
-                                    write(iouOutputBiota, '(a)', advance='no') trim(str(bio%C_stored(b))) // ","
-                                else
-                                    write(iouOutputBiota, '(a)') trim(str(bio%C_stored(b)))
-                                end if
-                            else
-                                if (b < nSpecies) then
-                                    write(iouOutputBiota, '(a)', advance='no') "0.0,"
-                                else
-                                    write(iouOutputBiota, '(a)') "0.0"
-                                end if
-                            end if
-                        end do
-                    end associate
-                end do
-            end associate
-        end do
+        
     end subroutine
 
 end module
