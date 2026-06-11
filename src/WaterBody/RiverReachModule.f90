@@ -82,10 +82,12 @@ contains
             if (allocated(DATASET%spmDensityBySizeClass)) then
                 rho_s = DATASET%spmDensityBySizeClass(min(s, size(DATASET%spmDensityBySizeClass)))
             else
-                ! GLOBAL fallback (now guaranteed to be defined by GLOBALS_INIT)
                 rho_s = C%sedimentParticleDensities(min(s, size(C%sedimentParticleDensities)))
             end if
-            me%W_settle_spm(s) = me%calculateSettlingVelocity(C%d_spm(s), rho_s, T0)
+
+            me%W_settle_spm(s) = me%calculateSettlingVelocity( &
+                C%d_spm(s), rho_s, T0, &
+                DATASET%depositionAlphaConstant, DATASET%depositionBetaConstant)
         end do
 
         ! ensure an SPM vector exists for the reactor
