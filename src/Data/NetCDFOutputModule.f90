@@ -1390,33 +1390,7 @@ module NetCDFOutputModule
                 end do
             end associate
         end do
-
-        ! Soil profiles: soil biota
-        do b = 1, me%env%item%colGridCells(x,y)%item%nSoilProfiles
-            associate (profile => me%env%item%colGridCells(x,y)%item%colSoilProfiles(b)%item)
-                if (.not. allocated(profile%biota)) cycle
-                do s = 1, size(profile%biota)
-                    bidx = profile%biota(s)%biotaIndex
-                    if (bidx < 1 .or. bidx > DATASET%nBiota) cycle
-                    associate (bio => profile%biota(s))
-                        if (.not. allocated(bio%C_active) .or. .not. allocated(bio%C_stored)) cycle
-                        do w = 1, nSpecies
-                            if (C%netCDFWriteMode == 'end') then
-                                if (w <= size(bio%C_active)) &
-                                    me%output_biota__C_active(w, bidx, x, y, tInChunk) = bio%C_active(w)
-                                if (w <= size(bio%C_stored)) &
-                                    me%output_biota__C_stored(w, bidx, x, y, tInChunk) = bio%C_stored(w)
-                            else if (C%netCDFWriteMode == 'itr') then
-                                if (w <= size(bio%C_active)) &
-                                    call me%nc__biota__C_active%setData(bio%C_active(w), start=[w, bidx, x, y, t])
-                                if (w <= size(bio%C_stored)) &
-                                    call me%nc__biota__C_stored%setData(bio%C_stored(w), start=[w, bidx, x, y, t])
-                            end if
-                        end do
-                    end associate
-                end do
-            end associate
-        end do
+        
     end subroutine
 
 end module
