@@ -20,7 +20,6 @@ module SoilLayerModule
         procedure :: update_contaminant_state => updateContaminantStateSoilLayer
         procedure :: addPooledWater => addPooledWaterSoilLayer
         procedure :: erode => erodeSoilLayer
-        procedure :: calculateAttachmentRate => calculateAttachmentRateSoilLayer
         procedure :: calculateBioturbationRate => calculateBioturbationRateSoilLayer
         procedure :: parseInputData => parseInputDataSoilLayer
         procedure :: parseNewBatchData => parseNewBatchDataSoilLayer
