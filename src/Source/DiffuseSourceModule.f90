@@ -140,9 +140,10 @@ module DiffuseSourceModule
         if (allocated(DATASET%emissionsAtmosphericDryDepoContaminant)) then
             if (has_xyt_6d(DATASET%emissionsAtmosphericDryDepoContaminant, me%x, me%y, t)) then
                 call copy_pfas_tensor( &
-                    DATASET%emissionsAtmosphericDryDepoContaminant(me%x,me%y,t,1:min(ns,size(DATASET%emissionsAtmosphericDryDepoContaminant,4)), &
-                                                                  1:min(nf,size(DATASET%emissionsAtmosphericDryDepoContaminant,5)), &
-                                                                  1:min(np,size(DATASET%emissionsAtmosphericDryDepoContaminant,6))), &
+                    DATASET%emissionsAtmosphericDryDepoContaminant(me%x,me%y,t, &
+                                                        1:min(ns,size(DATASET%emissionsAtmosphericDryDepoContaminant,4)), &
+                                                          1:min(nf,size(DATASET%emissionsAtmosphericDryDepoContaminant,5)), &
+                                                          1:min(np,size(DATASET%emissionsAtmosphericDryDepoContaminant,6))), &
                     me%j_contaminant%c(1:min(ns,size(DATASET%emissionsAtmosphericDryDepoContaminant,4)), &
                                        1:min(nf,size(DATASET%emissionsAtmosphericDryDepoContaminant,5)), &
                                        1:min(np,size(DATASET%emissionsAtmosphericDryDepoContaminant,6))) )
@@ -152,9 +153,10 @@ module DiffuseSourceModule
         if (allocated(DATASET%emissionsAtmosphericWetDepoContaminant)) then
             if (has_xyt_6d(DATASET%emissionsAtmosphericWetDepoContaminant, me%x, me%y, t)) then
                 call copy_pfas_tensor( &
-                    DATASET%emissionsAtmosphericWetDepoContaminant(me%x,me%y,t,1:min(ns,size(DATASET%emissionsAtmosphericWetDepoContaminant,4)), &
-                                                                  1:min(nf,size(DATASET%emissionsAtmosphericWetDepoContaminant,5)), &
-                                                                  1:min(np,size(DATASET%emissionsAtmosphericWetDepoContaminant,6))), &
+                    DATASET%emissionsAtmosphericWetDepoContaminant(me%x,me%y,t, &
+                                                            1:min(ns,size(DATASET%emissionsAtmosphericWetDepoContaminant,4)), &
+                                                            1:min(nf,size(DATASET%emissionsAtmosphericWetDepoContaminant,5)), &
+                                                            1:min(np,size(DATASET%emissionsAtmosphericWetDepoContaminant,6))), &
                     me%j_contaminant%c(1:min(ns,size(DATASET%emissionsAtmosphericWetDepoContaminant,4)), &
                                        1:min(nf,size(DATASET%emissionsAtmosphericWetDepoContaminant,5)), &
                                        1:min(np,size(DATASET%emissionsAtmosphericWetDepoContaminant,6))) )
