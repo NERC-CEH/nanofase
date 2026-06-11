@@ -51,9 +51,6 @@ module NetCDFAggregatedOutputModule
         real(dp), allocatable :: output_agg_sediment__mass(:,:,:)
         real(dp), allocatable :: output_agg_soil__land_use(:,:)
         real(dp), allocatable :: output_agg_soil__bulk_density(:,:)
-        ! Biota output arrays: [species, biota_index, x, y, t]
-        real(dp), allocatable :: output_biota__C_active(:,:,:,:,:)
-        real(dp), allocatable :: output_biota__C_stored(:,:,:,:,:)
     contains
         procedure, public :: init => initNetCDFAggregatedOutput
         procedure, public :: updateWater => updateWaterNetCDFAggregatedOutput
@@ -137,7 +134,8 @@ contains
                     ! store a value per phase in the aggregated file
                     me%output_agg_water__C_contaminant(PFAS_AQ,     x, y, tInChunk) = C_contaminant
                     me%output_agg_water__C_contaminant(PFAS_SOL, x, y, tInChunk) = C_contaminant
-                    me%output_agg_water__C_contaminant(PFAS_SPM,  x, y, tInChunk) = sum(m_contaminant%c(:,:,PFAS_SPM)) / max(C%epsilon, volume)
+                    me%output_agg_water__C_contaminant(PFAS_SPM,  x, y, tInChunk) = &
+                       sum(m_contaminant%c(:,:,PFAS_SPM)) / max(C%epsilon, volume)
 
                     if (C%includeSoilStateBreakdown) then
                         me%output_agg_water__C_contaminant_free(   x, y, tInChunk) = &
@@ -792,27 +790,7 @@ contains
                 end do
             end associate
         end do
-
-        ! Soil profiles: collect soil biota
-        do b = 1, me%env%item%colGridCells(x,y)%item%nSoilProfiles
-            associate (profile => me%env%item%colGridCells(x,y)%item%colSoilProfiles(b)%item)
-                if (.not. allocated(profile%biota)) cycle
-                do s = 1, size(profile%biota)
-                    bidx = profile%biota(s)%biotaIndex
-                    if (bidx < 1 .or. bidx > DATASET%nBiota) cycle
-                    associate (bio => profile%biota(s))
-                        if (.not. allocated(bio%C_active) .or. .not. allocated(bio%C_stored)) cycle
-                        if (.not. allocated(me%output_biota__C_active)) cycle
-                        do w = 1, nSpecies
-                            if (w <= size(bio%C_active)) &
-                                me%output_biota__C_active(w, bidx, x, y, tInChunk) = bio%C_active(w)
-                            if (w <= size(bio%C_stored)) &
-                                me%output_biota__C_stored(w, bidx, x, y, tInChunk) = bio%C_stored(w)
-                        end do
-                    end associate
-                end do
-            end associate
-        end do
+        
     end subroutine
 
 end module
