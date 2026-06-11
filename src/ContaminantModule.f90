@@ -204,29 +204,51 @@ contains
                 this%species_name(i) = DATASET%pfasSpeciesNames(i)
             end do
         end if
-        if (allocated(DATASET%pfasMolecularWeight)) this%molecular_weight(:min(size(this%molecular_weight),size(DATASET%pfasMolecularWeight))) = DATASET%pfasMolecularWeight(:min(size(this%molecular_weight),size(DATASET%pfasMolecularWeight)))
-        if (allocated(DATASET%pfasCharge))          this%charge(:min(size(this%charge),size(DATASET%pfasCharge))) = DATASET%pfasCharge(:min(size(this%charge),size(DATASET%pfasCharge)))
-        if (allocated(DATASET%pfasPka))             this%pka(:min(size(this%pka),size(DATASET%pfasPka))) = DATASET%pfasPka(:min(size(this%pka),size(DATASET%pfasPka)))
-        if (allocated(DATASET%pfasKdSolid))         this%kd_solid(:min(size(this%kd_solid),size(DATASET%pfasKdSolid))) = DATASET%pfasKdSolid(:min(size(this%kd_solid),size(DATASET%pfasKdSolid)))
-        if (allocated(DATASET%pfasKdSpm))           this%kd_spm(:min(size(this%kd_spm),size(DATASET%pfasKdSpm))) = DATASET%pfasKdSpm(:min(size(this%kd_spm),size(DATASET%pfasKdSpm)))
-        if (allocated(DATASET%pfasKawAwi))          this%kaw_awi(:min(size(this%kaw_awi),size(DATASET%pfasKawAwi))) = DATASET%pfasKawAwi(:min(size(this%kaw_awi),size(DATASET%pfasKawAwi)))
-        if (allocated(DATASET%pfasKAdsSolid))       this%k_ads_solid(:min(size(this%k_ads_solid),size(DATASET%pfasKAdsSolid))) = DATASET%pfasKAdsSolid(:min(size(this%k_ads_solid),size(DATASET%pfasKAdsSolid)))
-        if (allocated(DATASET%pfasKDesSolid))       this%k_des_solid(:min(size(this%k_des_solid),size(DATASET%pfasKDesSolid))) = DATASET%pfasKDesSolid(:min(size(this%k_des_solid),size(DATASET%pfasKDesSolid)))
-        if (allocated(DATASET%pfasKAdsSpm))         this%k_ads_spm(:min(size(this%k_ads_spm),size(DATASET%pfasKAdsSpm))) = DATASET%pfasKAdsSpm(:min(size(this%k_ads_spm),size(DATASET%pfasKAdsSpm)))
-        if (allocated(DATASET%pfasKDesSpm))         this%k_des_spm(:min(size(this%k_des_spm),size(DATASET%pfasKDesSpm))) = DATASET%pfasKDesSpm(:min(size(this%k_des_spm),size(DATASET%pfasKDesSpm)))
-        if (allocated(DATASET%pfasKAdsAwi))         this%k_ads_awi(:min(size(this%k_ads_awi),size(DATASET%pfasKAdsAwi))) = DATASET%pfasKAdsAwi(:min(size(this%k_ads_awi),size(DATASET%pfasKAdsAwi)))
-        if (allocated(DATASET%pfasKDesAwi))         this%k_des_awi(:min(size(this%k_des_awi),size(DATASET%pfasKDesAwi))) = DATASET%pfasKDesAwi(:min(size(this%k_des_awi),size(DATASET%pfasKDesAwi)))
+        if (allocated(DATASET%pfasMolecularWeight)) this%molecular_weight(:min(size(this%molecular_weight),&
+        size(DATASET%pfasMolecularWeight))) &
+        = DATASET%pfasMolecularWeight(:min(size(this%molecular_weight),size(DATASET%pfasMolecularWeight)))
+        if (allocated(DATASET%pfasCharge))          this%charge(:min(size(this%charge),size(DATASET%pfasCharge))) &
+        = DATASET%pfasCharge(:min(size(this%charge),size(DATASET%pfasCharge)))
+        if (allocated(DATASET%pfasPka))             this%pka(:min(size(this%pka),size(DATASET%pfasPka))) &
+        = DATASET%pfasPka(:min(size(this%pka),size(DATASET%pfasPka)))
+        if (allocated(DATASET%pfasKdSolid))         this%kd_solid(:min(size(this%kd_solid),size(DATASET%pfasKdSolid))) &
+        = DATASET%pfasKdSolid(:min(size(this%kd_solid),size(DATASET%pfasKdSolid)))
+        if (allocated(DATASET%pfasKdSpm))           this%kd_spm(:min(size(this%kd_spm),size(DATASET%pfasKdSpm))) &
+        = DATASET%pfasKdSpm(:min(size(this%kd_spm),size(DATASET%pfasKdSpm)))
+        if (allocated(DATASET%pfasKawAwi))          this%kaw_awi(:min(size(this%kaw_awi),size(DATASET%pfasKawAwi))) &
+        = DATASET%pfasKawAwi(:min(size(this%kaw_awi),size(DATASET%pfasKawAwi)))
+        if (allocated(DATASET%pfasKAdsSolid))       this%k_ads_solid(:min(size(this%k_ads_solid),size(DATASET%pfasKAdsSolid))) &
+        = DATASET%pfasKAdsSolid(:min(size(this%k_ads_solid),size(DATASET%pfasKAdsSolid)))
+        if (allocated(DATASET%pfasKDesSolid))       this%k_des_solid(:min(size(this%k_des_solid),size(DATASET%pfasKDesSolid))) &
+        = DATASET%pfasKDesSolid(:min(size(this%k_des_solid),size(DATASET%pfasKDesSolid)))
+        if (allocated(DATASET%pfasKAdsSpm))         this%k_ads_spm(:min(size(this%k_ads_spm),size(DATASET%pfasKAdsSpm))) &
+        = DATASET%pfasKAdsSpm(:min(size(this%k_ads_spm),size(DATASET%pfasKAdsSpm)))
+        if (allocated(DATASET%pfasKDesSpm))         this%k_des_spm(:min(size(this%k_des_spm),size(DATASET%pfasKDesSpm))) &
+        = DATASET%pfasKDesSpm(:min(size(this%k_des_spm),size(DATASET%pfasKDesSpm)))
+        if (allocated(DATASET%pfasKAdsAwi))         this%k_ads_awi(:min(size(this%k_ads_awi),size(DATASET%pfasKAdsAwi))) &
+        = DATASET%pfasKAdsAwi(:min(size(this%k_ads_awi),size(DATASET%pfasKAdsAwi)))
+        if (allocated(DATASET%pfasKDesAwi))         this%k_des_awi(:min(size(this%k_des_awi),size(DATASET%pfasKDesAwi))) &
+        = DATASET%pfasKDesAwi(:min(size(this%k_des_awi),size(DATASET%pfasKDesAwi)))
         if (allocated(DATASET%pfasReactionRate)) then
-            this%k_react(:min(size(this%k_react,1),size(DATASET%pfasReactionRate,1)), :min(size(this%k_react,2),size(DATASET%pfasReactionRate,2))) = &
-                DATASET%pfasReactionRate(:min(size(this%k_react,1),size(DATASET%pfasReactionRate,1)), :min(size(this%k_react,2),size(DATASET%pfasReactionRate,2)))
+            this%k_react(:min(size(this%k_react,1),size(DATASET%pfasReactionRate,1)), :min(size(this%k_react,2),&
+            size(DATASET%pfasReactionRate,2))) = &
+                DATASET%pfasReactionRate(:min(size(this%k_react,1),size(DATASET%pfasReactionRate,1)), :min(size(this%k_react,2),&
+                size(DATASET%pfasReactionRate,2)))
         end if
         if (allocated(DATASET%pfasReactionYield)) then
-            this%reaction_yield(:min(size(this%reaction_yield,1),size(DATASET%pfasReactionYield,1)), :min(size(this%reaction_yield,2),size(DATASET%pfasReactionYield,2))) = &
-                DATASET%pfasReactionYield(:min(size(this%reaction_yield,1),size(DATASET%pfasReactionYield,1)), :min(size(this%reaction_yield,2),size(DATASET%pfasReactionYield,2)))
+            this%reaction_yield(:min(size(this%reaction_yield,1),size(DATASET%pfasReactionYield,1)), &
+            :min(size(this%reaction_yield,2),size(DATASET%pfasReactionYield,2))) = &
+                DATASET%pfasReactionYield(:min(size(this%reaction_yield,1),size(DATASET%pfasReactionYield,1)), &
+                :min(size(this%reaction_yield,2),size(DATASET%pfasReactionYield,2)))
         end if
-        if (allocated(DATASET%pfasVolatilisationRate)) this%k_volatilisation(:min(size(this%k_volatilisation),size(DATASET%pfasVolatilisationRate))) = DATASET%pfasVolatilisationRate(:min(size(this%k_volatilisation),size(DATASET%pfasVolatilisationRate)))
-        if (allocated(DATASET%pfasSeasprayRate))       this%k_seaspray(:min(size(this%k_seaspray),size(DATASET%pfasSeasprayRate))) = DATASET%pfasSeasprayRate(:min(size(this%k_seaspray),size(DATASET%pfasSeasprayRate)))
-        if (allocated(DATASET%pfasBioUptakeRate))      this%k_bio_uptake(:min(size(this%k_bio_uptake),size(DATASET%pfasBioUptakeRate))) = DATASET%pfasBioUptakeRate(:min(size(this%k_bio_uptake),size(DATASET%pfasBioUptakeRate)))
+        if (allocated(DATASET%pfasVolatilisationRate)) this%k_volatilisation(:min(size(this%k_volatilisation),&
+        size(DATASET%pfasVolatilisationRate))) = DATASET%pfasVolatilisationRate(:min(size(this%k_volatilisation),&
+        size(DATASET%pfasVolatilisationRate)))
+        if (allocated(DATASET%pfasSeasprayRate))       this%k_seaspray(:min(size(this%k_seaspray),size(DATASET%pfasSeasprayRate))) &
+        = DATASET%pfasSeasprayRate(:min(size(this%k_seaspray),size(DATASET%pfasSeasprayRate)))
+        if (allocated(DATASET%pfasBioUptakeRate))     &
+         this%k_bio_uptake(:min(size(this%k_bio_uptake),size(DATASET%pfasBioUptakeRate))) &
+         = DATASET%pfasBioUptakeRate(:min(size(this%k_bio_uptake),size(DATASET%pfasBioUptakeRate)))
 
         do i = 1, size(this%c,1)
             write(this%species_name(i),'(A,I0)') 'PFAS_', i
