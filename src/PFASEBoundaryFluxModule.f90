@@ -37,12 +37,24 @@ contains
     subroutine addFlux(this, other)
         class(PFASEBoundaryFlux), intent(inout) :: this
         type(PFASEBoundaryFlux), intent(in) :: other
-        if (allocated(this%to_groundwater) .and. allocated(other%to_groundwater)) this%to_groundwater = this%to_groundwater + other%to_groundwater
-        if (allocated(this%to_downstream)  .and. allocated(other%to_downstream))  this%to_downstream  = this%to_downstream  + other%to_downstream
-        if (allocated(this%to_sediment)    .and. allocated(other%to_sediment))    this%to_sediment    = this%to_sediment    + other%to_sediment
-        if (allocated(this%to_atmosphere)  .and. allocated(other%to_atmosphere))  this%to_atmosphere  = this%to_atmosphere  + other%to_atmosphere
-        if (allocated(this%to_foam)        .and. allocated(other%to_foam))        this%to_foam        = this%to_foam        + other%to_foam
-        if (allocated(this%to_biota)       .and. allocated(other%to_biota))       this%to_biota       = this%to_biota       + other%to_biota
+        if (allocated(this%to_groundwater) .and. allocated(other%to_groundwater))
+            this%to_groundwater = this%to_groundwater + other%to_groundwater
+        end if
+        if (allocated(this%to_downstream)  .and. allocated(other%to_downstream))
+            this%to_downstream  = this%to_downstream  + other%to_downstream
+        end if
+        if (allocated(this%to_sediment)    .and. allocated(other%to_sediment))
+            this%to_sediment    = this%to_sediment    + other%to_sediment
+        end if
+        if (allocated(this%to_atmosphere)  .and. allocated(other%to_atmosphere))
+            this%to_atmosphere  = this%to_atmosphere  + other%to_atmosphere
+        end if
+        if (allocated(this%to_foam)        .and. allocated(other%to_foam))
+            this%to_foam        = this%to_foam        + other%to_foam
+        end if
+        if (allocated(this%to_biota)       .and. allocated(other%to_biota))
+            this%to_biota       = this%to_biota       + other%to_biota
+        end if
     end subroutine addFlux
 
     subroutine finaliseFlux(this)

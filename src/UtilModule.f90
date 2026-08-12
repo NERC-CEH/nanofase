@@ -61,15 +61,15 @@ module UtilModule
 
         !> Print a welcome to the model message to the console.
         subroutine printWelcome()
+           write(*,'(A)') "_____________________________________________________________________"
+            write(*,'(A)') "                _____ _    ____  _____ "
+            write(*,'(A)') "               |  ___/ \  / ___|| ____|"
+            write(*,'(A)') "               | |_ / _ \ \___ \|  _|  "
+            write(*,'(A)') "               |  _/ ___ \ ___) | |___ "
+            write(*,'(A)') "Welcome to the |_|/_/   \_\____/|_____| model"
+            write(*,'(A)') "...version: " // C%modelVersion
             write(*,'(A)') "_____________________________________________________________________"
-            write(*,'(A)') "                _   _                   _____ _    ____  _____ "
-            write(*,'(A)') "               | \ | | __ _ _ __   ___ |  ___/ \  / ___|| ____|"
-            write(*,'(A)') "               |  \| |/ _` | '_ \ / _ \| |_ / _ \ \___ \|  _|  "
-            write(*,'(A)') "               | |\  | (_| | | | | () |  _/ ___ \ ___) | |___ "
-            write(*,'(A)') "Welcome to the |_| \_|\__,_|_| |_| ||_|_|_|/_/   \_\___/|_____| model"
-            write(*,'(A)') "...version: " // trim(C%modelVersion)
-            write(*,'(A)') "_____________________________________________________________________"
-            write(*,'(A)') ""
+            write(*,'(A)') "" 
         end subroutine
 
         !> Print a 3D array as a set of 2D matrices to the console

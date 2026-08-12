@@ -32,92 +32,92 @@ COMP_META = $(COMPILE_TIME) $(GIT_HASH) $(GIT_RELEASE)
 AUTOPARALLEL = 0
 N_THREADS = 4
 ifeq ($(AUTOPARALLEL), 1)
-    COMMON_FLAGS += -floop-parallelize-all -ftree-parallelize-loops=${N_THREADS}
+	COMMON_FLAGS += -floop-parallelize-all -ftree-parallelize-loops=${N_THREADS}
 endif
 
 # Objects to generate, in dependency order
 OBJECTS_ = ErrorInstance.o \
-    Result.o \
-    ErrorHandler.o \
-    ErrorCriteria.o \
-    mo_types.o \
-    mo_netcdf.o \
-    datetime_module.o \
-    sparskit.o \
-    Spoof.o \
-    mod_strptime.o \
-    VersionModule.o \
-    DefaultsModule.o \
-    GlobalsModule.o \
-    UtilModule.o \
-    LoggerModule.o \
-    DataInputModule.o \
-    ContaminantModule.o \
-    FlowModule.o \
-    AbstractBiotaModule.o \
-    BiotaSoilModule.o \
-    BiotaWaterModule.o \
-    AbstractReactorModule.o \
-    ReactorModule.o \
-    FineSedimentModule.o \
-    AbstractBedSedimentLayerModule.o \
-    BedSedimentLayerModule.o \
-    AbstractBedSedimentModule.o \
-    BedSedimentModule.o \
-    DiffuseSourceModule.o \
-    PointSourceModule.o \
-    AbstractSoilLayerModule.o \
-    SoilLayerModule.o \
-    AbstractSoilProfileModule.o \
-    SoilProfileModule.o \
-    CropModule.o \
-    WaterBodyModule.o \
-    ReachModule.o \
-    RiverReachModule.o \
-    EstuaryReachModule.o \
-    AbstractGridCellModule.o \
-    GridCellModule.o \
-    AbstractEnvironmentModule.o \
-    EnvironmentModule.o \
-    NetCDFOutputModule.o \
-    NetCDFAggregatedOutputModule.o \
-    DataOutputModule.o \
-    CheckpointModule.o \
-    main.o
+	Result.o \
+	ErrorHandler.o \
+	ErrorCriteria.o \
+	mo_types.o \
+	mo_netcdf.o \
+	datetime_module.o \
+	sparskit.o \
+	Spoof.o \
+	mod_strptime.o \
+	VersionModule.o \
+	DefaultsModule.o \
+	GlobalsModule.o \
+	UtilModule.o \
+	LoggerModule.o \
+	DataInputModule.o \
+	ContaminantModule.o \
+	FlowModule.o \
+	AbstractBiotaModule.o \
+	BiotaSoilModule.o \
+	BiotaWaterModule.o \
+	AbstractReactorModule.o \
+	ReactorModule.o \
+	FineSedimentModule.o \
+	AbstractBedSedimentLayerModule.o \
+	BedSedimentLayerModule.o \
+	AbstractBedSedimentModule.o \
+	BedSedimentModule.o \
+	DiffuseSourceModule.o \
+	PointSourceModule.o \
+	AbstractSoilLayerModule.o \
+	SoilLayerModule.o \
+	AbstractSoilProfileModule.o \
+	SoilProfileModule.o \
+	CropModule.o \
+	WaterBodyModule.o \
+	ReachModule.o \
+	RiverReachModule.o \
+	EstuaryReachModule.o \
+	AbstractGridCellModule.o \
+	GridCellModule.o \
+	AbstractEnvironmentModule.o \
+	EnvironmentModule.o \
+	NetCDFOutputModule.o \
+	NetCDFAggregatedOutputModule.o \
+	DataOutputModule.o \
+	CheckpointModule.o \
+	main.o
 
 # Add the build dir to each object name
 OBJECTS = $(addprefix build/, $(OBJECTS_))
 
 # Where to look for the source files
 VPATH = vendor/feh/src \
-    vendor/mo_netcdf/src \
-    vendor/datetime-fortran/src \
-    vendor/spoof/src \
-    src \
-    src/Data \
-    src/Logger \
-    src/Biota \
-    src/Reactor \
-    src/BedSedimentLayer \
-    src/BedSediment \
-    src/Source \
-    src/WaterBody \
-    src/Soil \
-    src/GridCell \
-    src/Environment \
-    src/Contaminant
+	vendor/mo_netcdf/src \
+	vendor/datetime-fortran/src \
+	vendor/spoof/src \
+	src \
+	src/Data \
+	src/Logger \
+	src/Biota \
+	src/Reactor \
+	src/BedSedimentLayer \
+	src/BedSediment \
+	src/Source \
+	src/WaterBody \
+	src/Soil \
+	src/GridCell \
+	src/Environment \
+	src/Contaminant
 
 # Write the model version (from git) to file
 MODEL_VERSION := $(shell sed -i "s/\".*\"/\"${GIT_RELEASE}\"/g" src/VersionModule.f90)
 
 $(EXEC_FILE): $(OBJECTS)
-    $(FC) $(FLAGS) -o $(BUILD_DIR)/$@ $^ $(NETCDF)
-    echo $(COMP_META) > $(BUILD_DIR)/comp_meta
+	$(FC) $(FLAGS) -o $(BUILD_DIR)/$@ $^ $(NETCDF)
+	echo $(COMP_META) > $(BUILD_DIR)/comp_meta
 $(BUILD_DIR)/%.o: %.f90
-    $(FC) -c $< -o $@ -J$(BUILD_DIR) $(FLAGS) $(NETCDF)
+	$(FC) -c $< -o $@ -J$(BUILD_DIR) $(FLAGS) $(NETCDF)
 release: FLAGS = ${RELEASE_FLAGS} ${COMMON_FLAGS}
 release: $(EXEC_FILE)
 fast: FLAGS = ${FAST_FLAGS} ${COMMON_FLAGS}
 fast: $(EXEC_FILE)
 clean:
-    rm -f $(BUILD_DIR)/*.mod $(BUILD_DIR)/*.o $(BUILD_DIR)/$(EXEC_FILE) $(BUILD_DIR)/comp_meta
+	rm -f $(BUILD_DIR)/*.mod $(BUILD_DIR)/*.o $(BUILD_DIR)/$(EXEC_FILE) $(BUILD_DIR)/comp_meta

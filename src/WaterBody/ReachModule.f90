@@ -133,7 +133,6 @@ module ReachModule
     end subroutine
 
     !> Set the settling rate [/s]
-    !> Set the settling rate [/s]
     subroutine setSettlingRateReach(me, T_water_t)
         class(Reach) :: me                      !! This `Reach` instance
         real(dp)     :: T_water_t               !! Water temperature on this timestep
@@ -144,11 +143,32 @@ module ReachModule
         logical      :: haveAlpha, haveBeta
         integer      :: nxA, nyA, nxB, nyB
 
-        ! Defaults
-        alphaDepVal = 38.1_dp
-        betaDepVal  = 0.93_dp
-        haveAlpha   = .false.
-        haveBeta    = .false.
+        ! Deposition calibration parameters, with grid->scalar fallback. Note that these
+        ! spatial variables use (x,y) indexing (they aren't transposed when retrieved from
+        ! the NetCDF file), in contrast to the soil spatial variables - see DataInputModule.
+        ! The scalar fallback is the value from the constants namelist, which itself defaults
+        ! to defaultDepositionAlpha/Beta if not supplied.
+        haveAlpha = .false.
+        if (allocated(DATASET%depositionAlpha)) then
+            nxA = size(DATASET%depositionAlpha, 1)
+            nyA = size(DATASET%depositionAlpha, 2)
+            if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxA .and. me%y <= nyA) then
+                alphaDepVal = DATASET%depositionAlpha(me%x, me%y)
+                haveAlpha = .true.
+            end if
+        end if
+        if (.not. haveAlpha) alphaDepVal = DATASET%depositionAlphaConstant
+
+        haveBeta = .false.
+        if (allocated(DATASET%depositionBeta)) then
+            nxB = size(DATASET%depositionBeta, 1)
+            nyB = size(DATASET%depositionBeta, 2)
+            if (me%x >= 1 .and. me%y >= 1 .and. me%x <= nxB .and. me%y <= nyB) then
+                betaDepVal = DATASET%depositionBeta(me%x, me%y)
+                haveBeta = .true.
+            end if
+        end if
+        if (.not. haveBeta) betaDepVal = DATASET%depositionBetaConstant
 
         if (.not. allocated(me%W_settle_spm)) return
         if (me%depth > C%epsilon) then
