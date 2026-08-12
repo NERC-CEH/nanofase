@@ -29,7 +29,12 @@ set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} ${debug_flags}")
 set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} ${release_flags}")
 
 # Sources to compile - everything except those matching the regex
-file(GLOB_RECURSE sources src/*.f90 vendor/*.f90)
+file(GLOB_RECURSIVE sources
+    src/*.f90
+    src/Data/*.f90
+    src/Contaminant/*.f90
+    vendor/*.f90
+)
 list(FILTER sources EXCLUDE REGEX ".*vendor/feh/example/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/feh/tests/.*f90$")
 list(FILTER sources EXCLUDE REGEX ".*vendor/datetime-fortran/tests/.*f90$")

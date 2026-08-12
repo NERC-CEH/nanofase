@@ -65,9 +65,9 @@ module UtilModule
             write(*,'(A)') "                _   _                   _____ _    ____  _____ "
             write(*,'(A)') "               | \ | | __ _ _ __   ___ |  ___/ \  / ___|| ____|"
             write(*,'(A)') "               |  \| |/ _` | '_ \ / _ \| |_ / _ \ \___ \|  _|  "
-            write(*,'(A)') "               | |\  | (_| | | | | (_) |  _/ ___ \ ___) | |___ "
-            write(*,'(A)') "Welcome to the |_| \_|\__,_|_| |_|\___/|_|/_/   \_\____/|_____| model"
-            write(*,'(A)') "...version: " // C%modelVersion
+            write(*,'(A)') "               | |\  | (_| | | | | () |  _/ ___ \ ___) | |___ "
+            write(*,'(A)') "Welcome to the |_| \_|\__,_|_| |_| ||_|_|_|/_/   \_\___/|_____| model"
+            write(*,'(A)') "...version: " // trim(C%modelVersion)
             write(*,'(A)') "_____________________________________________________________________"
             write(*,'(A)') ""
         end subroutine
@@ -75,7 +75,7 @@ module UtilModule
         !> Print a 3D array as a set of 2D matrices to the console
         subroutine printMatrix3D(m)
             real(dp), allocatable :: m(:,:,:)                   !! The 3D array to print
-            real(dp), allocatable :: mm(:)                      ! 1D temproary array
+            real(dp), allocatable :: mm(:)                      ! 1D temporary array
             integer :: i, j                                     ! Iterators 
             allocate(mm(size(m, 2)))             
             do j = 1, size(m, 3)
@@ -90,7 +90,7 @@ module UtilModule
         !> Print a 2D array as a matrix
         subroutine printMatrix2D(m)
             real(dp), allocatable :: m(:,:)                     !! The 2D array to print
-            real(dp), allocatable :: mm(:)                      ! 1D temproary array
+            real(dp), allocatable :: mm(:)                      ! 1D temporary array
             integer :: i                                        ! Iterator
             allocate(mm(size(m, 2)))             
             do i = 1, size(m, 1)
@@ -137,7 +137,7 @@ module UtilModule
         pure function strFromInteger(i) result(str)
             integer, intent(in) :: i        !! The integer to convert to a string
             character(len=256) :: str       !! The string to return
-            write(str, *)i
+            write(str, *) i
             str = trim(adjustl(str))
         end function
 
@@ -145,15 +145,15 @@ module UtilModule
         pure function strFromReal(r) result(str)
             real, intent(in) :: r           !! The real to convert to a string
             character(len=256) :: str       !! The string to return
-            write(str, *)r
+            write(str, *) r
             str = trim(adjustl(str))
         end function
         
         !> Convert a real 1D array to a string
         pure function strFromReal1D(r) result(string)
             real, intent(in) :: r(:)        !! The integer to convert to a string
-            character(len=256) :: string       !! The string to return
-            integer         :: i
+            character(len=256) :: string    !! The string to return
+            integer :: i
             write(string, *) (trim(str(r(i))) // ", ", i=1, size(r) - 1)
             string = trim(string) // " " // trim(str(r(size(r))))
         end function
@@ -162,7 +162,7 @@ module UtilModule
         pure function strFromDp(r) result(str)
             real(dp), intent(in) :: r           !! The dp real to convert to a string
             character(len=256) :: str           !! The string to return
-            write(str, *)r
+            write(str, *) r
             str = trim(adjustl(str))
         end function
 
@@ -177,7 +177,7 @@ module UtilModule
         end function
 
         !> Generate an object reference from a prefix (e.g., "GridCell")
-        !! and one integers
+        !! and one integer
         function ref1(prefix, a)
             character(len=*), intent(in) :: prefix
             integer, intent(in) :: a
@@ -205,7 +205,7 @@ module UtilModule
             ref2 = trim(prefix) // "_" // trim(str(a)) // "_" // trim(str(b))
         end function
 
-        !> Generate an object reference from a prefix (e.g., "RiverReach")
+        !> Generatetransformer from a prefix (e.g., "RiverReach")
         !! and three integers
         function ref3(prefix, a, b, c)
             character(len=*), intent(in) :: prefix
@@ -447,26 +447,6 @@ module UtilModule
                     end do
                 end do
             end do
-        end function
-
-! Functions without interfaces
-
-        function freeNM(x) result(free)
-            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
-            real(dp)                :: free(C%nSizeClassesNM)
-            free = x(:,1,1)
-        end function
-
-        function attachedNM(x) result(attached)
-            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
-            real(dp)                :: attached(C%nSizeClassesNM)
-            attached = x(:,1,2)
-        end function
-
-        function heteroaggregatedNM(x) result(heteroaggregated)
-            real(dp), intent(in)    :: x(C%npDim(1), C%npDim(2), C%npDim(3))
-            real(dp)                :: heteroaggregated(C%nSizeClassesNM)
-            heteroaggregated = sum(x(:,1,3:), dim=1)
         end function
 
 end module

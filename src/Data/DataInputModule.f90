@@ -5,7 +5,8 @@
 module DataInputModule
     use mo_netcdf
     use DefaultsModule
-    use GlobalsModule
+    use ConstantsDefaultsModule
+    use GlobalsModule, only: dp, C, FREE_CONTAMINANT, ATTACHED_CONTAMINANT
     use ResultModule, only: Result
     use ErrorInstanceModule, only: ErrorInstance
     use LoggerModule, only: LOGR
@@ -19,29 +20,30 @@ module DataInputModule
 
         ! CONSTANTS
         ! ---------
-        ! Nanomaterial
-        real :: nmDensity                                       ! Density of the nanomaterial [kg/m3]
-        real, allocatable :: nmSizeClasses(:)                   ! Diameter of each NM size class [m]
-        real, allocatable :: defaultNMSizeDistribution(:)       ! Default distribution to split NM across size classes
-        integer :: nSizeClassesNM                               ! Number of NM size classes
+        ! Contaminant
+        real(dp)          :: contaminantDensity                    ! Density of the contaminant [kg/m3]
+        real(dp), allocatable :: contaminantSizeClasses(:)             ! Diameter of each contaminant size class [m]
+        real, allocatable :: defaultDistributionContaminant(:) ! Default distribution to split contaminant across size classes
+        real, allocatable :: defaultContaminantFormDistribution(:)
+        integer           :: nContaminantSizeClasses               ! Number of contaminant size classes
         ! Sediment
         real, allocatable :: defaultSpmSizeDistribution(:)      ! Default distribution to split SPM across size classes
-        real, allocatable :: spmDensityBySizeClass(:)           ! Density of sediment in each size class [kg/m3]
-        real, allocatable :: spmSizeClasses(:)                  ! Diameter of each SPM size class [m]
+        real(dp), allocatable :: spmDensityBySizeClass(:)           ! Density of sediment in each size class [kg/m3]
+        real(dp), allocatable :: spmSizeClasses(:)                  ! Diameter of each SPM size class [m]
         real, allocatable :: defaultMatrixEmbeddedDistributionToSpm(:)  ! Default distribution to proportion matrix-embedded releases to SPM size classes
         integer :: nSizeClassesSpm                              ! Number of SPM size classes
         real(dp) :: sedimentEnrichment_k                        ! Clay enrichment scaling factor
         real(dp) :: sedimentEnrichment_a                        ! Clay enrichment skew factor
         ! Soil
         real(dp) :: soilDarcyVelocity                           ! Darcy velocity in soil [m/s]
-        real(dp) :: soilDefaultPorosity                         ! Default porosity [-]  ! TODO deprecate this in favour of spatially resolved porosity
+        real(dp) :: soilDefaultPorosity                         ! Default porosity [-]
         real(dp) :: soilHamakerConstant                         ! Hamaker constant for soil [J]
         real(dp) :: soilParticleDensity                         ! Particle density of soil [kg m-3]
         real(dp) :: soilErosivity_a1                            ! Erosivity a1 parameter [-]
         real(dp) :: soilErosivity_a2                            ! Erosivity a2 parameter [-]
         real(dp) :: soilErosivity_a3                            ! Erosivity a3 parameter [-]
         real(dp) :: soilErosivity_b                             ! Erosivity b parameter [-]
-        real :: soilConstantAttachmentEfficiency                ! Attachment efficiency to soil matrix [-]
+        real(dp) :: soilConstantAttachmentEfficiency            ! Attachment efficiency to soil matrix [-]
         real(dp) :: sedimentTransport_aConstant                 ! Sediment transport capacity a parameter (scaling factor) [kg/m2/km2]
         real(dp) :: sedimentTransport_bConstant                 ! Sediment transport capacity b parameter (overland flow threshold) [m2/s]
         real(dp) :: sedimentTransport_cConstant                 ! Sediment transport capacity c parameter (non-linear coefficient) [-]
@@ -61,19 +63,17 @@ module DataInputModule
         real(dp), allocatable :: biotaInitial_C_org(:)
         real(dp), allocatable :: biota_k_growth(:)
         real(dp), allocatable :: biota_k_death(:)
-        real(dp), allocatable :: biota_k_uptake_np(:)
-        real(dp), allocatable :: biota_k_elim_np(:)
-        real(dp), allocatable :: biota_k_uptake_transformed(:)
-        real(dp), allocatable :: biota_k_elim_transformed(:)
-        real(dp), allocatable :: biota_k_uptake_dissolved(:)
-        real(dp), allocatable :: biota_k_elim_dissolved(:)
+        real(dp), allocatable :: biota_k_uptake_contaminant(:,:) ! Uptake rates for contaminant forms [nBiota, nContaminantForms]
+        real(dp), allocatable :: biota_k_elim_contaminant(:,:)   ! Elimination rates for contaminant forms [nBiota, nContaminantForms]
+        real(dp), allocatable :: biota_k_uptake_dissolved(:)     ! Uptake rate for dissolved contaminant
+        real(dp), allocatable :: biota_k_elim_dissolved(:)       ! Elimination rate for dissolved contaminant
         real, allocatable :: biotaStoredFraction(:)
         character(len=17), allocatable :: biotaUptakeFromForm(:)
         integer, allocatable :: biotaHarvestInMonth(:)
         logical :: hasBiota = .false.
         integer :: nBiota = 0
         ! Water
-        real :: riverMeanderingFactor               ! Meandering factor for rivers (not estuaries) [-]
+        real     :: riverMeanderingFactor           ! Meandering factor for rivers (not estuaries) [-]
         real(dp) :: waterResuspensionAlpha          ! Resuspension parameter alpha
         real(dp) :: waterResuspensionBeta           ! Resuspension parameter beta
         real(dp) :: waterResuspensionAlphaEstuary   ! Resuspension parameter alpha for estuary
@@ -82,12 +82,12 @@ module DataInputModule
         real(dp) :: depositionBetaConstant          ! Deposition parameter beta - constant if spatial variable not supplied
         real(dp) :: bankErosionAlphaConstant        ! Bank erosion parameter alpha - constant if spatial variable not supplied
         real(dp) :: bankErosionBetaConstant         ! Bank erosion parameter beta - constant if spatial variable not supplied
-        real(dp) :: water_k_diss_pristine           ! Dissolution rate constant for pristine NM [/s]
-        real(dp) :: water_k_diss_transformed        ! Dissolution rate constant for transformed NM [/s]
-        real(dp) :: water_k_transform_pristine      ! Transformation rate constant for pristine NM [/s]
-        real(dp) :: riverAttachmentEfficiency       ! Attachment efficiency for NM to SPM in rivers [-]
-        real :: shearRate                           ! Shear rate [/s]
-        real :: waterTemperature(366)               ! Temporally varying water temperature [deg C]
+        real(dp) :: contaminant_k_diss_pristine     ! Dissolution rate constant for pristine contaminant [/s]
+        real(dp) :: contaminant_k_diss_transformed  ! Dissolution rate constant for transformed contaminant [/s]
+        real(dp) :: contaminant_k_transform_pristine ! Transformation rate constant for pristine contaminant [/s]
+        real(dp) :: shearRate                       ! Shear rate [/s]
+        real(dp) :: waterTemperature(366)           ! Temporally varying water temperature [deg C]
+        real(dp) :: riverAttachmentEfficiency
         ! Estuary
         real(dp) :: estuaryAttachmentEfficiency     ! Attachment efficiency for NM to SPM in estuaries [-]
         real :: estuaryTidalM2                      ! Estuary tidal harmonics parameter M2
@@ -148,49 +148,36 @@ module DataInputModule
         real(dp), allocatable :: soilUsleCFactor(:,:)
         real(dp), allocatable :: soilUslePFactor(:,:)
         real(dp), allocatable :: soilUsleLSFactor(:,:)
-        real, allocatable :: resuspensionAlpha(:,:)
-        real, allocatable :: resuspensionBeta(:,:)
-        real, allocatable :: depositionAlpha(:,:)
-        real, allocatable :: depositionBeta(:,:)
+        real(dp), allocatable :: resuspensionAlpha(:,:)
+        real(dp), allocatable :: resuspensionBeta(:,:)
+        real(dp), allocatable :: depositionAlpha(:,:)
+        real(dp), allocatable :: depositionBeta(:,:)
         real(dp), allocatable :: bankErosionAlpha(:,:)
         real(dp), allocatable :: bankErosionBeta(:,:)
         real(dp), allocatable :: sedimentTransport_a(:,:)                       ! Sediment transport capacity a parameter (scaling factor) [kg/m2/km2]
         real(dp), allocatable :: sedimentTransport_b(:,:)                       ! Sediment transport capacity b parameter (overland flow threshold) [m2/s]
         real(dp), allocatable :: sedimentTransport_c(:,:)                       ! Sediment transport capacity c parameter (non-linear coefficient) [-]
         ! Initial concentrations
-        ! real(dp), allocatable :: initialNMConcsSoil(:,:,:)
-        ! real(dp), allocatable :: initialTransformedConcsSoil(:,:,;)
-        ! real(dp), allocatable :: initialDissolvedConcsSoil(:,:,;)
-        ! real(dp), allocatable :: initialNMConcsWater(:,:,;)
-        ! real(dp), allocatable :: initialTransformedConcsWater(:,:,;)
-        ! real(dp), allocatable :: initialDissolvedConcsWater(:,:,;)
-        ! real(dp), allocatable :: initialNMConcsSediment(:,:,;)
-        ! real(dp), allocatable :: initialTransformedConcsSediment(:,:,:)
-        ! real(dp), allocatable :: initialDissolvedConcsSediment(:,:,:)
+        real(dp), allocatable :: initialContaminantConcsSoil(:,:,:,:,:)
+        real(dp), allocatable :: initialContaminantConcsWater(:,:,:,:,:)
+        real(dp), allocatable :: initialContaminantConcsSediment(:,:,:,:,:)
+        real(dp), allocatable :: initialDissolvedConcsSoil(:,:)
+        real(dp), allocatable :: initialDissolvedConcsWater(:,:)
+        real(dp), allocatable :: initialDissolvedConcsSediment(:,:)
         ! Emissions - areal
-        real(dp), allocatable :: emissionsArealSoilPristine(:,:)
-        real(dp), allocatable :: emissionsArealSoilMatrixEmbedded(:,:)
-        real(dp), allocatable :: emissionsArealSoilTransformed(:,:)
-        real(dp), allocatable :: emissionsArealSoilDissolved(:,:)
-        real(dp), allocatable :: emissionsArealWaterPristine(:,:)
-        real(dp), allocatable :: emissionsArealWaterMatrixEmbedded(:,:)
-        real(dp), allocatable :: emissionsArealWaterTransformed(:,:)
-        real(dp), allocatable :: emissionsArealWaterDissolved(:,:)
+        real(dp), allocatable :: emissionsArealSoilContaminant(:,:,:,:,:)
+        real(dp), allocatable :: emissionsArealWaterContaminant(:,:,:,:,:)
+        real(dp), allocatable :: emissionsArealSoilDissolvedContaminant(:,:)
+        real(dp), allocatable :: emissionsArealWaterDissolvedContaminant(:,:)
         ! Emissions - atmospheric depo
-        real(dp), allocatable :: emissionsAtmosphericDryDepoPristine(:,:,:)
-        real(dp), allocatable :: emissionsAtmosphericDryDepoMatrixEmbedded(:,:,:)
-        real(dp), allocatable :: emissionsAtmosphericDryDepoTransformed(:,:,:)
-        real(dp), allocatable :: emissionsAtmosphericDryDepoDissolved(:,:,:)
-        real(dp), allocatable :: emissionsAtmosphericWetDepoPristine(:,:,:)
-        real(dp), allocatable :: emissionsAtmosphericWetDepoMatrixEmbedded(:,:,:)
-        real(dp), allocatable :: emissionsAtmosphericWetDepoTransformed(:,:,:)
-        real(dp), allocatable :: emissionsAtmosphericWetDepoDissolved(:,:,:)
-        ! Emisions - point
-        real(dp), allocatable :: emissionsPointWaterPristine(:,:,:,:)
-        real(dp), allocatable :: emissionsPointWaterMatrixEmbedded(:,:,:,:)
-        real(dp), allocatable :: emissionsPointWaterTransformed(:,:,:,:)
-        real(dp), allocatable :: emissionsPointWaterDissolved(:,:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericDryDepoContaminant(:,:,:,:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericWetDepoContaminant(:,:,:,:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericDryDepoDissolvedContaminant(:,:,:)
+        real(dp), allocatable :: emissionsAtmosphericWetDepoDissolvedContaminant(:,:,:)
+        ! Emissions - point
         real(dp), allocatable :: emissionsPointWaterCoords(:,:,:,:)
+        real(dp), allocatable :: emissionsPointWaterContaminant(:,:,:,:,:,:,:)  ! (x, y, t, p, size, form, state)
+        real(dp), allocatable :: emissionsPointWaterDissolvedContaminant(:,:,:) 
         integer, allocatable :: nPointSources(:,:)
         integer :: maxPointSources                                              ! Maximum number of point sources in a cell in the whole environment
         ! Spatial 1D variables
@@ -221,84 +208,84 @@ module DataInputModule
         class(Database)     :: me
         type(NcDataset)     :: nc_simulationMask
         type(NcVariable)    :: var
-        character(len=*)    :: inputFile
-        character(len=*)    :: constantsFile
+        character(len=* )   :: inputFile, constantsFile
         type(Result)        :: rslt
-        integer, allocatable :: isHeadwaterInt(:,:)     ! Temporary variable to store int before convert to bool
-        integer, allocatable :: isEstuaryInt(:,:)
+        ! temps returned by mo_netcdf in Fortran order (reversed NetCDF dims)
+        integer, allocatable :: outflow_dxy(:,:,:)
+        integer, allocatable :: inflows_dwxy(:,:,:,:)
+        integer, allocatable :: isHeadwaterInt_xy(:,:), isEstuaryInt_xy(:,:)
+        integer, allocatable :: nWaterbodies_xy(:,:)
         integer, allocatable :: simulationMask(:,:)
-        
-        ! Open the dataset and parse constants NML file
+        integer :: nx, ny
+
+        ! Open the dataset and parse constants
         me%nc = NcDataset(inputFile, 'r')
         call me%parseConstants(constantsFile)
-        
-        ! Variable units: These will already have been converted to the correct
-        ! units for use in the model by nanofase-data (the input data compilation
-        ! script). Hence, no maths need be done on variables here to convert and
-        ! thus no FPEs will occur from the masked (_FillValue) values - the model will
-        ! check the relevant variables for these *when they are used*.
 
-        ! GRID AND COORDINATE VARIABLES
-        var = me%nc%getVariable('grid_shape')
-        call var%getData(me%gridShape)
-        var = me%nc%getVariable('grid_res')
-        call var%getData(me%gridRes)
-        var = me%nc%getVariable('grid_bounds')
-        call var%getData(me%gridBounds)
-        var = me%nc%getVariable('x')
-        call var%getData(me%x)
-        allocate(me%x_l(me%gridShape(1)))
-        me%x_l = me%x - 0.5 * me%gridRes(1)
-        var = me%nc%getVariable('y')
-        call var%getData(me%y)
-        allocate(me%y_u(me%gridShape(2)))
-        me%y_u = me%y + 0.5 * me%gridRes(2)
-        var = me%nc%getVariable('crs')
-        call var%getAttribute('crs_wkt', me%crsWKT)
+        ! GRID / COORDS
+        var = me%nc%getVariable('grid_shape');  call var%getData(me%gridShape)
+        var = me%nc%getVariable('grid_res');    call var%getData(me%gridRes)
+        var = me%nc%getVariable('grid_bounds'); call var%getData(me%gridBounds)
+        var = me%nc%getVariable('x');           call var%getData(me%x)
+        var = me%nc%getVariable('y');           call var%getData(me%y)
+        allocate(me%x_l(size(me%x))); me%x_l = me%x - 0.5 * me%gridRes(1)
+        allocate(me%y_u(size(me%y))); me%y_u = me%y + 0.5 * me%gridRes(2)
+        var = me%nc%getVariable('crs'); call var%getAttribute('crs_wkt', me%crsWKT)
 
-        ! ROUTING VARIABLES
-        var = me%nc%getVariable('outflow')
-        call var%getData(me%outflow)
-        var = me%nc%getVariable('inflows')
-        call var%getData(me%inflows)
-        var = me%nc%getVariable('is_headwater')
-        call var%getData(isHeadwaterInt)
-        me%isHeadwater = ulgcl(isHeadwaterInt)      ! Convert uint1 to logical
-        var = me%nc%getVariable('n_waterbodies')
-        call var%getData(me%nWaterbodies)
+        nx = me%gridShape(1)
+        ny = me%gridShape(2)
+
+        ! ROUTING (getData already reversed dims to Fortran order)
+        ! outflow: file (y,x,d) -> returned (d,x,y) => model (d,x,y)
+        var = me%nc%getVariable('outflow');  call var%getData(outflow_dxy)
+        if (allocated(me%outflow)) deallocate(me%outflow)
+        allocate(me%outflow( size(outflow_dxy,1), size(outflow_dxy,2), size(outflow_dxy,3) ))
+        me%outflow = outflow_dxy
+        deallocate(outflow_dxy)
+
+        ! inflows: file (y,x,w,d) -> returned (d,w,x,y) => model (d,w,x,y)
+        var = me%nc%getVariable('inflows');  call var%getData(inflows_dwxy)
+        if (allocated(me%inflows)) deallocate(me%inflows)
+        allocate(me%inflows( size(inflows_dwxy,1), size(inflows_dwxy,2), &
+                            size(inflows_dwxy,3), size(inflows_dwxy,4) ))
+        me%inflows = inflows_dwxy
+        deallocate(inflows_dwxy)
+
+        ! headwater / n_waterbodies / estuary: file (y,x) -> returned (x,y) => model (x,y)
+        var = me%nc%getVariable('is_headwater');  call var%getData(isHeadwaterInt_xy)
+        me%isHeadwater = ulgcl(isHeadwaterInt_xy)
+        deallocate(isHeadwaterInt_xy)
+
+        var = me%nc%getVariable('n_waterbodies'); call var%getData(nWaterbodies_xy)
+        me%nWaterbodies = nWaterbodies_xy
+        deallocate(nWaterbodies_xy)
         me%maxNWaterbodies = maxval(me%nWaterbodies)
-        ! If we're meant to be including the estuary, then get the is_estuary variable
+
         if (C%includeEstuary) then
-            var = me%nc%getVariable('is_estuary')
-            call var%getData(isEstuaryInt)
-            me%isEstuary = ulgcl(isEstuaryInt)          ! Convert uint1 to logical
-        ! Otherwise, just set isEstuary to false everywhere
+            var = me%nc%getVariable('is_estuary'); call var%getData(isEstuaryInt_xy)
+            me%isEstuary = ulgcl(isEstuaryInt_xy)
+            deallocate(isEstuaryInt_xy)
         else
-            allocate(me%isEstuary(me%gridShape(1), me%gridShape(2)))
-            me%isEstuary = .false.
+            allocate(me%isEstuary(nx, ny)); me%isEstuary = .false.
         end if
 
-        ! Use the nWaterbodies array to set the grid mask
-        allocate(me%gridMask(me%gridShape(1), me%gridShape(2)))
+        ! Grid mask from nWaterbodies
+        allocate(me%gridMask(nx, ny))
         me%gridMask = me%mask(me%nWaterbodies)
 
-        ! Meandering factors are set using grid resolution, if not present in constants,
-        ! so they must be set after grid resolution pulled for NetCDF file (here), as
-        ! opposed to in the constants parsing routine
-        if (isZero(me%riverMeanderingFactor)) then
-            me%riverMeanderingFactor = me%calculateMeanderingFactorFromCellSize()
-        end if
-        if (isZero(me%estuaryMeanderingFactor)) then
-            me%estuaryMeanderingFactor = me%calculateMeanderingFactorFromCellSize()
-        end if
+        ! Derive meandering factors from grid size if not set in constants
+        if (isZero(me%riverMeanderingFactor))   me%riverMeanderingFactor   = &
+            me%calculateMeanderingFactorFromCellSize()
+        if (isZero(me%estuaryMeanderingFactor)) me%estuaryMeanderingFactor = &
+            me%calculateMeanderingFactorFromCellSize()
 
-        ! Read the variables that can be updated on each batch (i.e. not geographical)
+        ! Chunk-varying variables
         call me%readBatchVariables()
 
-        ! Close the dataset
+        ! Close input dataset
         call me%nc%close()
 
-        ! Has a simulation mask been provided?
+        ! Simulation mask (same reversal: file (y,x) -> returned (x,y))
         if (C%hasSimulationMask) then
             nc_simulationMask = NcDataset(C%simulationMaskPath, 'r')
             var = nc_simulationMask%getVariable('simulation_mask')
@@ -306,14 +293,13 @@ module DataInputModule
             me%simulationMask = ulgcl(simulationMask)
             me%nNonMaskedCells = count(me%simulationMask)
         else
-            allocate(me%simulationMask(me%gridShape(1), me%gridShape(2)))
+            allocate(me%simulationMask(nx, ny))
             me%simulationMask = .true.
             me%nNonMaskedCells = count(.not. me%gridMask)
         end if
 
-        ! Do the auditing
+        ! Audit & log
         call rslt%addErrors(.errors. me%audit())
-
         call rslt%addToTrace('Initialising database')
         call ERROR_HANDLER%trigger(errors=.errors.rslt)
         call LOGR%toFile("Initialising database: success")
@@ -323,193 +309,286 @@ module DataInputModule
     !> Update the database based on data for a new chunk (k), or for the only chunk if this
     !! isn't a batch run.
     subroutine updateDatabase(me, k)
-        class(Database) :: me               !! This Database instance
-        integer         :: k                !! The index of this chunk, used to access correct config options
+        class(Database) :: me
+        integer         :: k
 
         ! Get the config options for this chunk
-        C%inputFile = C%batchInputFiles(k)
+        C%inputFile   = C%batchInputFiles(k)
         C%constantsFile = C%batchConstantFiles(k)
-        C%nTimeSteps = C%batchNTimesteps(k)
-        C%startDate = C%batchStartDates(k)
+        C%nTimeSteps  = C%batchNTimesteps(k)
+        C%startDate   = C%batchStartDates(k)
 
-        ! Read in the new constants file
         call me%parseConstants(C%constantsFile)
 
-        ! Open the new dataset
         me%nc = NcDataset(C%inputFile, 'r')
 
-        ! Deallocate the previous chunk's variables
-        deallocate(me%t)
-        deallocate(me%soilAttachmentRate)
-        deallocate(me%soilAttachmentEfficiency)
-        deallocate(me%emissionsArealSoilPristine)
-        deallocate(me%emissionsArealSoilMatrixEmbedded)
-        deallocate(me%emissionsArealSoilTransformed)
-        deallocate(me%emissionsArealSoilDissolved)
-        deallocate(me%emissionsArealWaterPristine)
-        deallocate(me%emissionsArealWaterMatrixEmbedded)
-        deallocate(me%emissionsArealWaterTransformed)
-        deallocate(me%emissionsArealWaterDissolved)
-        deallocate(me%emissionsAtmosphericDryDepoPristine)
-        deallocate(me%emissionsAtmosphericDryDepoMatrixEmbedded)
-        deallocate(me%emissionsAtmosphericDryDepoTransformed)
-        deallocate(me%emissionsAtmosphericDryDepoDissolved)
-        deallocate(me%emissionsAtmosphericWetDepoPristine)
-        deallocate(me%emissionsAtmosphericWetDepoMatrixEmbedded)
-        deallocate(me%emissionsAtmosphericWetDepoTransformed)
-        deallocate(me%emissionsAtmosphericWetDepoDissolved)
-        deallocate(me%emissionsPointWaterPristine)
-        deallocate(me%emissionsPointWaterMatrixEmbedded)
-        deallocate(me%emissionsPointWaterTransformed)
-        deallocate(me%emissionsPointWaterDissolved)
-        deallocate(me%resuspensionAlpha)
-        deallocate(me%resuspensionBeta)
-        deallocate(me%depositionAlpha)
-        deallocate(me%depositionBeta)
-        deallocate(me%bankErosionAlpha)
-        deallocate(me%bankErosionBeta)
-        deallocate(me%sedimentTransport_a)
-        deallocate(me%sedimentTransport_b)
-        deallocate(me%sedimentTransport_c)
+        ! Deallocate previous-chunk vars
+        if (allocated(me%t)) deallocate(me%t)
+        if (allocated(me%soilAttachmentRate)) deallocate(me%soilAttachmentRate)
+        if (allocated(me%soilAttachmentEfficiency)) deallocate(me%soilAttachmentEfficiency)
+        if (allocated(me%emissionsArealSoilContaminant)) deallocate(me%emissionsArealSoilContaminant)
+        if (allocated(me%emissionsArealWaterContaminant)) deallocate(me%emissionsArealWaterContaminant)
+        if (allocated(me%emissionsAtmosphericDryDepoContaminant)) deallocate(me%emissionsAtmosphericDryDepoContaminant)
+        if (allocated(me%emissionsAtmosphericWetDepoContaminant)) deallocate(me%emissionsAtmosphericWetDepoContaminant)
+        if (allocated(me%emissionsPointWaterContaminant)) deallocate(me%emissionsPointWaterContaminant)
+        if (allocated(me%emissionsPointWaterCoords)) deallocate(me%emissionsPointWaterCoords)
+        if (allocated(me%resuspensionAlpha)) deallocate(me%resuspensionAlpha)
+        if (allocated(me%resuspensionBeta)) deallocate(me%resuspensionBeta)
+        if (allocated(me%depositionAlpha)) deallocate(me%depositionAlpha)
+        if (allocated(me%depositionBeta)) deallocate(me%depositionBeta)
+        if (allocated(me%bankErosionAlpha)) deallocate(me%bankErosionAlpha)
+        if (allocated(me%bankErosionBeta)) deallocate(me%bankErosionBeta)
+        if (allocated(me%sedimentTransport_a)) deallocate(me%sedimentTransport_a)
+        if (allocated(me%sedimentTransport_b)) deallocate(me%sedimentTransport_b)
+        if (allocated(me%sedimentTransport_c)) deallocate(me%sedimentTransport_c)
+        if (allocated(me%initialContaminantConcsSoil)) deallocate(me%initialContaminantConcsSoil)
+        if (allocated(me%initialContaminantConcsWater)) deallocate(me%initialContaminantConcsWater)
+        if (allocated(me%initialContaminantConcsSediment)) deallocate(me%initialContaminantConcsSediment)
+        if (allocated(me%initialDissolvedConcsSoil)) deallocate(me%initialDissolvedConcsSoil)
+        if (allocated(me%initialDissolvedConcsWater)) deallocate(me%initialDissolvedConcsWater)
+        if (allocated(me%initialDissolvedConcsSediment)) deallocate(me%initialDissolvedConcsSediment)
+        if (allocated(me%emissionsArealSoilDissolvedContaminant)) deallocate(me%emissionsArealSoilDissolvedContaminant)
+        if (allocated(me%emissionsArealWaterDissolvedContaminant)) deallocate(me%emissionsArealWaterDissolvedContaminant)
+        if (allocated(me%emissionsAtmosphericDryDepoDissolvedContaminant)) &
+            deallocate(me%emissionsAtmosphericDryDepoDissolvedContaminant)
+        if (allocated(me%emissionsAtmosphericWetDepoDissolvedContaminant)) &
+            deallocate(me%emissionsAtmosphericWetDepoDissolvedContaminant)
+        if (allocated(me%emissionsPointWaterDissolvedContaminant)) &
+            deallocate(me%emissionsPointWaterDissolvedContaminant)
 
-        ! Read this chunk's variables
         call me%readBatchVariables()
-        
-        ! Close the dataset
         call me%nc%close()
     end subroutine
 
     !> Read variables in for the new chunk as part of a batch run
     subroutine readBatchVariablesDatabase(me)
-        class(Database)     :: me               ! This Database instance
-        type(NcVariable)    :: var              ! NetCDF variable
-        type(NcDimension)   :: p_dim            ! NetCDF dimensions for point sources
-        integer             :: x, y             ! Grid cell iterators
+        class(Database)     :: me
+        type(NcVariable)    :: var
+        type(NcDimension)   :: p_dim
+        logical :: haveCoordVar
+        integer :: n
+        integer :: alloc_stat
+        integer :: nx, ny, nt, nforms, nsizes, np
+        integer :: f_pris, f_mat, f_tra
 
-        ! Spatial extent (grid setup, rivers etc) will stay the same between chunks,
-        ! but the number of timesteps might not, so let's change that
-        var = me%nc%getVariable('t')
-        call var%getData(me%t)
-        me%nTimesteps = size(me%t)
+        ! temp arrays with explicit ranks that match legacy file vars
+        real(dp), allocatable :: A2(:,:)          ! (x,y)
+        real(dp), allocatable :: A3(:,:,:)        ! (x,y,t)
+        real(dp), allocatable :: COORD4(:,:,:,:)  ! (x,y,p,d)
+        real(dp), allocatable :: A4(:,:,:,:)      ! (x,y,t,p)
+        real(dp), allocatable :: T2(:,:)          ! temp for spatial (x,y) → transpose → (y,x)
 
-        ! SPATIOTEMPORAL VARIABLES
-        ! If number of timesteps in this chunk is different, the getData() method
-        ! will take care of reallocating the variable to the correct length. But
-        ! we need to be careful to reallocate variables we don't get by getData
-        ! (i.e. ones that aren't present in the data file)
-       
-        ! Digital elevation model [dm asl]
-        if (me%nc%hasVariable('dem')) then
-            var = me%nc%getVariable('dem')
-            call var%getData(me%dem)
+        nx     = me%gridShape(1)
+        ny     = me%gridShape(2)
+        nt     = C%nTimeSteps
+        nsizes = C%contaminantDim(1)
+        nforms = C%contaminantDim(2)
+
+        ! Legacy form indices (cap to available number of forms)
+        f_pris = 1
+        f_mat  = merge(2, 1, nforms >= 2)
+        f_tra  = merge(3, 1, nforms >= 3)
+
+        ! ----------------------
+        ! SPATIAL SOIL VARIABLES
+        ! ----------------------
+        ! File vars are 2-D (y,x); the NetCDF helper returns (x,y) on getData.
+        ! We read into T2(nx,ny) and store as (y,x) to match NetCDFOutput expectations.
+
+        ! Soil bulk density [kg/m3]
+        if (me%nc%hasVariable('soil_bulk_density')) then
+            var = me%nc%getVariable('soil_bulk_density')
+            if (allocated(me%soilBulkDensity)) deallocate(me%soilBulkDensity)
+            allocate(T2(nx,ny)); call var%getData(T2)        ! (x,y)
+            allocate(me%soilBulkDensity(ny,nx))              ! (y,x)
+            me%soilBulkDensity = transpose(T2)               ! → (y,x)
+            deallocate(T2)
         else
-            call LOGR%toFile(errors=[ &
-                ErrorInstance(message='Digital elevation model (dem) not found in input file. ' // &
-                    'Default slope of ' // trim(str(defaultSlope)) // ' m/m will be used.', iscritical=.false.) &
-            ])
+            if (allocated(me%soilBulkDensity)) deallocate(me%soilBulkDensity)
+            allocate(me%soilBulkDensity(ny,nx))
+            me%soilBulkDensity = nf90_fill_real
         end if
 
-        ! Runoff        [m/timestep]
-        var = me%nc%getVariable('runoff')
-        call var%getData(me%runoff)
-        ! Quickflow     [m/timestep]
-        var = me%nc%getVariable('quickflow')
-        call var%getData(me%quickflow)
-        ! Precip        [m/timestep]
-        var = me%nc%getVariable('precip')
-        call var%getData(me%precip)
-        ! Evap
-        ! TODO actually get some data for this
-        if (me%nc%hasVariable('evap')) then
-            var = me%nc%getVariable('evap')
-            call var%getData(me%evap)
+        ! Soil water content at field capacity [cm3/cm3]
+        if (me%nc%hasVariable('soil_water_content_field_capacity')) then
+            var = me%nc%getVariable('soil_water_content_field_capacity')
+            if (allocated(me%soilWaterContentFieldCapacity)) deallocate(me%soilWaterContentFieldCapacity)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilWaterContentFieldCapacity(ny,nx))
+            me%soilWaterContentFieldCapacity = transpose(T2)
+            deallocate(T2)
         else
-            if (allocated(me%evap)) deallocate(me%evap)
-            allocate(me%evap(me%gridShape(1), me%gridShape(2), C%nTimesteps))
-            me%evap = 0.0
+            if (allocated(me%soilWaterContentFieldCapacity)) deallocate(me%soilWaterContentFieldCapacity)
+            allocate(me%soilWaterContentFieldCapacity(ny,nx))
+            me%soilWaterContentFieldCapacity = nf90_fill_real
         end if
 
-        ! SPATIAL VARIABLES
-        ! Soil bulk density                          [kg/m3]
-        var = me%nc%getVariable('soil_bulk_density')
-        call var%getData(me%soilBulkDensity)
-        ! Soil water content at field capacity      [cm3/cm3]
-        var = me%nc%getVariable('soil_water_content_field_capacity')
-        call var%getData(me%soilWaterContentFieldCapacity)
-        ! Soil water content at saturation          [cm3/cm3]
-        var = me%nc%getVariable('soil_water_content_saturation')
-        call var%getData(me%soilWaterContentSaturation)
-        ! Soil hydraulic conductivity               [m/s]
-        var = me%nc%getVariable('soil_hydraulic_conductivity')
-        call var%getData(me%soilHydraulicConductivity)
-        ! Soil texture                              [%]
-        var = me%nc%getVariable('soil_texture_clay_content')
-        call var%getData(me%soilTextureClayContent)
-        var = me%nc%getVariable('soil_texture_sand_content')
-        call var%getData(me%soilTextureSandContent)
-        var = me%nc%getVariable('soil_texture_silt_content')
-        call var%getData(me%soilTextureSiltContent)
-        var = me%nc%getVariable('soil_texture_coarse_frag_content')
-        call var%getData(me%soilTextureCoarseFragContent)
-        var = me%nc%getVariable('soil_usle_c_factor')
-        call var%getData(me%soilUsleCFactor)
-        var = me%nc%getVariable('soil_usle_ls_factor')
-        call var%getData(me%soilUsleLSFactor)
-        var = me%nc%getVariable('soil_usle_p_factor')
-        call var%getData(me%soilUslePFactor)
-        ! Soil attachment efficienecy/rate
-        ! Try and get attachment rate. This is used preferentially by soil profile
+        ! Soil water content at saturation [cm3/cm3]
+        if (me%nc%hasVariable('soil_water_content_saturation')) then
+            var = me%nc%getVariable('soil_water_content_saturation')
+            if (allocated(me%soilWaterContentSaturation)) deallocate(me%soilWaterContentSaturation)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilWaterContentSaturation(ny,nx))
+            me%soilWaterContentSaturation = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilWaterContentSaturation)) deallocate(me%soilWaterContentSaturation)
+            allocate(me%soilWaterContentSaturation(ny,nx))
+            me%soilWaterContentSaturation = nf90_fill_real
+        end if
+
+        ! Soil hydraulic conductivity [m/s]
+        if (me%nc%hasVariable('soil_hydraulic_conductivity')) then
+            var = me%nc%getVariable('soil_hydraulic_conductivity')
+            if (allocated(me%soilHydraulicConductivity)) deallocate(me%soilHydraulicConductivity)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilHydraulicConductivity(ny,nx))
+            me%soilHydraulicConductivity = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilHydraulicConductivity)) deallocate(me%soilHydraulicConductivity)
+            allocate(me%soilHydraulicConductivity(ny,nx))
+            me%soilHydraulicConductivity = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — clay
+        if (me%nc%hasVariable('soil_texture_clay_content')) then
+            var = me%nc%getVariable('soil_texture_clay_content')
+            if (allocated(me%soilTextureClayContent)) deallocate(me%soilTextureClayContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureClayContent(ny,nx))
+            me%soilTextureClayContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureClayContent)) deallocate(me%soilTextureClayContent)
+            allocate(me%soilTextureClayContent(ny,nx))
+            me%soilTextureClayContent = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — sand
+        if (me%nc%hasVariable('soil_texture_sand_content')) then
+            var = me%nc%getVariable('soil_texture_sand_content')
+            if (allocated(me%soilTextureSandContent)) deallocate(me%soilTextureSandContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureSandContent(ny,nx))
+            me%soilTextureSandContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureSandContent)) deallocate(me%soilTextureSandContent)
+            allocate(me%soilTextureSandContent(ny,nx))
+            me%soilTextureSandContent = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — silt
+        if (me%nc%hasVariable('soil_texture_silt_content')) then
+            var = me%nc%getVariable('soil_texture_silt_content')
+            if (allocated(me%soilTextureSiltContent)) deallocate(me%soilTextureSiltContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureSiltContent(ny,nx))
+            me%soilTextureSiltContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureSiltContent)) deallocate(me%soilTextureSiltContent)
+            allocate(me%soilTextureSiltContent(ny,nx))
+            me%soilTextureSiltContent = nf90_fill_real
+        end if
+
+        ! Soil texture [%] — coarse fragments
+        if (me%nc%hasVariable('soil_texture_coarse_frag_content')) then
+            var = me%nc%getVariable('soil_texture_coarse_frag_content')
+            if (allocated(me%soilTextureCoarseFragContent)) deallocate(me%soilTextureCoarseFragContent)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilTextureCoarseFragContent(ny,nx))
+            me%soilTextureCoarseFragContent = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilTextureCoarseFragContent)) deallocate(me%soilTextureCoarseFragContent)
+            allocate(me%soilTextureCoarseFragContent(ny,nx))
+            me%soilTextureCoarseFragContent = nf90_fill_real
+        end if
+
+        ! USLE factors [-] — C
+        if (me%nc%hasVariable('soil_usle_c_factor')) then
+            var = me%nc%getVariable('soil_usle_c_factor')
+            if (allocated(me%soilUsleCFactor)) deallocate(me%soilUsleCFactor)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilUsleCFactor(ny,nx))
+            me%soilUsleCFactor = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilUsleCFactor)) deallocate(me%soilUsleCFactor)
+            allocate(me%soilUsleCFactor(ny,nx))
+            me%soilUsleCFactor = nf90_fill_real
+        end if
+
+        ! USLE factors [-] — LS
+        if (me%nc%hasVariable('soil_usle_ls_factor')) then
+            var = me%nc%getVariable('soil_usle_ls_factor')
+            if (allocated(me%soilUsleLSFactor)) deallocate(me%soilUsleLSFactor)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilUsleLSFactor(ny,nx))
+            me%soilUsleLSFactor = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilUsleLSFactor)) deallocate(me%soilUsleLSFactor)
+            allocate(me%soilUsleLSFactor(ny,nx))
+            me%soilUsleLSFactor = nf90_fill_real
+        end if
+
+        ! USLE factors [-] — P
+        if (me%nc%hasVariable('soil_usle_p_factor')) then
+            var = me%nc%getVariable('soil_usle_p_factor')
+            if (allocated(me%soilUslePFactor)) deallocate(me%soilUslePFactor)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilUslePFactor(ny,nx))
+            me%soilUslePFactor = transpose(T2)
+            deallocate(T2)
+        else
+            if (allocated(me%soilUslePFactor)) deallocate(me%soilUslePFactor)
+            allocate(me%soilUslePFactor(ny,nx))
+            me%soilUslePFactor = nf90_fill_real
+        end if
+
+        ! Soil attachment — prefer explicit rate; otherwise efficiency (default fallback elsewhere)
         if (me%nc%hasVariable('soil_attachment_rate')) then
             var = me%nc%getVariable('soil_attachment_rate')
-            call var%getData(me%soilAttachmentRate)
+            if (allocated(me%soilAttachmentRate)) deallocate(me%soilAttachmentRate)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilAttachmentRate(ny,nx))
+            me%soilAttachmentRate = transpose(T2)
+            deallocate(T2)
         else
-            allocate(me%soilAttachmentRate(me%gridShape(1), me%gridShape(2)))
+            if (allocated(me%soilAttachmentRate)) deallocate(me%soilAttachmentRate)
+            allocate(me%soilAttachmentRate(ny,nx))
             me%soilAttachmentRate = nf90_fill_real
         end if
-        ! Try and get attachment efficiency. This is used to calculate rate
-        ! if rate not present. Defaults to to value given in constants file
+
         if (me%nc%hasVariable('soil_attachment_efficiency')) then
             var = me%nc%getVariable('soil_attachment_efficiency')
-            call var%getData(me%soilAttachmentEfficiency)
+            if (allocated(me%soilAttachmentEfficiency)) deallocate(me%soilAttachmentEfficiency)
+            allocate(T2(nx,ny)); call var%getData(T2)
+            allocate(me%soilAttachmentEfficiency(ny,nx))
+            me%soilAttachmentEfficiency = transpose(T2)
+            deallocate(T2)
         else
-            allocate(me%soilAttachmentEfficiency(me%gridShape(1), me%gridShape(2)))
+            if (allocated(me%soilAttachmentEfficiency)) deallocate(me%soilAttachmentEfficiency)
+            allocate(me%soilAttachmentEfficiency(ny,nx))
             me%soilAttachmentEfficiency = me%soilConstantAttachmentEfficiency
         end if
 
-        ! Try and get resuspension and sediment transport parameters
-        ! Defaults to value given in constants file if not present in NetCDF file
-        ! TODO add check that at least one of the variables exists, or put a default in there
-        if (me%nc%hasVariable('resuspension_alpha')) then
-            var = me%nc%getVariable('resuspension_alpha')
-            call var%getData(me%resuspensionAlpha)
-        else
-            allocate(me%resuspensionAlpha(me%gridShape(1), me%gridShape(2)))
-            do y = 1, me%gridShape(2)
-                do x = 1, me%gridShape(1)
-                    if (me%isEstuary(x,y)) then
-                        me%resuspensionAlpha(x,y) = me%waterResuspensionAlphaEstuary
-                    else
-                        me%resuspensionAlpha(x,y) = me%waterResuspensionAlpha
-                    end if
-                end do
-            end do
-        end if
-        ! Resuspension beta
-        if (me%nc%hasVariable('resuspension_beta')) then
-            var = me%nc%getVariable('resuspension_beta')
-            call var%getData(me%resuspensionBeta)
-        else
-            allocate(me%resuspensionBeta(me%gridShape(1), me%gridShape(2)))
-            do y = 1, me%gridShape(2)
-                do x = 1, me%gridShape(1)
-                    if (me%isEstuary(x,y)) then
-                        me%resuspensionBeta(x,y) = me%waterResuspensionBetaEstuary
-                    else
-                        me%resuspensionBeta(x,y) = me%waterResuspensionBeta
-                    end if
-                end do
-            end do
-        end if
+
+        ! ----------------------
+        ! SEDIMENT TRANSPORT
+        ! ----------------------
+        ! Note that these variables use (x,y) indexing (i.e. they aren't transposed
+        ! when they are retrieved from the NetCDF file). This is in constrast to the
+        ! soil spatial variables above, which are transposed to (y,x)
+        !
+        ! If a spatial var is available in the NetCDF file, this is used. If not,
+        ! the constant value is used for the whole grid. If a constant isn't available
+        ! in the constant namelist, this will have already been set to the default
+        ! from ConstantsDefaultsModule
+
         ! Deposition alpha
         if (me%nc%hasVariable('deposition_alpha')) then
             var = me%nc%getVariable('deposition_alpha')
@@ -526,6 +605,64 @@ module DataInputModule
             allocate(me%depositionBeta(me%gridShape(1), me%gridShape(2)))
             me%depositionBeta = me%depositionBetaConstant
         end if
+
+        ! Resuspension alpha
+        ! TODO add check that at least one of the variables exists, or put a default in
+        if (me%nc%hasVariable('resuspension_alpha')) then
+            var = me%nc%getVariable('resuspension_alpha')
+            call var%getData(me%resuspensionAlpha)
+        else
+            allocate(me%resuspensionAlpha(me%gridShape(1), me%gridShape(2)))
+            ! Use the estuary mask to get a different resuspension alpha value in
+            ! estuaries. If no specific alpha value is given for estuaries, it
+            ! defaults to that for rivers
+            where (me%isEstuary)
+                me%resuspensionAlpha = me%waterResuspensionAlphaEstuary
+            elsewhere
+                me%resuspensionAlpha = me%waterResuspensionAlpha
+            end where
+        end if
+        ! Resuspension beta
+        if (me%nc%hasVariable('resuspension_beta')) then
+            var = me%nc%getVariable('resuspension_beta')
+            call var%getData(me%resuspensionBeta)
+        else
+            allocate(me%resuspensionBeta(me%gridShape(1), me%gridShape(2)))
+            ! Same as for alpha, use different value for estuaries if available
+            where (me%isEstuary)
+                me%resuspensionBeta = me%waterResuspensionBetaEstuary
+            elsewhere
+                me%resuspensionBeta = me%waterResuspensionBeta
+            end where
+        end if
+
+        ! Sediment transport param a 
+        if (me%nc%hasVariable('sediment_transport_a')) then 
+            var = me%nc%getVariable('sediment_transport_a') 
+            call var%getData(me%sedimentTransport_a) 
+        else 
+            allocate(me%sedimentTransport_a(me%gridShape(1), me%gridShape(2))) 
+            me%sedimentTransport_a = me%sedimentTransport_aConstant 
+        end if 
+
+        ! Sediment transport param b 
+        if (me%nc%hasVariable('sediment_transport_b')) then 
+            var = me%nc%getVariable('sediment_transport_b') 
+            call var%getData(me%sedimentTransport_b) 
+        else 
+            allocate(me%sedimentTransport_b(me%gridShape(1), me%gridShape(2))) 
+            me%sedimentTransport_b = me%sedimentTransport_bConstant 
+        end if 
+
+        ! Sediment transport param b 
+        if (me%nc%hasVariable('sediment_transport_c')) then 
+            var = me%nc%getVariable('sediment_transport_c') 
+            call var%getData(me%sedimentTransport_c) 
+        else 
+            allocate(me%sedimentTransport_c(me%gridShape(1), me%gridShape(2))) 
+            me%sedimentTransport_c = me%sedimentTransport_cConstant 
+        end if 
+
         ! Bank erosion alpha
         if (me%nc%hasVariable('bank_erosion_alpha')) then
             var = me%nc%getVariable('bank_erosion_alpha')
@@ -534,6 +671,7 @@ module DataInputModule
             allocate(me%bankErosionAlpha(me%gridShape(1), me%gridShape(2)))
             me%bankErosionAlpha = me%bankErosionAlphaConstant
         end if
+
         ! Bank erosion beta
         if (me%nc%hasVariable('bank_erosion_beta')) then
             var = me%nc%getVariable('bank_erosion_beta')
@@ -542,326 +680,626 @@ module DataInputModule
             allocate(me%bankErosionBeta(me%gridShape(1), me%gridShape(2)))
             me%bankErosionBeta = me%bankErosionBetaConstant
         end if
-        ! Sediment transport param a
-        if (me%nc%hasVariable('sediment_transport_a')) then
-            var = me%nc%getVariable('sediment_transport_a')
-            call var%getData(me%sedimentTransport_a)
+        
+
+        !----------------------
+        ! BASIC TIME SERIES
+        !----------------------
+        if (me%nc%hasVariable('quickflow')) then
+            var = me%nc%getVariable('quickflow')         ! (t,y,x) in file
+            if (allocated(me%quickflow)) deallocate(me%quickflow)
+            allocate(me%quickflow(nx,ny,nt))
+            call var%getData(me%quickflow)               ! library reverses -> (x,y,t)
         else
-            allocate(me%sedimentTransport_a(me%gridShape(1), me%gridShape(2)))
-            me%sedimentTransport_a = me%sedimentTransport_aConstant
-        end if
-        ! Sediment transport param b
-        if (me%nc%hasVariable('sediment_transport_b')) then
-            var = me%nc%getVariable('sediment_transport_b')
-            call var%getData(me%sedimentTransport_b)
-        else
-            allocate(me%sedimentTransport_b(me%gridShape(1), me%gridShape(2)))
-            me%sedimentTransport_b = me%sedimentTransport_bConstant
-        end if
-        ! Sediment transport param c
-        if (me%nc%hasVariable('sediment_transport_c')) then
-            var = me%nc%getVariable('sediment_transport_c')
-            call var%getData(me%sedimentTransport_c)
-        else
-            allocate(me%sedimentTransport_c(me%gridShape(1), me%gridShape(2)))
-            me%sedimentTransport_c = me%sedimentTransport_cConstant
+            if (allocated(me%quickflow)) deallocate(me%quickflow)
+            allocate(me%quickflow(nx,ny,nt))
+            me%quickflow = 0.0_dp
         end if
 
-        ! Initial concentrations                    [kg/volume]
-        ! if (me%nc%hasVariable('initial_nm_concs_soil')) then
-        !     var = me%nc%getVariable('initial_nm_concs_soil')
-        !     call var%getData(me%initialNMConcsSoil)
-        ! else
-        !     allocate(me%initialNMConcsSoil(me%maxNWaterbodies, me%gridShape(1), me%gridShape(2))))
-        !     me%initialNMConcsSoil = 0.0_dp
-        ! end if
-        ! if (me%nc%hasVariable('initial_transformed_concs_soil')) then
-        !     var = me%nc%getVariable('initial_transformed_concs_soil')
-        !     call var%getData(me%initialTransformedConcsSoil)
-        ! else
-        !     allocate(me%initialTransformedConcsSoil(me%maxNWaterbodies, me%gridShape(1), me%gridShape(2))))
-        !     me%initialTransformedConcsSoil = 0.0_dp
-        ! end if
-
-        ! Emissions - areal                         [kg/m2/timestep]
-        ! Soil
-        if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
-            var = me%nc%getVariable('emissions_areal_soil_pristine')
-            call var%getData(me%emissionsArealSoilPristine)
+        if (me%nc%hasVariable('runoff')) then
+            var = me%nc%getVariable('runoff')
+            if (allocated(me%runoff)) deallocate(me%runoff)
+            allocate(me%runoff(nx,ny,nt))
+            call var%getData(me%runoff)
         else
-            allocate(me%emissionsArealSoilPristine(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealSoilPristine = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
-            var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
-            call var%getData(me%emissionsArealSoilMatrixEmbedded)
-        else
-            allocate(me%emissionsArealSoilMatrixEmbedded(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealSoilMatrixEmbedded = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
-            var = me%nc%getVariable('emissions_areal_soil_transformed')
-            call var%getData(me%emissionsArealSoilTransformed)
-        else
-            allocate(me%emissionsArealSoilTransformed(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealSoilTransformed = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_areal_soil_dissolved')) then
-            var = me%nc%getVariable('emissions_areal_soil_dissolved')
-            call var%getData(me%emissionsArealSoilDissolved)
-        else
-            allocate(me%emissionsArealSoilDissolved(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealSoilDissolved = nf90_fill_double
-        end if
-        ! Water
-        if (me%nc%hasVariable('emissions_areal_water_pristine')) then
-            var = me%nc%getVariable('emissions_areal_water_pristine')
-            call var%getData(me%emissionsArealWaterPristine)
-        else
-            allocate(me%emissionsArealWaterPristine(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealWaterPristine = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
-            var = me%nc%getVariable('emissions_areal_water_matrixembedded')
-            call var%getData(me%emissionsArealWaterMatrixEmbedded)
-        else
-            allocate(me%emissionsArealWaterMatrixEmbedded(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealWaterMatrixEmbedded = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_areal_water_transformed')) then
-            var = me%nc%getVariable('emissions_areal_water_transformed')
-            call var%getData(me%emissionsArealWaterTransformed)
-        else
-            allocate(me%emissionsArealWaterTransformed(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealWaterTransformed = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_areal_water_dissolved')) then
-            var = me%nc%getVariable('emissions_areal_water_dissolved')
-            call var%getData(me%emissionsArealWaterDissolved)
-        else
-            allocate(me%emissionsArealWaterDissolved(me%gridShape(1), me%gridShape(2)))
-            me%emissionsArealWaterDissolved = nf90_fill_double
+            if (allocated(me%runoff)) deallocate(me%runoff)
+            allocate(me%runoff(nx,ny,nt))
+            me%runoff = 0.0_dp
         end if
 
-        ! Emissions - atmospheric                   [kg/m2/timestep]
-        if (me%nc%hasVariable('emissions_atmospheric_drydepo_pristine')) then
-            var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
-            call var%getData(me%emissionsAtmosphericDryDepoPristine)
+        if (me%nc%hasVariable('precip')) then
+            var = me%nc%getVariable('precip')
+            if (allocated(me%precip)) deallocate(me%precip)
+            allocate(me%precip(nx,ny,nt))
+            call var%getData(me%precip)
         else
-            allocate(me%emissionsAtmosphericDryDepoPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericDryDepoPristine = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_atmospheric_drydepo_matrixembedded')) then
-            var = me%nc%getVariable('emissions_atmospheric_drydepo_matrixembedded')
-            call var%getData(me%emissionsAtmosphericDryDepoMatrixEmbedded)
-        else
-            allocate(me%emissionsAtmosphericDryDepoMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericDryDepoMatrixEmbedded = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
-            var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
-            call var%getData(me%emissionsAtmosphericDryDepoTransformed)
-        else
-            allocate(me%emissionsAtmosphericDryDepoTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericDryDepoTransformed = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_atmospheric_drydepo_dissolved')) then
-            var = me%nc%getVariable('emissions_atmospheric_drydepo_dissolved')
-            call var%getData(me%emissionsAtmosphericDryDepoDissolved)
-        else
-            allocate(me%emissionsAtmosphericDryDepoDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericDryDepoDissolved = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
-            var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
-            call var%getData(me%emissionsAtmosphericWetDepoPristine)
-        else
-            allocate(me%emissionsAtmosphericWetDepoPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericWetDepoPristine = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_matrixembedded')) then
-            var = me%nc%getVariable('emissions_atmospheric_wetdepo_matrixembedded')
-            call var%getData(me%emissionsAtmosphericWetDepoMatrixEmbedded)
-        else
-            allocate(me%emissionsAtmosphericWetDepoMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericWetDepoMatrixEmbedded = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
-            var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
-            call var%getData(me%emissionsAtmosphericWetDepoTransformed)
-        else
-            allocate(me%emissionsAtmosphericWetDepoTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericWetDepoTransformed = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
-            var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
-            call var%getData(me%emissionsAtmosphericWetDepoDissolved)
-        else
-            allocate(me%emissionsAtmosphericWetDepoDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps))
-            me%emissionsAtmosphericWetDepoDissolved = nf90_fill_double
+            if (allocated(me%precip)) deallocate(me%precip)
+            allocate(me%precip(nx,ny,nt))
+            me%precip = 0.0_dp
         end if
 
-        ! Emissions - point (all water)                     [kg/timestep]
-        ! Check there's actually a p (number of point source) dimension first, in case the
-        ! data was provided without point sources
+        if (me%nc%hasVariable('evap')) then
+            var = me%nc%getVariable('evap')
+            if (allocated(me%evap)) deallocate(me%evap)
+            allocate(me%evap(nx,ny,nt))
+            call var%getData(me%evap)
+        else
+            if (allocated(me%evap)) deallocate(me%evap)
+            allocate(me%evap(nx,ny,nt))
+            me%evap = 0.0_dp
+        end if
+
+        !----------------------
+        ! POINT-SOURCE DIM
+        !----------------------
         if (me%nc%hasDimension('p')) then
-            p_dim = me%nc%getDimension('p')
+            p_dim              = me%nc%getDimension('p')
             me%maxPointSources = p_dim%getLength()
         else
             me%maxPointSources = 0
         end if
-        ! Pristine
-        if (me%nc%hasVariable('emissions_point_water_pristine')) then
-            var = me%nc%getVariable('emissions_point_water_pristine')
-            call var%getData(me%emissionsPointWaterPristine)
-            ! Get point source coords
-            if (me%nc%hasVariable('emissions_point_water_pristine_coords')) then
-                var = me%nc%getVariable('emissions_point_water_pristine_coords')
-                call var%getData(me%emissionsPointWaterCoords)
-            end if
-        else
-            allocate(me%emissionsPointWaterPristine(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
-            me%emissionsPointWaterPristine = nf90_fill_double
-        end if
-        ! Matrix-embedded
-        if (me%nc%hasVariable('emissions_point_water_matrixembedded')) then
-            var = me%nc%getVariable('emissions_point_water_matrixembedded')
-            call var%getData(me%emissionsPointWaterMatrixEmbedded)
-            ! Get point source coords
-            if (me%nc%hasVariable('emissions_point_water_matrixembedded_coords')) then
-                var = me%nc%getVariable('emissions_point_water_matrixembedded_coords')
-                call var%getData(me%emissionsPointWaterCoords)
-            end if
-        else
-            allocate(me%emissionsPointWaterMatrixEmbedded(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
-            me%emissionsPointWaterMatrixEmbedded = nf90_fill_double
-        end if
-        ! Transformed
-        if (me%nc%hasVariable('emissions_point_water_transformed')) then
-            var = me%nc%getVariable('emissions_point_water_transformed')
-            call var%getData(me%emissionsPointWaterTransformed)
-            ! Get point source coords
-            if (me%nc%hasVariable('emissions_point_water_transformed_coords')) then
-                var = me%nc%getVariable('emissions_point_water_transformed_coords')
-                call var%getData(me%emissionsPointWaterCoords)
-            end if
-        else
-            allocate(me%emissionsPointWaterTransformed(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
-            me%emissionsPointWaterTransformed = nf90_fill_double
-        end if
-        if (me%nc%hasVariable('emissions_point_water_dissolved')) then
-            var = me%nc%getVariable('emissions_point_water_dissolved')
-            call var%getData(me%emissionsPointWaterDissolved)
-            ! Get point source coords
-            if (me%nc%hasVariable('emissions_point_water_dissolved_coords')) then
-                var = me%nc%getVariable('emissions_point_water_dissolved_coords')
-                call var%getData(me%emissionsPointWaterCoords)
-            end if
-        else
-            allocate(me%emissionsPointWaterDissolved(me%gridShape(1), me%gridShape(2), me%nTimesteps, me%maxPointSources))
-            me%emissionsPointWaterDissolved = nf90_fill_double
-        end if
-        ! Emissions - point coordinates. We only need to use one form's point coords (they should
-        ! all be the same), so we'll go through them all until we hit one that exists (in case
-        ! we're only inputting a certain form)
-        if ((me%maxPointSources > 0) .and. (.not. allocated(me%emissionsPointWaterCoords))) then
-            call ERROR_HANDLER%trigger(error=ErrorInstance( &
-                message="Unable to find coordinates for point sources in input data. Check point sources " // &
-                        "have coordinates sidecar variables." &
-            ))
+        np = max(1, me%maxPointSources)
+
+        !----------------------
+        ! DEALLOC & ALLOC EMISSIONS
+        !----------------------
+        if (allocated(me%emissionsArealSoilContaminant)) &
+            deallocate(me%emissionsArealSoilContaminant)
+        if (allocated(me%emissionsArealWaterContaminant)) &
+            deallocate(me%emissionsArealWaterContaminant)
+        if (allocated(me%emissionsAtmosphericDryDepoContaminant)) &
+            deallocate(me%emissionsAtmosphericDryDepoContaminant)
+        if (allocated(me%emissionsAtmosphericWetDepoContaminant)) &
+            deallocate(me%emissionsAtmosphericWetDepoContaminant)
+        if (allocated(me%emissionsPointWaterContaminant)) &
+            deallocate(me%emissionsPointWaterContaminant)
+        if (allocated(me%emissionsArealSoilDissolvedContaminant)) &
+            deallocate(me%emissionsArealSoilDissolvedContaminant)
+        if (allocated(me%emissionsArealWaterDissolvedContaminant)) &
+            deallocate(me%emissionsArealWaterDissolvedContaminant)
+        if (allocated(me%emissionsAtmosphericDryDepoDissolvedContaminant)) &
+            deallocate(me%emissionsAtmosphericDryDepoDissolvedContaminant)
+        if (allocated(me%emissionsAtmosphericWetDepoDissolvedContaminant)) &
+            deallocate(me%emissionsAtmosphericWetDepoDissolvedContaminant)
+        if (allocated(me%emissionsPointWaterDissolvedContaminant)) &
+            deallocate(me%emissionsPointWaterDissolvedContaminant)
+        if (allocated(me%emissionsPointWaterCoords)) &
+            deallocate(me%emissionsPointWaterCoords)
+
+        allocate( &
+            me%emissionsArealSoilContaminant( nx, ny, nsizes, nforms, C%contaminantDim(3) ), &
+            me%emissionsArealWaterContaminant( nx, ny, nsizes, nforms, C%contaminantDim(3) ), &
+            me%emissionsAtmosphericDryDepoContaminant( nx, ny, nt, nsizes, nforms, &
+                                                    C%contaminantDim(3) ), &
+            me%emissionsAtmosphericWetDepoContaminant( nx, ny, nt, nsizes, nforms, &
+                                                    C%contaminantDim(3) ), &
+            me%emissionsPointWaterContaminant( nx, ny, nt, np, nsizes, nforms, &
+                                            C%contaminantDim(3) ), &
+            me%emissionsArealSoilDissolvedContaminant( nx, ny ), &
+            me%emissionsArealWaterDissolvedContaminant( nx, ny ), &
+            me%emissionsAtmosphericDryDepoDissolvedContaminant( nx, ny, nt ), &
+            me%emissionsAtmosphericWetDepoDissolvedContaminant( nx, ny, nt ), &
+            me%emissionsPointWaterDissolvedContaminant( nx, ny, nt ), &
+            stat=alloc_stat )
+
+        if (alloc_stat /= 0) then
+            call ERROR_HANDLER%trigger( &
+                error=ErrorInstance(message='Emission allocation failed') )
+            return
         end if
 
-        ! Calculate the number of point source per cell
+        me%emissionsArealSoilContaminant                   = 0.0_dp
+        me%emissionsArealWaterContaminant                  = 0.0_dp
+        me%emissionsAtmosphericDryDepoContaminant          = 0.0_dp
+        me%emissionsAtmosphericWetDepoContaminant          = 0.0_dp
+        me%emissionsPointWaterContaminant                  = 0.0_dp
+        me%emissionsArealSoilDissolvedContaminant          = 0.0_dp
+        me%emissionsArealWaterDissolvedContaminant         = 0.0_dp
+        me%emissionsAtmosphericDryDepoDissolvedContaminant = 0.0_dp
+        me%emissionsAtmosphericWetDepoDissolvedContaminant = 0.0_dp
+        me%emissionsPointWaterDissolvedContaminant         = 0.0_dp
+
+        !-----------------------------------
+        ! AREAL EMISSIONS (2-D y,x -> (x,y))
+        !-----------------------------------
+
+        ! 1. SOIL EMISSIONS (PRISTINE) - Updated with Fallback
+        ! ----------------------------------------------------
+        if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
+            ! Try NEW name first
+            var = me%nc%getVariable('emissions_areal_soil_pristine')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+            call LOGR%add("DataInput: Read 'emissions_areal_soil_pristine'")
+
+        else if (me%nc%hasVariable('emissions_areal_soil_nm')) then
+            ! FALLBACK: Try OLD name (legacy support)
+            var = me%nc%getVariable('emissions_areal_soil_nm')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            
+            ! Map legacy 'nm' emissions to 'pristine' form
+            me%emissionsArealSoilContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+            call LOGR%add("DataInput: Read legacy 'emissions_areal_soil_nm' as pristine")
+        end if
+
+        ! 2. SOIL EMISSIONS (MATRIX EMBEDDED)
+        ! -----------------------------------
+        if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
+            var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilContaminant(:,:,1,f_mat,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        ! 3. SOIL EMISSIONS (TRANSFORMED)
+        ! -------------------------------
+        if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
+            var = me%nc%getVariable('emissions_areal_soil_transformed')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilContaminant(:,:,1,f_tra,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealSoilContaminant(:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        ! 4. WATER EMISSIONS (PRISTINE) - Updated with Fallback
+        ! -----------------------------------------------------
+        if (me%nc%hasVariable('emissions_areal_water_pristine')) then
+            ! Try NEW name first
+            var = me%nc%getVariable('emissions_areal_water_pristine')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+            call LOGR%add("DataInput: Read 'emissions_areal_water_pristine'")
+
+        else if (me%nc%hasVariable('emissions_areal_water_nm')) then
+            ! FALLBACK: Try OLD name (legacy support)
+            var = me%nc%getVariable('emissions_areal_water_nm')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            
+            ! Map legacy 'nm' emissions to 'pristine' form
+            me%emissionsArealWaterContaminant(:,:,1,f_pris,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+            call LOGR%add("DataInput: Read legacy 'emissions_areal_water_nm' as pristine")
+        end if
+
+        ! 5. WATER EMISSIONS (MATRIX EMBEDDED)
+        ! ------------------------------------
+        if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
+            var = me%nc%getVariable('emissions_areal_water_matrixembedded')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterContaminant(:,:,1,f_mat,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        ! 6. WATER EMISSIONS (TRANSFORMED)
+        ! --------------------------------
+        if (me%nc%hasVariable('emissions_areal_water_transformed')) then
+            var = me%nc%getVariable('emissions_areal_water_transformed')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterContaminant(:,:,1,f_tra,FREE_CONTAMINANT) = A2
+            do n = 2, nsizes
+                me%emissionsArealWaterContaminant(:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A2 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A2)
+        end if
+
+        ! 7. DISSOLVED EMISSIONS
+        ! ----------------------
+        if (me%nc%hasVariable('emissions_areal_soil_dissolved')) then
+            var = me%nc%getVariable('emissions_areal_soil_dissolved')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealSoilDissolvedContaminant = A2
+            deallocate(A2)
+        end if
+
+        if (me%nc%hasVariable('emissions_areal_water_dissolved')) then
+            var = me%nc%getVariable('emissions_areal_water_dissolved')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%emissionsArealWaterDissolvedContaminant = A2
+            deallocate(A2)
+        end if
+
+        !-----------------------------------------
+        ! ATMOSPHERIC DEPOSITION (3-D t,y,x → (x,y,t))
+        !-----------------------------------------
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_pristine')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_pris,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_matrixembedded')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_matrixembedded')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_mat,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_tra,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_pris,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_pris,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_matrixembedded')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_matrixembedded')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_mat,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_mat,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_tra,FREE_CONTAMINANT) = A3
+            do n = 2, nsizes
+                me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_tra,FREE_CONTAMINANT) = &
+                    A3 * me%defaultDistributionContaminant(n)
+            end do
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_drydepo_dissolved')) then
+            var = me%nc%getVariable('emissions_atmospheric_drydepo_dissolved')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericDryDepoDissolvedContaminant = A3
+            deallocate(A3)
+        end if
+
+        if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
+            var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
+            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            me%emissionsAtmosphericWetDepoDissolvedContaminant = A3
+            deallocate(A3)
+        end if
+
+        !-----------------------------------------
+        ! POINT-SOURCE COORDS (4-D x,y,p,2)
+        !-----------------------------------------
+        haveCoordVar = .false.
+        if (me%nc%hasVariable('emissions_point_water_contaminant_coords')) then
+            var = me%nc%getVariable('emissions_point_water_contaminant_coords')
+            haveCoordVar = .true.
+        else if (me%nc%hasVariable('emissions_point_water_pristine_coords')) then
+            var = me%nc%getVariable('emissions_point_water_pristine_coords')
+            haveCoordVar = .true.
+        else if (me%nc%hasVariable('emissions_point_water_matrixembedded_coords')) then
+            var = me%nc%getVariable('emissions_point_water_matrixembedded_coords')
+            haveCoordVar = .true.
+        end if
+
+        if (allocated(me%emissionsPointWaterCoords)) &
+            deallocate(me%emissionsPointWaterCoords)
+        allocate(me%emissionsPointWaterCoords(nx, ny, me%maxPointSources, 2))
+
+        if (haveCoordVar) then
+            allocate(COORD4(nx, ny, me%maxPointSources, 2))
+            call var%getData(COORD4)      ! library returns (x,y,p,d)
+            me%emissionsPointWaterCoords = COORD4
+            deallocate(COORD4)
+        else
+            me%emissionsPointWaterCoords = nf90_fill_double
+        end if
+
+        !-----------------------------------------
+        ! POINT-SOURCE EMISSIONS (4-D p,t,y,x → (x,y,t,p))
+        !-----------------------------------------
+        if (me%maxPointSources > 0) then
+
+            if (me%nc%hasVariable('emissions_point_water_pristine')) then
+                var = me%nc%getVariable('emissions_point_water_pristine')
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
+                ! size=1 takes raw; n=2..nsizes distributed
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_pris,FREE_CONTAMINANT) = A4
+                do n = 2, nsizes
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_pris,FREE_CONTAMINANT) = &
+                        A4 * me%defaultDistributionContaminant(n)
+                end do
+                deallocate(A4)
+            end if
+
+            if (me%nc%hasVariable('emissions_point_water_matrixembedded')) then
+                var = me%nc%getVariable('emissions_point_water_matrixembedded')
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_mat,FREE_CONTAMINANT) = A4
+                do n = 2, nsizes
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_mat,FREE_CONTAMINANT) = &
+                        A4 * me%defaultDistributionContaminant(n)
+                end do
+                deallocate(A4)
+            end if
+
+            ! Optional: only if present in file
+            if (me%nc%hasVariable('emissions_point_water_transformed')) then
+                var = me%nc%getVariable('emissions_point_water_transformed')
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
+                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_tra,FREE_CONTAMINANT) = A4
+                do n = 2, nsizes
+                    me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_tra,FREE_CONTAMINANT) = &
+                        A4 * me%defaultDistributionContaminant(n)
+                end do
+                deallocate(A4)
+            end if
+
+        end if
+
+        ! -----------------------------------
+        ! INITIAL CONCENTRATIONS
+        ! -----------------------------------
+        if (allocated(me%initialContaminantConcsSoil))      deallocate(me%initialContaminantConcsSoil)
+        if (allocated(me%initialContaminantConcsWater))     deallocate(me%initialContaminantConcsWater)
+        if (allocated(me%initialContaminantConcsSediment))  deallocate(me%initialContaminantConcsSediment)
+        
+        allocate(me%initialContaminantConcsSoil(    nx,ny,nsizes,nforms, C%contaminantDim(3)))
+        allocate(me%initialContaminantConcsWater(   nx,ny,nsizes,nforms, C%contaminantDim(3)))
+        allocate(me%initialContaminantConcsSediment(nx,ny,nsizes,nforms, C%contaminantDim(3)))
+
+        me%initialContaminantConcsSoil     = 0.0_dp
+        me%initialContaminantConcsWater    = 0.0_dp
+        me%initialContaminantConcsSediment = 0.0_dp
+
+        ! --- 1. SOIL INITIAL CONCENTRATIONS ---
+        if (me%nc%hasVariable('initial_contaminant_concs_soil')) then
+            ! Try NEW name
+            var = me%nc%getVariable('initial_contaminant_concs_soil')
+            call var%getData(me%initialContaminantConcsSoil)
+            call LOGR%add("DataInput: Read 'initial_contaminant_concs_soil'")
+        else if (me%nc%hasVariable('initial_nm_concs_soil')) then
+            ! FALLBACK: Try OLD name
+            var = me%nc%getVariable('initial_nm_concs_soil')
+            call var%getData(me%initialContaminantConcsSoil)
+            call LOGR%add("DataInput: Read legacy 'initial_nm_concs_soil'")
+        else
+            call LOGR%add("DataInput: WARNING - No initial SOIL contaminant data found. Set to 0.0.")
+        end if
+
+        ! --- 2. WATER INITIAL CONCENTRATIONS ---
+        if (me%nc%hasVariable('initial_contaminant_concs_water')) then
+            ! Try NEW name
+            var = me%nc%getVariable('initial_contaminant_concs_water')
+            call var%getData(me%initialContaminantConcsWater)
+            call LOGR%add("DataInput: Read 'initial_contaminant_concs_water'")
+        else if (me%nc%hasVariable('initial_nm_concs_water')) then
+            ! FALLBACK: Try OLD name
+            var = me%nc%getVariable('initial_nm_concs_water')
+            call var%getData(me%initialContaminantConcsWater)
+            call LOGR%add("DataInput: Read legacy 'initial_nm_concs_water'")
+        else
+            call LOGR%add("DataInput: WARNING - No initial WATER contaminant data found. Set to 0.0.")
+        end if
+
+        ! --- 3. SEDIMENT INITIAL CONCENTRATIONS ---
+        if (me%nc%hasVariable('initial_contaminant_concs_sediment')) then
+            ! Try NEW name
+            var = me%nc%getVariable('initial_contaminant_concs_sediment')
+            call var%getData(me%initialContaminantConcsSediment)
+            call LOGR%add("DataInput: Read 'initial_contaminant_concs_sediment'")
+        else if (me%nc%hasVariable('initial_nm_concs_sediment')) then
+            ! FALLBACK: Try OLD name
+            var = me%nc%getVariable('initial_nm_concs_sediment')
+            call var%getData(me%initialContaminantConcsSediment)
+            call LOGR%add("DataInput: Read legacy 'initial_nm_concs_sediment'")
+        else
+            call LOGR%add("DataInput: WARNING - No initial SEDIMENT contaminant data found. Set to 0.0.")
+        end if
+
+        if (me%nc%hasVariable('initial_dissolved_concentrations_soil')) then
+            var = me%nc%getVariable('initial_dissolved_concentrations_soil')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%initialDissolvedConcsSoil = A2
+            deallocate(A2)
+        end if
+        if (me%nc%hasVariable('initial_dissolved_concentrations_water')) then
+            var = me%nc%getVariable('initial_dissolved_concentrations_water')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%initialDissolvedConcsWater = A2
+            deallocate(A2)
+        end if
+        if (me%nc%hasVariable('initial_dissolved_concentrations_sediment')) then
+            var = me%nc%getVariable('initial_dissolved_concentrations_sediment')
+            allocate(A2(nx,ny)); call var%getData(A2)
+            me%initialDissolvedConcsSediment = A2
+            deallocate(A2)
+        end if
+
+        ! Count point sources after coords are populated
         call me%calculateNPointSources(me%maxPointSources)
-
-        ! SPATIAL 1D VARIABLES
-        ! Land use                                  [-]
-        var = me%nc%getVariable('land_use')
-        call var%getData(me%landUse)
-    end subroutine
+    end subroutine readBatchVariablesDatabase
 
     !> Get the constants from the namelist file
     subroutine parseConstantsDatabase(me, constantsFile)
-        class(Database)         :: me                   !! This Database instance
-        character(len=*)        :: constantsFile        !! The constants file path
-        integer                 :: nmlIOStat            ! IO status for NML file
-        integer :: n_default_nm_size_distribution, n_default_spm_size_distribution, &
-            n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
-            n_initial_c_org, n_k_death, n_k_elim_np, n_k_growth, n_k_uptake_np, n_name, n_stored_fraction, &
-            n_k_uptake_transformed, n_k_elim_transformed, n_biota, n_compartment, &
-            n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, n_harvest_in_month, &
-            n_porosity, n_initial_mass, n_spm_density_by_size_class, &
-            n_fractional_composition_distribution, n_estuary_mouth_coords, &
-            arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, urban_parks, &
-            min_water_temperature_day_of_year
+        class(Database)         :: me
+        character(len=*)        :: constantsFile
+        integer                 :: nmlIOStat
+        character(len=256)      :: nmlIOMsg
+        integer :: n_biota, n_contaminant_size_classes, n_default_spm_size_distribution, &
+                n_default_matrixembedded_distribution_to_spm, n_vertical_distribution, &
+                n_initial_c_org, n_k_growth, n_k_uptake_contaminant, n_k_elim_contaminant, &
+                n_name, n_stored_fraction, n_k_uptake_dissolved, n_k_elim_dissolved, &
+                n_uptake_from_form, n_harvest_in_month, n_porosity, n_initial_mass, &
+                n_spm_density_by_size_class, n_fractional_composition_distribution, &
+                n_estuary_mouth_coords, n_compartment, n_default_contaminant_size_distribution, &
+                n_default_contaminant_form_distribution
         real :: estuary_mouth_coords(2)
-        integer, allocatable :: default_nm_size_distribution(:), default_spm_size_distribution(:), &
-            default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), harvest_in_month(:)
-        real, allocatable :: stored_fraction(:), &
-            porosity(:), fractional_composition_distribution(:), spm_density_by_size_class(:)
-        real :: darcy_velocity, default_porosity, particle_density, &
-            estuary_tidal_S2, estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
-            estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, nm_density, river_meandering_factor, &
-            deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta, shear_rate, &
-            min_water_temperature, max_water_temperature
+        integer, allocatable :: default_contaminant_size_distribution(:), default_spm_size_distribution(:), &
+                            default_matrixembedded_distribution_to_spm(:), vertical_distribution(:), &
+                            harvest_in_month(:)
+        real, allocatable :: stored_fraction(:), porosity(:), sedimentInitialMass(:), &
+                            fractional_composition_distribution(:), spm_density_by_size_class(:), &
+                            default_contaminant_form_distribution(:)
+        real :: darcy_velocity, default_porosity, particle_density, estuary_tidal_S2, &
+                estuary_mean_depth_expA, estuary_mean_depth_expB, estuary_width_expA, &
+                estuary_width_expB, estuary_tidal_M2, estuary_meandering_factor, &
+                river_meandering_factor, deposition_alpha, deposition_beta, &
+                bank_erosion_alpha, bank_erosion_beta
         real(dp) :: hamaker_constant, resuspension_alpha, resuspension_beta, &
-            resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, k_diss_transformed, &
-            k_transform_pristine, erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, &
-            river_attachment_efficiency, estuary_attachment_efficiency, soil_attachment_efficiency, &
-            sediment_transport_a, sediment_transport_b, sediment_transport_c, &
-            sediment_enrichment_k, sediment_enrichment_a
-        real(dp), allocatable :: initial_C_org(:), k_growth(:), k_death(:), k_elim_np(:), k_uptake_np(:), &
-            k_elim_transformed(:), k_uptake_transformed(:), k_uptake_dissolved(:), &
-            k_elim_dissolved(:), initial_mass(:)
+                    resuspension_alpha_estuary, resuspension_beta_estuary, k_diss_pristine, &
+                    k_diss_transformed, k_transform_pristine, erosivity_a1, erosivity_a2, &
+                    erosivity_a3, erosivity_b, contaminant_density, estuary_attachment_efficiency, &
+                    soil_constant_attachment_efficiency, river_attachment_efficiency, &
+                    sediment_transport_a, sediment_transport_b, sediment_transport_c, &
+                    sediment_enrichment_k, sediment_enrichment_a, min_water_temperature, &
+                    max_water_temperature, shear_rate
+        real(dp), allocatable :: initial_C_org(:), k_growth(:), k_uptake_contaminant(:), &
+                                k_elim_contaminant(:), k_uptake_dissolved(:), k_elim_dissolved(:), &
+                                contaminant_size_classes(:)
         character(len=100), allocatable :: name(:), compartment(:)
         character(len=17), allocatable :: uptake_from_form(:)
+        integer :: min_water_temperature_day_of_year, arable, coniferous, deciduous, grassland, &
+                heathland, urban_capped, urban_gardens, urban_parks
 
-        ! Define the namelists and their variables
-        namelist /allocatable_array_sizes/ n_default_nm_size_distribution, &
+        namelist /allocatable_array_sizes/ n_default_contaminant_size_distribution, &
             n_default_spm_size_distribution, n_default_matrixembedded_distribution_to_spm, &
-            n_vertical_distribution, n_initial_c_org, n_k_death, n_k_growth, n_name, n_stored_fraction, &
-            n_k_uptake_np, n_k_elim_np, n_k_uptake_transformed, n_k_elim_transformed, &
-            n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, &
-            n_uptake_from_form, n_harvest_in_month, n_porosity, n_spm_density_by_size_class, &
-            n_initial_mass, n_fractional_composition_distribution, n_estuary_mouth_coords
-        namelist /nanomaterial/ nm_density, default_nm_size_distribution
+            n_vertical_distribution, n_initial_c_org, n_k_growth, n_name, &
+            n_stored_fraction, n_k_uptake_contaminant, n_k_elim_contaminant, &
+            n_compartment, n_k_uptake_dissolved, n_k_elim_dissolved, n_uptake_from_form, &
+            n_harvest_in_month, n_porosity, n_spm_density_by_size_class, &
+            n_initial_mass, n_fractional_composition_distribution, n_estuary_mouth_coords, &
+            n_contaminant_size_classes, n_default_contaminant_form_distribution
         namelist /n_biota_grp/ n_biota
-        namelist /biota/ initial_C_org, k_death, k_growth, k_elim_np, k_uptake_np, name, &
-            k_elim_transformed, k_uptake_transformed, stored_fraction, compartment, &
-            k_uptake_dissolved, k_elim_dissolved, uptake_from_form, harvest_in_month
-        namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, urban_capped, urban_gardens, &
-            urban_parks, vertical_distribution
+        namelist /contaminant/ contaminant_density, default_contaminant_size_distribution, &
+            contaminant_size_classes, k_diss_pristine, k_diss_transformed, k_transform_pristine, &
+            default_contaminant_form_distribution
+        namelist /biota/ initial_C_org, k_growth, k_elim_contaminant, k_uptake_contaminant, &
+            name, stored_fraction, compartment, k_uptake_dissolved, k_elim_dissolved, &
+            uptake_from_form, harvest_in_month
+        namelist /earthworm_densities/ arable, coniferous, deciduous, grassland, heathland, &
+            urban_capped, urban_gardens, urban_parks, vertical_distribution
         namelist /soil/ darcy_velocity, default_porosity, hamaker_constant, particle_density, &
-            erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, soil_attachment_efficiency, sediment_transport_a, &
-            sediment_transport_b, sediment_transport_c
-        namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, resuspension_beta_estuary, &
-            k_diss_pristine, k_diss_transformed, k_transform_pristine, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
-            estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, estuary_meandering_factor, &
-            river_meandering_factor, river_attachment_efficiency, estuary_attachment_efficiency, &
-            deposition_alpha, deposition_beta, bank_erosion_alpha, bank_erosion_beta, shear_rate, min_water_temperature, &
-            max_water_temperature, min_water_temperature_day_of_year
-        namelist /sediment/ porosity, initial_mass, fractional_composition_distribution, &
-            default_spm_size_distribution, default_matrixembedded_distribution_to_spm, sediment_enrichment_a, &
-            sediment_enrichment_k, spm_density_by_size_class
+            erosivity_a1, erosivity_a2, erosivity_a3, erosivity_b, soil_constant_attachment_efficiency, &
+            sediment_transport_a, sediment_transport_b, sediment_transport_c
+        namelist /water/ resuspension_alpha, resuspension_beta, resuspension_alpha_estuary, &
+            resuspension_beta_estuary, estuary_tidal_m2, estuary_tidal_s2, estuary_mouth_coords, &
+            estuary_mean_depth_expa, estuary_mean_depth_expb, estuary_width_expa, estuary_width_expb, &
+            estuary_meandering_factor, river_meandering_factor, river_attachment_efficiency, &
+            estuary_attachment_efficiency, deposition_alpha, deposition_beta, bank_erosion_alpha, &
+            bank_erosion_beta, shear_rate, min_water_temperature, max_water_temperature, &
+            min_water_temperature_day_of_year
+        namelist /sediment/ porosity, sedimentInitialMass, fractional_composition_distribution, &
+            default_spm_size_distribution, default_matrixembedded_distribution_to_spm, &
+            sediment_enrichment_a, sediment_enrichment_k, spm_density_by_size_class
+
+        ! Initialize variables
+        n_biota = 0
+        n_default_contaminant_form_distribution = 0
+        contaminant_density = default_rho_contaminant
+        k_diss_pristine = default_k_diss_pristine
+        k_diss_transformed = default_k_diss_transformed
+        k_transform_pristine = default_k_transform_pristine
+        soil_constant_attachment_efficiency = defaultSoilAttachmentEfficiency
+        river_attachment_efficiency = defaultRiverAttachmentEfficiency
+        resuspension_alpha_estuary = 0.0_dp
+        resuspension_beta_estuary = 0.0_dp
+        soil_constant_attachment_efficiency = real(defaultSoilAttachmentEfficiency, dp)
+        river_attachment_efficiency = real(defaultRiverAttachmentEfficiency, dp)
+        estuary_attachment_efficiency = defaultEstuaryAttachmentEfficiency
+        darcy_velocity = defaultSoilDarcyVelocity
+        estuary_meandering_factor = 0.0
+        river_meandering_factor = 0.0
+        shear_rate = defaultShearRate
+        min_water_temperature = defaultMinWaterTemperature
+        max_water_temperature = defaultMaxWaterTemperature
+        min_water_temperature_day_of_year = defaultMinWaterTemperatureDayOfYear
+        sediment_transport_a = defaultSedimentTransport_a
+        sediment_transport_b = defaultSedimentTransport_b
+        sediment_transport_c = defaultSedimentTransport_c
+        sediment_enrichment_k = defaultSedimentEnrichment_k
+        sediment_enrichment_a = defaultSedimentEnrichment_a
+        deposition_alpha = defaultDepositionAlpha
+        deposition_beta = defaultDepositionBeta
+        bank_erosion_alpha = defaultBankErosionAlpha
+        bank_erosion_beta = defaultBankErosionBeta
 
         ! Open and read the NML file
-        open(iouConstants, file=constantsFile, status="old")
-        read(iouConstants, nml=allocatable_array_sizes)
+        open(iouConstants, file=constantsFile, status="old", iostat=nmlIOStat)
+        if (nmlIOStat /= 0) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance( &
+                code=200, message="Failed to open constants file: " // trim(constantsFile)))
+            return
+        end if
+        read(iouConstants, nml=allocatable_array_sizes, iostat=nmlIOStat)
+        if (nmlIOStat /= 0) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance( &
+                code=200, message="Failed to read allocatable_array_sizes namelist"))
+            close(iouConstants)
+            return
+        end if
         rewind(iouConstants)
 
-        ! Allocate the appropriate variable dimensions
-        allocate(default_nm_size_distribution(n_default_nm_size_distribution), &
-            default_spm_size_distribution(n_default_spm_size_distribution), &
-            default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
-            vertical_distribution(n_vertical_distribution), &
-            porosity(n_porosity), &
-            initial_mass(n_initial_mass), &
-            fractional_composition_distribution(n_fractional_composition_distribution), &
-            spm_density_by_size_class(n_spm_density_by_size_class) &
-        )
-        ! Allocate the class variables, first checking they're not already allocated (e.g. from a previous batch)
-        if (.not. allocated(me%defaultNMSizeDistribution)) then
-            allocate(me%defaultNMSizeDistribution(n_default_nm_size_distribution))
+        ! Allocate arrays
+        allocate(default_contaminant_size_distribution(n_default_contaminant_size_distribution), &
+                default_spm_size_distribution(n_default_spm_size_distribution), &
+                default_matrixembedded_distribution_to_spm(n_default_matrixembedded_distribution_to_spm), &
+                vertical_distribution(n_vertical_distribution), &
+                porosity(n_porosity), &
+                sedimentInitialMass(n_initial_mass), &
+                fractional_composition_distribution(n_fractional_composition_distribution), &
+                spm_density_by_size_class(n_spm_density_by_size_class), &
+                contaminant_size_classes(n_contaminant_size_classes), &
+                default_contaminant_form_distribution(n_default_contaminant_form_distribution))
+
+        ! Allocate class variables
+        if (.not. allocated(me%defaultDistributionContaminant)) then
+            allocate(me%defaultDistributionContaminant(n_default_contaminant_size_distribution))
         end if
         if (.not. allocated(me%defaultSpmSizeDistribution)) then
             allocate(me%defaultSpmSizeDistribution(n_default_spm_size_distribution))
@@ -881,63 +1319,191 @@ module DataInputModule
         if (.not. allocated(me%sedimentFractionalComposition)) then
             allocate(me%sedimentFractionalComposition(n_fractional_composition_distribution))
         end if
+        if (.not. allocated(me%contaminantSizeClasses)) then
+            allocate(me%contaminantSizeClasses(n_contaminant_size_classes))
+        end if
+        if (.not. allocated(me%defaultContaminantFormDistribution)) then
+            allocate(me%defaultContaminantFormDistribution(n_default_contaminant_form_distribution))
+        end if
 
-        ! Defaults, if the variable doesn't exist in namelist
-        resuspension_alpha_estuary = 0.0_dp
-        resuspension_beta_estuary = 0.0_dp
-        soil_attachment_efficiency = defaultSoilAttachmentEfficiency
-        darcy_velocity = defaultSoilDarcyVelocity
-        k_diss_pristine = default_k_diss_pristine
-        k_diss_transformed = default_k_diss_transformed
-        k_transform_pristine = default_k_transform_pristine
-        estuary_meandering_factor = 0.0         ! If meandering factors are zero, they are calculated from cell size
-        river_meandering_factor = 0.0
-        porosity = 0.0
-        shear_rate = defaultShearRate
-        min_water_temperature = defaultMinWaterTemperature
-        max_water_temperature = defaultMaxWaterTemperature
-        min_water_temperature_day_of_year = defaultMinWaterTemperatureDayOfYear
-        sediment_transport_a = defaultSedimentTransport_a
-        sediment_transport_b = defaultSedimentTransport_b
-        sediment_transport_c = defaultSedimentTransport_c
-        sediment_enrichment_k = defaultSedimentEnrichment_k
-        sediment_enrichment_a = defaultSedimentEnrichment_a
-        deposition_alpha = defaultDepositionAlpha
-        deposition_beta = defaultDepositionBeta
-        bank_erosion_alpha = defaultBankErosionAlpha
-        bank_erosion_beta = defaultBankErosionBeta
-
-        ! Read in the namelists
-        read(iouConstants, nml=n_biota_grp, iostat=nmlIOStat); rewind(iouConstants)
-        ! Only read in the biota group if there is one
+        ! Read namelists
+        read(iouConstants, nml=n_biota_grp, iostat=nmlIOStat)
+        rewind(iouConstants)
+        me%nBiota = n_biota
         if (nmlIOStat .ge. 0) then
-            allocate(initial_C_org(n_biota), k_death(n_biota), k_elim_np(n_biota), &
-                k_uptake_np(n_biota), k_growth(n_biota), name(n_biota), &
-                stored_fraction(n_biota), k_uptake_transformed(n_biota), &
-                k_elim_transformed(n_biota), compartment(n_biota), &
-                k_uptake_dissolved(n_biota), k_elim_dissolved(n_biota), &
-                uptake_from_form(n_biota), harvest_in_month(n_biota))
-            read(iouConstants, nml=biota); rewind(iouConstants)
+            ! Validate allocation sizes
+            if (n_k_uptake_contaminant /= me%nBiota * n_contaminant_size_classes) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in k_uptake_contaminant size: expected " // &
+                            trim(str(me%nBiota * n_contaminant_size_classes)) // &
+                            ", got " // trim(str(n_k_uptake_contaminant))))
+                close(iouConstants)
+                return
+            end if
+            if (n_k_elim_contaminant /= me%nBiota * n_contaminant_size_classes) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in k_elim_contaminant size: expected " // &
+                            trim(str(me%nBiota * n_contaminant_size_classes)) // &
+                            ", got " // trim(str(n_k_elim_contaminant))))
+                close(iouConstants)
+                return
+            end if
+            if (n_initial_c_org /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in initial_C_org size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_initial_c_org))))
+                close(iouConstants)
+                return
+            end if
+            if (n_k_growth /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in k_growth size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_k_growth))))
+                close(iouConstants)
+                return
+            end if
+            if (n_name /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in name size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_name))))
+                close(iouConstants)
+                return
+            end if
+            if (n_stored_fraction /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in stored_fraction size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_stored_fraction))))
+                close(iouConstants)
+                return
+            end if
+            if (n_compartment /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in compartment size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_compartment))))
+                close(iouConstants)
+                return
+            end if
+            if (n_k_uptake_dissolved /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in k_uptake_dissolved size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_k_uptake_dissolved))))
+                close(iouConstants)
+                return
+            end if
+            if (n_k_elim_dissolved /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in k_elim_dissolved size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_k_elim_dissolved))))
+                close(iouConstants)
+                return
+            end if
+            if (n_uptake_from_form /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in uptake_from_form size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_uptake_from_form))))
+                close(iouConstants)
+                return
+            end if
+            if (n_harvest_in_month /= me%nBiota) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=900, &
+                    message="Mismatch in harvest_in_month size: expected " // &
+                            trim(str(me%nBiota)) // ", got " // trim(str(n_harvest_in_month))))
+                close(iouConstants)
+                return
+            end if
+            rewind(iouConstants)
+
+            ! Allocate biota-related arrays
+            allocate(initial_C_org(me%nBiota), k_growth(me%nBiota), &
+                    k_uptake_contaminant(me%nBiota * n_contaminant_size_classes), &
+                    k_elim_contaminant(me%nBiota * n_contaminant_size_classes), &
+                    name(me%nBiota), stored_fraction(me%nBiota), &
+                    compartment(me%nBiota), k_uptake_dissolved(me%nBiota), &
+                    k_elim_dissolved(me%nBiota), uptake_from_form(me%nBiota), &
+                    harvest_in_month(me%nBiota))
+
+            ! Read biota namelist
+            read(iouConstants, nml=biota, iostat=nmlIOStat)
+            if (nmlIOStat /= 0) then
+                call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read biota namelist"))
+                close(iouConstants)
+                return
+            end if
             me%hasBiota = .true.
         end if
-        read(iouConstants, nml=nanomaterial); rewind(iouConstants)
-        read(iouConstants, nml=earthworm_densities); rewind(iouConstants)
-        read(iouConstants, nml=soil); rewind(iouConstants)
-        read(iouConstants, nml=water); rewind(iouConstants)
-        read(iouConstants, nml=sediment); rewind(iouConstants)
+        rewind(iouConstants)
+
+        ! Read other namelists
+        read(iouConstants, nml=contaminant, iostat=nmlIOStat)
+        if (nmlIOStat /= 0) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read contaminant namelist, using defaults"))
+        end if
+        rewind(iouConstants)
+
+        read(iouConstants, nml=earthworm_densities, iostat=nmlIOStat, iomsg=nmlIOMsg)
+        if (nmlIOStat /= 0) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read earthworm_densities namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
+            close(iouConstants)
+            return
+        end if
+        rewind(iouConstants)
+
+        read(iouConstants, nml=soil, iostat=nmlIOStat, iomsg=nmlIOMsg)
+        if (nmlIOStat /= 0) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read soil namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
+            close(iouConstants)
+            return
+        end if
+        rewind(iouConstants)
+
+        read(iouConstants, nml=water, iostat=nmlIOStat, iomsg=nmlIOMsg)
+        if (nmlIOStat /= 0) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read water namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
+            close(iouConstants)
+            return
+        end if
+        rewind(iouConstants)
+
+        read(iouConstants, nml=sediment, iostat=nmlIOStat, iomsg=nmlIOMsg)
+        if (nmlIOStat /= 0) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance(code=200, message="Failed to read sediment namelist" &
+                                                                             // " with message: " // trim(nmlIOMsg)))
+            close(iouConstants)
+            return
+        end if
+        rewind(iouConstants)
         close(iouConstants)
 
-        ! Save these to class variables
-        me%nmDensity = nm_density
-        me%defaultNMSizeDistribution = default_nm_size_distribution / 100.0
+        ! Save to class variables
+        me%contaminantDensity = contaminant_density
+        me%contaminantSizeClasses = contaminant_size_classes
+        if (size(default_contaminant_size_distribution) /= n_contaminant_size_classes) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance( &
+                code=900, message="Mismatch in default_contaminant_size_distribution size: expected " // &
+                trim(str(n_contaminant_size_classes)) // ", got " // &
+                trim(str(size(default_contaminant_size_distribution)))))
+            return
+        end if
+        me%defaultDistributionContaminant = default_contaminant_size_distribution / 100.0
+        if (size(default_contaminant_form_distribution) /= C%contaminantDim(2)+1) then
+            call ERROR_HANDLER%trigger(error=ErrorInstance( &
+                code=900, message="Mismatch in default_contaminant_form_distribution size: expected " // &
+                trim(str(C%contaminantDim(2)+1)) // ", got " // &
+                trim(str(size(default_contaminant_form_distribution)))))
+            return
+        end if
+        me%defaultContaminantFormDistribution = default_contaminant_form_distribution / 100.0
+        me%nContaminantSizeClasses = n_contaminant_size_classes
         me%defaultSpmSizeDistribution = default_spm_size_distribution / 100.0
         me%defaultMatrixEmbeddedDistributionToSpm = default_matrixembedded_distribution_to_spm / 100.0
         me%soilDarcyVelocity = darcy_velocity
         me%soilDefaultPorosity = default_porosity
-        ! TODO Hamaker constant really should be a NM property as it depends on NM material, see https://doi.org/10.1021/es100598h
         me%soilHamakerConstant = hamaker_constant
-        me%soilParticleDensity = particle_density       ! TODO can we calculate this from soil texture (clay, silt, sand) etc?
-        me%soilConstantAttachmentEfficiency = soil_attachment_efficiency
+        me%soilParticleDensity = particle_density
+        me%soilConstantAttachmentEfficiency = soil_constant_attachment_efficiency
         me%soilErosivity_a1 = erosivity_a1
         me%soilErosivity_a2 = erosivity_a2
         me%soilErosivity_a3 = erosivity_a3
@@ -945,7 +1511,6 @@ module DataInputModule
         me%sedimentTransport_aConstant = sediment_transport_a
         me%sedimentTransport_bConstant = sediment_transport_b
         me%sedimentTransport_cConstant = sediment_transport_c
-        ! Earthworm densities
         me%earthwormDensityArable = arable
         me%earthwormDensityConiferous = coniferous
         me%earthwormDensityDeciduous = deciduous
@@ -955,25 +1520,33 @@ module DataInputModule
         me%earthwormDensityUrbanGardens = urban_gardens
         me%earthwormDensityUrbanParks = urban_parks
         me%earthwormVerticalDistribution = vertical_distribution / 100.0
-        ! Biota
         if (me%hasBiota) then
             me%biotaName = name
             me%biotaInitial_C_org = initial_C_org
             me%biota_k_growth = k_growth
-            me%biota_k_death = k_death
-            me%biota_k_uptake_np = k_uptake_np
-            me%biota_k_elim_np = k_elim_np
-            me%biota_k_uptake_transformed = k_uptake_transformed
-            me%biota_k_elim_transformed = k_elim_transformed
-            me%biota_k_uptake_dissolved = k_uptake_dissolved
-            me%biota_k_elim_dissolved = k_elim_dissolved
             me%biotaStoredFraction = stored_fraction
-            me%nBiota = n_biota
             me%biotaCompartment = compartment
             me%biotaUptakeFromForm = uptake_from_form
             me%biotaHarvestInMonth = harvest_in_month
+            if (allocated(me%biota_k_uptake_contaminant)) deallocate(me%biota_k_uptake_contaminant)
+            if (allocated(me%biota_k_elim_contaminant)) deallocate(me%biota_k_elim_contaminant)
+            allocate(me%biota_k_uptake_contaminant(me%nBiota, C%contaminantDim(2)))
+            allocate(me%biota_k_elim_contaminant(me%nBiota, C%contaminantDim(2)))
+            me%biota_k_uptake_contaminant(:,1) = k_uptake_contaminant(1:me%nBiota)
+            me%biota_k_elim_contaminant(:,1) = k_elim_contaminant(1:me%nBiota)
+            if (C%contaminantDim(2) > 1) then
+                me%biota_k_uptake_contaminant(:,2) = k_uptake_contaminant(me%nBiota+1:2*me%nBiota)
+                me%biota_k_elim_contaminant(:,2) = k_elim_contaminant(me%nBiota+1:2*me%nBiota)
+            end if
+            if (.not. allocated(me%biota_k_uptake_dissolved)) then
+                allocate(me%biota_k_uptake_dissolved(me%nBiota))
+                me%biota_k_uptake_dissolved = k_uptake_dissolved
+            end if
+            if (.not. allocated(me%biota_k_elim_dissolved)) then
+                allocate(me%biota_k_elim_dissolved(me%nBiota))
+                me%biota_k_elim_dissolved = k_elim_dissolved
+            end if
         end if
-        ! Water
         me%riverMeanderingFactor = river_meandering_factor
         me%waterResuspensionAlpha = resuspension_alpha
         me%waterResuspensionBeta = resuspension_beta
@@ -981,42 +1554,34 @@ module DataInputModule
         me%depositionBetaConstant = deposition_beta
         me%bankErosionAlphaConstant = bank_erosion_alpha
         me%bankErosionBetaConstant = bank_erosion_beta
-        me%water_k_diss_pristine = k_diss_pristine
-        me%water_k_diss_transformed = k_diss_transformed
-        me%water_k_transform_pristine = k_transform_pristine
-        ! Check if estuary params have been provided, otherwise default to freshwater
-        if (resuspension_alpha_estuary /= 0.0_dp) then
-            me%waterResuspensionAlphaEstuary = resuspension_alpha_estuary
-        else
-            me%waterResuspensionAlphaEstuary = me%waterResuspensionAlpha
-        end if
-        if (resuspension_beta_estuary /= 0.0_dp) then
-            me%waterResuspensionBetaEstuary = resuspension_beta_estuary
-        else
-            me%waterResuspensionBetaEstuary = me%waterResuspensionBeta
-        end if
+        me%contaminant_k_diss_pristine = k_diss_pristine
+        me%contaminant_k_diss_transformed = k_diss_transformed
+        me%contaminant_k_transform_pristine = k_transform_pristine
         me%riverAttachmentEfficiency = river_attachment_efficiency
+        me%estuaryAttachmentEfficiency = estuary_attachment_efficiency
+        me%waterResuspensionAlphaEstuary = merge(resuspension_alpha_estuary, me%waterResuspensionAlpha, &
+                                                resuspension_alpha_estuary /= 0.0_dp)
+        me%waterResuspensionBetaEstuary = merge(resuspension_beta_estuary, me%waterResuspensionBeta, &
+                                                resuspension_beta_estuary /= 0.0_dp)
         me%shearRate = shear_rate
         me%waterTemperature = me%calculateWaterTemperatureTimeSeries(min_water_temperature, &
-                                                                     max_water_temperature, &
-                                                                     min_water_temperature_day_of_year)
-        ! Estuary
-        me%estuaryAttachmentEfficiency = estuary_attachment_efficiency
+                                                                    max_water_temperature, &
+                                                                    min_water_temperature_day_of_year)
         me%estuaryTidalM2 = estuary_tidal_M2
         me%estuaryTidalS2 = estuary_tidal_S2
         me%estuaryMeanDepthExpA = estuary_mean_depth_expA
         me%estuaryMeanDepthExpB = estuary_mean_depth_expB
         me%estuaryWidthExpA = estuary_width_expA
-        me%estuaryWidthExpB = estuary_width_expB
+        me%estuaryWidthExpB = estuary_width_expb
         me%estuaryMeanderingFactor = estuary_meandering_factor
         me%estuaryMouthCoords = estuary_mouth_coords
-        ! Sediment
-        me%sedimentInitialMass = initial_mass
+        me%sedimentInitialMass = sedimentInitialMass 
         me%sedimentPorosity = porosity
         me%sedimentFractionalComposition = fractional_composition_distribution
         me%sedimentEnrichment_k = sediment_enrichment_k
         me%sedimentEnrichment_a = sediment_enrichment_a
         me%spmDensityBySizeClass = spm_density_by_size_class
+
     end subroutine
 
     !> Elemental function for getting a mask from an int2 array, where the NetCDF
@@ -1032,26 +1597,36 @@ module DataInputModule
         end if
     end function
 
-    !> Calculate the number of point sources per grid cell
+    ! Compute number of point sources per (x,y) cell by inspecting coordinates.
     subroutine calculateNPointSourcesDatabase(me, maxPointSources)
         class(Database) :: me
-        integer         :: maxPointSources
-        integer :: i, j, k, n
-        if (.not. allocated(me%nPointSources)) then
-            allocate(me%nPointSources(me%gridShape(1), me%gridShape(2)))
-        end if
+        integer, intent(in) :: maxPointSources
+        integer :: i, j, p
+        real(dp) :: px, py
+
+        if (allocated(me%nPointSources)) deallocate(me%nPointSources)
+        allocate(me%nPointSources(me%gridShape(1), me%gridShape(2)))
+        me%nPointSources = 0
+
+        if (.not. allocated(me%emissionsPointWaterCoords)) return
+        if (maxPointSources <= 0) return
+
         do j = 1, me%gridShape(2)
             do i = 1, me%gridShape(1)
-                n = 0
-                do k = 1, maxPointSources
-                    if (me%emissionsPointWaterCoords(i, j, k, 1) /= nf90_fill_double) then
-                        n = n + 1
+                do p = 1, maxPointSources
+                    px = me%emissionsPointWaterCoords(i, j, p, 1)
+                    py = me%emissionsPointWaterCoords(i, j, p, 2)
+                    if (px /= nf90_fill_double .and. py /= nf90_fill_double) then
+                        if ((abs(px) > C%epsilon .or. abs(py) > C%epsilon) .and. &
+                            .not. (px < -9.9e8_dp .and. py < -9.9e8_dp)) then
+                            me%nPointSources(i, j) = me%nPointSources(i, j) + 1
+                        end if
                     end if
                 end do
-                me%nPointSources(i, j) = n
             end do
         end do
-    end subroutine
+    end subroutine calculateNPointSourcesDatabase
+
 
     !> Check whether a set of coordinates (x,y) is in the model domain
     function inModelDomainDatabase(me, x, y) result(inModelDomain)
@@ -1117,82 +1692,175 @@ module DataInputModule
     !! $$
     function calculateWaterTemperatureTimeSeriesWaterBody(me, minTemp, maxTemp, minTempDay) result(waterTemperature)
         class(Database) :: me
-        real            :: minTemp
-        real            :: maxTemp
+        real(dp)        :: minTemp, maxTemp
         integer         :: minTempDay
-        real            :: waterTemperature(366)
+        real(dp)        :: waterTemperature(366)
         integer         :: i
-        integer         :: days(366)
-        ! Integer range of days in year
-        days = [(i, i = 1, 366, 1)]
-        ! Calculate the water temperature timeseries using cos function
-        waterTemperature = - 0.5 * (maxTemp - minTemp) * cos(days * 2 * C%pi / 366 - minTempDay) &
-                           + (maxTemp + minTemp) / 2
-    end function
+        real(dp)        :: angle(366)
+
+        ! angle = 2*pi*(day - day_min)/366
+        do i = 1, 366
+            angle(i) = 2.0_dp*C%pi * real(i - minTempDay, dp) / 366.0_dp
+        end do
+
+        waterTemperature = 0.5_dp*(maxTemp - minTemp) * cos(angle) + 0.5_dp*(maxTemp + minTemp)
+    end function calculateWaterTemperatureTimeSeriesWaterBody
+
 
     !> Audit the database
     function auditDatabase(me) result(rslt)
-        class(Database) :: me           ! This Database
-        type(Result)    :: rslt         ! Result object to return errors in
-        integer         :: x, y, i      ! Iterators
-        integer         :: xy_in(2)     ! Inflow x and y
-        logical         :: simulationMaskError = .false.
+        class(Database) :: me
+        type(Result)    :: rslt
+        integer         :: x, y, i
+        integer         :: xi, yi
+        integer         :: nx, ny
+        logical         :: simulationMaskError
+
+        simulationMaskError = .false.
 
         ! Is the simulation mask self-contained (no inflows to area to simulate)?
         if (C%hasSimulationMask) then
-            do y = 1, me%gridShape(2)
-                do x = 1, me%gridShape(1)
-                   if (me%simulationMask(x,y)) then
-                        ! We're in the area to simulate, so check if there are inflows from
-                        ! outside the area to simulation
+            nx = me%gridShape(1)
+            ny = me%gridShape(2)
+            do y = 1, ny
+                do x = 1, nx
+                    if (me%simulationMask(x, y)) then
+                        ! me%inflows is (d,w,x,y) where d=2 holds (x,y) origin indices
                         do i = 1, size(me%inflows, dim=2)
-                            ! Is the inflow actually an inflow or a fill value
-                            if (me%inflows(1,i,x,y) >= 0) then
-                                xy_in = me%inflows(:,i,x,y)
-                                if (.not. me%simulationMask(xy_in(1), xy_in(2))) then
-                                    simulationMaskError = .true.
-                                end if
+                            xi = me%inflows(1, i, x, y)
+                            yi = me%inflows(2, i, x, y)
+                            ! Skip invalid/out-of-domain inflow indices
+                            if (xi >= 1 .and. xi <= nx .and. yi >= 1 .and. yi <= ny) then
+                                if (.not. me%simulationMask(xi, yi)) simulationMaskError = .true.
                             end if
                         end do
-                   end if
+                    end if
                 end do
             end do
         end if
 
         if (simulationMaskError) then
             call rslt%addError(ErrorInstance( &
-                message="Simulation mask provided has inflows from outside " // &
-                    "the area to simulate. Please provide a simulation mask that " // &
-                    "is self-contained." &
-            ))
+                message="Simulation mask provided has inflows from outside the area to " // &
+                        "simulate. Please provide a simulation mask that is self-contained." ))
         end if
 
-        ! Bounds checks for sediment calibration parameters
-        if (any(me%depositionAlpha < 0.0_dp)) then
-            call rslt%addError(ErrorInstance( &
-                message="Value provided for deposition_alpha must be greater than or equal to zero. " // &
-                    "At least one value provided is less than zero." &
-            ))
+        ! Bounds checks for sediment calibration parameters (arrays may be unallocated)
+        if (allocated(me%depositionAlpha)) then
+            if (any(me%depositionAlpha < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="Value provided for deposition_alpha must be >= 0. At least one < 0." ))
+            end if
         end if
-        if (any(me%resuspensionAlpha < 0.0_dp)) then
-            call rslt%addError(ErrorInstance( &
-                message="Value provided for resuspension_alpha must be greater than or equal to zero. " // &
-                    "At least one value provided is less than zero." &
-            ))
+        if (allocated(me%resuspensionAlpha)) then
+            if (any(me%resuspensionAlpha < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="Value provided for resuspension_alpha must be >= 0. At least one < 0." ))
+            end if
         end if
-        if (any(me%resuspensionBeta < 0.0_dp)) then
-            call rslt%addError(ErrorInstance( &
-                message="Value provided for resuspension_beta must be greater than or equal to zero. " // &
-                    "At least one value provided is less than zero." &
-            ))
+        if (allocated(me%resuspensionBeta)) then
+            if (any(me%resuspensionBeta < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="Value provided for resuspension_beta must be >= 0. At least one < 0." ))
+            end if
         end if
 
         ! Does sediment fractional composition sum to unity?
         if (.not. isZero(1.0_dp - sum(me%sedimentFractionalComposition))) then
             call rslt%addError(ErrorInstance( &
-                message="Values provided for fractional_composition_distribution must sum to unity. " // &
-                    "Value found: " // str(sum(me%sedimentFractionalComposition)) &
-            ))
+                message="sedimentFractionalComposition must sum to 1. Found: " // &
+                        str(sum(me%sedimentFractionalComposition)) ))
+        end if
+
+        if (any(me%defaultDistributionContaminant < 0.0)) then
+            call rslt%addError(ErrorInstance( &
+                message="defaultDistributionContaminant must be non-negative." ))
+        end if
+        if (.not. isZero(1.0_dp - sum(me%defaultDistributionContaminant))) then
+            call rslt%addError(ErrorInstance( &
+                message="defaultDistributionContaminant must sum to 1. Found: " // &
+                        str(sum(me%defaultDistributionContaminant)) ))
+        end if
+
+        if (me%contaminantDensity <= 0.0) then
+            call rslt%addError(ErrorInstance( &
+                message="contaminantDensity must be positive." ))
+        end if
+        if (any(me%contaminantSizeClasses <= 0.0)) then
+            call rslt%addError(ErrorInstance( &
+                message="contaminantSizeClasses must be positive." ))
+        end if
+
+        ! Bounds checks for initial concentrations
+        if (allocated(me%initialContaminantConcsSoil)) then
+            if (any(me%initialContaminantConcsSoil < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="initialContaminantConcsSoil must be non-negative. At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%initialContaminantConcsWater)) then
+            if (any(me%initialContaminantConcsWater < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="initialContaminantConcsWater must be non-negative. At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%initialContaminantConcsSediment)) then
+            if (any(me%initialContaminantConcsSediment < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="initialContaminantConcsSediment must be non-negative. At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%initialDissolvedConcsSoil)) then
+            if (any(me%initialDissolvedConcsSoil < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="initialDissolvedConcsSoil must be non-negative. At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%initialDissolvedConcsWater)) then
+            if (any(me%initialDissolvedConcsWater < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="initialDissolvedConcsWater must be non-negative. At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%initialDissolvedConcsSediment)) then
+            if (any(me%initialDissolvedConcsSediment < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="initialDissolvedConcsSediment must be non-negative. At least one < 0." ))
+            end if
+        end if
+
+        ! Bounds checks for dissolved emissions
+        if (allocated(me%emissionsArealSoilDissolvedContaminant)) then
+            if (any(me%emissionsArealSoilDissolvedContaminant < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="emissionsArealSoilDissolvedContaminant must be >= 0. At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%emissionsArealWaterDissolvedContaminant)) then
+            if (any(me%emissionsArealWaterDissolvedContaminant < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="emissionsArealWaterDissolvedContaminant must be >= 0. At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%emissionsAtmosphericDryDepoDissolvedContaminant)) then
+            if (any(me%emissionsAtmosphericDryDepoDissolvedContaminant < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="emissionsAtmosphericDryDepoDissolvedContaminant must be >= 0. " // &
+                            "At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%emissionsAtmosphericWetDepoDissolvedContaminant)) then
+            if (any(me%emissionsAtmosphericWetDepoDissolvedContaminant < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="emissionsAtmosphericWetDepoDissolvedContaminant must be >= 0. " // &
+                            "At least one < 0." ))
+            end if
+        end if
+        if (allocated(me%emissionsPointWaterDissolvedContaminant)) then
+            if (any(me%emissionsPointWaterDissolvedContaminant < 0.0_dp)) then
+                call rslt%addError(ErrorInstance( &
+                    message="emissionsPointWaterDissolvedContaminant must be >= 0. At least one < 0." ))
+            end if
         end if
     end function
 

@@ -7,6 +7,7 @@ module BedSedimentLayerModule
     use DataInputModule, only: DATASET
     use AbstractBedSedimentLayerModule
     use FineSedimentModule
+    use LoggerModule, only: LOGR
     implicit none
 
     !> Class definition for `BedSedimentLayer`. Extends abstract
@@ -41,6 +42,7 @@ module BedSedimentLayerModule
         real(dp), allocatable :: M_f(:)                          ! LOCAL set of fine sediment masses, index = size class
         real(dp), allocatable :: f_comp(:,:)                     ! LOCAL set of fractional compositions. Index 1 = size class, Index 2 = compositional fraction
         character(len=256) :: tr                                 ! LOCAL name of this procedure, for trace
+        character(len=256) :: msg
         character(len=16), parameter :: ms = &
                                         "Allocation error"       ! LOCAL allocation error message
         real(dp) :: fwr
@@ -48,6 +50,9 @@ module BedSedimentLayerModule
         integer :: S                                             ! LOCAL loop counter
         integer :: allst                                         ! LOCAL array allocation status
         character(len=256) :: allms                              ! LOCAL array allocation message
+        real(dp) :: scale_f
+        integer :: s_
+        real(dp) :: V_f_sum, V_w_sum, water_cap, scale_w
         !
         ! Notes
         ! -------------------------------------------------------------------------------
@@ -149,15 +154,24 @@ module BedSedimentLayerModule
             Me%C_f_l(S) = Me%colFineSediment(S)%V_f()            ! set the sediment capacities to the volumes
         end do
 
-        if (Me%V_f_layer() > Me%C_total) then               ! CRITICAL ERROR HERE: if layer volume exceeds capacity
-            call r%addError(ErrorInstance( &
-                            code = 1, &
-                            message = "Fine sediment volume &
-                                        exceeds capacity" &
-                                            ) &
-                            )                                    ! add ErrorInstance
-            return                                              ! critical error, so exit
+        ! DEBUG: initial fine sediment mass per size in this layer
+        do S = 1, Me%nSizeClasses
+            write(*,'(a,i3,a,i3,a,1p,e15.7)') 'Init Layer ', me%l, ', Size ', S, &
+                 ' Mf=', me%colFineSediment(S)%M_f()
+        end do
+
+        if (Me%V_f_layer() > Me%C_total) then
+            ! Proportional down-scaling of fines to fit capacity; log a warning
+            scale_f = Me%C_total / max(C%epsilon, Me%V_f_layer())
+            do s_ = 1, Me%nSizeClasses
+                call Me%colFineSediment(s_)%set( Vf_in = Me%colFineSediment(s_)%V_f() * scale_f )
+                Me%C_f_l(s_) = Me%colFineSediment(s_)%V_f()
+            end do
+            msg = trim(Me%name)//": fines exceeded capacity; scaled to fit (scale="// &
+                trim(str(scale_f))//")"
+            call LOGR%toFile(msg)
         end if
+
         if (r%hasCriticalError()) then                          ! if a critical error has been thrown
             call r%addToTrace(tr)                               ! add trace to Result
             return                                              ! exit, as a critical error has occurred
@@ -180,17 +194,26 @@ module BedSedimentLayerModule
             Me%C_w_l(S) = Me%colFineSediment(S)%V_w()            ! set the water capacities, using the local variable
         end do
         V_m_layer_l = Me%V_m_layer()                            ! temporary storage of fines+water volume
-        if (V_m_layer_l > Me%C_total) then                       ! CRITICAL ERROR HERE: if Me%V_m_layer > C_tot
-            call r%addError(ErrorInstance( &
-                                code = 1, &
-                                    message = "Fine sediment & &
-                                            water volume &
-                                            exceeds capacity" &
-                                            ) &
-                            )                                     ! add ErrorInstance
-            call r%addToTrace(tr)                                ! add trace to Result
-            return                                               ! critical error, so exit
+        if (V_m_layer_l > Me%C_total) then
+            ! First try: reduce only water to fit the remaining capacity
+            V_f_sum  = Me%V_f_layer()
+            V_w_sum  = V_m_layer_l - V_f_sum
+            water_cap = max(0.0_dp, Me%C_total - V_f_sum)
+
+            if (V_w_sum > 0.0_dp .and. V_w_sum > water_cap) then
+                scale_w = water_cap / V_w_sum
+                do s_ = 1, Me%nSizeClasses
+                    call Me%colFineSediment(s_)%set( Vw_in = Me%colFineSediment(s_)%V_w() * max(0.0_dp, scale_w) )
+                    Me%C_w_l(s_) = Me%colFineSediment(s_)%V_w()
+                end do
+                msg = trim(Me%name)//": fines+water exceeded capacity; scaled water to fit (scale="// &
+                    trim(str(scale_w))//")"
+                call LOGR%toFile(msg)
+            end if
+            ! << recompute totals after possible water scaling
+            V_m_layer_l = Me%V_m_layer()
         end if
+
         Me%V_c = Me%C_total - V_m_layer_l                        ! set the coarse material volume
     end function
     !> **Function purpose**                                     <br>

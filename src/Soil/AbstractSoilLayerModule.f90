@@ -1,9 +1,11 @@
 !> Module containing definition of abstract base class AbstractSoilLayer
 module AbstractSoilLayerModule
-    use GlobalsModule                                                     ! Global definitions and constants
+    use GlobalsModule                                               ! Global definitions and constants
     use mo_netcdf                                                   ! NetCDF input/output
     use ResultModule, only: Result                                  ! Result object to pass errors
     use BiotaSoilModule
+    use ContaminantModule
+    use DataInputModule, only: DATASET
     implicit none
 
     !> Abstract base class for \1 object. Defines properties and
@@ -20,19 +22,6 @@ module AbstractSoilLayerModule
         real(dp)                :: depth                                !! Layer depth [m]
         real(dp)                :: area                                 !! Area of the containing SoilProfile [m2]
         real(dp)                :: volume                               !! Volume of the soil layer [m3]
-        ! Nanomaterials
-        real(dp), allocatable   :: m_np(:,:,:)                          !! Mass of NM currently in layer [kg]
-        real(dp), allocatable   :: m_np_perc(:,:,:)                     !! Mass of NM percolating to layer below on given timestep [kg]
-        real(dp), allocatable   :: m_np_eroded(:,:,:)                   !! Mass of NM eroded on given timestep [kg]
-        real(dp), allocatable   :: C_np(:,:,:)                          !! Mass concentration of NM [kg/kg soil]
-        real(dp), allocatable   :: m_transformed(:,:,:)
-        real(dp), allocatable   :: m_transformed_perc(:,:,:)
-        real(dp), allocatable   :: m_transformed_eroded(:,:,:)
-        real(dp), allocatable   :: C_transformed(:,:,:)
-        real(dp), allocatable   :: m_dissolved
-        real(dp), allocatable   :: m_dissolved_perc
-        real(dp), allocatable   :: m_dissolved_eroded
-        real(dp), allocatable   :: C_dissolved
         ! Hydrology
         real(dp)                :: q_in                                 !! Inflow to this `SoilLayer` [m3 m-2 s-1]
         real(dp)                :: V_w                                  !! Volume of water currently in layer [m3 m-2]
@@ -46,22 +35,29 @@ module AbstractSoilLayerModule
         real(dp)                :: d_grain                              !! Average grain diameter [m]
         real(dp)                :: porosity                             !! Porosity [-]
         real(dp)                :: earthwormDensity                     !! Earthworm density [individuals/layer]
-        ! NM transformations
-        real                    :: alpha_att                            !! Attachment efficiency to soil matrix [-]
-        real, allocatable       :: k_att(:)                             !! Attachment rate to soil matrix [s-1]
+        real(dp)                :: alpha_att
+        real(dp), allocatable   :: k_att(:)
         ! Biota
         integer                 :: nBiota = 0
         integer, allocatable    :: biotaIndices(:)
         class(BiotaSoil), allocatable :: biota(:)
+        type(Contaminant) :: m_contaminant
+        type(Contaminant) :: j_contaminant_in
+        type(Contaminant) :: j_contaminant_perc
+        type(Contaminant) :: j_contaminant_eroded
+
       contains
         procedure(createAbstractSoilLayer), deferred :: create
         procedure(updateAbstractSoilLayer), deferred :: update
         procedure(addPooledWaterAbstractSoilLayer), deferred :: addPooledWater
+        procedure(updateContaminantStateAbstractSoilLayer), deferred :: update_contaminant_state
         procedure(erodeAbstractSoilLayer), deferred :: erode
         procedure(parseInputDataAbstractSoilLayer), deferred :: parseInputData
         procedure(calculateBioturbationRateAbstractSoilLayer), deferred :: calculateBioturbationRate
         ! Non-deferred procedures
         procedure :: setV_pool
+        procedure :: finalise => finaliseSoilLayer
+        procedure :: get_C_contaminant
     end type
 
     !> Container type for `class(AbstractSoilLayer)` such that a polymorphic
@@ -95,18 +91,24 @@ module AbstractSoilLayerModule
         end function
 
         !> Update the AbstractSoilLayer on a given timestep
-        function updateAbstractSoilLayer(me, t, q_in, m_np_in, m_transformed_in, m_dissolved_in) result(r)
+        function updateAbstractSoilLayer(me, t, q_in, j_contaminant_in) result(r)
             use ResultModule, only: Result
             use GlobalsModule, only: dp
+            use ContaminantModule
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me                  !! This AbstractSoilLayer instance
             integer :: t                                    !! The current time step
             real(dp) :: q_in                                !! Water into the layer on this time step [m/timestep]
-            real(dp) :: m_np_in(:,:,:)                      !! NM into the layer on this time step [kg/timestep]
-            real(dp) :: m_transformed_in(:,:,:)             !! Transformed NM into the layer on this time step [kg/timestep]
-            real(dp) :: m_dissolved_in                      !! Dissolved species into the layer on this time step [kg/timestep]
+            type(Contaminant), intent(in) :: j_contaminant_in
             type(Result) :: r                               !! The `Result` object to return, with no data
         end function
+
+        subroutine updateContaminantStateAbstractSoilLayer(me, T_water_t)
+            use GlobalsModule, only: dp 
+            import AbstractSoilLayer
+            class(AbstractSoilLayer), intent(inout) :: me
+            real(dp), intent(in) :: T_water_t
+        end subroutine
 
         !> Add a volume \( V_{\text{pool}} \) of pooled water to the layer.
         !! No percolation occurs as pooled water never really leaves the AbstractSoilLayer.
@@ -122,12 +124,12 @@ module AbstractSoilLayerModule
         !> Erode NM from this soil layer
         function erodeAbstractSoilLayer(me, erodedSediment, bulkDensity, area) result(r)
             use ResultModule, only: Result
-            use GlobalsModule, only: dp, C
+            use GlobalsModule, only: dp
+            use ContaminantModule
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me
             real(dp) :: erodedSediment(:)
-            real(dp)            :: bulkDensity
-            real(dp)            :: area
+            real(dp) :: bulkDensity, area
             type(Result) :: r
         end function
 
@@ -145,7 +147,6 @@ module AbstractSoilLayerModule
             import AbstractSoilLayer
             class(AbstractSoilLayer) :: me                  !! This AbstractSoilLayer instance
             type(Result) :: r
-                !! The Result object to return any errors relating to the input data file
         end function
     end interface
 
@@ -158,4 +159,32 @@ module AbstractSoilLayerModule
         me%V_pool = V_pool
     end subroutine
 
+    function get_C_contaminant(me) result(C_contaminant)
+        class(AbstractSoilLayer), intent(in) :: me
+        real(dp) :: C_contaminant(C%contaminantDim(1), C%contaminantDim(2), C%contaminantDim(3))
+        real(dp) :: soil_mass
+        soil_mass = me%bulkDensity * me%volume / me%area  ! [kg/m2]
+        if (soil_mass > C%epsilon) then
+            C_contaminant = me%m_contaminant%c / soil_mass
+        else
+            C_contaminant = 0.0_dp
+        end if
+    end function
+
+    subroutine finaliseSoilLayer(me)
+        class(AbstractSoilLayer) :: me
+        integer :: i
+        call me%m_contaminant%finalise()
+        call me%j_contaminant_in%finalise()
+        call me%j_contaminant_perc%finalise()
+        call me%j_contaminant_eroded%finalise()
+        if (allocated(me%biota)) then
+            do i = 1, size(me%biota)
+                call me%biota(i)%finalise()
+            end do
+            deallocate(me%biota)
+        end if
+        if (allocated(me%k_att)) deallocate(me%k_att)
+        if (allocated(me%biotaIndices)) deallocate(me%biotaIndices)
+    end subroutine
 end module

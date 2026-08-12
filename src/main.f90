@@ -1,16 +1,17 @@
 !-------------------------------------------------------------------------------!
-!> NanoFASE model                                                               !
+!> FASE model                                                                   !
 !> --------------                                                               !
-!> Nanomaterial Fate And Speciation in the Environment                          !
+!> Fate And Speciation in the Environment                                       !
 !>                                                                              !
 !> Authors: Sam Harrison (sharrison@ceh.ac.uk)                                  !
+!>          Cansu Uluseker                                                      !                            
 !>          Stephen Lofts                                                       !
 !>          Virginie Keller                                                     !
 !>          Michael Hutchins                                                    !
 !>          Richard Williams                                                    !
 !> Institute: UK Centre for Ecology & Hydrology                                 !
 !> Repository: https://github.com/nerc-ceh/nanofase                             !
-!> Documentation: *                                                             !
+!> Documentation: https://nerc-ceh.github.io/nanofase                           !
 !> Changelog: https://github.com/NERC-CEH/nanofase/blob/develop/CHANGELOG.md    !
 !> License: BSD 3-Clause,                                                       !
 !>          https://github.com/NERC-CEH/nanofase/blob/develop/LICENSE           !
@@ -81,7 +82,7 @@ program main
     end if
 
     ! Check if we've been asked to run a warm up period, which runs the first N timesteps' worth
-    ! of data, excluding NM inputs, through the model, where N is specified by C%warmUpPeriod
+    ! of data, excluding contaminant inputs, through the model, where N is specified by C%warmUpPeriod
     if (C%warmUpPeriod > 0) then
         ! Log some info about it
         call LOGR%add("Running for warm up period of " // trim(str(C%warmUpPeriod)) // " time steps", COLOR_BLUE)
@@ -165,7 +166,7 @@ program main
     ! Write the simulation summary to file, close output data files and report that it was a successful
     ! model run. Pass the steady state iterator in to give number of iterations until steady state
     call output%finalise(i-1)
-    call LOGR%add("Model run completeled successfully", COLOR_GREEN)
+    call LOGR%add("Model run completed successfully", COLOR_GREEN)
     
     ! Timings
     call cpu_time(finish)
