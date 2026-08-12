@@ -457,6 +457,11 @@ contains
             if (me%coarseFragContent == nf90_fill_real) me%coarseFragContent = 0.0
 
             me%d_grain  = me%calculateAverageGrainSize(me%clayContent, me%siltContent, me%sandContent)
+            ! Derive the eroded sediment size distribution from soil texture. This must be done on
+            ! this path too (not just the no-soil-data fallback below), otherwise every cell retains
+            ! the placeholder default distribution set above.
+            me%distributionSediment = me%calculateSizeDistribution( &
+                me%clayContent, me%siltContent, me%sandContent, C%includeClayEnrichment )
             me%porosity = DATASET%soilDefaultPorosity
 
             me%usle_C  = DATASET%soilUsleCFactor(me%y, me%x);  if (me%usle_C  == nf90_fill_double) me%usle_C  = 0.00055095

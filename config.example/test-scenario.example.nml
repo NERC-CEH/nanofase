@@ -74,7 +74,7 @@
     include_bioturbation = .true.
     include_attachment = .true.
     include_soil_erosion = .true.
-    include_clay_enrichment = .true.
+    include_clay_enrichment = .false.
 /
 
 &sediment
