@@ -65,8 +65,10 @@ module PointSourceModule
 
         me%j_dissolved_pointSource = 0.0_dp
 
+        ! Note the warm up period is not checked here - the timestep index restarts at 1 for
+        ! the main run, so it can't be distinguished from a warm up timestep by t alone.
+        ! Suppressing sources during warm up is the caller's job (see Reach%update).
         if (.not. C%includePointSources) return
-        if (t < C%warmUpPeriod) return
         if (trim(me%compartment) /= 'water' .and. trim(me%compartment) /= 'estuary') return
         if (.not. allocated(me%j_contaminant_pointSource%c)) return
 

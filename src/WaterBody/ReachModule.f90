@@ -235,6 +235,9 @@ module ReachModule
         class(Reach) :: me        !! This Reach instance
         integer :: t              !! This timestep index
         integer :: i              !! Iterator for sources
+        ! Set sources to zero to avoid accumulating across timesteps
+        call me%j_contaminant_diffuseSources%empty()
+        call me%j_contaminant_pointSources%empty()
         ! Diffuse sources converted from kg/m2/timestep to kg/reach/timestep
         do i = 1, me%nDiffuseSources
             call me%diffuseSources(i)%update(t)

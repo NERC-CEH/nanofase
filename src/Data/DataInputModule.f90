@@ -832,9 +832,8 @@ contains
         if (me%nc%hasVariable('emissions_areal_soil_pristine')) then
             ! Try NEW name first
             var = me%nc%getVariable('emissions_areal_soil_pristine')
-            allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealSoilContaminant(:,:,1,f_pris,PFAS_AQ) = A2
-            do n = 2, nsizes
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
+            do n = 1, nsizes
                 me%emissionsArealSoilContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -844,11 +843,10 @@ contains
         else if (me%nc%hasVariable('emissions_areal_soil_nm')) then
             ! FALLBACK: Try OLD name (legacy support)
             var = me%nc%getVariable('emissions_areal_soil_nm')
-            allocate(A2(nx,ny)); call var%getData(A2)
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
             
             ! Map legacy 'nm' emissions to 'pristine' form
-            me%emissionsArealSoilContaminant(:,:,1,f_pris,PFAS_AQ) = A2
-            do n = 2, nsizes
+            do n = 1, nsizes
                 me%emissionsArealSoilContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -860,9 +858,8 @@ contains
         ! -----------------------------------
         if (me%nc%hasVariable('emissions_areal_soil_matrixembedded')) then
             var = me%nc%getVariable('emissions_areal_soil_matrixembedded')
-            allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealSoilContaminant(:,:,1,f_mat,PFAS_AQ) = A2
-            do n = 2, nsizes
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
+            do n = 1, nsizes
                 me%emissionsArealSoilContaminant(:,:,n,f_mat,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -873,9 +870,8 @@ contains
         ! -------------------------------
         if (me%nc%hasVariable('emissions_areal_soil_transformed')) then
             var = me%nc%getVariable('emissions_areal_soil_transformed')
-            allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealSoilContaminant(:,:,1,f_tra,PFAS_AQ) = A2
-            do n = 2, nsizes
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
+            do n = 1, nsizes
                 me%emissionsArealSoilContaminant(:,:,n,f_tra,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -887,9 +883,8 @@ contains
         if (me%nc%hasVariable('emissions_areal_water_pristine')) then
             ! Try NEW name first
             var = me%nc%getVariable('emissions_areal_water_pristine')
-            allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealWaterContaminant(:,:,1,f_pris,PFAS_AQ) = A2
-            do n = 2, nsizes
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
+            do n = 1, nsizes
                 me%emissionsArealWaterContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -899,11 +894,10 @@ contains
         else if (me%nc%hasVariable('emissions_areal_water_nm')) then
             ! FALLBACK: Try OLD name (legacy support)
             var = me%nc%getVariable('emissions_areal_water_nm')
-            allocate(A2(nx,ny)); call var%getData(A2)
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
             
             ! Map legacy 'nm' emissions to 'pristine' form
-            me%emissionsArealWaterContaminant(:,:,1,f_pris,PFAS_AQ) = A2
-            do n = 2, nsizes
+            do n = 1, nsizes
                 me%emissionsArealWaterContaminant(:,:,n,f_pris,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -915,9 +909,8 @@ contains
         ! ------------------------------------
         if (me%nc%hasVariable('emissions_areal_water_matrixembedded')) then
             var = me%nc%getVariable('emissions_areal_water_matrixembedded')
-            allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealWaterContaminant(:,:,1,f_mat,PFAS_AQ) = A2
-            do n = 2, nsizes
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
+            do n = 1, nsizes
                 me%emissionsArealWaterContaminant(:,:,n,f_mat,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -928,9 +921,8 @@ contains
         ! --------------------------------
         if (me%nc%hasVariable('emissions_areal_water_transformed')) then
             var = me%nc%getVariable('emissions_areal_water_transformed')
-            allocate(A2(nx,ny)); call var%getData(A2)
-            me%emissionsArealWaterContaminant(:,:,1,f_tra,PFAS_AQ) = A2
-            do n = 2, nsizes
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
+            do n = 1, nsizes
                 me%emissionsArealWaterContaminant(:,:,n,f_tra,PFAS_AQ) = &
                     A2 * me%defaultDistributionContaminant(n)
             end do
@@ -941,14 +933,14 @@ contains
         ! ----------------------
         if (me%nc%hasVariable('emissions_areal_soil_dissolved')) then
             var = me%nc%getVariable('emissions_areal_soil_dissolved')
-            allocate(A2(nx,ny)); call var%getData(A2)
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
             me%emissionsArealSoilDissolvedContaminant = A2
             deallocate(A2)
         end if
 
         if (me%nc%hasVariable('emissions_areal_water_dissolved')) then
             var = me%nc%getVariable('emissions_areal_water_dissolved')
-            allocate(A2(nx,ny)); call var%getData(A2)
+            allocate(A2(nx,ny)); call var%getData(A2); A2 = zeroFillValue(A2)
             me%emissionsArealWaterDissolvedContaminant = A2
             deallocate(A2)
         end if
@@ -958,9 +950,8 @@ contains
         !-----------------------------------------
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_pristine')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_pristine')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_pris,PFAS_AQ) = A3
-            do n = 2, nsizes
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
+            do n = 1, nsizes
                 me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_pris,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
@@ -969,9 +960,8 @@ contains
 
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_matrixembedded')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_matrixembedded')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_mat,PFAS_AQ) = A3
-            do n = 2, nsizes
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
+            do n = 1, nsizes
                 me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_mat,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
@@ -980,9 +970,8 @@ contains
 
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_transformed')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericDryDepoContaminant(:,:,:,1,f_tra,PFAS_AQ) = A3
-            do n = 2, nsizes
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
+            do n = 1, nsizes
                 me%emissionsAtmosphericDryDepoContaminant(:,:,:,n,f_tra,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
@@ -991,9 +980,8 @@ contains
 
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_pristine')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_pristine')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_pris,PFAS_AQ) = A3
-            do n = 2, nsizes
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
+            do n = 1, nsizes
                 me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_pris,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
@@ -1002,9 +990,8 @@ contains
 
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_matrixembedded')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_matrixembedded')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_mat,PFAS_AQ) = A3
-            do n = 2, nsizes
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
+            do n = 1, nsizes
                 me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_mat,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
@@ -1013,9 +1000,8 @@ contains
 
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_transformed')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_transformed')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
-            me%emissionsAtmosphericWetDepoContaminant(:,:,:,1,f_tra,PFAS_AQ) = A3
-            do n = 2, nsizes
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
+            do n = 1, nsizes
                 me%emissionsAtmosphericWetDepoContaminant(:,:,:,n,f_tra,PFAS_AQ) = &
                     A3 * me%defaultDistributionContaminant(n)
             end do
@@ -1024,14 +1010,14 @@ contains
 
         if (me%nc%hasVariable('emissions_atmospheric_drydepo_dissolved')) then
             var = me%nc%getVariable('emissions_atmospheric_drydepo_dissolved')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
             me%emissionsAtmosphericDryDepoDissolvedContaminant = A3
             deallocate(A3)
         end if
 
         if (me%nc%hasVariable('emissions_atmospheric_wetdepo_dissolved')) then
             var = me%nc%getVariable('emissions_atmospheric_wetdepo_dissolved')
-            allocate(A3(nx,ny,nt)); call var%getData(A3)
+            allocate(A3(nx,ny,nt)); call var%getData(A3); A3 = zeroFillValue(A3)
             me%emissionsAtmosphericWetDepoDissolvedContaminant = A3
             deallocate(A3)
         end if
@@ -1071,10 +1057,8 @@ contains
 
             if (me%nc%hasVariable('emissions_point_water_pristine')) then
                 var = me%nc%getVariable('emissions_point_water_pristine')
-                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
-                ! size=1 takes raw; n=2..nsizes distributed
-                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_pris,PFAS_AQ) = A4
-                do n = 2, nsizes
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4); A4 = zeroFillValue(A4)   ! (x,y,t,p)
+                do n = 1, nsizes
                     me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_pris,PFAS_AQ) = &
                         A4 * me%defaultDistributionContaminant(n)
                 end do
@@ -1083,9 +1067,8 @@ contains
 
             if (me%nc%hasVariable('emissions_point_water_matrixembedded')) then
                 var = me%nc%getVariable('emissions_point_water_matrixembedded')
-                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
-                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_mat,PFAS_AQ) = A4
-                do n = 2, nsizes
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4); A4 = zeroFillValue(A4)   ! (x,y,t,p)
+                do n = 1, nsizes
                     me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_mat,PFAS_AQ) = &
                         A4 * me%defaultDistributionContaminant(n)
                 end do
@@ -1095,9 +1078,8 @@ contains
             ! Optional: only if present in file
             if (me%nc%hasVariable('emissions_point_water_transformed')) then
                 var = me%nc%getVariable('emissions_point_water_transformed')
-                allocate(A4(nx,ny,nt,np)); call var%getData(A4)   ! (x,y,t,p)
-                me%emissionsPointWaterContaminant(:,:,:,1:np,1,f_tra,PFAS_AQ) = A4
-                do n = 2, nsizes
+                allocate(A4(nx,ny,nt,np)); call var%getData(A4); A4 = zeroFillValue(A4)   ! (x,y,t,p)
+                do n = 1, nsizes
                     me%emissionsPointWaterContaminant(:,:,:,1:np,n,f_tra,PFAS_AQ) = &
                         A4 * me%defaultDistributionContaminant(n)
                 end do
@@ -1607,6 +1589,22 @@ contains
         me%spmDensityBySizeClass = spm_density_by_size_class
 
     end subroutine
+
+    !> Replace NetCDF fill values with zero. Emissions variables use the fill value to
+    !! mean "nothing emitted here" (e.g. cells with no point source, or a point source
+    !! slot that isn't occupied in this cell), so it must be zeroed before the value is
+    !! used in arithmetic. This has to happen as soon as the variable is read, because
+    !! the emissions are subsequently distributed across contaminant size classes, which
+    !! scales the fill value and makes it unrecognisable further downstream.
+    elemental function zeroFillValue(x) result(y)
+        real(dp), intent(in) :: x
+        real(dp) :: y
+        if (x == nf90_fill_double .or. x == real(nf90_fill_real, dp)) then
+            y = 0.0_dp
+        else
+            y = x
+        end if
+    end function
 
     !> Elemental function for getting a mask from an int2 array, where the NetCDF
     !! fill value nf90_fill_int2 is used to mask values

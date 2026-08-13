@@ -164,7 +164,9 @@ contains
         else
             temp_contaminant%m_dissolved = 0.0_dp
         end if
-        call me%j_contaminant_diffuseSources%add(temp_contaminant)
+        ! Areal emissions are kg/m2/timestep, so must be scaled by the reach's surface
+        ! area to get kg/reach/timestep. Point sources above are already kg/point.
+        call me%j_contaminant_diffuseSources%add_scaled(temp_contaminant, me%surfaceArea)
         call temp_contaminant%finalise()
 
         call rslt%addToTrace("Updating sources for " // trim(me%ref) // " on timestep #" // trim(str(t)))
@@ -225,8 +227,9 @@ contains
         ! Erosion yields & bank erosion; store in flow objects
         call me%setErosionYields(j_spm_runoff, q_overland, contributingArea, j_contaminant_runoff)
 
-        ! Point + diffuse sources (if any flow)
-        if (.not. C%ignoreContaminant .and. .not. isZero(me%Q_in_total)) then
+        ! Point + diffuse sources (if any flow). Skipped during the warm up period, which is
+        ! meant to settle the flows without any contaminant input - see EstuaryReach%update
+        if (.not. C%ignoreContaminant .and. .not. isWarmUp .and. .not. isZero(me%Q_in_total)) then
             call me%updateSources(t)
         end if
 
