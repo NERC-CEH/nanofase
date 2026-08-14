@@ -12,19 +12,18 @@
 &allocatable_array_sizes
 n_soil_layers = 3                                       ! Number of soil layers to model
 n_sediment_layers = 4                                   ! Number of sediment layers to model
-n_nm_size_classes = 5                                   ! Number of NM size classes
+n_contaminant_size_classes = 5                          ! Number of NM size classes
 n_spm_size_classes = 5                                  ! Number of SPM size classes
 n_fractional_compositions = 2                           ! Number of fractional compositions for sediment
 /
 
-! Control the config options specific to the NMs
-&nanomaterial
-nm_size_classes = 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9 ! Diameter of NM in each binned size class [m]
-n_nm_forms = 1                                          ! Number of NM forms (core, shell, coating, corona etc)
-n_nm_extra_states = 2                                   ! Number of extra NM states, other than heteroaggregated to SPM
-/ 
+! Config for contaminant dimensions
+&contaminant
+    n_contaminant_extra_states = 2    ! Number of extra contaminant states, other than heteroaggregated to SPM
+    n_contaminant_forms = 2           ! Number of contaminant forms (e.g., pristine, transformed)
+/
 
-! Paths to data. For info on compiling data for the NanoFASE model, see the nanofase-data repo: https://github.com/NERC-CEH/nanofase-data
+! Paths to input and output data
 &data
 input_file = "data.example/thames_tio2_2015.nc"         ! Path to NetCDF input data, which includes most of the spatial and temporally resolved data
 constants_file = "data.example/constants_tio2.nml"      ! Path to constants namelist file, which includes most of the non-spatiotemporal input data 
@@ -59,7 +58,7 @@ error_output = .true.                                   ! Should error handling 
 trigger_warnings = .false.                              ! Should errors that are non-critical (warnings) be triggered (printed to the console)?
 log_file_path = "log/"                                  ! Where to place model logs
 output_hash = ""                                        ! Append all output file names with this value. Useful for parallel model runs. Max 32 characters (e.g. hex string).
-ignore_nm = .false.                                     ! If .true., this tells the model we're not interested in NM and misses out costly computations. Useful for sediment calibration, NM PECs will be invalid
+ignore_contaminant = .false.                            ! If .true., this tells the model we're not interested in contaminants and misses out costly computations. Useful for sediment calibration, contaminant PECs will be invalid
 warm_up_period = 0                                      ! Length of the warm up period for the model
 simulation_mask = ""                                    ! Path to simulation mask, if only running for part of the data's area (empty string indicates no mask)
 /
@@ -85,6 +84,7 @@ soil_layer_depth = 0.05, 0.15, 0.2                      ! Depth of each soil lay
 include_bioturbation = .true.                           ! Should bioturbation be modelled?
 include_attachment = .true.                             ! Should attachment be modelled?
 include_soil_erosion = .true.                           ! Should soil erosion be modelled?
+include_clay_enrichment = .false.                       ! Should clay enrichment be modelled?
 /
 
 &sediment

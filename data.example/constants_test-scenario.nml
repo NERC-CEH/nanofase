@@ -1,4 +1,4 @@
-!! NanoFASE model constants file for test scenario
+!! FASE model constants file for test scenario
 !! ------------------------------------------------
 !! This file is read by the DataInputModule to set up physical constants
 !! and default parameters for the simulation.
@@ -34,7 +34,7 @@
     default_spm_size_distribution = 50, 30, 10, 7, 3
     fractional_composition_distribution = 0.5, 0.5
     spm_density_by_size_class = 1700, 260, 2600, 1700, 1300
-    sedimentInitialMass = 0.02, 0.02, 0.32, 0.32, 0.32
+    initial_mass = 0.02, 0.02, 0.32, 0.32, 0.32
     porosity = 0.8, 0.6, 0.4, 0.2
 /
 
@@ -47,7 +47,7 @@
     erosivity_a2 = 0.5
     erosivity_a3 = 2.7
     erosivity_b = 1.204
-    soil_constant_attachment_efficiency = 0.1
+    soil_attachment_efficiency = 0.1
 /
 
 &water

@@ -293,7 +293,7 @@ module WaterBodyModule
         me%volume             = 0.0_dp
 
         rslt = me%m_contaminant%create_from_data('water', DATASET%contaminantDensity, &
-            DATASET%soilConstantAttachmentEfficiency, DATASET%riverAttachmentEfficiency, &
+            DATASET%soilAttachmentEfficiencyConstant, DATASET%riverAttachmentEfficiency, &
             DATASET%estuaryAttachmentEfficiency, DATASET%contaminant_k_diss_pristine, &
             DATASET%contaminant_k_diss_transformed, DATASET%contaminant_k_transform_pristine, &
             real(DATASET%waterTemperature(1), dp))

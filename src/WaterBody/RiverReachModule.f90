@@ -56,7 +56,7 @@ contains
         call rslt%addErrors(.errors. me%m_contaminant%create_from_data( &
             compartment='water', &
             contaminantDensity=DATASET%contaminantDensity, &
-            soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
+            soilAttachmentEfficiency=DATASET%soilAttachmentEfficiencyConstant, &
             riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
             estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
             k_diss_pristine=DATASET%contaminant_k_diss_pristine, &
@@ -347,7 +347,6 @@ contains
             dj_spm_deposit = min(dj_spm_deposit, me%m_spm + dj_spm_in)
 
             ! Resuspension demand as an area flux; bed returns the accepted amount
-            ! print *, 'mf_bed_by_size', me%bedSediment%Mf_bed_by_size()
             dj_spm_resus_perArea  = flushToZero(me%k_resus * me%bedSediment%Mf_bed_by_size() * dt)
             dj_spm_resus_perArea_ = dj_spm_resus_perArea
             call rslt%addErrors(.errors. me%bedSediment%resuspend(dj_spm_resus_perArea_))

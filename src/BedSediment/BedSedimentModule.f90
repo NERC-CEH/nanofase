@@ -149,7 +149,7 @@ contains
             r = me%m_contaminant(L)%create_from_data( &
                 compartment='sediment', &
                 contaminantDensity=DATASET%contaminantDensity, &
-                soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
+                soilAttachmentEfficiency=DATASET%soilAttachmentEfficiencyConstant, &
                 riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
                 estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
                 k_diss_pristine=DATASET%contaminant_k_diss_pristine, &

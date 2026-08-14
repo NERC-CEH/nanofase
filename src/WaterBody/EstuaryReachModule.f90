@@ -44,7 +44,7 @@ contains
         call rslt%addErrors(.errors. me%m_contaminant%create_from_data( &
             'estuary', &
             DATASET%contaminantDensity, &
-            DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, &
             DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, &

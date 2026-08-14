@@ -1,14 +1,17 @@
 &allocatable_array_sizes
+    n_contaminant_size_classes = 5
+    n_default_contaminant_size_distribution = 5
+    n_default_contaminant_form_distribution = 3  ! Forms (pristine, transformed) + dissolved
     n_default_matrixembedded_distribution_to_spm = 5
-    n_default_nm_size_distribution = 5
     n_default_spm_size_distribution = 5
+    n_spm_density_by_size_class = 5
     n_estuary_mouth_coords = 2
     n_fractional_composition_distribution = 2
     n_initial_mass = 5
     n_porosity = 4
-    n_spm_density_by_size_class = 5
     n_vertical_distribution = 3
 /
+
 &earthworm_densities
     arable = 30
     coniferous = 150
@@ -21,9 +24,14 @@
     vertical_distribution = 50, 35, 15
 /
 
-&nanomaterial
-    default_nm_size_distribution = 50, 30, 10, 7, 3
-    nm_density = 4230
+&contaminant
+    contaminant_density = 4230
+    contaminant_size_classes = 10e-9, 30e-9, 100e-9, 300e-9, 1000e-9
+    default_contaminant_size_distribution = 50, 30, 10, 7, 3
+    default_contaminant_form_distribution = 80, 15, 5  ! 80% pristine, 15% transformed, 5% dissolved
+    k_diss_pristine = 0.0
+    k_diss_transformed = 0.0
+    k_transform_pristine = 0.0
 /
 
 &sediment
@@ -57,9 +65,6 @@
     estuary_tidal_s2 = 0.62
     estuary_width_expa = 12548
     estuary_width_expb = 5.25e-05
-    k_diss_pristine = 0
-    k_diss_transformed = 0
-    k_transform_pristine = 0
     river_attachment_efficiency = 0.01
     min_water_temperature = 10.0
     max_water_temperature = 10.0

@@ -70,7 +70,7 @@ module SoilLayerModule
         call r%addErrors(.errors. me%m_contaminant%create_from_data( &
             compartment='soil', &
             contaminantDensity=DATASET%contaminantDensity, &
-            soilAttachmentEfficiency=DATASET%soilConstantAttachmentEfficiency, &
+            soilAttachmentEfficiency=DATASET%soilAttachmentEfficiencyConstant, &
             riverAttachmentEfficiency=DATASET%riverAttachmentEfficiency, &
             estuaryAttachmentEfficiency=DATASET%estuaryAttachmentEfficiency, &
             k_diss_pristine=DATASET%contaminant_k_diss_pristine, &
@@ -297,7 +297,7 @@ module SoilLayerModule
         if (have2D) then
             me%alpha_att = DATASET%soilAttachmentEfficiency(me%x, me%y)
         else
-            me%alpha_att = DATASET%soilConstantAttachmentEfficiency
+            me%alpha_att = DATASET%soilAttachmentEfficiencyConstant
         end if
 
         call r%addToTrace("Parsing input data (P-FASE soil layer)")

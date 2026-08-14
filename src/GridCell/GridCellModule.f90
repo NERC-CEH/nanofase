@@ -88,28 +88,28 @@ module GridCellModule
         end if
         rslt_temp = me%contaminant_water%create_from_data( &
             trim(comp_wat), &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         call rslt%addErrors(.errors. rslt_temp)
         rslt_temp = me%contaminant_sediment%create_from_data( &
             'sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         call rslt%addErrors(.errors. rslt_temp)
         rslt_temp = me%j_contaminant_diffuseSource(1)%create_from_data( &
             'soil', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
         call rslt%addErrors(.errors. rslt_temp)
         rslt_temp = me%j_contaminant_diffuseSource(2)%create_from_data( &
             'atmospheric', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -285,7 +285,7 @@ module GridCellModule
                 call r%addErrors(.errors. me%j_contaminant_diffuseSource(i)%create_from_data( &
                     compartment, &
                     DATASET%contaminantDensity, &
-                    DATASET%soilConstantAttachmentEfficiency, &
+                    DATASET%soilAttachmentEfficiencyConstant, &
                     DATASET%riverAttachmentEfficiency, &
                     DATASET%estuaryAttachmentEfficiency, &
                     DATASET%contaminant_k_diss_pristine, &
@@ -610,7 +610,7 @@ module GridCellModule
         type(Result0D) :: r0
 
         rslt = m_contaminant%create_from_data('sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -736,7 +736,7 @@ module GridCellModule
         type(Result) :: rslt
 
         rslt = cont%create_from_data('soil', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -771,7 +771,7 @@ module GridCellModule
     function get_C_contaminant_waterGridCell(me) result(cont)
         !! P-FASE: return volume-weighted surface-water concentration [kg m-3]
         !! by species/form/phase. AQ, SPM, AWI, FOAM, AIR phases are retained in
-        !! the Contaminant object; callers decide which phase to output/use.
+        !! the Contaminant object; callers decide
         class(GridCell)  :: me
         type(Contaminant) :: cont, tmp_mass, tmp_conc
         real(dp) :: vol, total_volume
@@ -782,7 +782,7 @@ module GridCellModule
         compstr = merge('water  ', 'estuary', me%aggregatedReachType /= 'riv')
 
         rslt = cont%create_from_data(trim(compstr), &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -811,7 +811,7 @@ module GridCellModule
     end function get_C_contaminant_waterGridCell
 
 
-    !> Get the current weighted mean sediment PEC [kg/kg] in this grid cell,
+    !> Get the current weighted mean sediment PEC
     !! weighted by the current sediment masses in the cell
     function get_C_contaminant_sedimentGridCell(me) result(cont)
         !! P-FASE: return bed-sediment dry-solid-mass-weighted concentration [kg kg-1]
@@ -826,7 +826,7 @@ module GridCellModule
         type(Result0D) :: r0
 
         rslt = cont%create_from_data('sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -879,7 +879,7 @@ module GridCellModule
         type(Result0D) :: r0
 
         rslt = cont%create_from_data('sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -937,7 +937,7 @@ module GridCellModule
 
         ! Initialize the result Contaminant object
         rslt = cont%create_from_data('sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -1000,7 +1000,7 @@ module GridCellModule
 
     ! Initialize the result Contaminant object
     rslt = cont%create_from_data('sediment', &
-        DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+        DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
         DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
         DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
         DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -1058,7 +1058,7 @@ end function
         type(Result0D) :: r0
 
         rslt = m_contaminant_buried%create_from_data('sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -1096,7 +1096,7 @@ end function
 
         rslt = j_contaminant_deposition%create_from_data( &
             'sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -1121,7 +1121,7 @@ end function
 
         rslt = j_contaminant_resuspension%create_from_data( &
             'sediment', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))
@@ -1276,7 +1276,7 @@ end function
         type(Result) :: rslt
 
         rslt = j_contaminant_groundwater%create_from_data('soil', &
-            DATASET%contaminantDensity, DATASET%soilConstantAttachmentEfficiency, &
+            DATASET%contaminantDensity, DATASET%soilAttachmentEfficiencyConstant, &
             DATASET%riverAttachmentEfficiency, DATASET%estuaryAttachmentEfficiency, &
             DATASET%contaminant_k_diss_pristine, DATASET%contaminant_k_diss_transformed, &
             DATASET%contaminant_k_transform_pristine, real(DATASET%waterTemperature(1), dp))

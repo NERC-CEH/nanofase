@@ -111,7 +111,7 @@ module ReachModule
 
         ! Main WATER contaminant state (sizes, rates, etc.)
        call r%addErrors(.errors. me%m_contaminant%create_from_data('water', DATASET%contaminantDensity, &
-            DATASET%soilConstantAttachmentEfficiency, DATASET%riverAttachmentEfficiency, &
+            DATASET%soilAttachmentEfficiencyConstant, DATASET%riverAttachmentEfficiency, &
             DATASET%estuaryAttachmentEfficiency, DATASET%contaminant_k_diss_pristine, &
             DATASET%contaminant_k_diss_transformed, DATASET%contaminant_k_transform_pristine, &
             DATASET%waterTemperature(C%startDate%yearday())))
