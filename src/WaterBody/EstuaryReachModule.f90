@@ -106,6 +106,7 @@ contains
         logical, intent(in) :: isWarmUp
         type(Result) :: rslt
         real(dp) :: changeInVolume
+        real(dp) :: Q_outflow                   ! Provisional outflow, used only to decide the sense of the tide
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)
         type(Contaminant) :: j_contaminant_in_total
         integer :: i, nDisp
@@ -121,9 +122,10 @@ contains
         currentDate = C%startDate + timedelta(t-1)
         T_water_t = me%T_water(currentDate%yearday())
 
+        ! Outflows are stored as negative, so subtract to accumulate a positive inflow
         do i = 1, me%nInflows
-            me%Q%inflow = me%Q%inflow + me%inflows(i)%item%Q_final%outflow
-            me%j_spm%inflow = me%j_spm%inflow + me%inflows(i)%item%j_spm_final%outflow
+            me%Q%inflow = me%Q%inflow - me%inflows(i)%item%Q_final%outflow
+            me%j_spm%inflow = me%j_spm%inflow - me%inflows(i)%item%j_spm_final%outflow
             call me%j_contaminant_inflow%add(me%inflows(i)%item%get_j_contaminant_outflow())
         end do
 
@@ -135,7 +137,11 @@ contains
 
         call me%setDimensions((t-1) * C%timeStep / C%minEstuaryTimestep)
         changeInVolume = me%changeInVolume((t-1)*24, t*24)
-        me%Q%outflow = changeInVolume - me%Q%inflow - me%Q%runoff - me%Q%transfers
+        ! Provisional outflow, telling us the direction of the tide: +ve is upstream (incoming) tidal
+        ! flow, -ve is downstream. This must go in a local, NOT in me%Q%outflow: the displacement
+        ! loop below accumulates dQ_out into me%Q%outflow, and since the accumulated total is this
+        ! same quantity, storing it here as well doubles the outflow
+        Q_outflow = changeInVolume - me%Q%inflow - me%Q%runoff - me%Q%transfers
         me%Q_in_total = me%Q%runoff + me%Q%transfers
         j_spm_in_total = me%j_spm%soilErosion + me%j_spm%transfers
         call rslt%addErrors(.errors. j_contaminant_in_total%create())
@@ -143,7 +149,10 @@ contains
         call j_contaminant_in_total%add(me%j_contaminant_transfers)
         call j_contaminant_in_total%add(me%j_contaminant_pointSources)
         call j_contaminant_in_total%add(me%j_contaminant_diffuseSources)
-        if (me%Q%outflow > 0) then
+        ! NOTE: me%Q%outflow / me%j_spm%outflow / me%j_contaminant_outflow are all still zero here
+        ! (emptyFlows above), so these three lines currently add nothing.
+        ! TODO should this use Q_outflow?
+        if (Q_outflow > 0) then
             me%Q_in_total = me%Q_in_total + me%Q%outflow
             j_spm_in_total = j_spm_in_total + me%j_spm%outflow
             call j_contaminant_in_total%add(me%j_contaminant_outflow)
@@ -287,7 +296,7 @@ contains
                     call ERROR_HANDLER%trigger(errors = .errors. rslt)
                     return
                 end if
-                select type (data => res_contaminant%getData())
+                select type (data => res_contaminant%data)
                     type is (Contaminant)
                         m_contaminant = data
                     class default

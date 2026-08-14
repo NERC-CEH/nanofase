@@ -130,6 +130,7 @@ module NetCDFOutputModule
         procedure, private  :: initBiota => initBiotaNetCDFOutput
         procedure, private  :: createDimensions => createDimensionsNetCDFOutput
         procedure, private  :: allocateVariables => allocateVariablesNetCDFOutput
+        procedure, private  :: getMaxReaches
         procedure, public   :: newChunk => newChunkNetCDFOutput
         procedure, public   :: finaliseChunk => finaliseChunkNetCDFOutput
         procedure, public   :: close => closeNetCDFOutput
@@ -159,6 +160,10 @@ module NetCDFOutputModule
         
         ! Point the Environment object to that passed in
         me%env%item => env
+
+        ! Size the 'w' (waterbody) dimension to the largest number of reaches in any grid cell.
+        ! This must happen before initFile/allocateVariables, both of which use w_count.
+        me%w_count = me%getMaxReaches()
 
         ! Create a NetCDF file for this chunk
         call me%initFile()
@@ -368,7 +373,7 @@ module NetCDFOutputModule
                 if (r%hasCriticalError()) then
                     call r%addToTrace(tr); call cont%finalise(); call cont_buried%finalise(); return
                 end if
-                select type (data => r%getData())
+                select type (data => r%data)
                     type is (Contaminant); cont = data
                     class default; call cont%finalise(); call cont_buried%finalise(); return
                 end select
@@ -390,7 +395,7 @@ module NetCDFOutputModule
                 if (r%hasCriticalError()) then
                     call r%addToTrace(tr); call cont%finalise(); call cont_buried%finalise(); return
                 end if
-                select type (data => r%getData())
+                select type (data => r%data)
                     type is (Contaminant); cont_buried = data
                     class default; call cont%finalise(); call cont_buried%finalise(); return
                 end select
@@ -401,7 +406,7 @@ module NetCDFOutputModule
                     if (r%hasCriticalError() .or. .not. allocated(r%data)) then
                         call r%addToTrace(tr); call cont%finalise(); call cont_buried%finalise(); return
                     end if
-                    select type (data => r%getData())
+                    select type (data => r%data)
                         type is (Contaminant); layer_cont = data
                         class default; call cont%finalise(); call cont_buried%finalise(); return
                     end select

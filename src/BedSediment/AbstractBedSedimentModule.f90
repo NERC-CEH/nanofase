@@ -582,7 +582,7 @@ module AbstractBedSedimentModule
             call r%addErrors(res%getErrors())
             return
         end if
-        select type (data => res%getData())
+        select type (data => res%data)
             type is (Contaminant)
                 m_contaminant = data
             class default
@@ -626,7 +626,7 @@ module AbstractBedSedimentModule
                 deallocate(C_contaminant_byMass)
                 return
             end if
-            select type (data => res%getData())
+            select type (data => res%data)
                 type is (Contaminant)
                     m_contaminant_l = data
                 class default
@@ -696,7 +696,7 @@ module AbstractBedSedimentModule
             call r%addErrors(res%getErrors())
             return
         end if
-        select type (data => res%getData())
+        select type (data => res%data)
             type is (Contaminant)
                 m_contaminant_l = data
             class default
@@ -735,7 +735,7 @@ module AbstractBedSedimentModule
             call r%addErrors(res%getErrors())
             return
         end if
-        select type (data => res%getData())
+        select type (data => res%data)
             type is (Contaminant)
                 m_contaminant_l = data
             class default
@@ -831,7 +831,7 @@ module AbstractBedSedimentModule
             deallocate(C_pfas)
             return
         end if
-        select type (data => res%getData())
+        select type (data => res%data)
             type is (Contaminant)
                 m_aq = data
             class default
@@ -864,7 +864,7 @@ module AbstractBedSedimentModule
             deallocate(C_pfas)
             return
         end if
-        select type (data => res%getData())
+        select type (data => res%data)
             type is (Contaminant)
                 m_sol = data
             class default
@@ -897,7 +897,7 @@ module AbstractBedSedimentModule
             deallocate(C_pfas)
             return
         end if
-        select type (data => res%getData())
+        select type (data => res%data)
             type is (Contaminant)
                 m_l = data
             class default
@@ -930,7 +930,7 @@ module AbstractBedSedimentModule
             deallocate(C_pfas)
             return
         end if
-        select type (data => res%getData())
+        select type (data => res%data)
             type is (Contaminant)
                 m_l = data
             class default

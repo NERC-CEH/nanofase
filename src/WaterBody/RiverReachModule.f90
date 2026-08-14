@@ -377,7 +377,7 @@ contains
                         call rslt%addErrors(res_contaminant%getErrors()); call LOGR%toFile(errors = .errors. rslt)
                         call ERROR_HANDLER%trigger(errors = .errors. rslt); return
                     end if
-                    select type (data => res_contaminant%getData())
+                    select type (data => res_contaminant%data)
                         type is (Contaminant); bed_before = data
                         class default
                             call rslt%addError(ErrorInstance(code=106, message="Invalid data type in Result0D"))
@@ -403,7 +403,7 @@ contains
                     call rslt%addErrors(res_contaminant%getErrors()); call LOGR%toFile(errors = .errors. rslt)
                     call ERROR_HANDLER%trigger(errors = .errors. rslt); return
                 end if
-                select type (data2 => res_contaminant%getData())
+                select type (data2 => res_contaminant%data)
                     type is (Contaminant)
                         m_contaminant = data2
                     class default
@@ -476,7 +476,7 @@ contains
                     if (res_contaminant%hasError()) then
                         call rslt%addErrors(res_contaminant%getErrors()); call LOGR%toFile(errors = .errors. rslt)
                     else
-                        select type (data3 => res_contaminant%getData())
+                        select type (data3 => res_contaminant%data)
                             type is (Contaminant); bed_after = data3
                             class default
                                 call rslt%addError(ErrorInstance(code=106, message="Invalid data type in Result0D(b)"))
@@ -505,8 +505,7 @@ contains
         else
             ! dry/empty: zero SPM and reset contaminant container
             me%m_spm = 0.0_dp
-            call rslt%addErrors(.errors. me%m_contaminant%create())
-            call me%m_contaminant%finalise()
+            call me%m_contaminant%empty()
         end if
   
         ! ------------------------------------------------------------------
@@ -518,7 +517,7 @@ contains
             call w_after%add(me%m_contaminant)
             res_contaminant = me%bedSediment%get_m_contaminant()
             if (.not. res_contaminant%hasError()) then
-                select type (data2 => res_contaminant%getData())
+                select type (data2 => res_contaminant%data)
                     type is (Contaminant)
                         call bed_after%add(data2)
                     class default

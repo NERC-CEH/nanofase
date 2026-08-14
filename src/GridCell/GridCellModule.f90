@@ -625,7 +625,7 @@ module GridCellModule
                 call r0%addToTrace("get_m_contaminant() failed for reach "//trim(str(w)))
                 call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
             end if
-            select type (data => r0%getData())
+            select type (data => r0%data)
             type is (Contaminant)
                 tmp_cont = data
             class default
@@ -702,9 +702,9 @@ module GridCellModule
             x_out = me%colRiverReaches(i)%item%outflow%item%x
             y_out = me%colRiverReaches(i)%item%outflow%item%y
         else
-            ! NOTE: NetCDF stored as outflow(y, x, d) -> Fortran indexing (d, y, x)
-            x_out = DATASET%outflow(1, me%y, me%x)
-            y_out = DATASET%outflow(2, me%y, me%x)
+            ! outflow is stored as (d, x, y) - see the transposition note in DataInputModule
+            x_out = DATASET%outflow(1, me%x, me%y)
+            y_out = DATASET%outflow(2, me%x, me%y)
         end if
 
         x1 = (x_out + 0.5) + 0.5 * (me%x - x_out)
@@ -843,7 +843,7 @@ module GridCellModule
                     call r0%addToTrace("get_m_contaminant() failed for reach "//trim(str(i)))
                     call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
                 end if
-                select type (data => r0%getData())
+                select type (data => r0%data)
                 type is (Contaminant)
                     tmp_mass = data
                 class default
@@ -896,7 +896,7 @@ module GridCellModule
                     call r0%addToTrace("get_m_contaminant() failed for reach "//trim(str(i)))
                     call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
                 end if
-                select type (data => r0%getData())
+                select type (data => r0%data)
                 type is (Contaminant)
                     tmp_mass = data
                 class default
@@ -958,7 +958,7 @@ module GridCellModule
                     call ERROR_HANDLER%trigger(errors=res%errors)
                     return
                 end if
-                select type (data => res%getData())
+                select type (data => res%data)
                     type is (Contaminant)
                         tmp_cont = data
                     class default
@@ -1021,7 +1021,7 @@ module GridCellModule
                 call ERROR_HANDLER%trigger(errors=res%errors)
                 return
             end if
-            select type (data => res%getData())
+            select type (data => res%data)
                 type is (Contaminant)
                     tmp_cont = data
                 class default
@@ -1074,7 +1074,7 @@ end function
                     call r0%addToTrace("get_m_contaminant_buried() failed for reach "//trim(str(i)))
                     call LOGR%toFile(errors=r0%errors); call ERROR_HANDLER%trigger(errors=r0%errors); return
                 end if
-                select type (data => r0%getData())
+                select type (data => r0%data)
                 type is (Contaminant)
                     tmp_cont = data
                 class default

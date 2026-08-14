@@ -232,7 +232,7 @@ contains
         class(Database)     :: me
         type(NcDataset)     :: nc_simulationMask
         type(NcVariable)    :: var
-        character(len=* )   :: inputFile, constantsFile
+        character(len=*)    :: inputFile, constantsFile
         type(Result)        :: rslt
         ! temps returned by mo_netcdf in Fortran order (reversed NetCDF dims)
         integer, allocatable :: outflow_dxy(:,:,:)
@@ -291,6 +291,19 @@ contains
             deallocate(isEstuaryInt_xy)
         else
             allocate(me%isEstuary(nx, ny)); me%isEstuary = .false.
+        end if
+
+        ! Digital elevation model [dm asl]
+        ! Reach%parseInputData uses this to derive the stream slope from the elevation drop
+        ! along the reach; if it isn't allocated, every reach silently falls back to
+        ! defaultSlope, which changes depth throughout the scenario
+        if (me%nc%hasVariable('dem')) then
+            var = me%nc%getVariable('dem'); call var%getData(me%dem)
+        else
+            call LOGR%toFile(errors=[ &
+                ErrorInstance(message='Digital elevation model (dem) not found in input file. ' // &
+                    'Default slope of ' // trim(str(defaultSlope)) // ' m/m will be used.', iscritical=.false.) &
+            ])
         end if
 
         ! Grid mask from nWaterbodies
