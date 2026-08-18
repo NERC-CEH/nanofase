@@ -4,6 +4,14 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-08-18
+
+### Fixed
+
+- Fixed the grid-cell SPM flux getters `get_j_spm_outflow` and `get_j_spm_inflow` in `GridCellModule`, which summed each reach's `Q%outflow`/`Q%inflow` (water discharge) instead of `j_spm%outflow`/`j_spm%inflow` (sediment mass). As `Q%outflow` is a scalar being added to a size-class array it was broadcast across all size classes, so the aggregated output variables `water__m_spm_outflow` and `water__m_spm_inflow` were reporting exactly `n_spm_size_classes * Q%outflow` in m3, rather than a sediment flux in kg. This only affected the aggregated output (`&output > include_waterbody_breakdown = .false.`); the per-waterbody output path already used `j_spm` and was correct.
+- Fixed `dj_spm_inflow` (and the equivalent NM, transformed NM and dissolved terms) leaking between displacements in `EstuaryReachModule`. These are set to the per-displacement share of the reach's inflow before the displacement loop, but on an incoming tide the loop overwrites them with what the reach pushes back upstream. As they were never reset, that overwritten value persisted into every subsequent displacement of the timestep, so the inflow term applied to later displacements depended on whether an earlier displacement happened to be a flood tide. They are now reset at the top of each displacement.
+- Fixed an incoming tide contributing no input to `Q_in_total` in `EstuaryReachModule`. The provisional outflow is computed into a local `Q_outflow`, but the `if (Q_outflow > 0)` branch added `me%Q%outflow`, which `emptyFlows()` has zeroed at that point and which is only accumulated later in the displacement loop, so the branch added nothing. It now adds `Q_outflow`. Note this changes estuary results: `Q_in_total` feeds the reach width, depth, velocity and resuspension rate.
+
 ## [0.0.5] - 2025-03-15
 
 ### Changed
@@ -71,7 +79,8 @@ All notable changes to the model will be documented in this file. Breaking chang
 - Added option to aggregate CSV output for waterbodies at grid cell level, rather than breaking it down to waterbody level. Internal functions for aggregating to grid cell added (e.g. weighted means, fetching outflow reaches). This option can be used by specifying `&output > include_waterbody_breakdown = .false.` in the [model config file](./config.example/config.example.nml). Default is `.true.`.
 - This changelog.
 
-[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.5...HEAD
+[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.6...HEAD
+[0.0.6]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.6
 [0.0.5]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.5
 [0.0.4]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.4
 [0.0.3]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.3

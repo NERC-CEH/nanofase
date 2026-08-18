@@ -178,7 +178,9 @@ module EstuaryReachModule
         ! j_np_input_total = me%j_np_runoff() + me%j_np_transfers() + me%j_np_pointsource() + me%j_np_diffusesource()
         ! If outflow is positive (incoming tide) then some input will be provided by the inflowing outflow (which will be +ve)
         if (Q_outflow > 0) then
-            me%Q_in_total = me%Q_in_total + me%Q%outflow
+            ! Make sure to use Q_outflow, not me%Q%outflow: emptyFlows() has zeroed me%Q%outflow
+            ! at this point and it is only accumulated in the displacement loop below
+            me%Q_in_total = me%Q_in_total + Q_outflow
             ! j_spm_input_total = j_spm_input_total + me%j_spm_outflow()
             ! j_np_input_total = j_np_input_total + me%j_np_outflow()
         end if
@@ -223,6 +225,13 @@ module EstuaryReachModule
         dj_dissolved_inflow = me%j_dissolved%inflow / nDisp
 
         do i = 1, nDisp
+            ! Reset the per-displacement inflow terms. On an incoming tide the branch below
+            ! overwrites these with what this reach pushes back upstream; without this reset that
+            ! overwritten value leaks into every subsequent displacement of the timestep.
+            dj_spm_inflow = me%j_spm%inflow / nDisp
+            dj_nm_inflow = me%j_nm%inflow / nDisp
+            dj_nm_transformed_inflow = me%j_nm_transformed%inflow / nDisp
+            dj_dissolved_inflow = me%j_dissolved%inflow / nDisp
             ! Calculate the timestep in hours from the displacement length, and pass to setDimensions
             ! to use to calculate tidal harmonics
             call me%setDimensions((t -1)*C%timeStep/3600 + i*(int(dt)/3600))

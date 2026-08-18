@@ -486,7 +486,7 @@ module GridCellModule
         ! Loop through reaches and sum the SPM outflow for the grid cell outflows
         do i = 1, me%nReaches
             if (me%colRiverReaches(i)%item%isGridCellOutflow) then
-                j_spm_outflow = j_spm_outflow + me%colRiverReaches(i)%item%Q%outflow
+                j_spm_outflow = j_spm_outflow + me%colRiverReaches(i)%item%j_spm%outflow
             end if
         end do
     end function
@@ -512,7 +512,7 @@ module GridCellModule
         ! Loop through the inflows and sum the inflowing SPM
         do i = 1, me%nReaches
             if (me%colRiverReaches(i)%item%isGridCellInflow) then
-                j_spm_inflow = j_spm_inflow + me%colRiverReaches(i)%item%Q%inflow
+                j_spm_inflow = j_spm_inflow + me%colRiverReaches(i)%item%j_spm%inflow
             end if
         end do
     end function
