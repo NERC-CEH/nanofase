@@ -233,6 +233,8 @@ contains
         type(Contaminant) :: dj_contaminant_out
         real(dp) :: dj_spm_in(C%nSizeClassesSpm)
         type(Contaminant) :: dj_contaminant_in
+        real(dp) :: dj_spm_outflow(C%nSizeClassesSpm)   ! Outflow clamped to available mass, stored -ve
+        real(dp) :: tpm_m_spm(C%nSizeClassesSpm)        ! Mass after inflow, used to size deposition
         real(dp) :: dj_spm_deposit(C%nSizeClassesSpm), dj_spm_resus(C%nSizeClassesSpm)
         real(dp) :: dj_spm_deposit_perArea(C%nSizeClassesSpm), dj_spm_resus_perArea(C%nSizeClassesSpm)
         real(dp) :: tmp_dj_spm_resus_perArea(C%nSizeClassesSpm)
@@ -260,7 +262,9 @@ contains
         else if (dQ_out > 0 .and. associated(me%outflow%item)) then
             dj_spm_out = min(me%outflow%item%C_spm_final * dQ_out, me%outflow%item%m_spm / me%outflow%item%nInflows)
             call dj_contaminant_out%multiply_scalar(me%outflow%item%m_contaminant, dQ_out / me%outflow%item%volume)
-            dj_spm_in = dj_spm_erosion + dj_spm_inflow - min(me%m_spm * dQ_out / me%volume, me%m_spm)
+            ! Incoming tide: the upstream "inflow" term is REPLACED by what this reach pushes
+            ! back upstream, not added to the downstream inflow
+            dj_spm_in = dj_spm_erosion - min(me%m_spm * dQ_out / me%volume, me%m_spm)
             call dj_contaminant_in%add(dj_contaminant_erosion_sources)
             call dj_contaminant_in%add(dj_contaminant_inflow)
             call dj_contaminant_in%add_scaled(me%m_contaminant, -dQ_out / me%volume)
@@ -272,11 +276,17 @@ contains
             call dj_contaminant_in%add(dj_contaminant_inflow)
         end if
 
-        me%m_spm = flushToZero(max(me%m_spm + dj_spm_in - dj_spm_out, 0.0_dp))
+        ! Size deposition on the mass after inflow but before outflow, as RiverReach does
+        tpm_m_spm = max(me%m_spm + dj_spm_in, 0.0_dp)
+        dj_spm_deposit = min(me%k_settle * dt * tpm_m_spm, tpm_m_spm)
+
+        ! Clamp the outflow to the mass actually available and negate it: outflows are stored
+        ! -ve throughout the model
+        dj_spm_outflow = -min(me%m_spm, dj_spm_out)
+        me%m_spm = flushToZero(max(me%m_spm + dj_spm_in - dj_spm_outflow, 0.0_dp))
         call me%m_contaminant%add(dj_contaminant_in)
         call me%m_contaminant%add_scaled(dj_contaminant_out, -1.0_dp)
 
-        dj_spm_deposit = min(me%k_settle * dt * me%m_spm, me%m_spm)
         dj_spm_resus = me%k_resus * me%bedSediment%Mf_bed_by_size() * dt
 
         dj_spm_deposit_perArea = divideCheckZero(dj_spm_deposit, me%bedArea)
@@ -286,7 +296,9 @@ contains
         if (C%includeBedSediment) then
             call rslt%addErrors(.errors. me%bedSediment%resuspend(tmp_dj_spm_resus_perArea))
             dj_spm_resus_perArea = dj_spm_resus_perArea - tmp_dj_spm_resus_perArea
-            call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit_perArea))
+            ! depositToBed takes an absolute mass [kg] and divides by bedArea itself, so it doesn't
+            ! want the perArea version here
+            call rslt%addErrors(.errors. me%depositToBed(dj_spm_deposit))
             if (.not. C%ignoreContaminant) then
                 call dj_contaminant_deposit%multiply_scalar(me%m_contaminant, sum(me%k_settle * dt))
                 res_contaminant = me%bedSediment%get_m_contaminant()
@@ -311,7 +323,7 @@ contains
         end if
 
         me%Q%outflow = me%Q%outflow + dQ_out
-        me%j_spm%outflow = me%j_spm%outflow + dj_spm_out
+        me%j_spm%outflow = me%j_spm%outflow + dj_spm_outflow        ! dj_spm_outflow is already -ve
         call me%j_contaminant_outflow%add(dj_contaminant_out)
         me%j_spm%deposition = me%j_spm%deposition - dj_spm_deposit
         me%j_spm%resuspension = me%j_spm%resuspension + dj_spm_resus

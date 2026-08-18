@@ -1062,19 +1062,9 @@ module NetCDFOutputModule
         nx  = DATASET%gridShape(1)
         ny  = DATASET%gridShape(2)
         nt  = C%batchNTimesteps(k)
-        ! FIX: dynamic 'nw' (was 7)
         nw  = max(1, me%w_count) 
         nls = C%nSoilLayers
         nld = C%nSedimentLayers
-
-        ! ===== DEBUG/SANITY =====
-        if (nt <= 0) then
-            write(*,*) 'allocateVariablesNetCDFOutput: nt <= 0 for chunk k=', k, &
-                    '  C%batchNTimesteps(k)=', nt
-            stop 2
-        end if
-        write(*,*) 'DEBUG allocateVariablesNetCDFOutput: k=', k, ' nx=', nx, ' ny=', ny, ' nt=', nt, ' nw=', nw
-        ! ========================
 
         ! --------------------------
         ! WATER (form, w, x, y, t)
