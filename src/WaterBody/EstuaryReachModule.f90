@@ -108,7 +108,6 @@ contains
         real(dp) :: changeInVolume
         real(dp) :: Q_outflow                   ! Provisional outflow, used only to decide the sense of the tide
         real(dp) :: j_spm_in_total(C%nSizeClassesSpm)
-        type(Contaminant) :: j_contaminant_in_total
         integer :: i, nDisp
         real(dp) :: dt, dQ_in
         real(dp) :: dj_spm_erosion(C%nSizeClassesSpm)
@@ -144,23 +143,19 @@ contains
         Q_outflow = changeInVolume - me%Q%inflow - me%Q%runoff - me%Q%transfers
         me%Q_in_total = me%Q%runoff + me%Q%transfers
         j_spm_in_total = me%j_spm%soilErosion + me%j_spm%transfers
-        call rslt%addErrors(.errors. j_contaminant_in_total%create())
-        call j_contaminant_in_total%add(j_contaminant_runoff)
-        call j_contaminant_in_total%add(me%j_contaminant_transfers)
-        call j_contaminant_in_total%add(me%j_contaminant_pointSources)
-        call j_contaminant_in_total%add(me%j_contaminant_diffuseSources)
-        ! NOTE: me%Q%outflow / me%j_spm%outflow / me%j_contaminant_outflow are all still zero here
-        ! (emptyFlows above), so these three lines currently add nothing.
-        ! TODO should this use Q_outflow?
+        ! Contaminant inputs are deliberately NOT tallied here. The displacement loop below adds
+        ! runoff, point sources, diffuse sources and the upstream inflow to me%m_contaminant via
+        ! dj_contaminant_erosion_sources / dj_contaminant_inflow (each 1/nDisp of the timestep
+        ! total, summed over nDisp displacements). Passing the same totals to reactor%update,
+        ! which adds them to me%m_contaminant again through its pointer, would count every contaminant
+        ! input TWICE per timestep
         if (Q_outflow > 0) then
-            me%Q_in_total = me%Q_in_total + me%Q%outflow
+            me%Q_in_total = me%Q_in_total + Q_outflow
             j_spm_in_total = j_spm_in_total + me%j_spm%outflow
-            call j_contaminant_in_total%add(me%j_contaminant_outflow)
         end if
         if (me%Q%inflow > 0.0_dp) then
             me%Q_in_total = me%Q_in_total + me%Q%inflow
             j_spm_in_total = j_spm_in_total + me%j_spm%inflow
-            call j_contaminant_in_total%add(me%j_contaminant_inflow)
         end if
         me%velocity = me%calculateVelocity(me%depth, me%Q_in_total/C%timeStep, me%width)
 
@@ -192,11 +187,14 @@ contains
 
         me%C_spm = divideCheckZero(me%m_spm, me%volume)
 
-        ! Update the reactor with the total inflow contaminant mass (partitioning, transformation, foam, atmosphere).
-        ! IMPORTANT: reactor%update must be called BEFORE j_contaminant_in_total is finalised,
-        ! because the reactor optionally adds that inflow mass to me%m_contaminant via its pointer.
+        ! Run the reactor's in-channel processes (partitioning, transformation, foam, atmosphere).
+        ! No inflow flux is passed: the displacement loop has already added every contaminant
+        ! input to me%m_contaminant, and reactor%update would add them a second time.
+        ! Pass the FULL timestep, not the per-displacement dt: this is called once per timestep,
+        ! after the displacement loop, so dt = C%timeStep / nDisp applied the reactor's rate
+        ! processes over only 1/nDisp of the timestep. RiverReach passes C%timeStep here too.
         if (.not. C%ignoreContaminant .and. .not. isZero(me%volume)) then
-            call rslt%addErrors(.errors. me%reactor%update(j_contaminant_in_total, dt))
+            call rslt%addErrors(.errors. me%reactor%update(dt=real(C%timeStep, dp)))
             ! me%reactor%contaminant IS a pointer to me%m_contaminant, so no copy is needed.
             if (me%volume > 0.0_dp) then
                 me%C_dissolved = me%m_contaminant%m_dissolved / me%volume
@@ -205,7 +203,6 @@ contains
             end if
         end if
 
-        call j_contaminant_in_total%finalise()
         call dj_contaminant_erosion_sources%finalise()
         call dj_contaminant_inflow%finalise()
 
@@ -213,8 +210,11 @@ contains
             call rslt%addErrors(.errors. me%biota(i)%update(t, me%m_contaminant%divideCheckZero(me%volume)))
         end do
 
-        call me%finaliseUpdate()
-
+        ! NOTE: do NOT call me%finaliseUpdate() here. The _final flow objects exist precisely so
+        ! that downstream reaches route on the PREVIOUS timestep's outflow; Environment%update
+        ! publishes them for every reach only after all reaches have been updated. Calling it here
+        ! publishes this reach's outflow immediately, so any downstream reach updates later in the
+        ! same timestep reads this timestep's outflow as its inflow.
         call rslt%addToTrace("Updating " // trim(me%ref) // " on timestep #" // trim(str(t)))
         call LOGR%toFile(errors = .errors. rslt)
         call ERROR_HANDLER%trigger(errors = .errors. rslt)
@@ -268,12 +268,21 @@ contains
             call dj_contaminant_in%add(dj_contaminant_erosion_sources)
             call dj_contaminant_in%add(dj_contaminant_inflow)
             call dj_contaminant_in%add_scaled(me%m_contaminant, -dQ_out / me%volume)
-        else
+        else if (dQ_out > 0) then
+            ! Incoming tide, but no downstream reach to draw water back from, so nothing flows
+            ! out and the only inputs are erosion and the upstream inflow
             dj_spm_out = 0.0_dp
             call dj_contaminant_out%multiply_scalar(me%m_contaminant, 0.0_dp)
             dj_spm_in = dj_spm_erosion + dj_spm_inflow
             call dj_contaminant_in%add(dj_contaminant_erosion_sources)
             call dj_contaminant_in%add(dj_contaminant_inflow)
+        else
+            ! Slack tide (dQ_out == 0), or an ebb displacement on a reach that has run dry
+            ! (zero volume). Nothing moves in or out. These two cases previously shared the
+            ! branch above, which kept adding erosion and inflow to a reach with no water in it.
+            dj_spm_out = 0.0_dp
+            dj_spm_in = 0.0_dp
+            call dj_contaminant_out%multiply_scalar(me%m_contaminant, 0.0_dp)
         end if
 
         ! Size deposition on the mass after inflow but before outflow, as RiverReach does

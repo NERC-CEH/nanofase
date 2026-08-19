@@ -659,10 +659,13 @@ contains
         real(dp), intent(in) :: volume
         type(Result0D) :: r
         real(dp) :: C_total
+        ! A waterbody with no water has zero concentration
         if (volume > C%epsilon .and. allocated(this%c)) then
             C_total = sum(this%c) / volume
-            allocate(r%data, source=C_total)
+        else
+            C_total = 0.0_dp
         end if
+        allocate(r%data, source=C_total)
     end function contaminant_getConcentration
 
     function contaminant_get_free(this) result(C_free)

@@ -1204,7 +1204,11 @@ end function
         real(dp)        :: lengths(me%nReaches)
         integer         :: i
         do i = 1, me%nReaches
-            waterDepth_i(i) = me%colRiverReaches(i)%item%depth
+            ! Report the hydraulic depth implied by the reach volume, rather than me%depth:
+            ! depositToBed subtracts the water displaced into the bed sediment from me%depth,
+            ! which leaves the reported depth inconsistent with the reported volume and bed area
+            waterDepth_i(i) = divideCheckZero(me%colRiverReaches(i)%item%volume, &
+                                             me%colRiverReaches(i)%item%bedArea)
             lengths(i) = me%colRiverReaches(i)%item%length
         end do
         waterDepth = weightedAverage(waterDepth_i, lengths)

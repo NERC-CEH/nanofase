@@ -109,7 +109,7 @@ contains
                 C_spm=me%C_spm, W_settle_spm=me%W_settle_spm, &
                 G=DATASET%shearRate, velocity=me%velocity) ])
 
-        ! Water biota (unchanged)
+        ! Water biota
         allocate(me%biotaIndices(0))
         if (DATASET%hasBiota) then
             do i = 1, DATASET%nBiota
@@ -199,14 +199,13 @@ contains
         ! Reset all flows to zero (water/SPM done inside WaterBody/Reach)
         call me%emptyFlows()
 
-        ! --- hard reset contaminant flux holders each timestep (prevents junk in outputs) ---
+        ! Hard reset contaminant flux holders each timestep (prevents junk in outputs)
         call rslt%addErrors(.errors. me%j_contaminant_inflow%create())
         call rslt%addErrors(.errors. me%j_contaminant_runoff%create())
         call rslt%addErrors(.errors. me%j_contaminant_transfers%create())
         call rslt%addErrors(.errors. me%j_contaminant_deposition%create())
         call rslt%addErrors(.errors. me%j_contaminant_resuspension%create())
         call rslt%addErrors(.errors. me%j_contaminant_outflow%create())
-        ! -------------------------------------------------------------------------------------
 
         ! Get the current date and use the day of year to get the water temp
         currentDate = C%startDate + timedelta(t-1)

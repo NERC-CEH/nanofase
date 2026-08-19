@@ -271,7 +271,7 @@ module NetCDFOutputModule
                     end if
 
                     me%output_water__volume(w,x,y,tInChunk) = reach%volume
-                    me%output_water__depth(w,x,y,tInChunk)  = reach%depth
+                    me%output_water__depth(w,x,y,tInChunk)  = divideCheckZero(reach%volume, reach%bedArea)
                     me%output_water__flow(w,x,y,tInChunk)   = reach%Q%outflow / C%timeStep
 
                 else if (C%netCDFWriteMode == 'itr') then
@@ -312,7 +312,7 @@ module NetCDFOutputModule
                     end if
 
                     call me%nc__water__volume%setData(reach%volume, start=[w,x,y,t])
-                    call me%nc__water__depth%setData(reach%depth,   start=[w,x,y,t])
+                    call me%nc__water__depth%setData(divideCheckZero(reach%volume, reach%bedArea),   start=[w,x,y,t])
                     call me%nc__water__flow%setData(reach%Q%outflow / C%timeStep, start=[w,x,y,t])
                 end if
 
