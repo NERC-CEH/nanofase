@@ -205,7 +205,7 @@ module NetCDFOutputModule
                         me%output_water__m_spm_bank_erosion(w,x,y,tInChunk) = sum(reach%j_spm%bankErosion)
                     end if
                     me%output_water__volume(w,x,y,tInChunk) = reach%volume
-                    me%output_water__depth(w,x,y,tInChunk) = reach%depth
+                    me%output_water__depth(w,x,y,tInChunk) = divideCheckZero(reach%volume, reach%bedArea)
                     me%output_water__flow(w,x,y,tInChunk) = reach%Q%outflow / C%timeStep
                 ! If we're in iterative write mode, then write straight to the NetCDF file, which is time-indexed
                 ! by the whole batch, not just this chunk
@@ -235,7 +235,7 @@ module NetCDFOutputModule
                         call me%nc__water__m_spm_bank_erosion%setData(sum(reach%j_spm%bankErosion), start=[w,x,y,t])
                     end if 
                     call me%nc__water__volume%setData(reach%volume, start=[w,x,y,t])
-                    call me%nc__water__depth%setData(reach%depth, start=[w,x,y,t])
+                    call me%nc__water__depth%setData(divideCheckZero(reach%volume, reach%bedArea), start=[w,x,y,t])
                     call me%nc__water__flow%setData(reach%Q%outflow / C%timeStep, start=[w,x,y,t])
                 end if
             end associate

@@ -207,7 +207,8 @@ module DataOutputModule
                                 trim(str(sum(reach%j_spm%inflow))) // "," // trim(str(sum(reach%j_spm%outflow))) // "," // &
                                 trim(str(sum(reach%j_spm%bankErosion))) // ","
                         end if
-                        write(iouOutputWater, '(a)') trim(str(reach%volume)) // "," // trim(str(reach%depth)) // "," // &
+                        write(iouOutputWater, '(a)') trim(str(reach%volume)) &
+                            // "," // trim(str(divideCheckZero(reach%volume, reach%bedArea))) // "," // &
                             trim(str(reach%Q%outflow / C%timeStep))
                     end associate
                 end do

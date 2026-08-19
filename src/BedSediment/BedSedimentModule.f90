@@ -521,6 +521,11 @@ module BedSedimentModule
         do s = 1, me%nSizeClasses                                       ! now add in the depositing sediment, work by size class
             do l = C%nSedimentLayers, 1, -1                             ! start with the bottom layer and work upwards
                 if (FS_dep(s)%M_f() > 0.0_dp) then
+                    V_w_b = 0.0_dp                                      ! reset the receiving layer's water requirement for THIS layer.
+                                                                        ! V_w_b is only assigned inside the capacity check below but is
+                                                                        ! consumed unconditionally when tallying V_w_tot, so without this
+                                                                        ! reset a layer with no free capacity re-adds the previous
+                                                                        ! iteration's value, compounding once per layer
                     associate(O => me%colBedSedimentLayers(l)%item)     ! size class S in Layer L
                         if (O%A_f(s) > 0.0_dp .or. &
                             O%A_w(s) > 0.0_dp) then                ! if there is available capacity in this layer, add deposition here

@@ -4,6 +4,14 @@ All notable changes to the model will be documented in this file. Breaking chang
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-08-19
+
+### Fixed
+
+- Fixed `V_w_b` being carried between iterations in `BedSediment%deposit` (`depositSediment1`). It is assigned only inside the `if (O%A_f(s) > 0 .or. O%A_w(s) > 0)` capacity check but consumed unconditionally when tallying `V_w_tot`, so a layer with no free capacity re-added the previous iteration's value, compounding once per sediment layer and inflating the water volume returned to the water column. It is now reset at the top of each layer iteration. `V_w_tot` only feeds the reporting-only depth adjustment in `depositToBed`, so this makes no difference to model results (verified bit-identical over the Thames scenario), but the previous behaviour was unbounded.
+- `water__depth` (and the `depth(m)` CSV column) now report the hydraulic depth implied by the reach volume, `volume / bedArea`, rather than the `me%depth` attribute. `depositToBed` subtracts the water displaced into the bed sediment from `me%depth`, which left the reported depth inconsistent with the reported `water__volume` and `sediment__bed_area` by ~1e-4 relative.
+- Fixed an error stop in `depositToBed` when `&sediment > include_bed_sediment = .false.`. `V_water_toDeposit = .dp. depositRslt` sat outside the `includeBedSediment` block, so `depositRslt` was never assigned and asking it for its data aborted the run on the first time step with "Error trying to return 0D data as REAL(DP)". The extraction is now inside the block and `V_water_toDeposit` defaults to zero.
+
 ## [0.0.6] - 2026-08-18
 
 ### Fixed
@@ -79,7 +87,8 @@ All notable changes to the model will be documented in this file. Breaking chang
 - Added option to aggregate CSV output for waterbodies at grid cell level, rather than breaking it down to waterbody level. Internal functions for aggregating to grid cell added (e.g. weighted means, fetching outflow reaches). This option can be used by specifying `&output > include_waterbody_breakdown = .false.` in the [model config file](./config.example/config.example.nml). Default is `.true.`.
 - This changelog.
 
-[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.6...HEAD
+[unreleased]: https://github.com/nerc-ceh/nanofase/compare/0.0.7...HEAD
+[0.0.7]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.7
 [0.0.6]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.6
 [0.0.5]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.5
 [0.0.4]: https://github.com/nerc-ceh/nanofase/releases/tag/0.0.4

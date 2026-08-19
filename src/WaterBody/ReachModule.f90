@@ -275,6 +275,8 @@ module ReachModule
             )
         end do
 
+        ! Default to no water being deposited, in case we're not modelling bed sediment
+        V_water_toDeposit = 0.0_dp
         if (C%includeBedSediment) then
             ! Deposit the fine sediment to the bed sediment
             depositRslt = Me%bedSediment%deposit(fineSed)
@@ -282,10 +284,11 @@ module ReachModule
             if (rslt%hasCriticalError()) then
                 return
             end if
+            ! Retrieve the amount of water to be taken from the reach. This must be inside the
+            ! includeBedSediment block: depositRslt is only set by the deposit call above, and
+            ! asking an unset Result0D for its data is an error stop
+            V_water_toDeposit = .dp. depositRslt            ! [m3/m2]
         end if
-        ! TODO add error handling to line above as it causes a crash if there is a critical error in the called method
-        ! Retrieve the amount of water to be taken from the reach
-        V_water_toDeposit = .dp. depositRslt                ! [m3/m2]
         ! Subtract that volume for the reach (as a depth). This doesn't have any effect on
         ! the model calculations, as the model recalculates depth depth on hydrology at the
         ! start of every timestep. However, it is this updated depth that is saved to data.
