@@ -22,7 +22,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install sphinxcontrib-mermaid jupyter-book
+        pip install -r docs/requirements.txt
 
     # Build the book
     - name: Build the book
