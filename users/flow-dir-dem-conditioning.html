@@ -1,0 +1,627 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Flow direction and DEM conditioning &#8212; NanoFASE</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=55c26ed414f5f8a31ebb" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.11b39860a7a0cbfd473a3ad8a317855267ff0bd372690045ca344a6b62be495e.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../_static/scripts/fontawesome.js?digest=55c26ed414f5f8a31ebb"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=35a8b989"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=b8b12719"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'users/flow-dir-dem-conditioning';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="NetCDF and namelist input data" href="netcdf-namelist-input.html" />
+    <link rel="prev" title="Compiling data with the NanoFASE data module" href="nanofase-data.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../_static/searchtools.js"></script>
+    <script src="../_static/language_data.js"></script>
+    <script src="../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../intro.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/logo.png" class="logo__image only-light" alt="NanoFASE - Home"/>
+    <img src="../_static/logo.png" class="logo__image only-dark pst-js-only" alt="NanoFASE - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../intro.html">
+                    The NanoFASE model
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/building-the-model.html">Building the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/running-the-model.html">Runing the model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started/test-scenario.html">Test scenario</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Users</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="input-data.html">Input data</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="nanofase-data.html">Compiling data with the NanoFASE data module</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Flow direction and DEM conditioning</a></li>
+<li class="toctree-l2"><a class="reference internal" href="netcdf-namelist-input.html">NetCDF and namelist input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="parameter-reference.html">Model parameter reference</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="output.html">Data output</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example-workflows.html">Example workflows</a></li>
+<li class="toctree-l1"><a class="reference internal" href="temporal-period.html">Running the model for different temporal periods</a></li>
+<li class="toctree-l1"><a class="reference internal" href="batch.html">Batch runs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="checkpointing.html">Checkpointing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="jasmin.html">Running the model on JASMIN</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speeding-up-model-runs.html">Speeding up model runs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="common-errors.html">Common issues and errors</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Theory</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../theory/intro.html">Model theory</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../theory/conceptual-structure.html">Conceptual structure</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developers</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../developers/conventions.html">Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developers/io-units.html">Input/output units</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../references.html">References</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/nerc-ceh/nanofase/issues/new?title=Issue%20on%20page%20%2Fusers/flow-dir-dem-conditioning.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/users/flow-dir-dem-conditioning.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Flow direction and DEM conditioning</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directly-providing-flow-dir">Directly providing <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calculating-flow-dir-from-a-dem">Calculating <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> from a DEM</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="flow-direction-and-dem-conditioning">
+<h1>Flow direction and DEM conditioning<a class="headerlink" href="#flow-direction-and-dem-conditioning" title="Link to this heading">#</a></h1>
+<p>The model routes water by using a flow direction raster, which uses standard eight-direction (D8) flow direction enconding. In <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>, this flow direction can either be provided by the <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> parameter, or <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> can attempt to deduce it from a digital elevation model (DEM) provided by the <code class="docutils literal notranslate"><span class="pre">dem</span></code> parameter.</p>
+<div class="important admonition">
+<p class="admonition-title"><code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> or <code class="docutils literal notranslate"><span class="pre">dem</span></code> as a basis for the grid</p>
+<p>Either the <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code>, or if <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> isn’t present, the <code class="docutils literal notranslate"><span class="pre">dem</span></code> variable, is used as the basis for the grid that defines the NetCDF file output by <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>. That is, parameters such as the CRS, bounds, resolution and mask are obtained from this variable. <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> does not do any reprojection of rasters from other grid systems (therefore, all provided rasters should be the same CRS and resolution), but it does clip rasters to the extent of <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code>/<code class="docutils literal notranslate"><span class="pre">dem</span></code>. This clipping includes masking over nodata values in <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code>/<code class="docutils literal notranslate"><span class="pre">dem</span></code>, and therefore it is one of these variable that decides which grid cells are modelled.</p>
+</div>
+<section id="directly-providing-flow-dir">
+<h2>Directly providing <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code><a class="headerlink" href="#directly-providing-flow-dir" title="Link to this heading">#</a></h2>
+<figure class="align-right">
+<img alt="../_images/flowdir.gif" src="../_images/flowdir.gif" />
+</figure>
+<p>If the <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> variable is present in <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>’s config, this will be used as the flow direction (regardless of whether <code class="docutils literal notranslate"><span class="pre">dem</span></code> is present). This variable should be a raster (openable by <a class="reference external" href="https://rasterio.readthedocs.io/en/latest/index.html">Rasterio</a>) and have an integer data type with either D8 values or nodata values.</p>
+<p>This flow direction <em>must</em> be resolved, otherwise running the model with it will fail. By resolved, we mean that all non-masked (nodata) cells must have a non-zero D8 value (1, 2, 4, 8, 16, 32, 64, 128), and that these values must not result in “pools” where cells flow into each other (e.g. neighbouring cells with the northerly cell having <code class="docutils literal notranslate"><span class="pre">flow_dir=4</span></code> and a southerly cell having <code class="docutils literal notranslate"><span class="pre">flow_dir=64</span></code>).</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> group in the config file must contain a <code class="docutils literal notranslate"><span class="pre">path</span></code>, and optionally a <code class="docutils literal notranslate"><span class="pre">crs</span></code> value. The CRS is usually deduced from the provided raster, but in the case of rasters with ill-defined CRSs, the <code class="docutils literal notranslate"><span class="pre">crs</span></code> option gives the ability to override this. Note that this <em>does not</em> reproject the raster to this CRS, it simply assigns the CRS to the raster.</p>
+</section>
+<section id="calculating-flow-dir-from-a-dem">
+<h2>Calculating <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> from a DEM<a class="headerlink" href="#calculating-flow-dir-from-a-dem" title="Link to this heading">#</a></h2>
+<p>Alternatively, if the <code class="docutils literal notranslate"><span class="pre">dem</span></code> variable is present and <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> is not, the model will <em>attempt</em> to deduce the flow direction from this DEM. To achieve this, either a <em>conditioned</em> DEM should be provided, or the config option <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> must be present to instruct <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> to attempt to condition the DEM.</p>
+<p>By <em>conditioned</em>, we mean that no pits, depressions or flats should be present in the DEM, as these will prevent a fully-resolved flow direction from being calculated. If an unconditioned DEM is provided (and the <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> option is not specified), <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> will raise an error. There are <a class="reference external" href="https://mattbartos.com/pysheds/">numerous</a> <a class="reference external" href="https://richdem.readthedocs.io/">tools</a> <a class="reference external" href="https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html">available</a> that can help condition DEMs.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> is present, <code class="docutils literal notranslate"><span class="pre">nfdata</span></code> will attempt to condition the DEM using <a class="reference external" href="https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#BreachDepressionsLeastCost">Whitebox Tools’ <code class="docutils literal notranslate"><span class="pre">breach_depressions_least_cost</span></code> routine</a>. This is a fairly robust tool that is usually able to resolve most DEMs without significant alterations, but it might not work in all cases. <code class="docutils literal notranslate"><span class="pre">condition_dem</span></code> can either be <code class="docutils literal notranslate"><span class="pre">True</span></code>, or be a dict of further config options:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">condition_dem</span><span class="p">:</span>
+<span class="w">  </span><span class="c1"># If `save_dem_to_path` is set, the conditioned DEM will be saved to this path</span>
+<span class="w">  </span><span class="c1"># (even if the conditioning hasn't fully worked). If not, a temporary directory</span>
+<span class="w">  </span><span class="c1"># is used and the resulting DEM is deleted after the processing.</span>
+<span class="w">  </span><span class="nt">save_dem_to_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./dem.tif</span>
+<span class="w">  </span><span class="c1"># Additional config options specified here will be passed to `breach_depressions_least_cost`</span>
+<span class="w">  </span><span class="c1"># See https://www.whiteboxgeo.com/manual/wbt_book/available_tools/hydrological_analysis.html#BreachDepressionsLeastCost</span>
+<span class="w">  </span><span class="c1"># If a value for `callback` is provided, it is ignored as we implement our own callback to</span>
+<span class="w">  </span><span class="c1"># deal with errors. The only required (by Whitebox) parameter is `dist`, which specifies</span>
+<span class="w">  </span><span class="c1"># the maximum search distance for breach paths in cells. The default value used in nfdata is 10000.</span>
+<span class="w">  </span><span class="nt">dist</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10000</span>
+</pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Currently, <code class="docutils literal notranslate"><span class="pre">nfdata</span></code>’s flow direction algorithm assumes that nodata (masked) cells and cells immediately outside of the DEM’s bounding box are at a very low elevation, therefore forcing the flow direction from neighbouring cells towards them. Effectively, this means that nodata cells and the region outside of the DEM are treated as waterbodies into which neighbouring cell drain. Therefore, we only recommend to use this flow direction calculation functionality if this is a valid assumption for your scenario, otherwise you should provide a pre-resolved flow direction raster.</p>
+</div>
+</section>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./users"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="nanofase-data.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Compiling data with the NanoFASE data module</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="netcdf-namelist-input.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">NetCDF and namelist input data</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#directly-providing-flow-dir">Directly providing <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#calculating-flow-dir-from-a-dem">Calculating <code class="docutils literal notranslate"><span class="pre">flow_dir</span></code> from a DEM</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Sam Harrison
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2024.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=55c26ed414f5f8a31ebb"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=55c26ed414f5f8a31ebb"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
